@@ -1,6 +1,12 @@
 """Expand the observations nested under each defect row."""
 
-from kg_build_system import Definition, Stage, StageOptions, computed_field
+from kg_build_system import (
+    Definition,
+    Omitted,
+    Stage,
+    StageOptions,
+    computed_field,
+)
 
 from reference_project.relation.derived.defects.relation import Defects
 
@@ -20,11 +26,18 @@ class ObservationRows(Stage(defect_rows)):
         ),
     )
 
-    survey_id = computed_field(defect_rows.shape.survey_id)
-    defect_id = computed_field(defect_rows.shape.defect_id)
+    survey_id = computed_field(defect_rows.shape.survey_id, meaning=Omitted)
+    defect_id = computed_field(defect_rows.shape.defect_id, meaning=Omitted)
     observation_uid = computed_field(
-        observation.extract(lambda value: value.observation_uid)
+        observation.extract(lambda value: value.observation_uid),
+        meaning=Omitted,
     )
-    value = computed_field(observation.extract(lambda value: value.value))
-    observed_by = computed_field(observation.extract(lambda value: value.observed_by))
-    observed_on = computed_field(observation.extract(lambda value: value.observed_on))
+    value = computed_field(
+        observation.extract(lambda value: value.value), meaning=Omitted
+    )
+    observed_by = computed_field(
+        observation.extract(lambda value: value.observed_by), meaning=Omitted
+    )
+    observed_on = computed_field(
+        observation.extract(lambda value: value.observed_on), meaning=Omitted
+    )

@@ -45,6 +45,18 @@ def _governance_dto(value: AssetGovernance) -> AssetGovernanceDTO:
     )
 
 
+def _meaning_dto(value: Any) -> Any:
+    from kg_build_system.distribution.languages.meaning.model.public import (
+        is_omitted,
+        require_declaration_meaning,
+    )
+
+    if value is None:
+        return None
+    meaning = require_declaration_meaning(value)
+    return None if meaning is None else meaning_to_dto(meaning)
+
+
 def _profile_dto(value: AssetProfile) -> AssetProfileDTO:
     return AssetProfileDTO(
         subject=value.subject,
@@ -76,10 +88,7 @@ def asset_to_dto(value: type[Asset]) -> AssetDTO:
         version=options.version,
         layout=None if options.layout is None else _layout_dto(options.layout),
         profile=_profile_dto(options.profile),
-        meaning=(
-            None if options.meaning is None
-            else meaning_to_dto(options.meaning)
-        ),
+        meaning=_meaning_dto(options.meaning),
         governance=_governance_dto(options.governance),
         annotations=annotation_dtos(options.annotations),
     )

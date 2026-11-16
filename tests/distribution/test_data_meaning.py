@@ -29,6 +29,7 @@ from kg_build_system.distribution.languages.meaning.model.public import (
     Meaning,
 )
 from .support import TestEstate
+from kg_build_system import Omitted
 
 
 def _meaning(label: str) -> Meaning:
@@ -61,8 +62,8 @@ class Site(SourceRelation[TestEstate]):
     )
 
     site_id: Field[str] = field(meaning=_meaning("field"))
-    unmarked: Field[str] = field()
-    address: Field[SiteAddress] = field()
+    unmarked: Field[str] = field(meaning=Omitted)
+    address: Field[SiteAddress] = field(meaning=Omitted)
 
 
 class SiteDerivedRelation(DerivedRelation(Site.row_source())):

@@ -55,7 +55,8 @@ def _meaning_source(
     value: Any, imports: set[str], indent: str,
 ) -> list[str]:
     if value is None:
-        return []
+        imports.add("from kg_build_system import Omitted")
+        return [f"{indent}meaning=Omitted,"]
     from kg_build_system.distribution.languages.meaning.service.internal import (
         render_meaning,
     )
@@ -165,6 +166,9 @@ def _declaration_source(
         lines.extend(_contract_source(
             definition, value.meaning, imports, "        ",
         ))
+    elif contract:
+        imports.add("from kg_build_system import Omitted")
+        lines.append("        contract=Omitted,")
     else:
         lines.extend(_meaning_source(value.meaning, imports, "        "))
     lines.append("    )")

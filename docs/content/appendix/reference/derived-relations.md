@@ -24,7 +24,7 @@ A derived relation names one row plan, publishes typed outputs computed from tha
 | --- | --- |
 | Pin a relation or derived plan | `class R(DerivedRelation(source))` |
 | State the relation's promise | `options = DerivedRelationOptions(contract=Contract(definition=..., meaning=...))` |
-| Publish an output | `computed_field(selection, definition=FieldDefinition(...), name=..., description=..., annotations=...)` |
+| Publish an output | `computed_field(selection, definition=FieldDefinition(...), name=..., meaning=..., annotations=...)` |
 | Read the derived relation as a relation | `R.row_source()` |
 | Keep one step private | `class DefectCauseStage(Stage(source))` with `options = StageOptions(definition=...)` |
 
@@ -37,12 +37,12 @@ The examples use these declarations:
 ```python
 from kg_build_system import (
     Array, Claim, Contract, Definition, Field, FieldDefinition, Meaning,
-    SourceRelation, SourceRelationOptions, Struct, field,
+    Omitted, SourceRelation, SourceRelationOptions, Struct, field,
 )
 
 
 class ContactStruct(Struct):
-    email: Field[str] = field()
+    email: Field[str] = field(meaning=Omitted)
 
 
 from estate.assets import Estate
@@ -56,18 +56,23 @@ class SiteSourceRelation(SourceRelation[Estate]):
     )
     site_id: Field[str] = field(
         definition=FieldDefinition(value="the site's stable identifier"),
+        meaning=Omitted,
     )
     name: Field[str] = field(
         definition=FieldDefinition(value="the site's display name"),
+        meaning=Omitted,
     )
     region_id: Field[str] = field(
         definition=FieldDefinition(value="the region the site belongs to"),
+        meaning=Omitted,
     )
     tags: Field[Array[str]] = field(
         definition=FieldDefinition(value="the site's tags"),
+        meaning=Omitted,
     )
     contacts: Field[Array[ContactStruct]] = field(
         definition=FieldDefinition(value="the site's contact records"),
+        meaning=Omitted,
     )
 
 
@@ -80,9 +85,11 @@ class ReadingSourceRelation(SourceRelation[Estate]):
     )
     reading_id: Field[str] = field(
         definition=FieldDefinition(value="the reading's stable identifier"),
+        meaning=Omitted,
     )
     site_id: Field[str] = field(
         definition=FieldDefinition(value="the site the reading belongs to"),
+        meaning=Omitted,
     )
 ```
 
@@ -101,7 +108,7 @@ DerivedRelation(source: RowSource[S]) -> type[DerivedRelation]
 ```python
 from kg_build_system import (
     Claim, Contract, Definition, DerivedRelation, DerivedRelationOptions,
-    FieldDefinition, Meaning, Purpose, computed_field,
+    FieldDefinition, Meaning, Omitted, Purpose, computed_field,
 )
 
 
@@ -120,10 +127,12 @@ class SiteDerivedRelation(DerivedRelation(SiteSourceRelation.row_source())):
     site_id = computed_field(
         SiteSourceRelation.site_id.alter_rows().drop_null(),
         definition=FieldDefinition(value="the site's stable identifier"),
+        meaning=Omitted,
     )
     label = computed_field(
         SiteSourceRelation.name.alter_rows().drop_null().prepend("site::"),
         definition=FieldDefinition(value="the site's display label"),
+        meaning=Omitted,
     )
 ```
 
@@ -133,7 +142,7 @@ A derived relation is final and terminal. It may not inherit from another final 
 
 | Member | Returns | Use |
 | --- | --- | --- |
-| `options` | `DerivedRelationOptions` | Identity, description, annotations and the contract |
+| `options` | `DerivedRelationOptions` | Identity, annotations and the contract |
 | `row_source()` | `RelationRowSource[Any]` | Read the derived relation as a relation |
 
 | Error | Trigger |
@@ -173,8 +182,8 @@ def computed_field[T: DeclaredValue] (
     *,
     definition: FieldDefinition | None = None,
     name: str | None = None,
-    description: str | None = None,
     annotations: Sequence[Annotation] = (),
+    meaning: Meaning | type[Omitted],
 ) -> Field[T]: ...
 ```
 
@@ -185,8 +194,8 @@ Declares one output. `value` is a selection; the output is typed by its logical 
 | `value` | `Selection[T]` | The output selection | Required |
 | `definition` | `FieldDefinition or None` | What the output, its unit and its absence mean | `None`; state it wherever the name and type cannot answer |
 | `name` | `str or None` | External output name | Snake case of the attribute; one trailing `_` is removed |
-| `description` | `str or None` | Output description | The string below the assignment |
 | `annotations` | `Sequence[Annotation]` | Portable output metadata | `()` |
+| `meaning` | `Meaning or Omitted` | The output's own meaning, or the explicit opt-out | Required |
 
 ```python
 class SiteOutputDerivedRelation(DerivedRelation(SiteSourceRelation.row_source())):
@@ -195,10 +204,12 @@ class SiteOutputDerivedRelation(DerivedRelation(SiteSourceRelation.row_source())
         SiteSourceRelation.site_id.alter_rows().drop_null(),
         name="site_id",
         definition=FieldDefinition(value="the site's stable identifier"),
+        meaning=Omitted,
     )
     region_id = computed_field(
         SiteSourceRelation.region_id,
         definition=FieldDefinition(value="the region the site belongs to"),
+        meaning=Omitted,
     )
 ```
 
@@ -244,10 +255,12 @@ class SiteReadingDerivedRelation(DerivedRelation(joined)):
         joined.shape.left.extract(lambda left: left.site_id)
         .alter_rows().drop_null(),
         definition=FieldDefinition(value="the site's stable identifier"),
+        meaning=Omitted,
     )
     reading_id = computed_field(
         joined.shape.right.extract(lambda right: right.reading_id),
         definition=FieldDefinition(value="the reading's stable identifier"),
+        meaning=Omitted,
     )
 ```
 
@@ -268,6 +281,7 @@ class SiteWithRegionDerivedRelation(DerivedRelation(SiteSourceRelation.row_sourc
     site_id = computed_field(
         SiteSourceRelation.site_id.alter_rows().drop_null(),
         definition=FieldDefinition(value="the site's stable identifier"),
+        meaning=Omitted,
     )
 
     region_name = computed_field(
@@ -278,6 +292,7 @@ class SiteWithRegionDerivedRelation(DerivedRelation(SiteSourceRelation.row_sourc
         .alter_rows().expand()
         .extract(lambda region: region.name),
         definition=FieldDefinition(value="the region's display name"),
+        meaning=Omitted,
     )
 ```
 
@@ -293,6 +308,7 @@ class ContactDerivedRelation(DerivedRelation(SiteSourceRelation.row_source())):
     site_id = computed_field(
         SiteSourceRelation.site_id.alter_rows().drop_null(),
         definition=FieldDefinition(value="the site's stable identifier"),
+        meaning=Omitted,
     )
     email = computed_field(
         SiteSourceRelation.contacts.alter_rows().drop_null()
@@ -300,6 +316,7 @@ class ContactDerivedRelation(DerivedRelation(SiteSourceRelation.row_source())):
         .extract(lambda contact: contact.email)
         .alter_rows().drop_null(),
         definition=FieldDefinition(value="the contact's email address"),
+        meaning=Omitted,
     )
 ```
 
@@ -312,7 +329,8 @@ A stage is a private step inside one derived relation:
 ```python
 # relation/derived/defect_relation/_stage_cause.py
 from kg_build_system import (
-    Definition, FieldDefinition, Stage, StageOptions, computed_field,
+    Definition, FieldDefinition, Omitted, Stage, StageOptions,
+    computed_field,
 )
 
 
@@ -326,10 +344,12 @@ class DefectCauseStage(Stage(DefectSourceRelation.row_source())):
     defect_id = computed_field(
         DefectSourceRelation.defect_id.alter_rows().drop_null(),
         definition=FieldDefinition(value="the defect's stable identifier"),
+        meaning=Omitted,
     )
     cause_id = computed_field(
         DefectSourceRelation.cause_id.alter_rows().drop_null(),
         definition=FieldDefinition(value="the cause's stable identifier"),
+        meaning=Omitted,
     )
 ```
 
@@ -363,21 +383,30 @@ from kg_build_system import DerivedRelationOptions
 class SiteLabelDerivedRelation(DerivedRelation(SiteSourceRelation.row_source())):
     options = DerivedRelationOptions(
         name="site_label",
-        description="One row per site, with the shared display label.",
-        contract=...,
+        contract=Contract(
+            definition=Definition(
+                grain="one row per site",
+                identity=("site_id",),
+            ),
+            meaning=Meaning(
+                purpose=Purpose("Read each site's shared display label."),
+            ),
+        ),
     )
 
     site_id = computed_field(
         SiteSourceRelation.site_id.alter_rows().drop_null(),
         definition=FieldDefinition(value="the site's stable identifier"),
+        meaning=Omitted,
     )
     label = computed_field(
         SiteSourceRelation.name.alter_rows().drop_null().prepend("site::"),
         definition=FieldDefinition(value="the site's display label"),
+        meaning=Omitted,
     )
 ```
 
-The name defaults to the class name with one `DerivedRelation` suffix removed and converted to snake case, so `SiteLabelDerivedRelation` becomes `site_label`. `options.description` wins over the class docstring; description is not inherited. `options.annotations` attaches portable metadata. An explicit `computed_field(name=...)` wins over the output's snake-case attribute name.
+The name defaults to the class name with one `DerivedRelation` suffix removed and converted to snake case, so `SiteLabelDerivedRelation` becomes `site_label`. The contract carries the relation's meaning; it is not inherited. `options.annotations` attaches portable metadata. An explicit `computed_field(name=...)` wins over the output's snake-case attribute name.
 
 | Error | Trigger |
 | --- | --- |

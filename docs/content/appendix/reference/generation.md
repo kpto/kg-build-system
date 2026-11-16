@@ -75,7 +75,7 @@ kbs generate --project . --watch --debounce 500
 
 ```python
 from kg_build_system import (
-    Asset, AssetAuthority, AssetOptions, AssetProfile,
+    Asset, AssetAuthority, AssetOptions, AssetProfile, Omitted,
 )
 from kg_build_system.generation import AssetGenerationOptions, asset_generation
 from kg_build_system.generation.code_generation.builtins import (
@@ -100,6 +100,7 @@ class People(Asset):
             authority=AssetAuthority.PRIMARY,
             basis="people export",
         ),
+        meaning=Omitted,
     )
 ```
 
@@ -323,8 +324,8 @@ if result.status is GenerationStatus.STALE:
 | --- | --- |
 | `GeneratedPackage(files, nullability_notes=(), source_digest=None)` | One complete desired product |
 | `GeneratedFile(relative_path, declarations=(), exports=())` | One `.py` file and its exported names |
-| `GeneratedClass(name, fields=(), members=(), description=None, base=None, declaration_name=None, asset=None)` | A source relation, struct or group declaration; a source relation carries a `GeneratedAsset` |
-| `GeneratedField(python_name, external_name, value_type, description=None, annotations=(), nullability=Nullability.DEFAULTED, schema_path="", logical_path="")` | One `Field[T] = field(...)` member |
+| `GeneratedClass(name, fields=(), members=(), base=None, declaration_name=None, asset=None)` | A source relation, struct or group declaration; a source relation carries a `GeneratedAsset` |
+| `GeneratedField(python_name, external_name, value_type, annotations=(), nullability=Nullability.DEFAULTED, schema_path="", logical_path="")` | One `Field[T] = field(..., meaning=Omitted)` member |
 | `GeneratedMember(python_name, declaration_name)` | One named member of a generated source relation group |
 | `GeneratedAnnotation(import_module, class_name, arguments={})` | One annotation on a generated field |
 | `GeneratedAsset(module, qualname)` | The authored asset a generated source relation names as its generic argument |
@@ -393,7 +394,7 @@ Rules:
 
 ```python
 from kg_build_system import (
-    Asset, AssetAuthority, AssetOptions, AssetProfile,
+    Asset, AssetAuthority, AssetOptions, AssetProfile, Omitted,
 )
 from kg_build_system.generation import AssetGenerationOptions, asset_generation
 from kg_build_system.generation.code_generation.builtins import (
@@ -421,6 +422,7 @@ class Readings(Asset):
             authority=AssetAuthority.PRIMARY,
             basis="telemetry export",
         ),
+        meaning=Omitted,
     )
 ```
 

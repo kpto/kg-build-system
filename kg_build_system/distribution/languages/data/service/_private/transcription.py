@@ -91,7 +91,11 @@ def _data_annotations(values: Sequence[Any]) -> tuple[AnnotationDTO, ...]:
 
 
 def _meaning_dto(value: Any) -> Any:
-    if value is None:
+    from kg_build_system.distribution.languages.meaning.model.public import (
+        is_omitted,
+    )
+
+    if value is None or is_omitted(value):
         return None
     from kg_build_system.distribution.languages.meaning.service.internal import (
         meaning_to_dto,

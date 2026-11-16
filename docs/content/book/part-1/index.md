@@ -24,8 +24,8 @@ sources. `graph/` holds the record axis: the graph declaration, nodes, edges and
 properties. `relation/source/` and `relation/derived/` hold the domain axis:
 `SourceRelation` files and `DerivedRelation` packages with private stages.
 `binding/` holds the fulfilment: the statement that a published relation supplies
-a record at a stated grain, identity and coverage. `build.py` is the composition
-root; it declares nothing.
+a record at a stated grain, identity and coverage. `manifest.py` is the
+composition; it declares nothing.
 
 A build is easy to mistake for a file-writing script. Source data goes in, records come out, and the script is the only explanation of either. Part I starts from the opposite end: a build is a chain of decisions about what records exist, what they mean and how they are produced. The files are the last link in that chain, not the whole of it.
 

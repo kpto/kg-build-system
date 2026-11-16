@@ -51,13 +51,13 @@ A field declaration names a value type, never `T | None`. Presence is decided by
 
 ```python
 from kg_build_system import (
-    Array, Field, Nullable, DerivedRelation, Struct, SourceRelation, SourceRelationOptions,
-    computed_field, field,
+    Array, DerivedRelation, Field, Nullable, Omitted, SourceRelation,
+    SourceRelationOptions, Struct, computed_field, field,
 )
 
 
 class ContactStruct(Struct):
-    email: Field[str] = field()
+    email: Field[str] = field(meaning=Omitted)
 
 
 from estate.assets import Estate
@@ -65,22 +65,22 @@ from estate.assets import Estate
 class SiteSourceRelation(SourceRelation[Estate]):
     # Contract and field definitions are stated in full on Declarations.
     options = SourceRelationOptions(contract=...)
-    site_id: Field[str] = field()
-    name: Field[str] = field()
-    region_id: Field[str] = field()
-    survey_period: Field[str] = field()
-    tags: Field[Array[str]] = field()
-    labels: Field[Array[str]] = field()
-    aliases: Field[Array[Nullable[str]]] = field()
-    contact: Field[ContactStruct] = field()
-    count: Field[int] = field()
-    active: Field[bool] = field()
+    site_id: Field[str] = field(meaning=Omitted)
+    name: Field[str] = field(meaning=Omitted)
+    region_id: Field[str] = field(meaning=Omitted)
+    survey_period: Field[str] = field(meaning=Omitted)
+    tags: Field[Array[str]] = field(meaning=Omitted)
+    labels: Field[Array[str]] = field(meaning=Omitted)
+    aliases: Field[Array[Nullable[str]]] = field(meaning=Omitted)
+    contact: Field[ContactStruct] = field(meaning=Omitted)
+    count: Field[int] = field(meaning=Omitted)
+    active: Field[bool] = field(meaning=Omitted)
 
 
 class RegionSourceRelation(SourceRelation[Estate]):
     options = SourceRelationOptions(contract=...)
-    region_id: Field[str] = field()
-    name: Field[str] = field()
+    region_id: Field[str] = field(meaning=Omitted)
+    name: Field[str] = field(meaning=Omitted)
 
 
 site_id = SiteSourceRelation.site_id      # Selection[Nullable[str]]

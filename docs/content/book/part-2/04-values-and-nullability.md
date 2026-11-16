@@ -264,16 +264,16 @@ about the grain it creates.
 no key, no matching and no row multiplication.
 
 ```python
-from kg_build_system import Array, Field, SourceRelation, field
+from kg_build_system import Array, Field, Omitted, SourceRelation, field
 
 from reference_project.asset.estate import Estate
 
 
 class SiteTagRelation(SourceRelation[Estate]):
     # The contract is omitted here; the example is about the row shape.
-    site_id: Field[str] = field()
-    tags: Field[Array[str]] = field()
-    labels: Field[Array[str]] = field()
+    site_id: Field[str] = field(meaning=Omitted)
+    tags: Field[Array[str]] = field(meaning=Omitted)
+    labels: Field[Array[str]] = field(meaning=Omitted)
 
 
 paired = (

@@ -17,6 +17,7 @@ from kg_build_system.kernel.model.public.types import LogicalType
 if TYPE_CHECKING:
     from kg_build_system.distribution.languages.meaning.model.public import (
         Meaning,
+        Omitted,
     )
 
 
@@ -29,14 +30,17 @@ def require_meaning(value: object, context: str) -> Meaning | None:
     Raises:
         TypeError: when the value is not a ``Meaning`` value.
     """
-    if value is None:
-        return None
     from kg_build_system.distribution.languages.meaning.model.public import (
         Meaning,
+        is_omitted,
     )
 
+    if is_omitted(value):
+        return None
     if not isinstance(value, Meaning):
-        raise TypeError(f"{context} meaning must be a Meaning value")
+        raise TypeError(
+            f"{context} meaning must be a Meaning value or the Omitted marker"
+        )
     return value
 
 
@@ -60,7 +64,7 @@ class PropertyDeclaration:
     logical_type: LogicalType
     authoring_type: Any = None
     annotations: tuple[Annotation, ...] = ()
-    meaning: Meaning | None = None
+    meaning: Meaning | type[Omitted] | None = None
 
     @property
     def attr(self) -> str:
@@ -88,7 +92,7 @@ class ComponentMetadata:
     source: type[Any] | None = None
     target: type[Any] | None = None
     annotations: tuple[Annotation, ...] = ()
-    meaning: Meaning | None = None
+    meaning: Meaning | type[Omitted] | None = None
     abstract: bool = False
     parent: type[Any] | None = None
 

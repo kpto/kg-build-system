@@ -26,7 +26,8 @@ Read [Declare an asset](/book/part-2/03-source-and-rows) for the authoring path,
 from kg_build_system import (
     Asset, AssetAuthority, AssetGovernance, AssetLayout, AssetLicense,
     AssetOptions, AssetProfile, Claim, Contract, Definition, Field,
-    FieldDefinition, Meaning, SourceRelation, SourceRelationOptions, field,
+    FieldDefinition, Meaning, Omitted, SourceRelation, SourceRelationOptions,
+    field,
 )
 
 
@@ -66,6 +67,7 @@ class TargetSourceRelation(SourceRelation[OpenTargets]):
     )
     target_id: Field[str] = field(
         definition=FieldDefinition(value="the target's stable identifier"),
+        meaning=Omitted,
     )
 ```
 
@@ -88,11 +90,11 @@ class Asset:
     options: ClassVar[AssetOptions]
 ```
 
-Declare an asset by subclassing `Asset` and assigning exactly one `options = AssetOptions(...)` at class level. Discovery finds every concrete `Asset` subclass in a namespace. The class itself carries no name, key or description outside its options.
+Declare an asset by subclassing `Asset` and assigning exactly one `options = AssetOptions(...)` at class level. Discovery finds every concrete `Asset` subclass in a namespace. The class itself carries no name, key or meaning outside its options.
 
 ```python
 class OpenTargets(Asset):
-    options = AssetOptions(...)
+    options = AssetOptions(..., meaning=Omitted)
 ```
 
 - The class name becomes the default logical name.
@@ -146,7 +148,6 @@ AssetProfile(
     authority: AssetAuthority,
     basis: str,
     title: str | None = None,
-    description: str | None = None,
 )
 ```
 
@@ -157,7 +158,6 @@ AssetProfile(
 | `authority` | How the asset relates to the claims it supports |
 | `basis` | The method or release the data is built from |
 | `title` | Human-facing title |
-| `description` | Longer explanation |
 
 `subject`, `coverage` and `basis` must be non-empty. `profile` has no `claims` or `limitations`: those are meaning units declared through `AssetOptions(meaning=...)`. See [Asset specification](/appendix/spec/asset).
 
@@ -260,10 +260,10 @@ A concrete source relation must name exactly one asset:
 ```python
 class TargetSourceRelation(SourceRelation[OpenTargets]):
     options = SourceRelationOptions(contract=...)
-    target_id: Field[str] = field(definition=FieldDefinition(...))
+    target_id: Field[str] = field(definition=FieldDefinition(...), meaning=Omitted)
 ```
 
-`SourceRelationOptions` carries an optional relation `Contract` plus `name`, `description` and `annotations`. There is no asset option and no location, format, credential or version option.
+`SourceRelationOptions` carries a relation `Contract` or `Omitted`, plus `name` and `annotations`. There is no asset option and no location, format, credential or version option.
 
 | Error | Trigger |
 | --- | --- |
@@ -284,7 +284,7 @@ Every source relation in the blueprint carries an `AssetRef` such as `["asset", 
     )
 )
 class Estate(Asset):
-    options = AssetOptions(...)
+    options = AssetOptions(..., meaning=Omitted)
 ```
 
 `asset_generation` is a class decorator on an `Asset` subclass. It validates the class, stores the request as `_asset_generation` and does no work: it does not read a source, import a project module, invoke a provider or write a file. Discovery finds the decorated class statically and the generated product is `<package>/<asset name>`.

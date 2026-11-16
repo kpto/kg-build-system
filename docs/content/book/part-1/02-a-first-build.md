@@ -68,56 +68,59 @@ The project declares one `Graph` in `graph/graph.py`. Its meaning states the roo
 
 ## One command creates, compiles and runs
 
-The entry point is a module with a guarded main block. Its essential calls are these.
+The project states its composition in `manifest.py`. The values are declarations:
+`Blueprint` says how the semantic blueprint is built, and `Workflow` says how it
+is compiled and where it writes. Importing the module builds nothing.
 
 ```python
 from pathlib import Path
 
-from kg_build_system import compile, create_blueprint, execute
+from kg_build_system import Blueprint, Workflow
 from kg_build_system.distribution import (
     DeduplicationPlanner, FileConfiguration, FilePlanner,
     MetaGraphPlanner, Neo4jPlanner,
 )
 
-PROJECT_ROOT = Path(__file__).parent
+ROOT = Path(__file__).parent
 
+blueprint = Blueprint(namespace_path=ROOT)
 
-def _planners():
-    return (
+workflow = Workflow(
+    blueprint=blueprint,
+    planners=(
         DeduplicationPlanner(),
         FilePlanner(FileConfiguration("graph.jsonl")),
         MetaGraphPlanner(),
         Neo4jPlanner(),
-    )
-
-
-def run_reference_build() -> None:
-    output_dir = PROJECT_ROOT / "build"
-    output_dir.mkdir(exist_ok=True)
-    plan = compile(
-        blueprint=create_blueprint(namespace_path=PROJECT_ROOT),
-        planners=_planners(),
-    )
-    execute(plan, output_directory=output_dir)
-
-
-if __name__ == "__main__":
-    run_reference_build()
+    ),
+    output_directory=ROOT / "build",
+)
 ```
 
-The checked-in file also exposes `create_reference_blueprint` and `compile_reference_build` as separate functions, so the test suite can inspect the blueprint and the plan without executing.
-
-Run it from the repository root.
+The CLI finds the values by type, not by variable name, and performs the step
+named on the command line:
 
 ```console
-uv run python -m reference_project.build
+uv run kbs blueprint --project reference_project   # build and print the blueprint
+uv run kbs workflow --project reference_project    # compile and print the plan
+uv run kbs run --project reference_project         # compile and execute
 ```
 
-The command performs three calls in order. `create_blueprint(namespace_path=PROJECT_ROOT)` imports the project's modules, collects the declarations, links the reachable closure and validates the semantic model. It reads no data. `compile(blueprint=..., planners=...)` turns that model into components, steps and connections. It also reads no data. `execute(plan, output_directory=...)` opens the runtime, runs the steps and writes the outputs. It is the only call that touches the JSON files.
+Each verb stops at its boundary. `blueprint` runs `create_blueprint` and never
+compiles a plan; `workflow` compiles the plan and never executes it; `run`
+executes and prints the report document. The reference project also keeps
+`create_reference_blueprint()` and `compile_reference_build()` as optional Python
+entry points for the test suite; they are conveniences over the same values, not
+the default path.
 
-`PROJECT_ROOT` is derived from the module file rather than the process working directory, so the output path is stable when the module is run from the repository root. The `__main__` guard matters because discovery imports `build.py` as part of the project; without the guard, importing the project would start a build. The guard is not a style preference.
+`ROOT` is derived from the module file rather than the process working directory,
+so the output path is stable when the command runs from the repository root.
+Discovery skips `manifest.py`: composition is not a declaration, carries no
+meaning and never enters the graph namespace.
 
-The script discards the returned report. The durable form is `build_report.json`, which `execute` writes before returning. A caller that wants to inspect the report in memory can call `execute` directly and read `report.succeeded` and `report.published_artifacts`; the reference script chooses the file.
+The durable report is `build_report.json`, which `execute` writes before
+returning. A caller that wants the report in memory calls `execute` directly and
+reads `report.succeeded` and `report.published_artifacts`.
 
 ## The run writes six things
 
@@ -210,7 +213,7 @@ Fix the binding and run the command again. The counts return to 21 nodes and 21 
 
 The reference run proves that the public path composes: declarations become a blueprint, the blueprint becomes a sixty-step plan with ninety connections, the plan executes, and the report accounts for three publications and 21 nodes and 21 edges. The record count is small. The artifact chain is complete.
 
-It also shows where the next questions live. The run found the declarations because they are module-level values in an importable package. It ignored the `build/` directory because discovery prunes it. It imported `build.py` and relied on the guard. The next chapter explains that boundary: where declarations live, how discovery finds them, and how generated declarations enter the same namespace.
+It also shows where the next questions live. The run found the declarations because they are module-level values in an importable package. It ignored the `build/` directory and the `manifest.py` because discovery prunes both. The next chapter explains that boundary: where declarations live, how discovery finds them, and how generated declarations enter the same namespace.
 
 ## Next
 

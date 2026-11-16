@@ -40,11 +40,11 @@ The plan can keep technical step names. The blueprint should not.
 - Use the domain verb for an edge: `HAS_UNIT`, `MEASURES`, `OBSERVED_DURING`. Use the SQL verb only below the binding.
 - Name a `SourceRelation` for the domain relation it supplies and a `DerivedRelation` for the grain it publishes. `Defect` is a grain; `expand_areas_elements_defects` is a recipe.
 - A `Stage` is private. Its name may be technical because no consumer reads it; if another module imports it or a binding reads it, the name has escaped the package and the published relation is missing.
-- Put a claim in `Meaning`, not in a docstring or a comment. A docstring explains to a developer; a claim is published to a consumer.
+- Put a claim in `Meaning`, not in a docstring or a comment. A declaration has no docstring; its meaning is published to a consumer.
 - A published relation must not name a record's properties, key or endpoints. A relation named for the record is the record in disguise.
-- Use descriptions for prose, labels for target names and annotations for typed payloads. They are different channels; one does not substitute for another.
+- Use meanings for prose, labels for target names and annotations for typed payloads. They are different channels; one does not substitute for another.
 - If the only explanation of a record is a chain of joins, the design has not been expressed. Add the node, edge, relation contract or claim that states the result.
-- Keep `debug_name` for display. It is not part of the identity digest and it is not a design statement.
+- Keep `name` for display. It is not part of the identity digest and it is not a design statement.
 
 ## Example
 
@@ -62,7 +62,7 @@ The design name is not cosmetic. It changes the key, the binding identity and th
 ```python
 from kg_build_system import (
     Claim, Edge, EdgeLabel, EdgeOptions, Graph, GraphOptions, Meaning, Node,
-    NodeOptions, PropertySlot, Purpose, property,
+    NodeOptions, Omitted, PropertySlot, Purpose, property,
 )
 
 
@@ -79,13 +79,13 @@ class EstateGraph(Graph):
 class Site(Node):
     options = NodeOptions(meaning=Meaning(claims=(Claim("A site is a monitored premises."),)))
 
-    name: PropertySlot[str] = property()
+    name: PropertySlot[str] = property(meaning=Omitted)
 
 
 class Unit(Node):
     options = NodeOptions(meaning=Meaning(claims=(Claim("A unit is installed equipment."),)))
 
-    name: PropertySlot[str] = property()
+    name: PropertySlot[str] = property(meaning=Omitted)
 
 
 class HasUnit(Edge[Site, Unit]):
@@ -101,7 +101,7 @@ The edge says *site has unit*. It does not say “left join equipment on site_id
 
 - The compiler checks keys, references and types, not whether a name means anything. `Row1` and `col_a` are valid names.
 - A claim is a promise, not a proof. The framework publishes it; it does not evaluate its truth.
-- A description and an annotation are not claims. Putting a statement in a docstring does not make it part of the delivered meaning.
+- A label and an annotation are not claims. Putting a statement in a comment does not make it part of the delivered meaning.
 - A label is a target-facing name, not a definition. `HAS_UNIT` does not by itself state the direction; the edge generic and the endpoints do.
 - A stage name is plan evidence. It is not a published name and must not appear in a consumer's model.
 - Good names do not rescue a wrong topology. A well-named source-shaped graph is still source-shaped.

@@ -125,8 +125,9 @@ A layout that names no supported format produces no source step. If the graph re
 
 ```python
 from kg_build_system import (
-    Asset, AssetAuthority, AssetOptions, AssetProfile, Field, SourceRelation,
-    SourceRelationGroup, SourceRelationGroupOptions, SourceRelationOptions, field,
+    Asset, AssetAuthority, AssetOptions, AssetProfile, Field, Omitted,
+    SourceRelation, SourceRelationGroup, SourceRelationGroupOptions,
+    SourceRelationOptions, field,
 )
 
 
@@ -138,17 +139,18 @@ class Estate(Asset):
             authority=AssetAuthority.PRIMARY,
             basis="estate export",
         ),
+        meaning=Omitted,
     )
 
 
 class TemperatureSourceRelation(SourceRelation[Estate]):
     options = SourceRelationOptions(contract=...)
-    station_id: Field[str] = field()
+    station_id: Field[str] = field(meaning=Omitted)
 
 
 class VibrationSourceRelation(SourceRelation[Estate]):
     options = SourceRelationOptions(contract=...)
-    device_id: Field[str] = field()
+    device_id: Field[str] = field(meaning=Omitted)
 
 
 class MechanicalSourceRelationGroup(SourceRelationGroup):
@@ -222,7 +224,7 @@ The source digest in `.kbs-generation.json` is provenance only. It is not a trac
 
 ```python
 from kg_build_system import (
-    Asset, AssetAuthority, AssetOptions, AssetProfile,
+    Asset, AssetAuthority, AssetOptions, AssetProfile, Omitted,
 )
 from kg_build_system.generation import AssetGenerationOptions, asset_generation
 from kg_build_system.generation.code_generation.builtins import (
@@ -249,6 +251,7 @@ class Estate(Asset):
             authority=AssetAuthority.PRIMARY,
             basis="estate export",
         ),
+        meaning=Omitted,
     )
 ```
 

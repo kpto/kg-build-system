@@ -32,14 +32,15 @@ except ImportError as error:  # pragma: no cover - concurrent refactor guard
     ) from error
 
 from .support import TestEstate
+from kg_build_system import Omitted
 
 
 class SiteSourceRelation(SourceRelation[TestEstate]):
-    site_id: Field[str] = field()
+    site_id: Field[str] = field(meaning=Omitted)
 
 
 class SiteNode(Node):
-    site_id: PropertySlot[str] = property()
+    site_id: PropertySlot[str] = property(meaning=Omitted)
 
 
 def _fixture() -> GraphBlueprint:

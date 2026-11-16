@@ -23,6 +23,7 @@ from kg_build_system.distribution.languages.annotations.model.public import (
     Annotation,
 )
 from kg_build_system.distribution.languages.meaning.model.public import (
+    Omitted,
     require_declaration_meaning,
 )
 from kg_build_system.kernel.model.public.types import (
@@ -107,7 +108,7 @@ class FieldMetadata:
     name: str | None = None
     annotations: tuple[Annotation, ...] = ()
     attribute: str = ""
-    meaning: Meaning | None = None
+    meaning: Meaning | type[Omitted] = Omitted
     definition: FieldDefinition | None = None
 
     def __post_init__(self) -> None:

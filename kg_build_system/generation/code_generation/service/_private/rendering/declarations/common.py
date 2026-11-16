@@ -8,7 +8,10 @@ from ..types import field_annotation
 
 def render_field(field: GeneratedField) -> str:
     annotation = f"Field[{field_annotation(field.value_type)}]"
-    arguments: list[str] = [f"name={field.external_name!r}"]
+    arguments: list[str] = [
+        f"name={field.external_name!r}",
+        "meaning=Omitted",
+    ]
     if field.annotations:
         arguments.append(
             "annotations=("
@@ -34,7 +37,14 @@ def render_class(declaration: GeneratedClass, *, options_class: str | None = Non
     base = f"({base_name})" if base_name else ""
     lines = [f"class {declaration.name}{base}:"]
     if declaration.declaration_name is not None and options_class is not None:
-        lines.append(f"    options = {options_class}(name={declaration.declaration_name!r})")
+        extra = (
+            ", contract=Omitted"
+            if options_class == "SourceRelationOptions" else ""
+        )
+        lines.append(
+            f"    options = {options_class}("
+            f"name={declaration.declaration_name!r}{extra})"
+        )
     lines.extend(render_field(field) for field in declaration.fields)
     lines.extend(render_member(member) for member in declaration.members)
     if (

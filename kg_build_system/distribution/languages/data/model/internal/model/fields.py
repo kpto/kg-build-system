@@ -10,6 +10,7 @@ from kg_build_system.kernel.model.public.types import LogicalType
 if TYPE_CHECKING:
     from kg_build_system.distribution.languages.meaning.model.public import (
         Meaning,
+        Omitted,
     )
     from ...public.fields import FieldDefinition
 
@@ -25,7 +26,7 @@ class FieldSpec:
     access_type: LogicalType
     annotations: tuple[Annotation, ...] = ()
     declaration: type[Any] | None = None
-    meaning: Meaning | None = None
+    meaning: Meaning | type[Omitted] | None = None
     definition: FieldDefinition | None = None
 
 

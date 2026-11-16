@@ -16,6 +16,7 @@ from kg_build_system import (
     Field,
     Node,
     NodeValues,
+    Omitted,
     PropertySlot,
     SourceRelation,
     SourceRelationOptions,
@@ -70,16 +71,17 @@ class DoubleAsset(Asset):
         layout=AssetLayout(
             locator="rows.csv", format="csv", selector="{table}.csv",
         ),
+        meaning=Omitted,
     )
 
 
 class DoubleRow(SourceRelation[DoubleAsset]):
-    options = SourceRelationOptions(name="double_row")
-    id: Field[int] = field(name="id")
+    options = SourceRelationOptions(name="double_row", contract=Omitted)
+    id: Field[int] = field(name="id", meaning=Omitted)
 
 
 class DoubleNode(Node):
-    value: PropertySlot[int] = property()
+    value: PropertySlot[int] = property(meaning=Omitted)
 
 
 class CoreCustomEmitterTests(unittest.TestCase):

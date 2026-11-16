@@ -172,7 +172,7 @@ duplicate rows; `all=True` keeps them.
 
 ```python
 from kg_build_system import (
-    Field, SourceRelation, SourceRelationOptions, field,
+    Field, Omitted, SourceRelation, SourceRelationOptions, field,
 )
 
 from reference_project.asset.estate import Estate
@@ -183,12 +183,12 @@ class ArchivedEquipmentSourceRelation(SourceRelation[Estate]):
     """The retired units, declared with the equipment row shape."""
 
     # The contract is omitted here; the example is about the union shape.
-    options = SourceRelationOptions(name="archived_equipment")
-    unit_ref: Field[str] = field()
-    unit_name: Field[str] = field()
-    site_id: Field[str] = field()
-    in_service: Field[bool] = field()
-    survey_period: Field[str] = field()
+    options = SourceRelationOptions(name="archived_equipment", contract=Omitted)
+    unit_ref: Field[str] = field(meaning=Omitted)
+    unit_name: Field[str] = field(meaning=Omitted)
+    site_id: Field[str] = field(meaning=Omitted)
+    in_service: Field[bool] = field(meaning=Omitted)
+    survey_period: Field[str] = field(meaning=Omitted)
 
 
 every_unit = EquipmentSourceRelation.row_source().union(
@@ -262,7 +262,7 @@ pins exactly one row source at class creation, publishes typed outputs with
 ```python
 from kg_build_system import (
     Claim, Contract, Definition, DerivedRelation, DerivedRelationOptions,
-    FieldDefinition, Limitation, Meaning, Purpose, computed_field,
+    FieldDefinition, Limitation, Meaning, Omitted, Purpose, computed_field,
 )
 
 ordered_units = site_units.order_by("on", ascending=True)
@@ -303,6 +303,7 @@ class SiteUnitRelation(DerivedRelation(ordered_units)):
         definition=FieldDefinition(
             value="The estate registry's site identifier.",
         ),
+        meaning=Omitted,
     )
     site_name = computed_field(
         ordered_units.shape.left.extract(lambda site: site.site_name),
@@ -310,6 +311,7 @@ class SiteUnitRelation(DerivedRelation(ordered_units)):
             value="The site's display name.",
             null_meaning="The register records no name for the site.",
         ),
+        meaning=Omitted,
     )
     unit_ref = computed_field(
         ordered_units.shape.right.extract(lambda unit: unit.unit_ref)
@@ -317,6 +319,7 @@ class SiteUnitRelation(DerivedRelation(ordered_units)):
         definition=FieldDefinition(
             value="The unit reference assigned by the equipment register.",
         ),
+        meaning=Omitted,
     )
     in_service = computed_field(
         ordered_units.shape.right.extract(lambda unit: unit.in_service),
@@ -324,6 +327,7 @@ class SiteUnitRelation(DerivedRelation(ordered_units)):
             value="Whether the unit is in service.",
             null_meaning="The register records no service state for the unit.",
         ),
+        meaning=Omitted,
     )
 ```
 
@@ -389,7 +393,8 @@ relation.
 ```python
 from kg_build_system import (
     Contract, Definition, DerivedRelation, DerivedRelationOptions,
-    FieldDefinition, Meaning, Purpose, Stage, StageOptions, computed_field,
+    FieldDefinition, Meaning, Omitted, Purpose, Stage, StageOptions,
+    computed_field,
 )
 
 
@@ -404,8 +409,8 @@ class SiteScoreStage(Stage(scored_sites)):
         ),
     )
 
-    site_id = computed_field(scored_sites.shape.site_id)
-    score = computed_field(scored_sites.shape.priority_scores)
+    site_id = computed_field(scored_sites.shape.site_id, meaning=Omitted)
+    score = computed_field(scored_sites.shape.priority_scores, meaning=Omitted)
 
 
 site_score_rows = SiteScoreStage.row_source()
@@ -427,7 +432,7 @@ class SiteScoreRelation(DerivedRelation(site_score_rows)):
         ),
     )
 
-    site_id = computed_field(site_score_rows.shape.site_id)
+    site_id = computed_field(site_score_rows.shape.site_id, meaning=Omitted)
     priority_score = computed_field(
         site_score_rows.shape.score,
         name="priority_score",
@@ -435,6 +440,7 @@ class SiteScoreRelation(DerivedRelation(site_score_rows)):
             value="The priority score recorded for the site.",
             unit="priority point",
         ),
+        meaning=Omitted,
     )
 ```
 

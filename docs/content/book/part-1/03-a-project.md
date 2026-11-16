@@ -74,7 +74,7 @@ reference_project/
       binding.py                site_binding
       has_unit__unit.py         has_unit_binding
     ...
-  build.py                      the composition root
+  manifest.py                   the composition: Blueprint and Workflow
   data/                         the JSON source members
   build/                        the output directory
 ```
@@ -100,11 +100,11 @@ The type checker sees the same boundary. Declarations are ordinary Python values
 
 `create_blueprint(namespace_path=ROOT)` resolves the project directory, takes its directory name as the top-level package name, puts the parent directory on the import path and imports the package and its submodules in sorted order. The import path insertion is temporary; it is removed after discovery.
 
-The walk prunes four things: a directory named `build`, a directory named `node_modules`, a directory named `__pycache__` and any directory whose name is not a Python identifier, including dotted directories. It imports each package and each Python module; an `__init__.py` is imported as its package, not as a separate module. Module order is sorted; the values within one module keep their definition order.
+The walk prunes three directories: `build`, `node_modules` and `__pycache__`, plus any directory whose name is not a Python identifier, including dotted directories. It skips the file `manifest.py`. It imports each package and each Python module; an `__init__.py` is imported as its package, not as a separate module. Module order is sorted; the values within one module keep their definition order.
 
 Pruning `build` is a circularity guard. The output directory sits inside the project, and its files are not declarations. Discovery skips it by name, so a second run cannot scan the previous run's artifacts. The same project can therefore be built repeatedly without feeding its own output back into the namespace.
 
-`build.py` is not pruned. Discovery imports it like any other module. That is why the `__main__` guard is mandatory: when the module is imported during discovery, `run_reference_build()` must not execute. The guard distinguishes "run this file as a program" from "import this project as a namespace".
+`manifest.py` is skipped by name. It is composition, not a declaration: it carries no meaning, no key and no record, and the CLI reads it directly rather than through the namespace. Skipping it is what lets the manifest import planning values without those values entering the graph.
 
 The value collector is deliberately simple. It reads `vars(module)`, skips names that start with an underscore and yields each remaining object once by object identity. Re-exporting a declaration from a package `__init__.py` is safe: the module and the package expose the same object, and the second sighting is ignored. Importing a name from another package is also safe for the same reason. The collector does not inspect a class for a registration marker or walk a class hierarchy for declarations.
 
@@ -130,7 +130,7 @@ Uniqueness is checked before reachability. Two declarations in one language that
 
 `namespace_path` accepts either a package name or a directory. A directory is resolved, its name becomes the top-level package and its parent becomes the import root. That is how `reference_project` is importable without installation: the build adds the repository root to `sys.path` for the duration of discovery.
 
-`create_blueprint()` with no argument infers the calling file's directory. That is convenient for a script that sits beside its declarations, and it is why the reference `build.py` passes `PROJECT_ROOT` explicitly: the entry point should state its namespace rather than depend on the caller's location. A script that lives outside the project must pass a path.
+`create_blueprint()` with no argument infers the calling file's directory. That is convenient for a script that sits beside its declarations, and it is why the reference `manifest.py` states `Blueprint(namespace_path=ROOT)` explicitly: composition should state its namespace rather than depend on the caller's location. A script that lives outside the project must pass a path.
 
 The alternative declaration mode is explicit bindings.
 
@@ -209,40 +209,60 @@ A source change alone does not make a product stale. The source digest is proven
 
 Generation is optional. A project can handwrite every source relation, struct and derived relation; the build sees the same public declarations and treats them identically. The decorator and the command exist to make a large source schema cheaper to transcribe, not to create a privileged kind of source.
 
-## The entry point is a composition root
+## The manifest is the composition root
 
-The declarations do not name planners or an output directory. The project's entry point does.
+The declarations do not name planners or an output directory. The project's
+manifest does.
 
 ```python
 from pathlib import Path
 
-from kg_build_system import compile, create_blueprint, execute
+from kg_build_system import Blueprint, Workflow
 from kg_build_system.distribution import FileConfiguration, FilePlanner
 
 ROOT = Path(__file__).parent
-PLANNERS = (FilePlanner(FileConfiguration("graph.jsonl")),)
 
+blueprint = Blueprint(namespace_path=ROOT)
 
-def main() -> None:
-    plan = compile(
-        blueprint=create_blueprint(namespace_path=ROOT),
-        planners=PLANNERS,
-    )
-    report = execute(plan, output_directory=ROOT / "build")
-    print(f"{report.succeeded}: {len(report.published_artifacts)} artifacts")
-
-
-if __name__ == "__main__":
-    main()
+workflow = Workflow(
+    blueprint=blueprint,
+    planners=(FilePlanner(FileConfiguration("graph.jsonl")),),
+    output_directory=ROOT / "build",
+)
 ```
 
-The composition root chooses the planner composition and the destination. This version publishes the graph records and nothing else. The reference project's version adds a deduplication planner, a meta-graph planner and a Neo4j planner, so it publishes three artifacts instead of one. Both are valid compositions. A different planner composition is a different `compile` call, not a change to the declarations. That is the boundary: the project states what the graph is; the entry point states which work should produce it.
+The key words are declaration, not result. `Blueprint(namespace_path=ROOT)` states
+what to link; it does not link. `Workflow(...)` states what to compile and where to
+write; it does not compile or execute. Importing the manifest builds nothing, so a
+command can choose the step it needs.
 
-`ROOT` is derived from the module file, so the output path does not depend on the process working directory. The namespace is explicit, so the same script works even when it is not the caller of `create_blueprint`. The output directory sits under the project and is pruned from discovery.
+The CLI reads the values by type and performs that step:
 
-Keep declarations out of `build.py`, or at least out of its module level. A declaration defined at module level in the entry point is a public value and enters the namespace; a declaration defined inside `main()` is invisible. Neither is a good home for a table or a binding. The entry point composes; the declaration modules declare.
+```console
+uv run kbs blueprint --project reference_project
+uv run kbs workflow --project reference_project
+uv run kbs run --project reference_project
+```
 
-The `print` is a convenience for a human at a terminal. The durable report is `build_report.json`, and the durable plan is `workflow_plan.json`. A script that other code depends on should return the report or write it, not parse the printed line.
+`blueprint` links and prints the blueprint document; `workflow` links, compiles and
+prints the plan; `run` compiles, executes and prints the report. The three verbs
+share the values and differ only in how far they go. A Python caller may call
+`create_blueprint`, `compile` and `execute` directly, but the manifest is the
+default entry point, and the commands are the default way to inspect one step.
+
+The reference project's version adds a deduplication planner, a meta-graph planner
+and a Neo4j planner, so it publishes three artifacts instead of one. Both are valid
+compositions. A different planner composition is a different `Workflow`, not a
+change to the declarations. That is the boundary: the project states what the graph
+is; the manifest states which work should produce it and where it lands.
+
+`ROOT` is derived from the module file, so the output path does not depend on the
+process working directory. The namespace is explicit, so the same manifest works
+even when it is not the caller of `create_blueprint`.
+
+Keep declarations out of `manifest.py`. A declaration defined there is a public
+value, and discovery skips the module, so the declaration would be silently
+invisible. The manifest composes; the declaration modules declare.
 
 ## The project is the unit of reproducibility
 

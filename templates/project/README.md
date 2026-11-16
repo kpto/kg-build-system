@@ -9,7 +9,9 @@ write your first real declaration.
 ```console
 uv sync
 uv run pytest
-uv run kbs run --project project
+uv run kbs blueprint --project project   # build and print the blueprint
+uv run kbs workflow --project project    # compile and print the plan
+uv run kbs run --project project         # compile and execute
 ```
 
 The fixture writes `build/graph.jsonl`, `build/meta_graph.json`,

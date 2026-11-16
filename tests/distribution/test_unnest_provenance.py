@@ -13,6 +13,7 @@ from kg_build_system import (
     DerivedRelationOptions,
     Field,
     Meaning,
+    Omitted,
     Purpose,
     SourceRelation,
     Struct,
@@ -28,12 +29,12 @@ from .support import TestEstate
 
 
 class Item(Struct):
-    value: Field[float] = field()
+    value: Field[float] = field(meaning=Omitted)
 
 
 class Parent(SourceRelation[TestEstate]):
-    item_id: Field[str] = field()
-    items: Field[Array[Item | None]] = field()
+    item_id: Field[str] = field(meaning=Omitted)
+    items: Field[Array[Item | None]] = field(meaning=Omitted)
 
 
 items = Parent.row_source().unnest(lambda row: row.items)
@@ -51,8 +52,8 @@ class ParentItem(DerivedRelation(items)):
         ),
     )
 
-    item_id = computed_field(items.shape.item_id.alter_rows().drop_null())
-    value = computed_field(items.shape.items.extract(lambda item: item.value))
+    item_id = computed_field(items.shape.item_id.alter_rows().drop_null(), meaning=Omitted)
+    value = computed_field(items.shape.items.extract(lambda item: item.value), meaning=Omitted)
 
 
 class UnnestProvenanceTests(unittest.TestCase):

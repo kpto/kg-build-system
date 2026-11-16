@@ -30,7 +30,7 @@ Example:
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, ClassVar, Self
 
 from kg_build_system.distribution.languages.annotations.service.internal import annotation_tuple
@@ -38,6 +38,8 @@ from kg_build_system.distribution.languages.annotations.model.public import (
     Annotation,
 )
 from kg_build_system.distribution.languages.meaning.model.public import (
+    Omitted,
+    is_omitted,
     require_declaration_meaning,
 )
 from kg_build_system.distribution.languages.asset.model.public import Asset
@@ -62,14 +64,17 @@ if TYPE_CHECKING:
 class SourceRelationOptions:
     name: str | None = None
     annotations: tuple[Annotation, ...] | list[Annotation] = ()
-    contract: Contract | None = None
+    contract: Contract | type[Omitted] = field(kw_only=True)
 
     def __post_init__(self) -> None:
         if self.name is not None and not self.name:
             raise ValueError("source relation names must be non-empty")
-        if self.contract is not None and not isinstance(self.contract, Contract):
+        if not is_omitted(self.contract) and not isinstance(
+            self.contract, Contract,
+        ):
             raise TypeError(
-                "a declared contract requires a Definition and a Meaning"
+                "a declared contract requires a Definition and a Meaning, or "
+                "contract=Omitted"
             )
         object.__setattr__(self, "annotations", annotation_tuple(self.annotations))
 
@@ -88,7 +93,7 @@ class StructOptionsTemplate:
 class StructOptions:
     name: str | None = None
     annotations: tuple[Annotation, ...] | list[Annotation] = ()
-    meaning: Meaning | None = None
+    meaning: Meaning | type[Omitted] = field(kw_only=True)
 
     def __post_init__(self) -> None:
         if self.name is not None and not self.name:
@@ -161,7 +166,9 @@ class SourceRelation[AssetT: Asset](RowSourceProvider, Shape, RowSource["SourceR
     relation without an asset parameter is refused.
     """
 
-    options: ClassVar[SourceRelationOptions] = SourceRelationOptions()
+    options: ClassVar[SourceRelationOptions] = SourceRelationOptions(
+        contract=Omitted,
+    )
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
@@ -226,7 +233,7 @@ class StructTemplate:
 class Struct(StructDeclaration):
     """A nested-record declaration composed from source-backed fields."""
 
-    options: ClassVar[StructOptions] = StructOptions()
+    options: ClassVar[StructOptions] = StructOptions(meaning=Omitted)
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
@@ -238,7 +245,7 @@ class Struct(StructDeclaration):
 class ComputedStruct(StructDeclaration):
     """A value record whose members are expression-backed type witnesses."""
 
-    options: ClassVar[StructOptions] = StructOptions()
+    options: ClassVar[StructOptions] = StructOptions(meaning=Omitted)
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)

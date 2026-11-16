@@ -33,7 +33,7 @@ evidence:
 - **R4.** `OpeningId` MUST include direction, step, and opening name, so an input and an output with one name remain distinct.
 - **R5.** `ArtifactType` MUST contain at least two concrete segments and MUST NOT contain a wildcard. `ArtifactPattern` MUST match `*` within any segment and `**` only as the final segment.
 - **R6.** `InstructionKind` MUST contain exactly one operation and one engine and MUST compare by exact equality.
-- **R7.** A binding identity digest MUST be computed from the canonical binding document with `debug_name` and `python_ref` removed. A present `debug_name` MUST prefix the digest but MUST NOT enter it.
+- **R7.** A binding identity digest MUST be computed from the canonical binding document with `name` and `python_ref` removed. A present `name` MUST prefix the digest but MUST NOT enter it.
 - **R8.** The blueprint document MUST carry top-level `graph`, `data`, `assets`, and `bindings`, with optional `graph_declaration`. The `data` member MUST expose `source_relations` and `derived_relations`; neither key MAY be named `relations` or `projections`. The plan document MUST carry `components`, `steps`, `connections`, and `provenance`. The report document MUST carry `published_artifacts`, `recovered_failures`, `unresolved_failures`, and `provenance`.
 - **R9.** A codec round trip MUST produce canonical-document equality, not original text equality. Decoding MUST NOT validate the model, and the encoder MUST preserve the omit-versus-null rule for each member.
 

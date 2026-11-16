@@ -125,6 +125,9 @@ def _options_lines(value: AssetDTO, imports: set[str]) -> list[str]:
     lines.extend(_profile_lines(value.profile, imports, indent))
     if value.meaning is not None:
         lines.extend(render_meaning_lines(value.meaning, imports, indent))
+    else:
+        imports.add("from kg_build_system import Omitted")
+        lines.append(f"{indent}meaning=Omitted,")
     lines.append(f"{indent}name={value.name!r},")
     if value.website is not None:
         lines.append(f"{indent}website={value.website!r},")

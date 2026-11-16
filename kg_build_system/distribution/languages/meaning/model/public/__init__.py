@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 from .units import (
-    Claim, Limitation, Purpose, Meaning, require_declaration_meaning,
+    Claim, Limitation, Meaning, Omitted, Purpose, is_omitted,
+    require_declaration_meaning,
 )
 
 __all__ = [
-    "Claim", "Limitation", "Purpose", "Meaning",
+    "Claim", "Limitation", "Meaning", "Omitted", "Purpose", "is_omitted",
     "require_declaration_meaning",
 ]

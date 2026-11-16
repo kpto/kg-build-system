@@ -7,6 +7,7 @@ from kg_build_system import (
     AssetAuthority,
     AssetOptions,
     AssetProfile,
+    Omitted,
 )
 from kg_build_system.generation import (
     AssetGenerationOptions,
@@ -41,6 +42,7 @@ class GenerationRequestTests(unittest.TestCase):
                     authority=AssetAuthority.PRIMARY,
                     basis="test",
                 ),
+                meaning=Omitted,
             )
 
         self.assertIs(Contracted._asset_generation, options)

@@ -5,6 +5,9 @@ from collections import deque
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from kg_build_system.distribution.languages.meaning.model.internal import (
+    MeaningDTO,
+)
 from kg_build_system.distribution.languages.annotations.model.internal.dto import (
     AnnotationDTO,
 )
@@ -91,6 +94,18 @@ def _property_dto(component: str, value: Any) -> PropertyDTO:
     )
 
 
+def _meaning_dto(value: Any) -> MeaningDTO | None:
+    from kg_build_system.distribution.languages.meaning.model.public import (
+        is_omitted,
+        require_declaration_meaning,
+    )
+
+    if value is None:
+        return None
+    meaning = require_declaration_meaning(value)
+    return None if meaning is None else meaning_to_dto(meaning)
+
+
 def _component_metadata(declaration: type[Any]) -> ComponentMetadata:
     metadata = metadata_for(declaration)
     if metadata is None:
@@ -169,10 +184,7 @@ def _edges_of(
             annotations=annotations,
             abstract=metadata.abstract,
             parent=parent,
-            meaning=(
-                None if metadata.meaning is None
-                else meaning_to_dto(metadata.meaning)
-            ),
+            meaning=_meaning_dto(metadata.meaning),
         )
     return result
 
@@ -200,10 +212,7 @@ def _nodes_of(
             annotations=annotations,
             abstract=metadata.abstract,
             parent=parent,
-            meaning=(
-                None if metadata.meaning is None
-                else meaning_to_dto(metadata.meaning)
-            ),
+            meaning=_meaning_dto(metadata.meaning),
         )
     return result
 

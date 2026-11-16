@@ -5,7 +5,13 @@ takes three correlated expansions in one row plan. The stage keeps the grain
 private; the published relation is ``Defects``.
 """
 
-from kg_build_system import Definition, Stage, StageOptions, computed_field
+from kg_build_system import (
+    Definition,
+    Omitted,
+    Stage,
+    StageOptions,
+    computed_field,
+)
 
 from reference_project.relation.source.estate.surveys import SurveysSourceRelation
 
@@ -26,13 +32,24 @@ class DefectRows(Stage(survey_rows)):
         ),
     )
 
-    survey_id = computed_field(survey_rows.shape.survey_id.alter_rows().drop_null())
-    surveyed_on = computed_field(survey_rows.shape.surveyed_on)
-    unit_ref = computed_field(element.extract(lambda value: value.unit_ref))
-    defect_id = computed_field(defect.extract(lambda value: value.defect_id))
-    title = computed_field(defect.extract(lambda value: value.title))
-    condition_rating = computed_field(
-        defect.extract(lambda value: value.condition_rating)
+    survey_id = computed_field(
+        survey_rows.shape.survey_id.alter_rows().drop_null(), meaning=Omitted
     )
-    observed_on = computed_field(defect.extract(lambda value: value.observed_on))
-    observations = computed_field(defect.extract(lambda value: value.observations))
+    surveyed_on = computed_field(survey_rows.shape.surveyed_on, meaning=Omitted)
+    unit_ref = computed_field(
+        element.extract(lambda value: value.unit_ref), meaning=Omitted
+    )
+    defect_id = computed_field(
+        defect.extract(lambda value: value.defect_id), meaning=Omitted
+    )
+    title = computed_field(defect.extract(lambda value: value.title), meaning=Omitted)
+    condition_rating = computed_field(
+        defect.extract(lambda value: value.condition_rating),
+        meaning=Omitted,
+    )
+    observed_on = computed_field(
+        defect.extract(lambda value: value.observed_on), meaning=Omitted
+    )
+    observations = computed_field(
+        defect.extract(lambda value: value.observations), meaning=Omitted
+    )

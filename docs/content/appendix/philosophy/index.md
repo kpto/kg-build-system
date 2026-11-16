@@ -53,7 +53,7 @@ The word *projection* survives only for the SQL and plan operator. The declarati
 - **Topology is the design.** A node or edge states what a record is, what it carries and which direction it points.
 - **A relation is a contract, not a pipeline step.** A `SourceRelation` states which domain relation a source supplies; a `DerivedRelation` states a published grain and its own domain meaning. A relation read by a binding should state a `Contract`; a private `Stage` composes inside it and is never a consumer contract.
 - **A published relation is record-agnostic.** It does not name a record's properties, key or endpoints. If it does, the binding is a copy and the design has collapsed onto one axis.
-- **Meaning is a language, not a comment.** Purposes, claims and limitations are published data. A description or annotation is a different channel.
+- **Meaning is a language, not a comment.** Purposes, claims and limitations are published data. A label or annotation is a different channel.
 - **The binding is the fulfilment.** It is the only declaration that imports both the relation and the record. It states whether the relation satisfies the record's purpose, at which grain and coverage, and where it falls short.
 - **Explainability is authored.** The framework preserves what you state and checks what can be checked. It cannot infer why a node exists or whether a claim is true.
 

@@ -7,6 +7,7 @@ from kg_build_system import (
     Field,
     Node,
     NodeValues,
+    Omitted,
     PropertySlot,
     SourceRelation,
     SourceRelationOptions,
@@ -239,11 +240,11 @@ class BlueprintReferenceCodecTests(unittest.TestCase):
 class BindingSymbolReferenceTests(unittest.TestCase):
     def test_a_binding_references_a_field_and_an_operation_symbol(self) -> None:
         class Row(SourceRelation[TestEstate]):
-            options = SourceRelationOptions(name="row")
-            value: Field[int] = field(name="value")
+            options = SourceRelationOptions(name="row", contract=Omitted)
+            value: Field[int] = field(name="value", meaning=Omitted)
 
         class Item(Node):
-            value: PropertySlot[int] = property()
+            value: PropertySlot[int] = property(meaning=Omitted)
 
         binding = node_binding(
             target=Item,

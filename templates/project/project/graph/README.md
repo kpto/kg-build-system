@@ -19,7 +19,8 @@ access, derived relations, or the mapping from rows to records.
 - A concrete node MUST own one directory: `node.py` and one file per edge from
   that node, named `<predicate>__<target>.py`.
 - A concrete node or edge MUST state its own purpose, claims and limitations
-  inline. A one-use expression MUST be inlined at the property or declaration.
+  inline, or `meaning=Omitted`; a `property()` MUST state its meaning or
+  `Omitted`. A one-use expression MUST be inlined at the property or declaration.
 - The declaration MUST NOT have a docstring; the meaning is its documentation.
 - A property MUST be a value on a record; it MUST NOT be a column and MUST NOT be
   a foreign key.

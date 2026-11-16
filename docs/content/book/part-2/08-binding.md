@@ -79,8 +79,8 @@ callable receives a typed row proxy, not a dictionary and not data, and returns
 ```python
 from kg_build_system import (
     Claim, Contract, Definition, EdgeValues, Field, Limitation, Meaning,
-    NodeValues, Purpose, SourceRelation, SourceRelationOptions, edge_binding,
-    field, node_binding,
+    NodeValues, Omitted, Purpose, SourceRelation, SourceRelationOptions,
+    edge_binding, field, node_binding,
 )
 
 from reference_project.asset.estate import Estate
@@ -105,11 +105,11 @@ class EquipmentSourceRelation(SourceRelation[Estate]):
             ),
         ),
     )
-    site_id: Field[str] = field()
-    unit_ref: Field[str] = field()
-    unit_name: Field[str] = field()
-    in_service: Field[bool] = field()
-    survey_period: Field[str] = field()
+    site_id: Field[str] = field(meaning=Omitted)
+    unit_ref: Field[str] = field(meaning=Omitted)
+    unit_name: Field[str] = field(meaning=Omitted)
+    in_service: Field[bool] = field(meaning=Omitted)
+    survey_period: Field[str] = field(meaning=Omitted)
 
 
 site_binding = node_binding(
@@ -252,7 +252,7 @@ estate_project/
       has_unit__unit.py
   pipeline/
   modules/
-  build.py
+  manifest.py
 ```
 
 | Directory | What it holds |
@@ -389,23 +389,23 @@ instead of letting a default decide it.
 
 Two bindings that map the same rows to the same component with the same keys,
 properties, endpoints, meaning and row plan, and with no distinguishing
-`debug_name`, are the same binding. The framework enforces that by deriving a
+`name`, are the same binding. The framework enforces that by deriving a
 content identity: the SHA-256 digest of the canonical binding document, truncated
-to sixteen hexadecimal characters, with `debug_name` and `python_ref` removed.
+to sixteen hexadecimal characters, with `name` and `python_ref` removed.
 
 The digest covers the target and kind, the build key, the edge endpoint keys, every
 property selection, the resolved endpoint components, the row-source plan, the
 binding annotations and the meaning. Change any of those and the identity changes.
 Rename a producer and it does not.
 
-`debug_name` is the human handle. It prefixes the identity string for display and
+`name` is the human handle. It prefixes the identity string for display and
 appears in the meta-graph's binding entries, but it does not enter the digest. This
 is the right split: the name helps a reader find a producer, while the content
-decides whether two producers are the same mapping. A `debug_name` distinguishes
+decides whether two producers are the same mapping. A `name` distinguishes
 producers without changing the content they produce, and it cannot carry design.
 
 Two bindings on one component with the same content and no distinguishing
-`debug_name` are refused as a duplicate blueprint symbol. That refusal is a feature.
+`name` are refused as a duplicate blueprint symbol. That refusal is a feature.
 A silent second producer would make the graph's record count depend on import order
 or on which binding the planner happened to see first. The refusal says the model
 has one mapping stated twice, and the author should keep one or change the other.

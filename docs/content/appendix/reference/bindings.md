@@ -35,8 +35,8 @@ A binding is the only place data shape and graph meaning meet. The declaration s
 
 ```python
 from kg_build_system import (
-    Claim, Contract, Definition, Edge, Field, Meaning, Node, PropertySlot,
-    SourceRelation, SourceRelationOptions, field, property,
+    Claim, Contract, Definition, Edge, Field, Meaning, Node, Omitted,
+    PropertySlot, SourceRelation, SourceRelationOptions, field, property,
 )
 
 from estate.assets import Estate
@@ -53,20 +53,20 @@ class EquipmentSourceRelation(SourceRelation[Estate]):
             ),
         ),
     )
-    site_id: Field[str] = field()
-    unit_ref: Field[str] = field()
-    unit_name: Field[str] = field()
-    in_service: Field[bool] = field()
+    site_id: Field[str] = field(meaning=Omitted)
+    unit_ref: Field[str] = field(meaning=Omitted)
+    unit_name: Field[str] = field(meaning=Omitted)
+    in_service: Field[bool] = field(meaning=Omitted)
 
 class SiteNode(Node):
-    name: PropertySlot[str] = property()
+    name: PropertySlot[str] = property(meaning=Omitted)
 
 class UnitNode(Node):
-    name: PropertySlot[str] = property()
-    in_service: PropertySlot[bool] = property()
+    name: PropertySlot[str] = property(meaning=Omitted)
+    in_service: PropertySlot[bool] = property(meaning=Omitted)
 
 class HasUnitEdge(Edge[SiteNode, UnitNode]):
-    as_at: PropertySlot[str] = property()
+    as_at: PropertySlot[str] = property(meaning=Omitted)
 ```
 
 A binding states the fulfilment in its own meaning. The examples use these two:
@@ -115,7 +115,7 @@ node_binding(
     properties: N | None = None,
     rows: RelationRowSource[S] | DerivedRowSource[S] | None = None,
     bind: Callable[[S], NodeValues[N, Any]] | None = None,
-    debug_name: str | None = None,
+    name: str | None = None,
     options: BindingOptions | None = None,
     meaning: Meaning | None = None,
 ) -> NodeBinding[N]
@@ -129,7 +129,7 @@ edge_binding(
     properties: E | None = None,
     rows: RelationRowSource[S] | DerivedRowSource[S] | None = None,
     bind: Callable[[S], EdgeValues[E, Any, Any, Any]] | None = None,
-    debug_name: str | None = None,
+    name: str | None = None,
     options: BindingOptions | None = None,
     meaning: Meaning | None = None,
     source_node: Endpoint[Any] | None = None,
@@ -146,7 +146,7 @@ edge_binding(
 | `properties` | An instance of the target with one selection per declared property |
 | `source_build_key` / `target_build_key` | Edge only: the build keys of the source and target nodes |
 | `source_node` / `target_node` | Edge only: `endpoint(...)` tokens naming concrete endpoint components |
-| `debug_name` | Optional human handle carried into the meta-graph and binding identity |
+| `name` | Optional human handle carried into the meta-graph and binding identity |
 | `options` | `BindingOptions(annotations=..., meaning=...)` |
 | `meaning` | The fulfilment, with a required `Purpose`; pass it here or in `options`, not both |
 
@@ -163,7 +163,7 @@ Both factories return a frozen binding value:
 
 | Return | Meaning |
 | --- | --- |
-| `NodeBinding[N]` | The target, key, properties, optional `debug_name`, annotations, row-source value and meaning |
+| `NodeBinding[N]` | The target, key, properties, optional `name`, annotations, row-source value and meaning |
 | `EdgeBinding[E]` | The same, plus both endpoint keys and resolved endpoint components |
 
 `compile` accepts the returned values directly. See [Compile](/appendix/reference/compile).
@@ -344,14 +344,15 @@ A token must name a concrete node that equals or descends from the declared endp
 
 ```python
 from kg_build_system import (
-    AbstractNode, Edge, Meaning, Node, PropertySlot, Purpose, endpoint, property,
+    AbstractNode, Edge, Meaning, Node, Omitted, PropertySlot, Purpose,
+    endpoint, property,
 )
 
 class DocumentedAbstractNode(AbstractNode):
-    summary: PropertySlot[str] = property()
+    summary: PropertySlot[str] = property(meaning=Omitted)
 
 class PlaceNode(DocumentedAbstractNode, Node):
-    name: PropertySlot[str] = property()
+    name: PropertySlot[str] = property(meaning=Omitted)
 
 class AssetAtPlaceEdge(Edge[DocumentedAbstractNode, DocumentedAbstractNode]):
     pass
@@ -404,9 +405,9 @@ options = BindingOptions(
 )
 ```
 
-`debug_name` is the human handle for a producer. Use it when one component has more than one binding. It appears in the meta-graph's binding entries and prefixes the binding identity; the content digest excludes it. It does not appear in failure messages. See [Annotations reference](/appendix/reference/annotations) for annotation construction and label rules.
+`name` is the human handle for a producer. Use it when one component has more than one binding. It appears in the meta-graph's binding entries and prefixes the binding identity; the content digest excludes it. It does not appear in failure messages. See [Annotations reference](/appendix/reference/annotations) for annotation construction and label rules.
 
-Two bindings targeting the same component, from the same row context, with the same values and no distinguishing `debug_name` are the same binding by identity. Compilation reports a duplicate blueprint symbol rather than treating them as two producers.
+Two bindings targeting the same component, from the same row context, with the same values and no distinguishing `name` are the same binding by identity. Compilation reports a duplicate blueprint symbol rather than treating them as two producers.
 
 ### Errors
 
@@ -447,11 +448,11 @@ A binding becomes one frozen blueprint entry containing:
 - the build key, and both endpoint keys for an edge;
 - every bound property selection;
 - the resolved endpoint components;
-- the optional `debug_name`;
+- the optional `name`;
 - the binding annotations and meaning;
 - the row-source plan when `rows=` was used.
 
-The entry's identity is the SHA-256 digest of the canonical binding document with `debug_name` and `python_ref` removed, truncated to 16 hexadecimal characters. The document covers the target, kind, keys, property selections, endpoint components and row-source plan. `debug_name` prefixes the identity string but does not enter the digest. Annotations are carried but do not distinguish otherwise identical bindings.
+The entry's identity is the SHA-256 digest of the canonical binding document with `name` and `python_ref` removed, truncated to 16 hexadecimal characters. The document covers the target, kind, keys, property selections, endpoint components and row-source plan. `name` prefixes the identity string but does not enter the digest. Annotations are carried but do not distinguish otherwise identical bindings.
 
 Binding annotations are part of the blueprint. They do not change the workflow plan. A record written by `FileExecutor` carries `_kg_binding_symbol`, the binding's identity, until a merging step removes it.
 
@@ -468,6 +469,6 @@ Bindings are discovered only as module-level values. A binding created inside a 
 - Every declared property, including inherited ones, is assigned exactly once.
 - An abstract edge side needs an `endpoint(...)` token.
 - `alter_rows().drop_null()` drops the whole row when a nullable value is null; `default_to()` keeps it.
-- Use `debug_name` when one component has several producers.
+- Use `name` when one component has several producers.
 
 For the relation a binding reads, see [Derived relations](/appendix/reference/derived-relations) and [Declarations](/appendix/reference/declarations). For the declaration the binding targets, see [Topology reference](/appendix/reference/topology). For the step that turns bindings into a plan, see [Compile](/appendix/reference/compile). For the design rationale, see [The binding is the fulfilment](/appendix/philosophy/binding-is-fulfilment).

@@ -180,7 +180,7 @@ A derived relation is a published logical relation pinned to exactly one row-sou
 ```python
 from kg_build_system import (
     Claim, Contract, Definition, DerivedRelation, DerivedRelationOptions,
-    FieldDefinition, Limitation, Meaning, Purpose, computed_field,
+    FieldDefinition, Limitation, Meaning, Omitted, Purpose, computed_field,
 )
 
 # The operation above; the existing defect grain.
@@ -224,6 +224,7 @@ class ConditionSeverityRelation(DerivedRelation(Defects.row_source())):
         definition=FieldDefinition(
             value="The survey's defect identifier.",
         ),
+        meaning=Omitted,
     )
     severity = computed_field(
         severity_rank(
@@ -233,6 +234,7 @@ class ConditionSeverityRelation(DerivedRelation(Defects.row_source())):
             value="The severity rank of the recorded condition.",
             unit="rank",
         ),
+        meaning=Omitted,
     )
 ```
 

@@ -1,6 +1,6 @@
 ---
 title: Annotations reference
-summary: Exact annotations, labels, descriptions, template annotation flow and the errors a declaration raises.
+summary: Exact annotations, labels, displayed meaning text, template annotation flow and the errors a declaration raises.
 section: reference
 perspective: reference
 order: 140
@@ -22,21 +22,21 @@ sources:
 | --- | --- | --- |
 | `Annotation` | Frozen dataclass | A stable namespace, a stable identifier and a JSON-compatible payload. |
 | `NodeLabel` / `EdgeLabel` | Framework annotation | One label string for a node or edge component. |
-| Description | Prose | `options.description` or the docstring, never a typed payload. |
+| Display text | Prose | The declaration's purpose, first claim or field definition; never a typed payload. |
 | `meaning` | Declaration fragment | An optional purpose with its limitations, plus contextless claims, attached by an options value. See [Declare meaning](/book/part-2/01-meaning-and-purpose). |
 
 Read [Declare meaning](/book/part-2/01-meaning-and-purpose) for the meaning-unit language, [Meaning specification](/appendix/spec/meaning) for the requirement and [Meaning subject](/appendix/subjects/meaning) for the views.
 
 ## Details
 
-Annotations, labels and descriptions are independent of the data: a description is prose for a reader, an annotation is a typed payload for a tool, and a label names the component in a target. See [Declare meaning](/book/part-2/01-meaning-and-purpose) for the model and [Semantic hierarchy](/appendix/philosophy/semantic-hierarchy) for the design rationale.
+Annotations and labels are independent of the data: an annotation is a typed payload for a tool, and a label names the component in a target. A display surface reads the declaration's meaning, not a separate description field. See [Declare meaning](/book/part-2/01-meaning-and-purpose) for the model and [Semantic hierarchy](/appendix/philosophy/semantic-hierarchy) for the design rationale.
 
-This page covers annotations, labels and descriptions. Meaning units (`Claim`, `Limitation`, `Purpose` and `Meaning`) are the separate meaning language; see [Declare meaning](/book/part-2/01-meaning-and-purpose) and [Meaning specification](/appendix/spec/meaning).
+This page covers annotations, labels and the text a display surface reads. Meaning units (`Claim`, `Limitation`, `Purpose` and `Meaning`) are the separate meaning language; see [Declare meaning](/book/part-2/01-meaning-and-purpose) and [Meaning specification](/appendix/spec/meaning).
 
 ```python
 from dataclasses import dataclass
 
-from kg_build_system import Annotation, NodeLabel, NodeOptions, Node
+from kg_build_system import Annotation, Node, NodeLabel, NodeOptions, Omitted
 
 @dataclass(frozen=True)
 class Provenance(Annotation):
@@ -48,7 +48,7 @@ class Provenance(Annotation):
 class SiteNode(Node):
     """A monitored site: a premises the estate maintains."""
 
-    options = NodeOptions(annotations=(NodeLabel("Site"), Provenance("bound")))
+    options = NodeOptions(annotations=(NodeLabel("Site"), Provenance("bound")), meaning=Omitted)
 ```
 
 ### `Annotation`
@@ -81,7 +81,7 @@ Keep the payload JSON-compatible and stable. Do not encode the owner, the compon
 ```python
 from dataclasses import dataclass
 
-from kg_build_system import Annotation, NodeLabel, NodeOptions
+from kg_build_system import Annotation, NodeLabel, NodeOptions, Omitted
 
 @dataclass(frozen=True)
 class SourceSystem(Annotation):
@@ -91,6 +91,7 @@ class SourceSystem(Annotation):
 
 options = NodeOptions(
     annotations=(NodeLabel("Site"), SourceSystem("estate-register")),
+    meaning=Omitted,
 )
 ```
 
@@ -121,14 +122,14 @@ A node label becomes the target's node label and an edge label its relationship 
 
 ```python
 from kg_build_system import (
-    Edge, EdgeLabel, EdgeOptions, Node, NodeLabel, NodeOptions,
+    Edge, EdgeLabel, EdgeOptions, Node, NodeLabel, NodeOptions, Omitted,
 )
 
 class SiteNode(Node):
-    options = NodeOptions(annotations=(NodeLabel("Site"),))
+    options = NodeOptions(annotations=(NodeLabel("Site"),), meaning=Omitted)
 
 class HasUnitEdge(Edge[SiteNode, SiteNode]):
-    options = EdgeOptions(annotations=(EdgeLabel("HAS_UNIT"),))
+    options = EdgeOptions(annotations=(EdgeLabel("HAS_UNIT"),), meaning=Omitted)
 ```
 
 Without a label, a component's label is its logical name: `SiteNode` defaults to `site`.
@@ -144,36 +145,25 @@ At most one label of the matching kind may appear in the effective annotations. 
 
 A wrong-kind label remains an ordinary annotation in the blueprint; it is not a label for that component.
 
-### Descriptions
+### Meaning replaces description
 
-A description is prose attached to a declaration, field or property. It is not an annotation and carries no typed payload.
+A declaration carries no `description` option. Its `Meaning` states what it is
+for and what it asserts; a display surface reads the purpose text, then the first
+claim, then the field definition's value. A free-text summary would duplicate
+that text and drift from it.
 
-| Declaration | Description source | Precedence |
-| --- | --- | --- |
-| `Node` / `Edge` | `options.description`, then the class docstring | Explicit option wins |
-| `property()` | `description=`, then the docstring directly below the assignment | Explicit argument wins |
-| `field()` | `description=`, then the docstring directly below the assignment | Explicit argument wins |
-| `computed_field()` | `description=`, then the docstring directly below the assignment | Explicit argument wins |
-| `SourceRelation`, `Struct`, `DerivedRelation`, `SourceRelationGroup` | `options.description`, then the class docstring | Explicit option wins |
+| Declaration | Display text |
+| --- | --- |
+| `Node`, `Edge`, `Asset`, `Struct`, `SourceRelation` | Purpose text, else the first claim |
+| A property or a field | Its `Meaning` purpose or first claim, else the `FieldDefinition` value |
+| `DerivedRelation` | Its contract purpose |
 
-```python
-from kg_build_system import Node, NodeOptions, PropertySlot, property
+A declaration with no meaning states `meaning=Omitted`. The blueprint records no
+meaning for it, and a display surface shows nothing rather than inventing prose.
+The graph declaration, a published contract and a binding cannot opt out.
 
-class UnitNode(Node):
-    """A monitored piece of equipment."""
-
-    options = NodeOptions(
-        description="Installed equipment held on the asset register.",
-    )
-    asset_tag: PropertySlot[str] = property()
-    """The estate feed's asset tag for the unit."""
-```
-
-A component description is own-only. A concrete component with neither its own option nor its own docstring has no description, even when its category parent is documented. A label is own-only in the same way.
-
-A property description belongs to the declaring class and travels with the inherited property. A subclass does not replace it by writing a new docstring over the inherited slot.
-
-An attribute docstring is recovered from the declaration's source when the class is created. If the source cannot be read — a class built from a string or typed into a REPL, for example — the string yields no description; `description=` always works.
+A module docstring states the file's role; it is not a declaration's meaning and
+does not become a description.
 
 ### Annotation flow
 
@@ -189,7 +179,7 @@ from dataclasses import dataclass
 
 from kg_build_system import (
     AbstractNode, Annotation, Node, NodeLabel, NodeOptions,
-    NodeOptionsTemplate, NodeTemplate, PropertySlot, property,
+    NodeOptionsTemplate, NodeTemplate, Omitted, PropertySlot, property,
 )
 
 @dataclass(frozen=True)
@@ -199,12 +189,12 @@ class Provenance(Annotation):
     stage: str
 
 class AuditedTemplate(NodeTemplate):
-    options = NodeOptionsTemplate(annotations=(Provenance("audited"),))
-    source_version: PropertySlot[str] = property()
+    options = NodeOptionsTemplate(annotations=(Provenance("audited"),), meaning=Omitted)
+    source_version: PropertySlot[str] = property(meaning=Omitted)
     """The data release the node's facts were built from."""
 
 class EquipmentNode(AbstractNode):
-    options = NodeOptions(annotations=(NodeLabel("Equipment"),))
+    options = NodeOptions(annotations=(NodeLabel("Equipment"),), meaning=Omitted)
 
 class RecordNode(AuditedTemplate, EquipmentNode, Node):
     """A recorded unit, tracked and provenanced."""
@@ -232,14 +222,14 @@ A category's own annotations are not copied down. `RecordNode` does not receive 
 | Binding | `BindingOptions(annotations=...)` |
 | Asset | `AssetOptions(annotations=...)` |
 
-A binding has no description. Use `debug_name` for its human handle and annotations for its metadata; see [Bindings reference](/appendix/reference/bindings).
+A binding has no description. Use `name` for its human handle and annotations for its metadata; see [Bindings reference](/appendix/reference/bindings).
 
 ### What consumers see
 
 | Output | Semantic content |
 | --- | --- |
 | Blueprint | Every annotation on every reached declaration, with namespace and payload |
-| `meta_graph.json` | Labels, descriptions, properties with logical types and descriptions, counts and examples |
+| `meta_graph.json` | Labels, displayed meaning text, properties with logical types and their display text, counts and examples |
 | Neo4j bundle | Effective node labels and relationship types |
 
 Only declarations the build reaches enter the blueprint: the source relations and derived relations read by a binding, the components a binding targets and their ancestors and endpoints, the structs those types use, and the sources those relations need. An annotation on an unrelated declaration is valid Python but is not published.
@@ -254,15 +244,15 @@ Only declarations the build reaches enter the blueprint: the source relations an
 | A component has two labels of its kind | `TypeError: <Class> has <n> <kind> labels in its effective annotations; a graph component carries at most one` |
 | A template uses `NodeOptions` or `EdgeOptions` | `TypeError: <Class> is a node template: its options must be NodeOptionsTemplate, which carries no identity fields` (the edge form names `EdgeOptionsTemplate`) |
 | A component uses template options | `TypeError: <Class> is a graph component declaration: declare NodeOptions, not template options` (the edge form names `EdgeOptions`) |
-| `meaning` is another non-`Meaning` value | `TypeError: <context> must be a Meaning value` |
+| `meaning` is neither a `Meaning` nor `Omitted` | `TypeError: <context> meaning must be a Meaning value or the Omitted marker` |
 
 ### What to remember
 
-- Descriptions are prose for humans; annotations are typed payloads for tools.
-- An explicit `description=` wins over the docstring; component descriptions are not inherited.
+- A declaration has no description; its `Meaning` is the text a display surface reads.
+- An annotation is a typed payload for tools; it is not a substitute for meaning.
 - An annotation is a frozen dataclass with a stable namespace and identifier; only its payload is published.
 - A node or edge carries at most one label of its kind.
 - Template annotations flow to the host in order; category annotations do not.
 - Only annotations on reached declarations enter the blueprint.
 
-For the declaration that receives a label, see [Topology reference](/appendix/reference/topology). For a binding's annotations and `debug_name`, see [Bindings reference](/appendix/reference/bindings). For the attachment forms on data declarations, see [Declarations](/appendix/reference/declarations). For the pipeline that publishes the blueprint, see [Compile](/appendix/reference/compile).
+For the declaration that receives a label, see [Topology reference](/appendix/reference/topology). For a binding's annotations and `name`, see [Bindings reference](/appendix/reference/bindings). For the attachment forms on data declarations, see [Declarations](/appendix/reference/declarations). For the pipeline that publishes the blueprint, see [Compile](/appendix/reference/compile).

@@ -12,6 +12,7 @@ from kg_build_system import (
     AssetLicense,
     AssetOptions,
     AssetProfile,
+    Omitted,
 )
 from kg_build_system.distribution.languages.annotations import Annotation
 from kg_build_system.distribution.languages.asset.model.internal import (
@@ -82,6 +83,7 @@ def _options(name: str | None = None) -> AssetOptions:
             metadata={"review": "quarterly", "tier": "reference"},
         ),
         annotations=(Owner("genomics-team"),),
+        meaning=Omitted,
     )
 
 
@@ -131,7 +133,7 @@ class AssetDeclarationTests(unittest.TestCase):
                 title="",
             )
         with self.assertRaises(TypeError):
-            AssetOptions(profile="not a profile")  # type: ignore[arg-type]
+            AssetOptions(profile="not a profile", meaning=Omitted)  # type: ignore[arg-type]
         with self.assertRaises(TypeError):
             AssetOptions(
                 profile=_profile(),

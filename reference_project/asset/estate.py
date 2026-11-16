@@ -8,6 +8,7 @@ from kg_build_system import (
     AssetLayout,
     AssetOptions,
     AssetProfile,
+    Omitted,
 )
 from kg_build_system.generation import AssetGenerationOptions, asset_generation
 from kg_build_system.generation.code_generation.builtins import (
@@ -62,4 +63,5 @@ class Estate(Asset):
                 "vibration": "readings/mechanical/vibration.json",
             },
         ),
+        meaning=Omitted,
     )

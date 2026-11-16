@@ -41,7 +41,7 @@ The blueprint has `graph` and `data` as objects, and `assets` and `bindings` as 
 | `data` | Object with `structs`, `source_relations` and `derived_relations` arrays. Each declaration carries `name`, `columns` and `annotations`; a source relation carries `asset` and an optional `definition` with its `meaning`; a derived relation carries `row_source`, `definition`, `meaning` and `visibility`; a stage is a derived relation with `visibility="internal"` and no meaning. |
 | `assets` | Array of asset objects: `name`, `website`, `version`, `layout`, `profile`, `governance`, `annotations`, optional `meaning`. |
 | `bindings` | Array of node or edge bindings. A binding carries `kind`, its target ref, `identity`, `properties`, `rows`, `annotations`, `meaning` and `mode`. |
-| `graph_declaration` | Optional object with `name`, optional `description`, and `meaning` carrying a required purpose. Omitted when the project has no graph declaration. |
+| `graph_declaration` | Optional object with `name` and `meaning` carrying a required purpose. Omitted when the project has no graph declaration. |
 
 ```json
 {
@@ -103,8 +103,7 @@ The blueprint has `graph` and `data` as objects, and `assets` and `bindings` as 
         "coverage": "one row per site",
         "authority": "primary",
         "basis": "survey",
-        "title": null,
-        "description": null
+        "title": null
       },
       "governance": {"license": null, "owner": null, "metadata": {}},
       "annotations": []
@@ -225,15 +224,15 @@ The rule is not symmetric. Some absent values are omitted, some are written as e
 | --- | --- |
 | `graph_declaration` | Omitted from the blueprint. An explicit `null` decodes to no graph declaration and is omitted on the next encode. |
 | Binding `rows` | Always written; an absent row plan is explicit `null`. |
-| Binding `debug_name`, `python_ref` | Omitted. |
+| Binding `name`, `python_ref` | Omitted. |
 | Binding `meaning` | Always written; a binding requires a meaning with a purpose. |
 | Asset `website`, `version`, `layout` | Always written; an absent value is explicit `null`. |
 | Asset `governance.license`, `governance.owner` | Always written; an absent value is explicit `null`. |
-| Asset `profile.title`, `profile.description` | Always written; an absent value is explicit `null`. |
-| Topology `parent`, `description`, `meaning` | Omitted. |
+| Asset `profile.title` | Always written; an absent value is explicit `null`. |
+| A declaration's `meaning` after `Omitted` | Omitted; the marker is authoring-only and the blueprint records no meaning. |
+| Topology `parent`, `meaning` | Omitted. |
 | Topology `labels`, `abstract`, `properties`, `annotations` | Always written. |
-| Data column `description`, `expression`, `definition` | Optional; omitted when the author states none. |
-| Data declaration `description` | Omitted. |
+| Data column `expression`, `definition` | Optional; omitted when the author states none. |
 | Data declaration `definition` | Always written for a derived relation; written for a source relation only when that source relation declares a contract. |
 | Data declaration `meaning` | Always written for a derived relation and for a source relation that declares a contract; omitted otherwise. A stage never carries one. |
 | Data declaration `visibility` | Always written for a derived relation: `"public"` for a consumer relation, `"internal"` for a stage. A source relation carries no visibility. |

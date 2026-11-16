@@ -52,6 +52,7 @@ from kg_build_system.distribution.languages.topology import (
     PropertySlot,
     property,
 )
+from kg_build_system import Omitted
 
 
 class BindingEstate(Asset):
@@ -62,20 +63,21 @@ class BindingEstate(Asset):
             authority=AssetAuthority.PRIMARY,
             basis="binding meaning fixture",
         ),
+        meaning=Omitted,
     )
 
 
 class SiteSourceRelation(SourceRelation[BindingEstate]):
-    site_id: Field[str] = field()
-    unit_ref: Field[str] = field()
+    site_id: Field[str] = field(meaning=Omitted)
+    unit_ref: Field[str] = field(meaning=Omitted)
 
 
 class SiteNode(Node):
-    site_id: PropertySlot[str] = property()
+    site_id: PropertySlot[str] = property(meaning=Omitted)
 
 
 class UnitNode(Node):
-    unit_ref: PropertySlot[str] = property()
+    unit_ref: PropertySlot[str] = property(meaning=Omitted)
 
 
 class HasUnitEdge(Edge[SiteNode, UnitNode]):

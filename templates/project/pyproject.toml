@@ -22,3 +22,5 @@ testpaths = ["tests"]
 [tool.pyright]
 include = ["project", "tests"]
 typeCheckingMode = "basic"
+venvPath = "."
+venv = ".venv"

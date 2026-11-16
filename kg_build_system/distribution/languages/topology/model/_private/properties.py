@@ -20,6 +20,7 @@ from ..internal.model.metadata import PropertyDeclaration, require_meaning
 if TYPE_CHECKING:
     from kg_build_system.distribution.languages.meaning.model.public import (
         Meaning,
+        Omitted,
     )
 
 T = TypeVar("T")
@@ -43,7 +44,7 @@ class _PropertyDeclaration(Generic[T]):
 def make_property(
     *, name: str | None = None,
     annotations: Sequence[Annotation] = (),
-    meaning: Meaning | None = None,
+    meaning: Meaning | type[Omitted],
 ) -> Any:
     """Build the descriptor assigned to a property slot."""
     if name is not None and not name:

@@ -15,10 +15,12 @@ definitions.
 
 ## Execution
 
-- A source relation MUST own one file.
+- A source relation MUST own one file and MUST state `contract=...` or
+  `contract=Omitted`.
 - A source relation MUST be declared as
   `class Sites(SourceRelation[AssetT])` with `SourceRelationOptions(...)`.
-- Fields MUST use `field(...)`; a nested record MUST be a `Struct` beside it.
+- Fields MUST use `field(...)` and MUST state `meaning=...` or `meaning=Omitted`;
+  a nested record MUST be a `Struct` beside it.
 - A field's definition MUST state the value, its unit and its null meaning; name,
   type and provenance MUST be derived, never restated.
 - A source relation read by a binding SHOULD declare a contract. The identity MUST

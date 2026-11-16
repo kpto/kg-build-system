@@ -71,7 +71,7 @@ The contract, field-definition and stage rows are normative before their release
 | `Stage` | Private computed relation with a definition and internal visibility. |
 | `SourceRelationGroup` | Named catalog of final source relations and nested groups. |
 | `StructTemplate` | Annotations-and-fields mixin that never becomes a declaration. |
-| `SourceRelationOptions` / `DerivedRelationOptions` / `StageOptions` | Name, description, annotations, and the contract or definition. |
+| `SourceRelationOptions` / `DerivedRelationOptions` / `StageOptions` | Name, annotations, and the contract or definition; a source relation states `contract=Omitted` when it publishes no contract. |
 | `Contract` | A published relation's `Definition` plus `Meaning`. |
 | `Definition` | Grain as authored text and identity as output names. |
 | `FieldDefinition` | One field's value, unit and null meaning. |

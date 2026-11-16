@@ -8,20 +8,20 @@ properties and annotations without becoming graph components, and
 Example:
     ```python
     from kg_build_system import (
-        AbstractNode, Edge, Node, PropertySlot, property,
+        AbstractNode, Edge, Node, Omitted, PropertySlot, property,
     )
 
     class AssetNode(AbstractNode):
-        summary: PropertySlot[str] = property()
+        summary: PropertySlot[str] = property(meaning=Omitted)
 
     class SiteNode(AssetNode, Node):
-        name: PropertySlot[str] = property()
+        name: PropertySlot[str] = property(meaning=Omitted)
 
     class UnitNode(Node):
-        name: PropertySlot[str] = property()
+        name: PropertySlot[str] = property(meaning=Omitted)
 
     class HasUnitEdge(Edge[SiteNode, UnitNode]):
-        since: PropertySlot[str | None] = property()
+        since: PropertySlot[str | None] = property(meaning=Omitted)
     ```
 """
 from __future__ import annotations
@@ -37,6 +37,7 @@ from kg_build_system.distribution.languages.annotations.model.public import (
 )
 from kg_build_system.distribution.languages.meaning.model.public import (
     Meaning,
+    Omitted,
 )
 from ..internal.model.metadata import ComponentMetadata, PropertyDeclaration
 from .options import (
@@ -50,21 +51,22 @@ from .values import (
 def property[T: GraphValue](  # pyright: ignore[reportInvalidTypeVarUse]
     *, name: str | None = None,
     annotations: Sequence[Annotation] = (),
-    meaning: Meaning | None = None,
+    meaning: Meaning | type[Omitted],
 ) -> PropertySlot[T]:
     """Declare a graph property accepting an authoring value of type ``T``.
 
     Assign the result to a class attribute annotated ``PropertySlot[T]``. The
-    external name defaults to the attribute in snake case. Pass ``meaning=`` to
-    attach a declaration fragment under the graph purpose.
+    external name defaults to the attribute in snake case. ``meaning=`` is
+    required: attach a ``Meaning`` or pass ``Omitted`` to state that the
+    property has none.
 
     Example:
         ```python
-        from kg_build_system import Node, PropertySlot, property
+        from kg_build_system import Node, Omitted, PropertySlot, property
 
         class SiteNode(Node):
-            name: PropertySlot[str] = property()
-            region: PropertySlot[str | None] = property()
+            name: PropertySlot[str] = property(meaning=Omitted)
+            region: PropertySlot[str | None] = property(meaning=Omitted)
         ```
     """
     from .._private.properties import make_property
@@ -131,15 +133,15 @@ class NodeTemplate(TopologyDeclarationBase):
         from kg_build_system import Node, NodeTemplate, PropertySlot, property
 
         class ProvenancedNodeTemplate(NodeTemplate):
-            source_version: PropertySlot[str] = property()
+            source_version: PropertySlot[str] = property(meaning=Omitted)
 
         class SiteNode(ProvenancedNodeTemplate, Node):
-            name: PropertySlot[str] = property()
+            name: PropertySlot[str] = property(meaning=Omitted)
         ```
     """
 
     _framework_root: ClassVar[bool] = True
-    options: ClassVar[Any] = NodeOptionsTemplate()
+    options: ClassVar[Any] = NodeOptionsTemplate(meaning=Omitted)
     _template_annotations: ClassVar[tuple[Annotation, ...]] = ()
 
 
@@ -158,7 +160,7 @@ class EdgeTemplate(TopologyDeclarationBase):
             ...
 
         class ProvenancedEdgeTemplate(EdgeTemplate):
-            source_version: PropertySlot[str] = property()
+            source_version: PropertySlot[str] = property(meaning=Omitted)
 
         class LinkedEdge(ProvenancedEdgeTemplate, Edge[SiteNode, SiteNode]):
             ...
@@ -166,7 +168,7 @@ class EdgeTemplate(TopologyDeclarationBase):
     """
 
     _framework_root: ClassVar[bool] = True
-    options: ClassVar[Any] = EdgeOptionsTemplate()
+    options: ClassVar[Any] = EdgeOptionsTemplate(meaning=Omitted)
     _template_annotations: ClassVar[tuple[Annotation, ...]] = ()
 
 
@@ -188,18 +190,18 @@ class AbstractNode(NodeSideBase):
 
     Example:
         ```python
-        from kg_build_system import AbstractNode, Node, PropertySlot, property
+        from kg_build_system import AbstractNode, Node, Omitted, PropertySlot, property
 
         class AssetNode(AbstractNode):
-            summary: PropertySlot[str] = property()
+            summary: PropertySlot[str] = property(meaning=Omitted)
 
         class SiteNode(AssetNode, Node):
-            name: PropertySlot[str] = property()
+            name: PropertySlot[str] = property(meaning=Omitted)
         ```
     """
 
     _framework_root: ClassVar[bool] = True
-    options: ClassVar[Any] = NodeOptions()
+    options: ClassVar[Any] = NodeOptions(meaning=Omitted)
 
 
 class Node(NodeSideBase):
@@ -211,16 +213,16 @@ class Node(NodeSideBase):
 
     Example:
         ```python
-        from kg_build_system import Node, PropertySlot, property
+        from kg_build_system import Node, Omitted, PropertySlot, property
 
         class SiteNode(Node):
-            name: PropertySlot[str] = property()
-            region: PropertySlot[str | None] = property()
+            name: PropertySlot[str] = property(meaning=Omitted)
+            region: PropertySlot[str | None] = property(meaning=Omitted)
         ```
     """
 
     _framework_root: ClassVar[bool] = True
-    options: ClassVar[Any] = NodeOptions()
+    options: ClassVar[Any] = NodeOptions(meaning=Omitted)
 
 
 class AbstractEdge(TopologyDeclarationBase, Generic[S_co, D_co]):
@@ -245,7 +247,7 @@ class AbstractEdge(TopologyDeclarationBase, Generic[S_co, D_co]):
     """
 
     _framework_root: ClassVar[bool] = True
-    options: ClassVar[Any] = EdgeOptions()
+    options: ClassVar[Any] = EdgeOptions(meaning=Omitted)
 
 
 class Edge(AbstractEdge[S, D], Generic[S, D]):
@@ -257,7 +259,7 @@ class Edge(AbstractEdge[S, D], Generic[S, D]):
 
     Example:
         ```python
-        from kg_build_system import Edge, Node, PropertySlot, property
+        from kg_build_system import Edge, Node, Omitted, PropertySlot, property
 
         class SiteNode(Node):
             ...
@@ -266,7 +268,7 @@ class Edge(AbstractEdge[S, D], Generic[S, D]):
             ...
 
         class HasUnitEdge(Edge[SiteNode, UnitNode]):
-            since: PropertySlot[str | None] = property()
+            since: PropertySlot[str | None] = property(meaning=Omitted)
         ```
     """
 

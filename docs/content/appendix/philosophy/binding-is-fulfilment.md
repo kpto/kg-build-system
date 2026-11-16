@@ -52,7 +52,7 @@ The first two are structural. The last two are where the meaning lives. A bindin
 - If the relation carries a meaning the record does not assert, the binding is using the wrong relation.
 - A simple binding is not a failure; a vacuous binding is. A simple binding states a real fulfilment in one sentence. A vacuous binding restates a one-to-one mapping and adds no grain, identity, coverage or meaning decision.
 - If the relation already chose the record's grain, key and properties, the design happened on the relation side. Move those decisions back to the record; the relation stays domain-level.
-- Keep `debug_name` for display. It is excluded from the identity digest, so it cannot carry the design.
+- Keep `name` for display. It is excluded from the identity digest, so it cannot carry the design.
 
 ## Example
 
@@ -68,7 +68,8 @@ The third case is the rule: the expansions belong to `Defect`, not to the bindin
 
 ```python
 from kg_build_system import (
-    BindingOptions, Claim, Limitation, Meaning, NodeValues, Purpose, node_binding,
+    BindingOptions, Claim, Limitation, Meaning, NodeValues, Purpose,
+    node_binding,
 )
 
 from estate.graph.site.node import Site
@@ -100,7 +101,7 @@ The binding states the key, the property values and the relation it reads. It do
 
 - One row produces one record. A binding cannot merge, deduplicate or rewrite records; those are planners.
 - Binding identity includes the target, key, properties, row plan, mode, annotations and meaning. Changing the fulfilment changes the identity.
-- A binding has no description. `debug_name` names it in the meta-graph; annotations record facts about it.
+- A binding has no description. `name` names it in the meta-graph; annotations record facts about it.
 - Python mode carries `{module, qualname}`, not a live callable. It is an execution mode, not a place to hide a design.
 - A same-grain direct join is legitimate only when the relation already has the record's grain. If the join creates a new grain, name it in a `DerivedRelation`.
 - The framework cannot tell whether a binding is an honest fulfilment or a second design. [Review top-down](/appendix/philosophy/review-top-down) is how that is judged.

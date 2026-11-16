@@ -12,10 +12,19 @@ publishes the graph with the meaning declared for it.
 layers, one layer directive per directory, a conformance fixture, and the
 philosophy gate. `kbs init` will copy it into a new project.
 
+A project states its composition in `manifest.py` as declarative `Blueprint` and
+`Workflow` values; importing it builds nothing. The CLI finds them by type:
+
 ```console
 cd templates/project
 uv run pytest
+uv run kbs blueprint --project project
+uv run kbs workflow --project project
+uv run kbs run --project project
 ```
+
+`create_blueprint`, `compile` and `execute` remain the Python entry points for
+tests and embedding.
 
 ## Package groups
 

@@ -5,7 +5,7 @@ from .....model._private.generated import GeneratedClass
 from .common import render_class
 
 KIND = "SourceRelation"
-IMPORTS = ("SourceRelation", "SourceRelationOptions")
+IMPORTS = ("Omitted", "SourceRelation", "SourceRelationOptions")
 
 
 def render(declaration: GeneratedClass) -> list[str]:

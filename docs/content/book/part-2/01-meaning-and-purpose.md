@@ -119,7 +119,7 @@ A `Definition` states the structural facts: the grain — what one row is — an
 
 The two relation kinds differ in what their meaning must contain. A derived relation requires a purpose, because it exists only because some use asked for that grain. A source relation may state claims only, because it describes what the source holds and the use is chosen by whoever binds it; requiring a purpose there would force the author to invent one. Neither kind may state a meaning without a definition.
 
-The contract is authored on the relation, not on its consumer. A source relation states it in `SourceRelationOptions`, a derived relation in `DerivedRelationOptions`. A `Stage` — the private intermediate relation inside one derived-relation package — states a `Definition` and no meaning, because it is not offered to anyone outside its package. [Source and rows](/book/part-2/03-source-and-rows) writes the first contract; [Derived relations](/book/part-2/05-grain-and-projections) writes the second.
+The contract is authored on the relation, not on its consumer. A source relation states it in `SourceRelationOptions`, or states `contract=Omitted` when it publishes none; a derived relation states it in `DerivedRelationOptions`. A `Stage` — the private intermediate relation inside one derived-relation package — states a `Definition` and no meaning, because it is not offered to anyone outside its package. [Source and rows](/book/part-2/03-source-and-rows) writes the first contract; [Derived relations](/book/part-2/05-grain-and-projections) writes the second.
 
 A field carries a smaller version of the same idea. `field(...)` and `computed_field(...)` accept a `FieldDefinition(value, unit, null_meaning)`: what the value is, the unit it is measured in, and what its absence denotes. A field definition never restates the source column name or the logical type, because those are the declaration itself. The detailed contract material belongs to chapter 6.
 
@@ -136,7 +136,6 @@ from kg_build_system import (
 class EstateGraph(Graph):
     options = GraphOptions(
         name="estate",
-        description="Sites and the equipment installed at them.",
         meaning=Meaning(
             purpose=Purpose(
                 text="Estate asset management.",
@@ -149,7 +148,7 @@ class EstateGraph(Graph):
     )
 ```
 
-`GraphOptions` also carries a name and a description. The name defaults to the class name in snake case. The description is prose; it is not a claim. A `Graph` is not a node, an edge or an asset, and it participates in no references. It is the project's statement of purpose, not another component in the topology.
+`GraphOptions` also carries a name. The name defaults to the class name in snake case. The graph cannot opt out of meaning: it takes no `Omitted`, because a graph without a purpose says nothing about why it exists. A `Graph` is not a node, an edge or an asset, and it participates in no references. It is the project's statement of purpose, not another component in the topology.
 
 Two graph declarations are refused. The refusal is not a namespace convenience. Two graph declarations would give the model two roots, and every local purpose would inherit that ambiguity. A project that needs a second root needs a separate graph build, not a second declaration in the same project.
 
@@ -204,7 +203,37 @@ A declaration fragment does not repeat "estate asset management". It states the 
 | Property | `property(meaning=...)` |
 | Binding | `node_binding(..., meaning=...)`, `edge_binding(..., meaning=...)`, or `BindingOptions(meaning=...)` |
 
-A `SourceRelationGroupOptions` carries no fragment, because a relation group is a catalogue rather than a blueprint part. A binding carries one fragment for the whole mapping; there are no per-property binding meanings. A binding also has no description, so `debug_name` is its human handle and annotations are its metadata.
+A `SourceRelationGroupOptions` carries no fragment, because a relation group is a catalogue rather than a blueprint part. A binding carries one fragment for the whole mapping; there are no per-property binding meanings. A binding has no separate summary; `name` is its human handle and annotations are its metadata.
+
+### Stating that there is no meaning
+
+Meaning is required at every declaration site, so an author who has nothing to
+assert states that decision explicitly:
+
+```python
+from kg_build_system import (
+    Field, Omitted, SourceRelation, SourceRelationOptions, field,
+)
+
+
+class Region(SourceRelation[Estate]):
+    options = SourceRelationOptions(name="region", contract=Omitted)
+    region_id: Field[str] = field(meaning=Omitted)
+```
+
+`Omitted` is a marker, not a meaning value. It says "the author decided there is
+nothing to state here", and it is visibly different from forgetting the argument,
+which is a `TypeError` when the declaration is created.
+
+The marker is refused where a declaration cannot opt out: the graph declaration,
+a published contract and a binding all require a real `Meaning` with a purpose. A
+`FieldDefinition` does not satisfy `meaning` either: it states what a value is,
+not what the field is for.
+
+The blueprint records no meaning for an omitted declaration. Generated source
+writes `meaning=Omitted` where a generated field states none, and
+`contract=Omitted` for a generated source relation, so regenerated declarations
+remain valid without inventing prose.
 
 Write the value at the declaration. A project helper may assemble structure such as labels, options and defaults, but it must not take purpose, claim or limitation text as parameters. If a helper composes options, it accepts a `Meaning` value and passes it through. The reader must see the declaration and its meaning in one place; a parameter that sends the reader to another module for the meaning is an adaptation, not a convenience.
 
@@ -226,7 +255,7 @@ Steps one to four are the graph axis and are read under the graph purpose. Steps
 
 A lower record fragment inherits an obligation, not text. The framework does not copy the parent's words into the child, and it does not check consistency. A syntactically valid fragment can still contradict the purpose; review catches that. A relation's purpose owes nothing to the graph purpose; the binding is where the two must agree.
 
-Structural inheritance is a separate matter. A category's label and description stay local; they do not flow to a concrete child. A template's annotations do flow, because a template is a structural mixin. A category's meaning is its own attachment and stays there. Do not assume one rule covers both mechanisms.
+Structural inheritance is a separate matter. A category's label and meaning stay local; they do not flow to a concrete child. A template's annotations do flow, because a template is a structural mixin. A category's meaning is its own attachment and stays there. Do not assume one rule covers both mechanisms.
 
 The practical consequence is that you attach the statement where it is true. A limitation about a binding's coverage belongs on the binding's purpose. A limitation about what a node kind excludes belongs on the node's purpose. A claim that holds across the graph belongs on the graph's `Meaning`. A statement about what a source relation's rows contain belongs on that relation's contract. Putting every statement at the root makes the root unreadable; putting every statement on declarations loses the one root that makes local purposes comparable.
 
@@ -256,19 +285,37 @@ The relation axis is independent of that rule. A relation contract states a grai
 
 Zero is therefore not an error and not a recommendation. A build with no graph declaration is a valid build with an unreviewable root. The right response is to declare the purpose, not to delete the claims. A claim without a purpose is a contextless statement; a purpose without a root is an unanchored use. The root is what makes the purpose tree reviewable.
 
-## A description is prose; an annotation is payload
+## Meaning, annotation and definition are different channels
 
-Four channels carry information about a declaration, and they are not substitutes.
+Three channels carry information about a declaration, and they are not
+substitutes.
 
-A **description** is prose for a human. It comes from `options.description` or a docstring, with the explicit option winning. It has no typed payload and no hierarchy. A component description is own-only: a concrete component does not inherit its category's description. A property description belongs to the declaring class and travels with the inherited slot.
+An **annotation** is a frozen dataclass with a stable namespace, a stable
+identifier and a JSON-compatible payload. `NodeLabel` and `EdgeLabel` are
+framework annotations: one label names a component for a target such as Neo4j. A
+label is not a limitation, and an annotation is not a claim. A consumer that does
+not recognise an annotation preserves it and ignores it.
 
-An **annotation** is a frozen dataclass with a stable namespace, a stable identifier and a JSON-compatible payload. `NodeLabel` and `EdgeLabel` are framework annotations: one label names a component for a target such as Neo4j. A label is not a limitation, and an annotation is not a claim. A consumer that does not recognise an annotation preserves it and ignores it.
+A **definition** is a typed structural statement: a relation's grain and identity,
+a field's value, unit and null meaning. It is not prose and not a claim; a binding
+is judged against it, which is why it lives on the declaration that owns the
+structure.
 
-A **definition** is a typed structural statement: a relation's grain and identity, a field's value, unit and null meaning. It is not prose and not a claim; a binding is judged against it, which is why it lives on the declaration that owns the structure.
+**Meaning** is the value language: purposes, limitations and claims. It has a
+required hierarchy, non-empty text and explicit attachment sites. A comment moved
+into `Meaning` does not become a claim; it becomes a claim-shaped string. A label
+moved into a `Purpose` does not become a limitation; it becomes a
+label-shaped string. The type is what makes the statement reviewable.
 
-**Meaning** is the value language: purposes, limitations and claims. It has a required hierarchy, non-empty text and explicit attachment sites. A docstring moved into `Meaning` does not become a claim; it becomes a claim-shaped string. A label moved into a `Purpose` does not become a limitation; it becomes a label-shaped string. The type is what makes the statement reviewable.
+A declaration has no `description` field. What a reader sees as prose on a node,
+an edge, an asset or a relation is its purpose, its first claim or its field
+definition, read by the display surface. There is one text to maintain, not two
+that can drift.
 
-The four channels coexist. A node can have a description for readers, a `Site` label for a target, and a meaning fragment for the contract. Removing one does not replace another. This is why "add a comment" is not an answer to a missing limitation, and why "add an annotation" is not an answer to a missing purpose.
+The three channels coexist. A node can have a `Site` label for a target, a
+definition-bearing property and a meaning fragment for the contract. This is why
+"add a comment" is not an answer to a missing limitation, and why "add an
+annotation" is not an answer to a missing purpose.
 
 ## The estate purpose, stated once
 

@@ -49,7 +49,7 @@ A published relation states a contract. A `DerivedRelation` always states one; a
 - A published relation is record-agnostic. It must not name a record's properties, key or endpoints; if it does, the binding is a copy and the design has collapsed onto one axis.
 - A stage carries a definition only. It is not a published relation, is not imported outside its package and is not a binding input; it appears in the blueprint as internal lineage.
 - A binding requires `Meaning` with a purpose. The purpose states which relation fulfils which record, at which grain, identity and coverage, and where it falls short.
-- Structural inheritance is not meaning inheritance. A category's label and description do not flow to a concrete child; a template's annotations do. Attach the concrete component's meaning explicitly.
+- Structural inheritance is not meaning inheritance. A category's label and meaning do not flow to a concrete child; a template's annotations do. Attach the concrete component's meaning explicitly.
 - The framework does not check consistency across the axes. The author makes the two sides coherent; the reviewer reads each side and then the binding.
 
 ## Example
@@ -57,8 +57,9 @@ A published relation states a contract. A `DerivedRelation` always states one; a
 ```python
 from kg_build_system import (
     BindingOptions, Claim, Contract, Definition, Field, Graph, GraphOptions,
-    Limitation, Meaning, Node, NodeOptions, NodeValues, PropertySlot, Purpose,
-    SourceRelation, SourceRelationOptions, field, node_binding, property,
+    Limitation, Meaning, Node, NodeOptions, NodeValues, Omitted,
+    PropertySlot, Purpose, SourceRelation, SourceRelationOptions, field,
+    node_binding, property,
 )
 
 from estate.asset import Estate
@@ -88,7 +89,7 @@ class Site(Node):
         ),
     )
 
-    name: PropertySlot[str] = property()
+    name: PropertySlot[str] = property(meaning=Omitted)
 
 
 class Sites(SourceRelation[Estate]):
@@ -108,8 +109,8 @@ class Sites(SourceRelation[Estate]):
         ),
     )
 
-    site_id: Field[str] = field()
-    site_name: Field[str] = field()
+    site_id: Field[str] = field(meaning=Omitted)
+    site_name: Field[str] = field(meaning=Omitted)
 
 
 site_binding = node_binding(

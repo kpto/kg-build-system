@@ -26,7 +26,7 @@ decides which row sources it accepts.
 | `SourceRelation[AssetT]` | `data/model/public/declarations.py` | An asset-backed relation. Outputs are `field(...)`. |
 | `DerivedRelation(source)` | same | A computed relation pinned to one row source. Outputs are `computed_field(...)`. |
 | `Stage(source)` | same | A private computed relation. Outputs are `computed_field(...)`. No meaning member. |
-| `SourceRelationOptions`, `DerivedRelationOptions`, `StageOptions` | same | Name, description, annotations and the contract or definition. A derived relation requires `contract`; a source relation may omit it; a stage requires `definition`. |
+| `SourceRelationOptions`, `DerivedRelationOptions`, `StageOptions` | same | Name, annotations and the contract or definition. A derived relation requires `contract`; a source relation states `contract=Omitted` when it has none; a stage requires `definition`. |
 | `SourceRelationGroup`, `SourceRelationGroupOptions` | same | A catalogue of source relations. |
 | `Contract(definition, meaning)` | `data/model/public/contract.py` | The relation's promise: `Definition` + `Meaning`. |
 | `Definition(grain, identity)` | same | Grain as authored text; identity as output names. |
@@ -38,7 +38,7 @@ decides which row sources it accepts.
 ```python
 from kg_build_system import (
     Claim, Contract, Definition, DerivedRelation, DerivedRelationOptions,
-    FieldDefinition, Limitation, Meaning, Purpose, SourceRelation,
+    FieldDefinition, Limitation, Meaning, Omitted, Purpose, SourceRelation,
     SourceRelationOptions, Stage, StageOptions, computed_field, field,
 )
 
@@ -59,12 +59,14 @@ class Target(SourceRelation[OpenTargets]):
 
     target_id: Field[str] = field(
         definition=FieldDefinition(value="Ensembl gene accession."),
+        meaning=Omitted,
     )
     symbol: Field[str] = field(
         definition=FieldDefinition(
             value="HGNC approved symbol.",
             null_meaning="The release carries no symbol for the gene.",
         ),
+        meaning=Omitted,
     )
 
 
@@ -77,7 +79,7 @@ class TargetStage(Stage(raw_rows)):
         ),
     )
 
-    source_row_id = computed_field(raw_rows.shape.row_id)
+    source_row_id = computed_field(raw_rows.shape.row_id, meaning=Omitted)
 
 
 class TargetAnnotation(DerivedRelation(TargetStage.row_source())):
@@ -100,7 +102,7 @@ class TargetAnnotation(DerivedRelation(TargetStage.row_source())):
         ),
     )
 
-    target_id = computed_field(TargetStage.target_id)
+    target_id = computed_field(TargetStage.target_id, meaning=Omitted)
 ```
 
 ## Rules

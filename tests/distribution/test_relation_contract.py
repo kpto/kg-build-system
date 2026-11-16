@@ -16,6 +16,7 @@ from kg_build_system import (
     Node,
     NodeOptions,
     NodeValues,
+    Omitted,
     PropertySlot,
     Purpose,
     SourceRelation,
@@ -54,8 +55,9 @@ class Site(SourceRelation[TestEstate]):
 
     site_id: Field[str] = field(
         definition=FieldDefinition(value="Site identifier in the register."),
+        meaning=Omitted,
     )
-    name: Field[str] = field()
+    name: Field[str] = field(meaning=Omitted)
 
 
 site_rows = Site.row_source()
@@ -72,8 +74,8 @@ class SiteStage(Stage(site_rows)):
         ),
     )
 
-    site_id = computed_field(Site.site_id)
-    name = computed_field(Site.name)
+    site_id = computed_field(Site.site_id, meaning=Omitted)
+    name = computed_field(Site.name, meaning=Omitted)
 
 
 class SiteLabel(DerivedRelation(SiteStage.row_source())):
@@ -96,23 +98,23 @@ class SiteLabel(DerivedRelation(SiteStage.row_source())):
         ),
     )
 
-    label = computed_field(SiteStage.name)
+    label = computed_field(SiteStage.name, meaning=Omitted)
 
 
 class SiteNode(Node):
     """A graph record for the binding refusal test."""
 
-    options = NodeOptions(name="site")
+    options = NodeOptions(name="site", meaning=Omitted)
 
-    name: PropertySlot[str] = property()
+    name: PropertySlot[str] = property(meaning=Omitted)
 
 
 class Bare(SourceRelation[TestEstate]):
     """A source relation without a contract."""
 
-    options = SourceRelationOptions(name="bare")
+    options = SourceRelationOptions(name="bare", contract=Omitted)
 
-    site_id: Field[str] = field()
+    site_id: Field[str] = field(meaning=Omitted)
 
 
 def _data():
@@ -154,7 +156,7 @@ class RelationContractTests(unittest.TestCase):
                     ),
                 )
 
-                label = computed_field(SiteStage.name)
+                label = computed_field(SiteStage.name, meaning=Omitted)
 
         self.assertNotIn("ClaimOnly", globals())
 
@@ -185,7 +187,7 @@ class RelationContractTests(unittest.TestCase):
                     ),
                 )
 
-                label = computed_field(SiteStage.name)
+                label = computed_field(SiteStage.name, meaning=Omitted)
 
         self.assertNotIn("MissingIdentity", globals())
 

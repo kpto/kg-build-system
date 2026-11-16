@@ -40,7 +40,7 @@ concrete asset subclasses `Asset` and assigns `options = AssetOptions(...)`:
 from pathlib import Path
 
 from kg_build_system import (
-    Asset, AssetAuthority, AssetLayout, AssetOptions, AssetProfile,
+    Asset, AssetAuthority, AssetLayout, AssetOptions, AssetProfile, Omitted,
 )
 
 DATA = Path(__file__).parent / "data"
@@ -67,6 +67,7 @@ class Estate(Asset):
                 "readings": "readings.json",
             },
         ),
+        meaning=Omitted,
     )
 ```
 
@@ -187,8 +188,8 @@ contract this framework publishes.
 
 ```python
 from kg_build_system import (
-    Claim, Contract, Definition, Field, Limitation, Meaning, Purpose,
-    SourceRelation, SourceRelationOptions, field,
+    Claim, Contract, Definition, Field, Limitation, Meaning, Omitted,
+    Purpose, SourceRelation, SourceRelationOptions, field,
 )
 
 from reference_project.asset.estate import Estate
@@ -226,8 +227,8 @@ class SitesSourceRelation(SourceRelation[Estate]):
         ),
     )
 
-    site_id: Field[str] = field()
-    site_name: Field[str] = field()
+    site_id: Field[str] = field(meaning=Omitted)
+    site_name: Field[str] = field(meaning=Omitted)
     # The premises block and the priority scores are declared with the row
     # shape below.
 ```
@@ -271,7 +272,7 @@ A relation contract describes the row. A `FieldDefinition` describes one value i
 it:
 
 ```python
-from kg_build_system import Field, FieldDefinition, SourceRelation, field
+from kg_build_system import Field, FieldDefinition, Omitted, SourceRelation, field
 
 from reference_project.asset.estate import Estate
 
@@ -282,12 +283,14 @@ class SitesSourceRelation(SourceRelation[Estate]):
             value="The estate registry's stable site identifier.",
             null_meaning="The row does not identify a site.",
         ),
+        meaning=Omitted,
     )
     site_name: Field[str] = field(
         definition=FieldDefinition(
             value="The site's display name.",
             null_meaning="The register records no name for the site.",
         ),
+        meaning=Omitted,
     )
     # The premises block and the priority scores follow the same pattern.
 ```
@@ -334,47 +337,47 @@ names to types: the class body is the row, and every field is a typed column.
 
 ```python
 from kg_build_system import (
-    Array, Field, Nullable, SourceRelation, SourceRelationOptions, Struct,
-    field,
+    Array, Field, Nullable, Omitted, SourceRelation, SourceRelationOptions,
+    Struct, field,
 )
 
 from reference_project.asset.estate import Estate
 
 
 class ContactStruct(Struct):
-    email: Field[str] = field()
-    room: Field[str] = field()
+    email: Field[str] = field(meaning=Omitted)
+    room: Field[str] = field(meaning=Omitted)
 
 
 class PremisesStruct(Struct):
-    contact_name: Field[str] = field()
-    contact: Field[ContactStruct] = field()
+    contact_name: Field[str] = field(meaning=Omitted)
+    contact: Field[ContactStruct] = field(meaning=Omitted)
 
 
 class SitesSourceRelation(SourceRelation[Estate]):
     """One row per monitored site."""
 
-    options = SourceRelationOptions(name="sites")
-    site_id: Field[str] = field()
-    site_name: Field[str] = field()
-    premises: Field[PremisesStruct] = field()
-    priority_scores: Field[Array[Nullable[int]]] = field()
+    options = SourceRelationOptions(name="sites", contract=Omitted)
+    site_id: Field[str] = field(meaning=Omitted)
+    site_name: Field[str] = field(meaning=Omitted)
+    premises: Field[PremisesStruct] = field(meaning=Omitted)
+    priority_scores: Field[Array[Nullable[int]]] = field(meaning=Omitted)
 ```
 
-`field()` accepts an external `name`, a `description`, `annotations`, a `meaning`
-and a `definition`. The external name defaults to the snake-case attribute with
-one trailing underscore removed; the description defaults to the string literal
-written directly below the assignment. A relation name defaults to the class name
+`field()` accepts an external `name`, `annotations`, a required `meaning` and a
+`definition`. The external name defaults to the snake-case attribute with one
+trailing underscore removed. The meaning is the field's own statement or
+`Omitted`; it is never defaulted. A relation name defaults to the class name
 with one `Relation` suffix removed and converted to snake case, so `SitesSourceRelation`
 becomes `sites`; `SourceRelationOptions(name=...)` states it explicitly. The name
 is unique among logical source names, and a source relation and a derived relation
 share that namespace, so a derived relation called `sites` would be refused.
 
-`SourceRelationOptions` also carries a description and portable annotations; the
-class docstring is the default description. None of that becomes a field or a graph
-property. The declaration metadata describes the relation, and the fields describe
-the row. A reader of the delivered model sees both, kept apart, so a description
-change cannot alter the shape and a new field does not rewrite the contract.
+`SourceRelationOptions` also carries portable annotations and the contract, or
+`contract=Omitted`. None of that becomes a field or a graph property. The
+declaration metadata describes the relation, and the fields describe the row. A
+reader of the delivered model sees both, kept apart, so a contract change cannot
+alter the shape and a new field does not rewrite the contract.
 
 The nested classes are not relations. `PremisesStruct` and `ContactStruct` have no
 `row_source()`, cannot be bound, and cannot be source-group members; they describe

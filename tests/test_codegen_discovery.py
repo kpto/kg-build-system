@@ -67,7 +67,8 @@ def _asset_source(
     )
     return f'''
 from kg_build_system import (
-    Asset, AssetAuthority, AssetLayout, AssetOptions, AssetProfile,
+    Asset, AssetAuthority, AssetLayout, AssetOptions, AssetProfile, Omitted,
+    Omitted,
 )
 from kg_build_system.generation import AssetGenerationOptions, asset_generation
 from kg_build_system.generation.code_generation.builtins import (
@@ -98,6 +99,7 @@ def _estate_options(locator: str = "/data/estate", *, named: bool = True) -> str
             authority=AssetAuthority.PRIMARY,
             basis="test",
         ),
+        meaning=Omitted,
         layout=AssetLayout(
             kind="json",
             locator={locator!r},
@@ -312,8 +314,14 @@ class NotAnAsset:
                 rendered = modules[0].read_text(encoding="utf-8")
                 self.assertIn("from codegen_project.assets import CodegenSample", rendered)
                 self.assertIn("class CodegenSampleSourceRelation(SourceRelation[CodegenSample]):", rendered)
-                self.assertIn("id: Field[int] = field(name='id')", rendered)
-                self.assertIn("name: Field[str] = field(name='name')", rendered)
+                self.assertIn(
+                    "id: Field[int] = field(name='id', meaning=Omitted)",
+                    rendered,
+                )
+                self.assertIn(
+                    "name: Field[str] = field(name='name', meaning=Omitted)",
+                    rendered,
+                )
                 self.assertNotIn("| None", rendered)
                 self.assertIs(
                     asyncio.run(generate(root, check=True)).status,
@@ -367,7 +375,10 @@ class CodegenNullabilityTests(unittest.TestCase):
             ),
         ))
 
-        self.assertIn("site_id: Field[str] = field(name='siteId')", rendered)
+        self.assertIn(
+            "site_id: Field[str] = field(name='siteId', meaning=Omitted)",
+            rendered,
+        )
         self.assertNotIn("| None", rendered)
 
     def test_an_array_item_keeps_its_own_nullability(self) -> None:
@@ -387,7 +398,8 @@ class CodegenNullabilityTests(unittest.TestCase):
         ))
 
         self.assertIn(
-            "labels: Field[Array[Nullable[str]]] = field(name='labels')",
+            "labels: Field[Array[Nullable[str]]] = field("
+            "name='labels', meaning=Omitted)",
             rendered,
         )
         self.assertNotIn("Field[Array[Nullable[str]] | None]", rendered)
@@ -406,7 +418,10 @@ class CodegenNullabilityTests(unittest.TestCase):
             ),
         ))
 
-        self.assertIn("label: Field[Nullable[str]] = field(name='label')", rendered)
+        self.assertIn(
+            "label: Field[Nullable[str]] = field(name='label', meaning=Omitted)",
+            rendered,
+        )
 
     def test_a_nullability_override_changes_the_claim_not_the_value_type(self) -> None:
         item_type = GeneratedNullableType(GeneratedScalarType("str"))

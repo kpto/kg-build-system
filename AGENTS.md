@@ -299,6 +299,8 @@ missing, not the code.
 - `api.py` is the composition root. It owns `default_toolchain`,
   `DEFAULT_TOOLCHAIN`, `create_blueprint`, `compile` and `execute`; the
   distribution supplies implementations only.
+- A project manifest declares composition values (`Blueprint`, `Workflow`);
+  importing it builds nothing. A command finds the values by type, not by name.
 - Several planners may share one component when their `version` and
   `runtime_fields` agree. The component is published once and each step gets its
   `component_id`; a step identity still may not repeat.

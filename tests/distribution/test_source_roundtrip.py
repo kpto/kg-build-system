@@ -26,14 +26,15 @@ from kg_build_system.distribution.languages.topology import (
 )
 from kg_build_system.distribution.languages.topology.service.internal import TopologyLanguage
 from .support import TestEstate
+from kg_build_system import Omitted
 
 
 class SiteSourceRelation(SourceRelation[TestEstate]):
-    site_id: Field[str] = field()
+    site_id: Field[str] = field(meaning=Omitted)
 
 
 class SiteNode(Node):
-    site_id: PropertySlot[str] = property()
+    site_id: PropertySlot[str] = property(meaning=Omitted)
 
 
 def _fixture() -> GraphBlueprint:

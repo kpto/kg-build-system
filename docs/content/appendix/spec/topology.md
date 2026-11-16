@@ -30,12 +30,12 @@ evidence:
 - **R2.** `Edge[Source, Target]` MUST declare a directed relation between two node-side declarations. Direction MUST come from the type-argument order and MUST NOT be stored as a property.
 - **R3.** `AbstractEdge[Source, Target]` MUST declare a relationship family. A concrete child MAY keep or narrow the endpoints; a widened endpoint MUST be refused. An `endpoint(...)` token MUST be required only when the declared side is abstract and MUST name a concrete descendant.
 - **R4.** `PropertySlot[T]` MUST accept a scalar or a flat, homogeneous array of non-null scalars. A nested array, an array of structs or a bare struct MUST be refused, and `T | None` MUST declare an optional value.
-- **R5.** `property()` MUST default the external name to snake case and the description to the adjacent docstring; an explicit `name` or `description` MUST override the default. Property names MUST be unique within a component.
+- **R5.** `property()` MUST require a meaning or the explicit `Omitted` marker and MUST default the external name to snake case; an explicit `name` MUST override the default. Property names MUST be unique within a component.
 - **R6.** `NodeTemplate` and `EdgeTemplate` MUST be inert: they MUST NOT become graph components, receive a logical name or key, become binding targets or become edge endpoints. Their property slots and annotations MUST flow to the host.
 - **R7.** The base order MUST be templates first, at most one abstract category parent in the middle, and the terminal concrete base last. A second abstract parent or a parent of the wrong kind MUST be refused.
 - **R8.** A concrete component MUST be terminal and MUST NOT be subclassed. A category or concrete component MUST NOT inherit from a concrete component.
 - **R9.** A component MUST carry at most one label of its matching kind; a node label on an edge or an edge label on a node MUST be refused. A component name MUST be unique across nodes and edges.
-- **R10.** A category's label and description MUST stay local and MUST NOT flow to a concrete child. Template annotations MUST flow, and a category's meaning MUST remain its own attachment.
+- **R10.** A category's label and meaning MUST stay local and MUST NOT flow to a concrete child. Template annotations MUST flow, and a category's meaning MUST remain its own attachment.
 
 ## Evidence
 
@@ -54,9 +54,9 @@ evidence:
 | `Edge[Source, Target]` | Concrete directed relation; endpoint order is the direction. |
 | `AbstractEdge[Source, Target]` | Relationship category; a child keeps or narrows the pair. |
 | `PropertySlot[T]` | One declared property slot over a graph value type. |
-| `property(...)` | Declares a slot with name, description, annotations and meaning. |
+| `property(...)` | Declares a slot with name, annotations and meaning, or the `Omitted` marker. |
 | `NodeTemplate` / `EdgeTemplate` | Inert mixins that share slots and annotations. |
-| `NodeOptions` / `EdgeOptions` | Component name, description, annotations and meaning. |
+| `NodeOptions` / `EdgeOptions` | Component name, annotations and meaning, or the `Omitted` marker. |
 | `NodeOptionsTemplate` / `EdgeOptionsTemplate` | Identity-free options for a template. |
 | `NodeLabel` / `EdgeLabel` | One portable label of the matching component kind. |
 | `Endpoint` / `endpoint(target)` | A concrete node token for an abstract edge side. |
@@ -74,7 +74,7 @@ evidence:
 
 ## Rationale
 
-Topology is the design surface: it states what a record is before any row supplies a value. Categories share meaning while templates share structure, and keeping those roles separate stops a data shortcut from becoming model design. Reading the hierarchy downward makes each concrete component accountable to the category above it without copying that category's label or description.
+Topology is the design surface: it states what a record is before any row supplies a value. Categories share meaning while templates share structure, and keeping those roles separate stops a data shortcut from becoming model design. Reading the hierarchy downward makes each concrete component accountable to the category above it without copying that category's label or meaning.
 
 ## Next
 

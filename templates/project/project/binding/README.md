@@ -17,8 +17,10 @@ record's meaning, the relation's meaning, or the row plan.
 - A binding MUST own one file, grouped by the target node:
   `binding/<node>/binding.py` for the node and `<predicate>__<target>.py` for an
   edge.
-- The meaning MUST be present and inline. Its purpose MUST answer the four
-  questions: grain, identity, coverage, meaning.
+- The meaning MUST be present and inline; a binding MUST NOT opt out. Its
+  purpose MUST answer the four questions: grain, identity, coverage, meaning.
+- The binding's `name` is a display handle: it MUST be excluded from the
+  identity digest, so a rename does not change what the binding declares.
 - A binding MUST NOT have a docstring; its meaning is its documentation.
 - The purpose MUST name the record's use in a clause, then state how the relation
   answers it. It MUST NOT be a row recipe ("Supply X from each row's y").

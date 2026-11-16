@@ -73,7 +73,8 @@ def _write(root: Path, relative: str, content: str) -> Path:
 def _asset_source(package: str, source: Path) -> str:
     return f'''
 from kg_build_system import (
-    Asset, AssetAuthority, AssetOptions, AssetProfile,
+    Asset, AssetAuthority, AssetOptions, AssetProfile, Omitted,
+    Omitted,
 )
 from kg_build_system.generation import AssetGenerationOptions, asset_generation
 from kg_build_system.generation.code_generation.builtins import (
@@ -99,6 +100,7 @@ class Estate(Asset):
             authority=AssetAuthority.PRIMARY,
             basis="test",
         ),
+        meaning=Omitted,
     )
 '''
 
@@ -324,12 +326,12 @@ class GeneratedFacadeIntegrationTests(unittest.TestCase):
                 _write(
                     root, "facade_project/assets.py",
                     '''
-from kg_build_system import Asset, AssetOptions
+from kg_build_system import Asset, AssetOptions, Omitted
 
 class Estate(Asset):
     """An asset without a generation request."""
 
-    options = AssetOptions()
+    options = AssetOptions(meaning=Omitted)
 ''',
                 )
                 result = asyncio.run(generate(root, check=True))

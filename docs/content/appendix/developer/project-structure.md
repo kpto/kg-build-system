@@ -57,13 +57,42 @@ project/
 
 A binding directory mirrors the graph node it binds. `graph/site/has_unit__unit.py` declares the edge from `Site` to `Unit`; `binding/site/has_unit__unit.py` binds that edge. The node's own binding is `binding/site/binding.py`. A reader can move between the record and its fulfilment without searching the project.
 
+### Composition: `manifest.py`
+
+A project states its composition in `manifest.py` at the package root. The values
+are declarations, not results:
+
+```python
+from pathlib import Path
+
+from kg_build_system import Blueprint, Workflow
+from kg_build_system.distribution import FileConfiguration, FilePlanner
+
+ROOT = Path(__file__).parent
+
+blueprint = Blueprint(namespace_path=ROOT)
+workflow = Workflow(
+    blueprint=blueprint,
+    planners=(FilePlanner(FileConfiguration("graph.jsonl")),),
+    output_directory=ROOT / "build",
+)
+```
+
+`Blueprint` states the namespace or the explicit bindings to link; it links
+nothing on construction. `Workflow` requires a blueprint and states its planners
+or an explicit toolchain, never both, plus the default output directory.
+`kbs blueprint`, `kbs workflow` and `kbs run` read the values by type, not by
+variable name, and stop at their named boundary. Discovery skips `manifest.py`,
+so composition never enters the graph namespace. Python functions
+(`create_blueprint`, `compile`, `execute`) remain the embedding path.
+
 ### One file per public declaration
 
 A concrete public declaration owns one file. That is a `Graph`, a concrete `Node` or `Edge`, a `SourceRelation`, a `DerivedRelation` or one binding value. A node's properties are members of the node declaration and do not get their own files. A category or template is structural rather than a record and may share a module with the graph or a node. A `Struct` or `ComputedStruct` is a value shape and may live with the declaration that uses it; a `SourceRelationGroup` is a catalogue and may live beside the source relations it names.
 
 ```python
 # graph/site/node.py
-from kg_build_system import Meaning, Node, NodeOptions, PropertySlot, Purpose, property
+from kg_build_system import Meaning, Node, NodeOptions, Omitted, PropertySlot, Purpose, property
 
 
 class Site(Node):
@@ -71,8 +100,8 @@ class Site(Node):
         meaning=Meaning(purpose=Purpose(text="Use this node as the published site register.")),
     )
 
-    name: PropertySlot[str] = property()
-    city: PropertySlot[str] = property()
+    name: PropertySlot[str] = property(meaning=Omitted)
+    city: PropertySlot[str] = property(meaning=Omitted)
 ```
 
 ```python
@@ -97,8 +126,8 @@ A source relation is a file because it is one published relation; a binding that
 ```python
 # relation/source/sites.py
 from kg_build_system import (
-    Claim, Contract, Definition, Field, Meaning, Purpose, SourceRelation,
-    SourceRelationOptions, field,
+    Claim, Contract, Definition, Field, Meaning, Omitted, Purpose,
+    SourceRelation, SourceRelationOptions, field,
 )
 
 from project.asset.estate import Estate
@@ -118,15 +147,15 @@ class Sites(SourceRelation[Estate]):
         ),
     )
 
-    site_id: Field[str] = field()
-    site_name: Field[str] = field()
+    site_id: Field[str] = field(meaning=Omitted)
+    site_name: Field[str] = field(meaning=Omitted)
 ```
 
 A derived relation declaration lives in `relation.py` inside a package; the package groups the declaration with its private stages. `relation.py` publishes the `DerivedRelation`, and `_stage_*.py` owns the rows that compose it. No other module imports a stage file.
 
 ```python
 # relation/derived/defect/_stage_flatten.py
-from kg_build_system import Definition, Stage, StageOptions, computed_field
+from kg_build_system import Definition, Omitted, Stage, StageOptions, computed_field
 
 from project.relation.source.surveys import Surveys
 
@@ -143,18 +172,18 @@ class DefectRows(Stage(survey_rows)):
         ),
     )
 
-    areas = computed_field(survey_rows.shape.areas.alter_rows().expand())
-    elements = computed_field(areas.extract(lambda value: value.elements).alter_rows().expand())
-    defects = computed_field(elements.extract(lambda value: value.defects).alter_rows().expand())
-    defect_id = computed_field(defects.extract(lambda value: value.defect_id))
-    title = computed_field(defects.extract(lambda value: value.title))
+    areas = computed_field(survey_rows.shape.areas.alter_rows().expand(), meaning=Omitted)
+    elements = computed_field(areas.extract(lambda value: value.elements).alter_rows().expand(), meaning=Omitted)
+    defects = computed_field(elements.extract(lambda value: value.defects).alter_rows().expand(), meaning=Omitted)
+    defect_id = computed_field(defects.extract(lambda value: value.defect_id), meaning=Omitted)
+    title = computed_field(defects.extract(lambda value: value.title), meaning=Omitted)
 ```
 
 ```python
 # relation/derived/defect/relation.py
 from kg_build_system import (
-    Claim, Contract, Definition, DerivedRelation, DerivedRelationOptions, Meaning,
-    Purpose, computed_field,
+    Claim, Contract, Definition, DerivedRelation, DerivedRelationOptions,
+    Meaning, Omitted, Purpose, computed_field,
 )
 
 from project.relation.derived.defect._stage_flatten import DefectRows
@@ -175,8 +204,8 @@ class Defect(DerivedRelation(defect_rows)):
         ),
     )
 
-    defect_id = computed_field(defect_rows.shape.defect_id)
-    title = computed_field(defect_rows.shape.title)
+    defect_id = computed_field(defect_rows.shape.defect_id, meaning=Omitted)
+    title = computed_field(defect_rows.shape.title, meaning=Omitted)
 ```
 
 ### Generated packages follow the same rule

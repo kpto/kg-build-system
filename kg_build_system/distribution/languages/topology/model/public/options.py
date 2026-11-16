@@ -25,7 +25,7 @@ Example:
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from kg_build_system.distribution.languages.annotations.model.public import (
@@ -39,6 +39,7 @@ from ..internal.model.metadata import require_meaning
 if TYPE_CHECKING:
     from kg_build_system.distribution.languages.meaning.model.public import (
         Meaning,
+        Omitted,
     )
 
 
@@ -58,10 +59,12 @@ class NodeOptions:
 
     name: str | None = None
     annotations: Sequence[Annotation] = ()
-    meaning: Meaning | None = None
+    meaning: Meaning | type[Omitted] = field(kw_only=True)
 
     def __post_init__(self) -> None:
-        require_meaning(self.meaning, "node")
+        object.__setattr__(
+            self, "meaning", require_meaning(self.meaning, "node"),
+        )
         object.__setattr__(self, "annotations", annotation_tuple(list(self.annotations)))
 
 
@@ -86,10 +89,12 @@ class EdgeOptions:
 
     name: str | None = None
     annotations: Sequence[Annotation] = ()
-    meaning: Meaning | None = None
+    meaning: Meaning | type[Omitted] = field(kw_only=True)
 
     def __post_init__(self) -> None:
-        require_meaning(self.meaning, "edge")
+        object.__setattr__(
+            self, "meaning", require_meaning(self.meaning, "edge"),
+        )
         object.__setattr__(self, "annotations", annotation_tuple(list(self.annotations)))
 
 
@@ -109,10 +114,12 @@ class NodeOptionsTemplate:
     """
 
     annotations: Sequence[Annotation] = ()
-    meaning: Meaning | None = None
+    meaning: Meaning | type[Omitted] = field(kw_only=True)
 
     def __post_init__(self) -> None:
-        require_meaning(self.meaning, "node template")
+        object.__setattr__(
+            self, "meaning", require_meaning(self.meaning, "node template"),
+        )
         object.__setattr__(self, "annotations", annotation_tuple(list(self.annotations)))
 
 
@@ -132,10 +139,12 @@ class EdgeOptionsTemplate:
     """
 
     annotations: Sequence[Annotation] = ()
-    meaning: Meaning | None = None
+    meaning: Meaning | type[Omitted] = field(kw_only=True)
 
     def __post_init__(self) -> None:
-        require_meaning(self.meaning, "edge template")
+        object.__setattr__(
+            self, "meaning", require_meaning(self.meaning, "edge template"),
+        )
         object.__setattr__(self, "annotations", annotation_tuple(list(self.annotations)))
 
 

@@ -1,6 +1,7 @@
 """The meaning units an author writes.
 
-One meaning value, ``Meaning``, is attached to every declaration.
+One meaning value, ``Meaning``, is attached to every declaration. An author who
+states no meaning passes ``Omitted`` explicitly; there is no implicit absence.
 
 A ``Purpose`` states one expected use of the subject and owns the limitations
 that bound that use. A ``Claim`` is a contextless assertion about the subject and
@@ -113,6 +114,36 @@ class Purpose:
         )
 
 
+class Omitted:
+    """The author states no meaning for this declaration.
+
+    ``Omitted`` is a marker, not a meaning: pass the class itself
+    (``meaning=Omitted``). It is refused where a declaration cannot opt out: the
+    graph declaration, a published contract and a binding.
+
+    Example:
+        ```python
+        
+        marker = Omitted
+        assert marker is Omitted
+        ```
+    """
+
+
+def is_omitted(value: object) -> bool:
+    """Return whether ``value`` is the explicit no-meaning marker.
+
+    Example:
+        ```python
+        from kg_build_system import Omitted, is_omitted
+
+        assert is_omitted(Omitted)
+        assert not is_omitted(None)
+        ```
+    """
+    return value is Omitted
+
+
 @dataclass(frozen=True, slots=True)
 class Meaning:
     """The one meaning value attached to a declaration.
@@ -153,19 +184,32 @@ class Meaning:
             )
 
 
-def require_declaration_meaning(value: object, *, context: str = "meaning") -> None:
-    """Reject a value that is not a ``Meaning`` attachment.
+def require_declaration_meaning(
+    value: object, *, context: str = "meaning",
+) -> Meaning | None:
+    """Return the attached meaning, or ``None`` for the ``Omitted`` marker.
 
     This helper is public so every language's authoring model applies the same
-    rule without a local private helper.
+    rule without a local private helper. A declaration must state either a
+    ``Meaning`` or ``Omitted``; ``None`` is not an authoring value.
+
+    Example:
+        ```python
+        from kg_build_system import Omitted, require_declaration_meaning
+
+        assert require_declaration_meaning(Omitted) is None
+        ```
     """
-    if value is None:
-        return
+    if is_omitted(value):
+        return None
     if not isinstance(value, Meaning):
-        raise TypeError(f"{context} must be a Meaning value")
+        raise TypeError(
+            f"{context} must be a Meaning value or the Omitted marker"
+        )
+    return value
 
 
 __all__ = [
-    "Claim", "Limitation", "Purpose", "Meaning",
+    "Claim", "Limitation", "Meaning", "Omitted", "Purpose", "is_omitted",
     "require_declaration_meaning",
 ]

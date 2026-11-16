@@ -19,6 +19,8 @@ from kg_build_system.distribution.languages.annotations.service.internal import 
 )
 from kg_build_system.distribution.languages.meaning.model.public import (
     Meaning,
+    Omitted,
+    is_omitted,
 )
 
 
@@ -213,6 +215,7 @@ class AssetOptions:
                     authority=AssetAuthority.PRIMARY,
                     basis="Open Targets Platform release",
                 ),
+                meaning=Omitted,
                 governance=AssetGovernance(
                     license=AssetLicense("CC-BY-4.0"),
                 ),
@@ -221,7 +224,7 @@ class AssetOptions:
     """
 
     profile: AssetProfile
-    meaning: Meaning | None = None
+    meaning: Meaning | type[Omitted]
     name: str | None = None
     website: str | None = None
     version: str | None = None
@@ -234,10 +237,12 @@ class AssetOptions:
 
         if not isinstance(self.profile, AssetProfile):
             raise TypeError("asset options profile must be an AssetProfile")
-        if self.meaning is not None and not isinstance(
+        if not is_omitted(self.meaning) and not isinstance(
             self.meaning, Meaning,
         ):
-            raise TypeError("asset options meaning must be a Meaning")
+            raise TypeError(
+                "asset options meaning must be a Meaning or the Omitted marker"
+            )
         if self.layout is not None and not isinstance(self.layout, AssetLayout):
             raise TypeError("asset options layout must be an AssetLayout")
         if not isinstance(self.governance, AssetGovernance):

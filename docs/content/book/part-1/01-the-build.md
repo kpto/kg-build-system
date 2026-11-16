@@ -28,19 +28,19 @@ Those statements are declarations. A source relation states which source fields 
 
 ```python
 from kg_build_system import (
-    Field, Node, NodeValues, PropertySlot, SourceRelation, field, node_binding,
-    property,
+    Field, Node, NodeValues, Omitted, PropertySlot, SourceRelation, field,
+    node_binding, property,
 )
 from reference_project.asset.estate import Estate
 
 
 class SitesSourceRelation(SourceRelation[Estate]):
-    site_id: Field[str] = field()
-    site_name: Field[str] = field()
+    site_id: Field[str] = field(meaning=Omitted)
+    site_name: Field[str] = field(meaning=Omitted)
 
 
 class Site(Node):
-    name: PropertySlot[str] = property()
+    name: PropertySlot[str] = property(meaning=Omitted)
 
 
 site_binding = node_binding(

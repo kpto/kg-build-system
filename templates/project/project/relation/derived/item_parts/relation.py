@@ -9,6 +9,7 @@ from kg_build_system import (
     FieldDefinition,
     Limitation,
     Meaning,
+    Omitted,
     Purpose,
     computed_field,
 )
@@ -19,7 +20,6 @@ part_rows = PartRows.row_source()
 
 
 class ItemParts(DerivedRelation(part_rows)):
-
     options = DerivedRelationOptions(
         name="item_parts",
         contract=Contract(
@@ -40,9 +40,7 @@ class ItemParts(DerivedRelation(part_rows)):
                         ),
                     ),
                 ),
-                claims=(
-                    Claim("One row is one part nested in one item."),
-                ),
+                claims=(Claim("One row is one part nested in one item."),),
             ),
         ),
     )
@@ -50,12 +48,15 @@ class ItemParts(DerivedRelation(part_rows)):
     item_id = computed_field(
         part_rows.shape.item_id,
         definition=FieldDefinition("The item identifier the part belongs to."),
+        meaning=Omitted,
     )
     part_id = computed_field(
         part_rows.shape.part_id,
         definition=FieldDefinition("The fixture's part identifier."),
+        meaning=Omitted,
     )
     part_value = computed_field(
         part_rows.shape.part_value,
         definition=FieldDefinition("The fixture's part value."),
+        meaning=Omitted,
     )

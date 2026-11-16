@@ -109,8 +109,10 @@ class BindingOptions:
     annotations: Sequence[Annotation] = ()
 
     def __post_init__(self) -> None:
+        if self.meaning is None:
+            raise ValueError("a binding requires a meaning with a purpose")
         require_declaration_meaning(self.meaning)
-        if self.meaning is None or self.meaning.purpose is None:
+        if self.meaning.purpose is None:
             raise ValueError("a binding requires a meaning with a purpose")
         object.__setattr__(
             self, "annotations", annotation_tuple(list(self.annotations)),

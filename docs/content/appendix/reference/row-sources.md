@@ -42,7 +42,7 @@ DerivedRelation.row_source() -> RelationRowSource[Any]
 Returns the relation row source for a source relation or derived relation. The relation's `.shape` is the shape class of one row.
 
 ```python
-from kg_build_system import Field, SourceRelation, SourceRelationOptions, field
+from kg_build_system import Field, Omitted, SourceRelation, SourceRelationOptions, field
 
 
 from estate.assets import Estate
@@ -50,17 +50,17 @@ from estate.assets import Estate
 class SiteSourceRelation(SourceRelation[Estate]):
     # Contract and field definitions are stated in full on Declarations.
     options = SourceRelationOptions(contract=...)
-    site_id: Field[str] = field()
-    name: Field[str] = field()
-    region: Field[str] = field()
+    site_id: Field[str] = field(meaning=Omitted)
+    name: Field[str] = field(meaning=Omitted)
+    region: Field[str] = field(meaning=Omitted)
 
 
 class ReadingSourceRelation(SourceRelation[Estate]):
     options = SourceRelationOptions(contract=...)
-    reading_id: Field[str] = field()
-    site_id: Field[str] = field()
-    region: Field[str] = field()
-    value: Field[float] = field()
+    reading_id: Field[str] = field(meaning=Omitted)
+    site_id: Field[str] = field(meaning=Omitted)
+    region: Field[str] = field(meaning=Omitted)
+    value: Field[float] = field(meaning=Omitted)
 
 
 sites = SiteSourceRelation.row_source()       # RelationRowSource[SiteSourceRelation]
@@ -133,16 +133,17 @@ The selected member is read through `.shape`:
 ```python
 from typing import cast
 
-from kg_build_system import Selection
+from kg_build_system import Omitted, Selection
 
 
 class TagDerivedRelation(DerivedRelation(one_tag_per_row)):
     # Contract and output definitions are stated in full on Derived relations.
     options = DerivedRelationOptions(contract=...)
     site_id = computed_field(
-        one_tag_per_row.shape.site_id.alter_rows().drop_null()
+        one_tag_per_row.shape.site_id.alter_rows().drop_null(), 
+        meaning=Omitted,
     )
-    tag = computed_field(cast(Selection[str], one_tag_per_row.shape.tags))
+    tag = computed_field(cast(Selection[str], one_tag_per_row.shape.tags), meaning=Omitted)
 ```
 
 The declared shape keeps the array type, so the item read is asserted with a

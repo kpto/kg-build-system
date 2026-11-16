@@ -31,7 +31,7 @@ sources:
 | [Derived relations](/appendix/reference/derived-relations) | Contracts, pinned sources, computed fields, stages and outputs. |
 | [Topology](/appendix/reference/topology) | Node, Edge, properties, templates, categories and endpoints. |
 | [Bindings](/appendix/reference/bindings) | node_binding, edge_binding, fulfilment, keys, properties and endpoints. |
-| [Annotations](/appendix/reference/annotations) | Annotation, NodeLabel, EdgeLabel, descriptions and label rules. |
+| [Annotations](/appendix/reference/annotations) | Annotation, NodeLabel, EdgeLabel, displayed meaning text and label rules. |
 | [Compile and execute](/appendix/reference/compile) | create_blueprint, compile, execute, plan and report. |
 | [Planners and executors](/appendix/reference/planners-and-executors) | Supplied planners, executors, configuration and kinds. |
 | [Ingest](/appendix/reference/ingest) | AssetLayout, the generic source planner and source checks. |

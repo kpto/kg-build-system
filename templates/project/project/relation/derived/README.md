@@ -18,7 +18,7 @@ to a record.
 - One package MUST own one relation: `relation.py` MUST publish, `_<stage>.py`
   MUST compose.
 - A derived relation MUST pin a named row source and read every output through
-  its shape:
+  its shape; each `computed_field` MUST state `meaning=...` or `meaning=Omitted`:
 
   ```python
   rows = <source>.row_source()

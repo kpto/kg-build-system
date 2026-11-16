@@ -34,7 +34,7 @@ evidence:
 - **R5.** Every declared property, including an inherited property, MUST be assigned exactly once. A missing, extra, bare-value or wrong-type property MUST be refused.
 - **R6.** An edge binding MUST supply its own key, a `source_build_key` and a `target_build_key`. A null endpoint key MUST NOT ground the relation; the row MUST be dropped rather than given an invented endpoint.
 - **R7.** A `source_node` or `target_node` token MUST be supplied when the declared side is abstract, MUST name a concrete node equal to or descending from that category, and MUST be an `endpoint(...)` token rather than a raw class. A concrete side MAY supply a token.
-- **R8.** Binding identity MUST be the SHA-256 digest of the canonical binding document with `debug_name` and `python_ref` removed, truncated to 16 hexadecimal characters. A `debug_name` MAY prefix the identity string for display but MUST NOT enter the digest. Two bindings with the same identity MUST be refused.
+- **R8.** Binding identity MUST be the SHA-256 digest of the canonical binding document with `name` and `python_ref` removed, truncated to 16 hexadecimal characters. A `name` MAY prefix the identity string for display but MUST NOT enter the digest. Two bindings with the same identity MUST be refused.
 - **R9.** One row the binding receives MUST produce one record. A binding MUST NOT aggregate, join, expand, deduplicate or merge; those decisions belong to a derived relation, row source or planner.
 - **R10.** A binding MUST be the only declaration that imports both a data row source and a graph component; topology MUST NOT import data. Its `Meaning` MUST be present, MUST carry a `Purpose`, and MUST describe the fulfilment: it MUST name the record's use in a clause, then state how the relation answers that use — which relation, at which grain, identity and coverage — and where it falls short. A row recipe or a restatement of the record's purpose MUST NOT be accepted as a fulfilment. It owns neither the relation's meaning nor the record's meaning.
 - **R11.** A binding MUST read only a published relation: a `SourceRelation` or a `DerivedRelation`. It MUST refuse a `StageRowSource` at construction and by the type checker. A source relation read directly by a binding MUST declare a contract, so the binding has a grain and identity to check.
@@ -66,7 +66,7 @@ The required-purpose, published-relation and stage-refusal rows are normative be
 | `endpoint(target)` / `Endpoint[N]` | A concrete node token for an abstract declared side. |
 | `build_key` | The present scalar selection that identifies one record. |
 | `source_build_key` / `target_build_key` | The edge's endpoint selections, each a present scalar. |
-| `debug_name` | A display handle that prefixes identity but stays outside the digest. |
+| `name` | A display handle that prefixes identity but stays outside the digest. |
 | `meaning` | One required declaration value describing the fulfilment; it must carry a purpose. |
 
 ## Limits
@@ -77,7 +77,7 @@ The required-purpose, published-relation and stage-refusal rows are normative be
 - Python mode carries a module and qualified name, not a callable body. It is an execution mode, not an escape from the declarative model.
 - Binding identity includes the row plan and the fulfilment meaning. Two similar bindings over different grains or different purposes are different identities.
 - Bindings are discovered as module-level values. A binding created inside a function or stored only in a container is not discovered.
-- A binding has no description. `debug_name` names a producer; annotations record facts about the binding.
+- A binding has no description. `name` names a producer; annotations record facts about the binding.
 - A simple one-to-one fulfilment is legal. A vacuous one is not: if the relation already carries the record's key, properties or endpoints, the design happened on the relation side and the binding is a copy.
 - The framework cannot prove an honest fulfilment. The record-agnostic relation guard catches the mechanical copy; review judges whether coverage and meaning fit.
 - A binding purpose is not a local purpose under the graph. It states the adequacy between two peer purposes.

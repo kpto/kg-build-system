@@ -47,6 +47,7 @@ from kg_build_system.kernel import (
     SymbolRef,
 )
 from .support import TestEstate
+from kg_build_system import Omitted
 
 
 class Namespace:
@@ -344,8 +345,8 @@ class BlueprintLinkerTests(unittest.TestCase):
 class DataSymbolKeyTests(unittest.TestCase):
     def test_a_unique_struct_uses_its_graph_name(self) -> None:
         class Info(Struct):
-            options = StructOptions(name="info")
-            value: Field[str] = field()
+            options = StructOptions(name="info", meaning=Omitted)
+            value: Field[str] = field(meaning=Omitted)
 
         language = DataLanguage()
         (declaration,) = _data_declarations(language, Namespace(Info))
@@ -358,12 +359,12 @@ class DataSymbolKeyTests(unittest.TestCase):
 
     def test_a_repeated_struct_uses_its_qualified_name(self) -> None:
         class Info(Struct):
-            options = StructOptions(name="info")
-            value: Field[str] = field()
+            options = StructOptions(name="info", meaning=Omitted)
+            value: Field[str] = field(meaning=Omitted)
 
         class OtherInfo(Struct):
-            options = StructOptions(name="info")
-            other: Field[str] = field()
+            options = StructOptions(name="info", meaning=Omitted)
+            other: Field[str] = field(meaning=Omitted)
 
         language = DataLanguage()
         declarations = _data_declarations(
@@ -376,12 +377,12 @@ class DataSymbolKeyTests(unittest.TestCase):
 
     def test_a_struct_name_colliding_with_a_relation_is_qualified(self) -> None:
         class Go(Struct):
-            options = StructOptions(name="go")
-            value: Field[str] = field()
+            options = StructOptions(name="go", meaning=Omitted)
+            value: Field[str] = field(meaning=Omitted)
 
         class GoTable(SourceRelation[TestEstate]):
-            options = SourceRelationOptions(name="go")
-            value: Field[str] = field()
+            options = SourceRelationOptions(name="go", contract=Omitted)
+            value: Field[str] = field(meaning=Omitted)
 
         language = DataLanguage()
         declarations = _data_declarations(
@@ -399,14 +400,14 @@ class DataSymbolKeyTests(unittest.TestCase):
     def test_a_table_without_an_asset_is_refused(self) -> None:
         with self.assertRaisesRegex(TypeError, "SourceRelation\\[Asset\\]"):
             class NoAsset(SourceRelation):
-                value: Field[str] = field()
+                value: Field[str] = field(meaning=Omitted)
 
 
 class AuthoringReferenceTests(unittest.TestCase):
     def test_data_references_read_the_authoring_declaration(self) -> None:
         class Row(SourceRelation[TestEstate]):
-            options = SourceRelationOptions(name="row")
-            value: Field[int] = field(name="value")
+            options = SourceRelationOptions(name="row", contract=Omitted)
+            value: Field[int] = field(name="value", meaning=Omitted)
 
         language = DataLanguage()
         declarations = language.discover_declarations(Namespace(Row))

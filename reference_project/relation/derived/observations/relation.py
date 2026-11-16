@@ -9,6 +9,7 @@ from kg_build_system import (
     FieldDefinition,
     Limitation,
     Meaning,
+    Omitted,
     Purpose,
     computed_field,
 )
@@ -53,34 +54,34 @@ class Observations(DerivedRelation(observation_rows)):
         definition=FieldDefinition(
             "The survey document the observation was recorded in."
         ),
+        meaning=Omitted,
     )
     defect_id = computed_field(
         observation_rows.shape.defect_id,
-        definition=FieldDefinition(
-            "The defect identifier the observation belongs to."
-        ),
+        definition=FieldDefinition("The defect identifier the observation belongs to."),
+        meaning=Omitted,
     )
     observation_uid = computed_field(
         observation_rows.shape.observation_uid,
         definition=FieldDefinition(
             "The observation identifier within the survey document."
         ),
+        meaning=Omitted,
     )
     value = computed_field(
         observation_rows.shape.value,
-        definition=FieldDefinition(
-            "The recorded value in the surveyor's unit."
-        ),
+        definition=FieldDefinition("The recorded value in the surveyor's unit."),
+        meaning=Omitted,
     )
     observed_by = computed_field(
         observation_rows.shape.observed_by,
         definition=FieldDefinition(
             "The surveyor or instrument that recorded the observation."
         ),
+        meaning=Omitted,
     )
     observed_on = computed_field(
         observation_rows.shape.observed_on,
-        definition=FieldDefinition(
-            "The date the observation was recorded."
-        ),
+        definition=FieldDefinition("The date the observation was recorded."),
+        meaning=Omitted,
     )

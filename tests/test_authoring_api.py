@@ -35,24 +35,25 @@ from kg_build_system.distribution.languages.topology import (
 )
 from kg_build_system.kernel import Array, Nullable, NullableType, StructType
 from tests.distribution.support import TestEstate
+from kg_build_system import Omitted
 
 
 class Address(Struct):
-    city: Field[str] = field(name="city")
-    postcodes: Field[Array[str]] = field(name="postcodes")
+    city: Field[str] = field(name="city", meaning=Omitted)
+    postcodes: Field[Array[str]] = field(name="postcodes", meaning=Omitted)
 
 
 class Detail(Struct):
-    label: Field[str] = field(name="label")
-    address: Field[Address] = field(name="address")
+    label: Field[str] = field(name="label", meaning=Omitted)
+    address: Field[Address] = field(name="address", meaning=Omitted)
 
 
 class Source(SourceRelation[TestEstate]):
-    id: Field[str] = field(name="id")
-    detail: Field[Detail] = field(name="detail")
-    details: Field[Array[Detail]] = field(name="details")
-    tags: Field[Array[str]] = field(name="tags")
-    labels: Field[Array[Nullable[str]]] = field(name="labels")
+    id: Field[str] = field(name="id", meaning=Omitted)
+    detail: Field[Detail] = field(name="detail", meaning=Omitted)
+    details: Field[Array[Detail]] = field(name="details", meaning=Omitted)
+    tags: Field[Array[str]] = field(name="tags", meaning=Omitted)
+    labels: Field[Array[Nullable[str]]] = field(name="labels", meaning=Omitted)
 
 
 source_tags = Source.tags.alter_rows().drop_null()
@@ -71,13 +72,13 @@ class SourceDerivedRelation(DerivedRelation(Source.row_source())):
             ),
         ),
     )
-    ident = computed_field(Source.id.alter_rows().drop_null())
-    nullable_ident = computed_field(Source.id)
+    ident = computed_field(Source.id.alter_rows().drop_null(), meaning=Omitted)
+    nullable_ident = computed_field(Source.id, meaning=Omitted)
 
 
 class SourceNode(Node):
-    options = NodeOptions(name="source_node")
-    label: PropertySlot[str] = property()
+    options = NodeOptions(name="source_node", meaning=Omitted)
+    label: PropertySlot[str] = property(meaning=Omitted)
 
 
 class AuthoringApiTests(unittest.TestCase):
@@ -140,14 +141,14 @@ class AuthoringApiTests(unittest.TestCase):
     def test_source_field_rejects_a_nullable_annotation(self) -> None:
         with self.assertRaisesRegex(TypeError, "must be T, not T"):
             class Bad(SourceRelation[TestEstate]):
-                value: Field[str | None] = field(name="value")
+                value: Field[str | None] = field(name="value", meaning=Omitted)
 
     def test_projection_requires_a_source_and_rejects_class_sugar(self) -> None:
         with self.assertRaisesRegex(TypeError, "requires a row source"):
             DerivedRelation()
         with self.assertRaisesRegex(TypeError, "requires a row source"):
             class BadProjection(DerivedRelation):
-                value = computed_field(Source.id)
+                value = computed_field(Source.id, meaning=Omitted)
 
     def test_computed_field_is_the_projection_output_constructor(self) -> None:
         self.assertEqual(

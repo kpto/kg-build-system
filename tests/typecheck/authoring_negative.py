@@ -24,18 +24,19 @@ from kg_build_system.distribution.languages.topology import (
 )
 from kg_build_system.kernel import Array
 from tests.distribution.support import TestEstate
+from kg_build_system import Omitted
 
 
 class Site(SourceRelation[TestEstate]):
-    site_id: Field[str] = field(name="id")
-    tags: Field[Array[str]] = field(name="tags")
+    site_id: Field[str] = field(name="id", meaning=Omitted)
+    tags: Field[Array[str]] = field(name="tags", meaning=Omitted)
 
 
 class SiteStage(Stage(Site.row_source())):
     options = StageOptions(
         definition=Definition(grain="one row per site", identity=("site_id",)),
     )
-    site_id = computed_field(Site.site_id)
+    site_id = computed_field(Site.site_id, meaning=Omitted)
 
 
 StageOptions(
@@ -54,12 +55,12 @@ class ClaimOnly(DerivedRelation(SiteStage.row_source())):
             meaning=Meaning(claims=(Claim("One row is one site."),)),
         ),
     )
-    site_id = computed_field(SiteStage.site_id)
+    site_id = computed_field(SiteStage.site_id, meaning=Omitted)
 
 
 class SiteNode(Node):
-    options = NodeOptions(name="site_node")
-    label: PropertySlot[str] = property()
+    options = NodeOptions(name="site_node", meaning=Omitted)
+    label: PropertySlot[str] = property(meaning=Omitted)
 
 
 Site.site_id.expression  # pyright: ignore[reportAttributeAccessIssue]
@@ -101,7 +102,7 @@ node_binding(
 
 def _declares_nullable_field() -> None:
     class Bad(SourceRelation[TestEstate]):
-        value: Field[str | None] = field(name="value")  # pyright: ignore[reportInvalidTypeArguments]
+        value: Field[str | None] = field(name="value", meaning=Omitted)  # pyright: ignore[reportInvalidTypeArguments]
 
 
 def _uses_removed_projection_constructor() -> None:

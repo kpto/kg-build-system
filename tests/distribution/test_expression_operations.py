@@ -18,6 +18,7 @@ from kg_build_system import (
     Field,
     Meaning,
     Nullable,
+    Omitted,
     Purpose,
     SourceRelation,
     computed_field,
@@ -79,23 +80,23 @@ def _contract(identity: str, grain: str = "one row") -> Contract:
 
 
 class Region(SourceRelation[TestEstate]):
-    region_id: Field[str] = field(name="region_id")
-    name: Field[str] = field(name="name")
+    region_id: Field[str] = field(name="region_id", meaning=Omitted)
+    name: Field[str] = field(name="name", meaning=Omitted)
 
 
 class Site(SourceRelation[TestEstate]):
-    site_id: Field[str] = field(name="site_id")
-    region_id: Field[str] = field(name="region_id")
-    tags: Field[Array[str]] = field(name="tags")
-    labels: Field[Array[str]] = field(name="labels")
+    site_id: Field[str] = field(name="site_id", meaning=Omitted)
+    region_id: Field[str] = field(name="region_id", meaning=Omitted)
+    tags: Field[Array[str]] = field(name="tags", meaning=Omitted)
+    labels: Field[Array[str]] = field(name="labels", meaning=Omitted)
 
 
 class RegionDerivedRelation(DerivedRelation(Region.row_source())):
     options = DerivedRelationOptions(
         name="region", contract=_contract("region_id"),
     )
-    region_id = computed_field(Region.region_id.alter_rows().drop_null())
-    name = computed_field(Region.name.alter_rows().drop_null())
+    region_id = computed_field(Region.region_id.alter_rows().drop_null(), meaning=Omitted)
+    name = computed_field(Region.name.alter_rows().drop_null(), meaning=Omitted)
 
 
 def _dto(selection: object) -> ExpressionDTO:
@@ -330,7 +331,8 @@ class BlueprintSourceRoundTripTests(unittest.TestCase):
 from kg_build_system import (
     Array, Asset, AssetAuthority, AssetOptions, AssetProfile, Claim, Contract,
     Definition, Field, DerivedRelation, DerivedRelationOptions, Meaning,
-    Purpose, SourceRelation, SourceRelationOptions, computed_field, field,
+    Omitted, Purpose, SourceRelation, SourceRelationOptions, computed_field,
+    field,
 )
 
 class Estate(Asset):
@@ -340,19 +342,20 @@ class Estate(Asset):
             subject="x", coverage="y",
             authority=AssetAuthority.PRIMARY, basis="z",
         ),
+        meaning=Omitted,
     )
 
 class Region(SourceRelation[Estate]):
-    options = SourceRelationOptions(name="region")
-    region_id: Field[str] = field(name="region_id")
-    name: Field[str] = field(name="name")
+    options = SourceRelationOptions(name="region", contract=Omitted)
+    region_id: Field[str] = field(name="region_id", meaning=Omitted)
+    name: Field[str] = field(name="name", meaning=Omitted)
 
 class Site(SourceRelation[Estate]):
-    options = SourceRelationOptions(name="site")
-    site_id: Field[str] = field(name="site_id")
-    region_id: Field[str] = field(name="region_id")
-    tags: Field[Array[str]] = field(name="tags")
-    labels: Field[Array[str]] = field(name="labels")
+    options = SourceRelationOptions(name="site", contract=Omitted)
+    site_id: Field[str] = field(name="site_id", meaning=Omitted)
+    region_id: Field[str] = field(name="region_id", meaning=Omitted)
+    tags: Field[Array[str]] = field(name="tags", meaning=Omitted)
+    labels: Field[Array[str]] = field(name="labels", meaning=Omitted)
 
 def contract(identity):
     return Contract(
@@ -364,21 +367,27 @@ class Tagged(DerivedRelation(Site.row_source().unnest(lambda row: row.tags))):
     options = DerivedRelationOptions(
         name="tagged", contract=contract("site_id"),
     )
-    site_id = computed_field(Site.site_id.alter_rows().drop_null())
+    site_id = computed_field(
+        Site.site_id.alter_rows().drop_null(), meaning=Omitted,
+    )
 
 class Joined(DerivedRelation(Site.row_source())):
     options = DerivedRelationOptions(
         name="joined", contract=contract("site_id"),
     )
-    site_id = computed_field(Site.site_id.alter_rows().drop_null())
+    site_id = computed_field(
+        Site.site_id.alter_rows().drop_null(), meaning=Omitted,
+    )
     region_name = computed_field(
         Site.region_id.lookup(Region, Site.region_id)
         .alter_rows().drop_null().alter_rows().expand()
-        .extract(lambda region: region.name)
+        .extract(lambda region: region.name),
+        meaning=Omitted,
     )
     pairs = computed_field(
         Site.tags.alter_rows().drop_null()
-        .zip(Site.labels.alter_rows().drop_null())
+        .zip(Site.labels.alter_rows().drop_null()),
+        meaning=Omitted,
     )
 '''
 

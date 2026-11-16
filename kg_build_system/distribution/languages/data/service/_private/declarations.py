@@ -31,6 +31,13 @@ def _template_annotations(cls: type[Any]) -> tuple[Annotation, ...]:
     )
 
 
+from kg_build_system.distribution.languages.meaning.model.public import (
+    Omitted,
+    is_omitted,
+    require_declaration_meaning,
+)
+
+
 def _record_template_annotations(cls: type[Any], options: Any) -> None:
     from ...model.public.declarations import StructOptions, StructOptionsTemplate, SourceRelationOptions
 
@@ -187,13 +194,14 @@ def prepare_source_relation_declaration(cls: type[Any]) -> None:
 
     if any(_final_kind(base) == "source_relation" for base in cls.__mro__[1:]):
         raise TypeError("a final source relation may not inherit from another final source relation")
-    options = vars(cls).get("options", SourceRelationOptions())
+    options = vars(cls).get("options", SourceRelationOptions(contract=Omitted))
     _require_host_options(cls, "SourceRelation", options, SourceRelationOptions)
     name = options.name or declaration_name(cls.__name__, suffixes=("SourceRelation",))
     asset = _source_relation_asset(cls)
     contract = options.contract
-    definition = contract.definition if contract is not None else None
-    meaning = contract.meaning if contract is not None else None
+    declared = None if is_omitted(contract) else contract
+    definition = declared.definition if declared is not None else None
+    meaning = declared.meaning if declared is not None else None
     cls._source_relation_name = name
     cls._source_relation_asset = asset
     spec = _prepare_declaration(
@@ -213,7 +221,7 @@ def prepare_struct_declaration(cls: type[Any]) -> None:
     """Record the spec of one ``Struct`` declaration at class creation."""
     from ...model.public.declarations import StructOptions
 
-    options = vars(cls).get("options", StructOptions())
+    options = vars(cls).get("options", StructOptions(meaning=Omitted))
     _require_host_options(cls, "Struct", options, StructOptions)
     name = options.name or declaration_name(cls.__name__, suffixes=("Struct",))
     _prepare_declaration(
@@ -221,7 +229,7 @@ def prepare_struct_declaration(cls: type[Any]) -> None:
         kind="struct",
         name=name,
         annotations=(*_template_annotations(cls), *options.annotations),
-        meaning=options.meaning,
+        meaning=require_declaration_meaning(options.meaning),
     )
 
 
@@ -229,7 +237,7 @@ def prepare_computed_struct_declaration(cls: type[Any]) -> None:
     """Record the spec of one ``ComputedStruct`` declaration."""
     from ...model.public.declarations import StructOptions
 
-    options = vars(cls).get("options", StructOptions())
+    options = vars(cls).get("options", StructOptions(meaning=Omitted))
     _require_host_options(cls, "ComputedStruct", options, StructOptions)
     name = options.name or declaration_name(
         cls.__name__, suffixes=("ComputedStruct",),
@@ -239,7 +247,7 @@ def prepare_computed_struct_declaration(cls: type[Any]) -> None:
         kind="computed_struct",
         name=name,
         annotations=(*_template_annotations(cls), *options.annotations),
-        meaning=options.meaning,
+        meaning=require_declaration_meaning(options.meaning),
     )
 
 

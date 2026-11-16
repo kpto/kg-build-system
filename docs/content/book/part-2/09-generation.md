@@ -31,7 +31,7 @@ The request is a class decorator on an `Asset` subclass:
 from pathlib import Path
 
 from kg_build_system import (
-    Asset, AssetAuthority, AssetLayout, AssetOptions, AssetProfile,
+    Asset, AssetAuthority, AssetLayout, AssetOptions, AssetProfile, Omitted,
 )
 from kg_build_system.generation import AssetGenerationOptions, asset_generation
 from kg_build_system.generation.code_generation.builtins import (
@@ -74,6 +74,7 @@ class Estate(Asset):
                 "surveys": "surveys.json",
             },
         ),
+        meaning=Omitted,
     )
 ```
 
@@ -197,19 +198,19 @@ not, the skeleton is reported and the author decides whether to state it.
 Generated declarations use only the public authoring surface: `Field`, `field`, `SourceRelation`, `Struct`, `SourceRelationGroup`, `SourceRelationOptions` and `SourceRelationGroupOptions`. A generated relation names its asset with `SourceRelation[Asset]` and imports the authored asset module. The renderer emits canonical scalar names as their public types: `Date`, `Time`, `Timestamp`, `Uuid`, and the builtin scalars as their Python names.
 
 ```python
-from kg_build_system import Field, SourceRelation, SourceRelationOptions, field
+from kg_build_system import Field, Omitted, SourceRelation, SourceRelationOptions, field
 
 from reference_project.asset.estate import Estate
 
 
 class EquipmentSourceRelation(SourceRelation[Estate]):
-    options = SourceRelationOptions(name="equipment")
+    options = SourceRelationOptions(name="equipment", contract=Omitted)
 
-    unit_ref: Field[str] = field(name="unit_ref")
-    unit_name: Field[str] = field(name="unit_name")
-    site_id: Field[str] = field(name="site_id")
-    in_service: Field[bool] = field(name="in_service")
-    survey_period: Field[str] = field(name="survey_period")
+    unit_ref: Field[str] = field(name="unit_ref", meaning=Omitted)
+    unit_name: Field[str] = field(name="unit_name", meaning=Omitted)
+    site_id: Field[str] = field(name="site_id", meaning=Omitted)
+    in_service: Field[bool] = field(name="in_service", meaning=Omitted)
+    survey_period: Field[str] = field(name="survey_period", meaning=Omitted)
 ```
 
 The excerpt looks like a relation a person would write, because it is one. There is no generation-specific compilation path. The build imports the generated class exactly as it imports a handwritten class, reads its fields and types, and plans the same source step. The generated package is a normal package with an explicit `__init__.py`; its classes are ordinary declarations. The `__init__.py` is a facade, like every other package in the project: re-exports and `__all__`, no declaration and no logic.

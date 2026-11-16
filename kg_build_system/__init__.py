@@ -41,7 +41,7 @@ if TYPE_CHECKING:
     )
     from .distribution.languages.graph import Graph, GraphOptions
     from .distribution.languages.meaning import (
-        Claim, Limitation, Purpose, Meaning,
+        Claim, Limitation, Meaning, Omitted, Purpose, is_omitted,
     )
     from .distribution.languages.topology import (
         AbstractEdge, AbstractNode, Edge, EdgeOptions, EdgeOptionsTemplate,
@@ -118,8 +118,10 @@ _GROUPS: dict[str, tuple[str, ...]] = {'api': ('DEFAULT_TOOLCHAIN',
  'distribution.languages.graph': ('Graph', 'GraphOptions'),
  'distribution.languages.meaning': ('Claim',
                                       'Limitation',
+                                      'Meaning',
+                                      'Omitted',
                                       'Purpose',
-                                      'Meaning'),
+                                      'is_omitted'),
  'distribution.languages.topology': ('AbstractEdge',
                                      'AbstractNode',
                                      'Edge',
@@ -232,6 +234,8 @@ __all__ = ['DEFAULT_TOOLCHAIN',
  'property',
  'Claim',
  'Limitation',
+ 'Omitted',
+ 'is_omitted',
  'Purpose',
  'Meaning',
  'Graph',

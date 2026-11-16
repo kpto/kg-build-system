@@ -40,7 +40,7 @@ Many names in the framework are adjacent, not synonymous. The table gives the on
 | Derived relation vs row source | A derived relation is a named logical row product with computed outputs and a contract; a row source is any value that produces rows of a known shape. A derived relation is also a row source. |
 | Selection vs field | A field is a declared typed member; a selection is the authoring value that navigates a row, calculates a value and owns absence. |
 | Meaning | The one meaning value attached to a declaration: an optional purpose with its limitations, plus contextless claims. The graph declaration's Meaning carries the root purpose; a binding's Meaning carries the fulfilment and needs a purpose. |
-| Annotation vs description | An annotation is portable `(namespace, id, arguments)` metadata preserved without interpretation; a description is a plain human string. |
+| Annotation vs meaning | An annotation is portable `(namespace, id, arguments)` metadata preserved without interpretation; a meaning is authored purpose, claim and limitation text. |
 | Nullable vs optional | Nullable is a value type that may be absent at run time; optional is a document member the codec may omit. The codec writes an absent nullable value as `null` or omits the member, member by member. |
 | Dedup vs merge | Dedup removes exact duplicate graph records with `DISTINCT`; merge combines same-key compatible facts into one record. |
 | Conflict validation vs merge | Conflict validation reports same-key non-null contradictions; merge reconciles same-key facts and does not diagnose contradictions. |
@@ -51,7 +51,7 @@ Many names in the framework are adjacent, not synonymous. The table gives the on
 
 The distinction that matters most is **document identity versus runtime identity**. A key, a symbol ref and a document ref all identify a declaration, but only the symbol ref is resolved by the linker; the document ref is a stored pointer. [Documents](/appendix/reference/documents) fixes the stored form, and [Link](/book/part-3/01-linking-and-blueprint) fixes the resolution order.
 
-The second distinction is **value presence versus member presence**. Nullable belongs to a selection or logical type. Optional belongs to a codec: the member may be absent from the JSON object. The blueprint codec is deliberately asymmetric: `graph_declaration` is omitted when absent, binding `rows` is explicit `null`, a binding `meaning` is always present, and topology `parent`, `description` and `meaning` are omitted. Use [Documents](/appendix/reference/documents) for the full table.
+The second distinction is **value presence versus member presence**. Nullable belongs to a selection or logical type. Optional belongs to a codec: the member may be absent from the JSON object. The blueprint codec is deliberately asymmetric: `graph_declaration` is omitted when absent, binding `rows` is explicit `null`, a binding `meaning` is always present, and topology `parent` and `meaning` are omitted. Use [Documents](/appendix/reference/documents) for the full table.
 
 The third distinction is **wiring versus execution**. A plan fixes steps and connections; an instruction is opaque until an executor claims its exact kind. A component id names the planner group, while a module is the package that ships it. Use [Plan](/book/part-3/02-planning) for assembly and [Execute](/book/part-3/03-execution-and-outputs) for the run.
 

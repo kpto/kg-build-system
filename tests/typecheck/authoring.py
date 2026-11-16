@@ -10,6 +10,7 @@ from kg_build_system import (
     GraphOptions,
     Limitation,
     Meaning,
+    Omitted,
     Purpose,
     Workflow,
 )
@@ -83,6 +84,7 @@ class FixtureAsset(Asset):
             authority=AssetAuthority.INFERRED,
             basis="typecheck fixture",
         ),
+        meaning=Omitted,
     )
 
 
@@ -104,13 +106,13 @@ class FixtureGraph(Graph):
 
 
 class Address(Struct):
-    city: Field[str] = field(name="city")
-    postcodes: Field[Array[str]] = field(name="postcodes")
+    city: Field[str] = field(name="city", meaning=Omitted)
+    postcodes: Field[Array[str]] = field(name="postcodes", meaning=Omitted)
 
 
 class Detail(Struct):
-    label: Field[str] = field(name="label")
-    address: Field[Address] = field(name="address")
+    label: Field[str] = field(name="label", meaning=Omitted)
+    address: Field[Address] = field(name="address", meaning=Omitted)
 
 
 class Site(SourceRelation[FixtureAsset]):
@@ -131,25 +133,27 @@ class Site(SourceRelation[FixtureAsset]):
             value="The site's stable identifier.",
             null_meaning="The source holds no identifier for the site.",
         ),
+        meaning=Omitted,
     )
-    region_id: Field[str] = field(name="region_id")
-    count: Field[int] = field(name="count")
-    detail: Field[Detail] = field(name="detail")
-    addresses: Field[Array[Address]] = field(name="addresses")
-    tags: Field[Array[str]] = field(name="tags")
-    labels: Field[Array[Nullable[str]]] = field(name="labels")
+    region_id: Field[str] = field(name="region_id", meaning=Omitted)
+    count: Field[int] = field(name="count", meaning=Omitted)
+    detail: Field[Detail] = field(name="detail", meaning=Omitted)
+    addresses: Field[Array[Address]] = field(name="addresses", meaning=Omitted)
+    tags: Field[Array[str]] = field(name="tags", meaning=Omitted)
+    labels: Field[Array[Nullable[str]]] = field(name="labels", meaning=Omitted)
 
 
 class Region(SourceRelation[FixtureAsset]):
-    options = SourceRelationOptions(name="region")
-    region_id: Field[str] = field(name="region_id")
-    name: Field[str] = field(name="name")
+    options = SourceRelationOptions(name="region", contract=Omitted)
+    region_id: Field[str] = field(name="region_id", meaning=Omitted)
+    name: Field[str] = field(name="name", meaning=Omitted)
 
 
 class Summary(ComputedStruct):
-    total = computed_field(Site.count.alter_rows().drop_null())
+    total = computed_field(Site.count.alter_rows().drop_null(), meaning=Omitted)
     address = computed_field(
-        Site.detail.extract(lambda value: value.address)
+        Site.detail.extract(lambda value: value.address), 
+        meaning=Omitted,
     )
 
 
@@ -159,7 +163,7 @@ class SiteStage(Stage(Site.row_source())):
             grain="one row per monitored site", identity=("site_id",),
         ),
     )
-    site_id = computed_field(Site.site_id.alter_rows().drop_null())
+    site_id = computed_field(Site.site_id.alter_rows().drop_null(), meaning=Omitted)
 
 
 class SiteDerivedRelation(DerivedRelation(SiteStage.row_source())):
@@ -174,13 +178,13 @@ class SiteDerivedRelation(DerivedRelation(SiteStage.row_source())):
             ),
         ),
     )
-    site_id = computed_field(SiteStage.site_id)
-    summary = computed_field(Site.detail)
-    parent_name = computed_field(Site.site_id)
+    site_id = computed_field(SiteStage.site_id, meaning=Omitted)
+    summary = computed_field(Site.detail, meaning=Omitted)
+    parent_name = computed_field(Site.site_id, meaning=Omitted)
 
 
 class SiteNode(Node):
-    options = NodeOptions(name="site_node")
+    options = NodeOptions(name="site_node", meaning=Omitted)
     label: PropertySlot[str] = property(
         meaning=Meaning(
             purpose=Purpose(

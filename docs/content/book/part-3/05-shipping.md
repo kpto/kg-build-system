@@ -103,10 +103,15 @@ The practical consequence is that the shipping gate is a sequence of commands, n
 uv sync
 uv run pytest -q
 uv run pyright
-uv run python -m reference_project.build
+uv run kbs generate --project reference_project --check
+uv run kbs run --project reference_project
 ```
 
-The only console command is `kbs generate`; it writes declaration source and does not build. `compile` and `execute` are Python calls, so the script that sequences a build is part of the project source and belongs in the bundle.
+The `kbs` verbs are the console surface: `generate` writes declaration source,
+`blueprint` and `workflow` stop at the model and the plan, and `run` compiles and
+executes. The composition they read is `manifest.py`, which belongs in the bundle
+beside the declarations. `compile` and `execute` remain Python calls for a caller
+that embeds the framework.
 
 The reference build writes `graph.jsonl`, `meta_graph.json`, `meta_graph.html`, `neo4j-import/`, `workflow_plan.json` and `build_report.json` under `reference_project/build` and publishes no intermediate core records. Wrapping those commands in CI is a reasonable delivery choice, but the repository does not supply that configuration and the documentation must not claim it does.
 

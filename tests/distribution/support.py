@@ -7,6 +7,7 @@ from kg_build_system import (
     AssetAuthority,
     AssetOptions,
     AssetProfile,
+    Omitted,
 )
 
 
@@ -21,4 +22,5 @@ class TestEstate(Asset):
             authority=AssetAuthority.PRIMARY,
             basis="test fixture",
         ),
+        meaning=Omitted,
     )

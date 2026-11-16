@@ -67,8 +67,8 @@ def field[T: DeclaredValue] (
     *,
     definition: FieldDefinition | None = None,
     name: str | None = None,
-    description: str | None = None,
     annotations: Sequence[Annotation] = (),
+    meaning: Meaning | type[Omitted],
 ) -> Field[T]: ...
 ```
 
@@ -78,14 +78,14 @@ def field[T: DeclaredValue] (
 | --- | --- | --- | --- |
 | `definition` | `FieldDefinition or None` | What the value, its unit and its absence mean | `None`; state it wherever the name and type cannot answer |
 | `name` | `str or None` | External field name seen by selections and the source | Snake case of the attribute; one trailing `_` is removed |
-| `description` | `str or None` | Member description | The string written directly below the assignment |
 | `annotations` | `Sequence[Annotation]` | Portable metadata carried by the field | `()` |
+| `meaning` | `Meaning or Omitted` | The field's own meaning, or the explicit opt-out | Required |
 
 Returns a `Field[T]` descriptor. Do not construct `Field` directly; the two constructors decide the backing kind. A field definition is optional: state it wherever the name and the type cannot answer what the value means, especially on a relation a binding reads. A `Struct` member may omit it.
 
 ```python
 from kg_build_system import (
-    Field, FieldDefinition, SourceRelation, SourceRelationOptions,
+    Field, FieldDefinition, Omitted, SourceRelation, SourceRelationOptions,
     Timestamp, field,
 )
 
@@ -95,12 +95,13 @@ from estate.assets import Estate
 class VisitSourceRelation(SourceRelation[Estate]):
     """One inspection visit."""
 
-    options = SourceRelationOptions(name="visit")
+    options = SourceRelationOptions(name="visit", contract=Omitted)
     visit_id: Field[str] = field(
         definition=FieldDefinition(
             value="the inspection visit's stable identifier",
             null_meaning="the source holds no identifier for the visit",
         ),
+        meaning=Omitted,
     )
     inspected_on: Field[Timestamp] = field(
         definition=FieldDefinition(
@@ -108,10 +109,12 @@ class VisitSourceRelation(SourceRelation[Estate]):
             unit="timestamp",
             null_meaning="the source does not record an inspection instant",
         ),
+        meaning=Omitted,
     )
     display_name: Field[str] = field(
         name="name",
         definition=FieldDefinition(value="the visit's display label"),
+        meaning=Omitted,
     )
 ```
 
@@ -141,8 +144,8 @@ def computed_field[T: DeclaredValue] (
     *,
     definition: FieldDefinition | None = None,
     name: str | None = None,
-    description: str | None = None,
     annotations: Sequence[Annotation] = (),
+    meaning: Meaning | type[Omitted],
 ) -> Field[T]: ...
 ```
 
@@ -153,14 +156,15 @@ def computed_field[T: DeclaredValue] (
 | `value` | `Selection[T]` | A selection that types the output | Required |
 | `definition` | `FieldDefinition or None` | What the output, its unit and its absence mean | `None`; state it wherever the name and type cannot answer |
 | `name` | `str or None` | External output name | Snake case of the attribute; one trailing `_` is removed |
-| `description` | `str or None` | Output description | The string written directly below the assignment |
 | `annotations` | `Sequence[Annotation]` | Portable metadata carried by the output | `()` |
+| `meaning` | `Meaning or Omitted` | The output's own meaning, or the explicit opt-out | Required |
 
 Returns a `Field[T]` descriptor. On a `DerivedRelation` or `Stage`, the field is an output typed by `value`; on a `ComputedStruct`, the field is a type witness. A field definition is optional and states the output's value, unit and null meaning; the relation contract never copies field definitions.
 
 ```python
 from kg_build_system import (
-    ComputedStruct, DerivedRelation, FieldDefinition, computed_field,
+    ComputedStruct, DerivedRelation, FieldDefinition, Omitted,
+    computed_field,
 )
 
 
@@ -168,18 +172,20 @@ class SiteDerivedRelation(DerivedRelation(SiteSourceRelation.row_source())):
     site_id = computed_field(
         SiteSourceRelation.site_id.alter_rows().drop_null(),
         definition=FieldDefinition(value="the site's stable identifier"),
+        meaning=Omitted,
     )
     label = computed_field(
         SiteSourceRelation.name.alter_rows().drop_null().prepend("site::"),
         definition=FieldDefinition(value="the site's display label"),
+        meaning=Omitted,
     )
 
 
 class SiteSummaryStruct(ComputedStruct):
     """The member types a summary record carries."""
 
-    site_id = computed_field(SiteSourceRelation.site_id.alter_rows().drop_null())
-    region = computed_field(SiteSourceRelation.region)
+    site_id = computed_field(SiteSourceRelation.site_id.alter_rows().drop_null(), meaning=Omitted)
+    region = computed_field(SiteSourceRelation.region, meaning=Omitted)
 ```
 
 | Error | Trigger |
@@ -290,6 +296,7 @@ class SiteSourceRelation(SourceRelation[Estate]):
     )
     site_id: Field[str] = field(
         definition=FieldDefinition(value="the site's stable identifier"),
+        meaning=Omitted,
     )
 ```
 
@@ -297,14 +304,14 @@ The asset parameter is part of the declaration. A concrete source relation witho
 
 | Member | Returns | Use |
 | --- | --- | --- |
-| `options` | `SourceRelationOptions` | Identity, description, annotations and the optional contract |
+| `options` | `SourceRelationOptions` | Identity, annotations and the contract or `Omitted` |
 | `row_source()` | `RelationRowSource[Self]` | Start the row-source algebra |
 
-The name defaults to the class name with one `SourceRelation` suffix removed and converted to snake case, so `VisitSourceRelation` becomes `visit`. `description` defaults to the class's own docstring; `options.description` wins. Description is not inherited.
+The name defaults to the class name with one `SourceRelation` suffix removed and converted to snake case, so `VisitSourceRelation` becomes `visit`. A source relation states its contract, or `contract=Omitted` when it publishes none; contract meaning is not inherited.
 
 ```python
 from kg_build_system import (
-    Claim, Contract, Definition, Field, FieldDefinition, Meaning,
+    Claim, Contract, Definition, Field, FieldDefinition, Meaning, Omitted,
     SourceRelation, SourceRelationOptions, field,
 )
 
@@ -323,12 +330,15 @@ class SiteSourceRelation(SourceRelation[Estate]):
     )
     site_id: Field[str] = field(
         definition=FieldDefinition(value="the site's stable identifier"),
+        meaning=Omitted,
     )
     name: Field[str] = field(
         definition=FieldDefinition(value="the site's display name"),
+        meaning=Omitted,
     )
     region: Field[str] = field(
         definition=FieldDefinition(value="the region the site belongs to"),
+        meaning=Omitted,
     )
 ```
 
@@ -355,15 +365,15 @@ class Struct:
 A `Struct` is a nested-record shape. It is used as `Field[SomeStruct]`, never as a row source, group member or relation declaration. Its identity is the `(module, qualname)` pair, so two structs with the same name in different modules are distinct.
 
 ```python
-from kg_build_system import Field, Struct, StructOptions, field
+from kg_build_system import Field, Omitted, Struct, StructOptions, field
 
 
 class ContactStruct(Struct):
     """A contact record inside a site row."""
 
-    options = StructOptions(name="contact")
-    email: Field[str] = field()
-    phone: Field[str] = field()
+    options = StructOptions(name="contact", meaning=Omitted)
+    email: Field[str] = field(meaning=Omitted)
+    phone: Field[str] = field(meaning=Omitted)
 ```
 
 A source struct member read yields `Selection[Nullable[T]]`; a nullable carrier also makes every member nullable. Reach members with `extract`; see [Expressions and selections](/appendix/reference/expressions#extract). A struct has no contract and no grain: it is a value shape, not a relation.
@@ -388,16 +398,16 @@ As a field type its member selections are **type witnesses**: they fix each memb
 
 ```python
 from kg_build_system import (
-    ComputedStruct, Field, SourceRelation, SourceRelationOptions, computed_field,
-    field,
+    ComputedStruct, Field, Omitted, SourceRelation, SourceRelationOptions,
+    computed_field, field,
 )
 
 from estate.assets import Estate
 
 
 class SiteSummaryStruct(ComputedStruct):
-    site_id = computed_field(SiteSourceRelation.site_id.alter_rows().drop_null())
-    region = computed_field(SiteSourceRelation.region.alter_rows().drop_null())
+    site_id = computed_field(SiteSourceRelation.site_id.alter_rows().drop_null(), meaning=Omitted)
+    region = computed_field(SiteSourceRelation.region.alter_rows().drop_null(), meaning=Omitted)
 
 
 class SummarySourceRelation(SourceRelation[Estate]):
@@ -409,9 +419,11 @@ class SummarySourceRelation(SourceRelation[Estate]):
     )
     site_id: Field[str] = field(
         definition=FieldDefinition(value="the site's stable identifier"),
+        meaning=Omitted,
     )
     summary: Field[SiteSummaryStruct] = field(
         definition=FieldDefinition(value="the site's summary", unit=None),
+        meaning=Omitted,
     )
 ```
 
@@ -435,7 +447,7 @@ There is no unpinned derived relation. `DerivedRelation()` and `class R(DerivedR
 ```python
 from kg_build_system import (
     Claim, Contract, Definition, DerivedRelation, DerivedRelationOptions,
-    FieldDefinition, Meaning, Purpose, computed_field,
+    FieldDefinition, Meaning, Omitted, Purpose, computed_field,
 )
 
 
@@ -453,10 +465,12 @@ class SiteDerivedRelation(DerivedRelation(SiteSourceRelation.row_source())):
     site_id = computed_field(
         SiteSourceRelation.site_id.alter_rows().drop_null(),
         definition=FieldDefinition(value="the site's stable identifier"),
+        meaning=Omitted,
     )
     label = computed_field(
         SiteSourceRelation.name.alter_rows().drop_null().prepend("site::"),
         definition=FieldDefinition(value="the site's display label"),
+        meaning=Omitted,
     )
 ```
 
@@ -495,7 +509,8 @@ A stage lives in `_<stage>.py` beside the `relation.py` of its derived relation.
 ```python
 # relation/derived/defect_relation/_stage_cause.py
 from kg_build_system import (
-    Definition, FieldDefinition, Stage, StageOptions, computed_field,
+    Definition, FieldDefinition, Omitted, Stage, StageOptions,
+    computed_field,
 )
 
 
@@ -509,10 +524,12 @@ class DefectCauseStage(Stage(DefectSourceRelation.row_source())):
     defect_id = computed_field(
         DefectSourceRelation.defect_id.alter_rows().drop_null(),
         definition=FieldDefinition(value="the defect's stable identifier"),
+        meaning=Omitted,
     )
     cause_id = computed_field(
         DefectSourceRelation.cause_id.alter_rows().drop_null(),
         definition=FieldDefinition(value="the cause's stable identifier"),
+        meaning=Omitted,
     )
 ```
 
@@ -522,7 +539,7 @@ The derived relation then pins the stage's row source and states the contract th
 # relation/derived/defect_relation/relation.py
 from kg_build_system import (
     Claim, Contract, Definition, DerivedRelation, DerivedRelationOptions,
-    FieldDefinition, Meaning, computed_field,
+    FieldDefinition, Meaning, Omitted, computed_field,
 )
 
 from ._stage_cause import DefectCauseStage
@@ -545,6 +562,7 @@ class DefectDerivedRelation(DerivedRelation(DefectCauseStage.row_source())):
     defect_id = computed_field(
         DefectCauseStage.defect_id,
         definition=FieldDefinition(value="the defect's stable identifier"),
+        meaning=Omitted,
     )
 ```
 
@@ -594,30 +612,30 @@ class StructTemplate:
     # field members
 ```
 
-`StructTemplate` shares field slots and annotation flow with `SourceRelation`, `Struct` and `ComputedStruct`. It never becomes a declaration, has no name, contract or description and never enters the blueprint. Templates come first in the base list: `class SiteSourceRelation(ProvenancedTemplate, SourceRelation[Estate])`.
+`StructTemplate` shares field slots and annotation flow with `SourceRelation`, `Struct` and `ComputedStruct`. It never becomes a declaration, has no name or contract, and never enters the blueprint. Templates come first in the base list: `class SiteSourceRelation(ProvenancedTemplate, SourceRelation[Estate])`.
 
 A template's options must be `StructOptionsTemplate`, which carries annotations only. A template may extend another template by naming it as its base. Mixing a template into `DerivedRelation`, `Stage` or `SourceRelationGroup` is refused. A `ComputedStruct` host accepts a template's annotations, but a source-backed template field fails there because a computed host requires `computed_field`.
 
 ```python
 from kg_build_system import (
-    Field, SourceRelation, SourceRelationOptions, StructOptionsTemplate,
-    StructTemplate, field,
+    Field, Omitted, SourceRelation, SourceRelationOptions,
+    StructOptionsTemplate, StructTemplate, field,
 )
 
 
 class ProvenancedTemplate(StructTemplate):
     options = StructOptionsTemplate()
-    source_version: Field[str] = field()
+    source_version: Field[str] = field(meaning=Omitted)
 
 
 class SiteSourceRelation(ProvenancedTemplate, SourceRelation[Estate]):
-    options = SourceRelationOptions(...)
-    site_id: Field[str] = field()
+    options = SourceRelationOptions(..., contract=Omitted)
+    site_id: Field[str] = field(meaning=Omitted)
 ```
 
 | Error | Trigger |
 | --- | --- |
-| `<Class> is a data template: its options must be StructOptionsTemplate, which carries no name or description — wrap it: ...` | A template uses `SourceRelationOptions` or `StructOptions` |
+| `<Class> is a data template: its options must be StructOptionsTemplate, which carries no name — wrap it: ...` | A template uses `SourceRelationOptions` or `StructOptions` |
 | `<Class> mixes StructTemplate into a non-record declaration: ...` | A template is mixed into `DerivedRelation`, `Stage` or `SourceRelationGroup` |
 | `<Class>.<attribute> must be declared with computed_field()` | A source-backed template field reaches a `ComputedStruct` host |
 
@@ -625,16 +643,16 @@ class SiteSourceRelation(ProvenancedTemplate, SourceRelation[Estate]):
 
 | Option value | Signature | Fields |
 | --- | --- | --- |
-| `SourceRelationOptions` | `SourceRelationOptions(name=None, description=None, annotations=(), contract=None)` | Identity, description, annotations and an optional contract |
-| `StructOptions` | `StructOptions(name=None, description=None, annotations=(), meaning=None)` | Struct or computed-struct identity, description, annotations and optional meaning |
-| `DerivedRelationOptions` | `DerivedRelationOptions(contract=..., name=None, description=None, annotations=())` | The required relation contract plus identity, description and annotations |
-| `StageOptions` | `StageOptions(definition=..., name=None, description=None, annotations=())` | The required stage definition plus identity, description and annotations; no meaning |
-| `SourceRelationGroupOptions` | `SourceRelationGroupOptions(members=(), name=None, description=None, annotations=())` | Group members plus identity, description and annotations; no contract |
-| `StructOptionsTemplate` | `StructOptionsTemplate(annotations=())` | Template annotations only; no name or description |
+| `SourceRelationOptions` | `SourceRelationOptions(name=None, annotations=(), *, contract=...)` | Identity, annotations and a contract or `Omitted` |
+| `StructOptions` | `StructOptions(name=None, annotations=(), *, meaning=...)` | Struct or computed-struct identity, annotations and a meaning or `Omitted` |
+| `DerivedRelationOptions` | `DerivedRelationOptions(contract=..., name=None, annotations=())` | The required relation contract plus identity and annotations |
+| `StageOptions` | `StageOptions(definition=..., name=None, annotations=())` | The required stage definition plus identity and annotations; no meaning |
+| `SourceRelationGroupOptions` | `SourceRelationGroupOptions(members=(), name=None, annotations=())` | Group members plus identity and annotations; no contract |
+| `StructOptionsTemplate` | `StructOptionsTemplate(annotations=())` | Template annotations only; no name |
 
-Every option value is frozen. `name` must be non-empty when supplied. `description` defaults to the declaration's own docstring and is never inherited. `annotations` is a sequence of `Annotation` values; see [Data specification](/appendix/spec/data).
+Every option value is frozen. `name` must be non-empty when supplied. `annotations` is a sequence of `Annotation` values; see [Data specification](/appendix/spec/data).
 
-A derived relation option requires a contract; a source relation option may omit it. Neither takes a bare `meaning`: grain and identity are part of what a derived relation promises. A `Struct` is not a relation and keeps the optional `meaning` it attaches as a declaration.
+A derived relation option requires a contract; a source relation states `contract=Omitted` when it publishes no contract. A relation never takes a bare `meaning`: grain and identity are part of what a relation promises. A `Struct` is not a relation and states `meaning=Omitted` when it has no claim of its own. The authoring value has no `description`; the declaration's `Meaning` is the text a display surface reads.
 
 **What to remember**
 

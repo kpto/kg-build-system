@@ -23,8 +23,9 @@ Do not own joins, record shapes, or access logic.
   `members`. It MUST NOT be an access contract; an access contract is a source
   relation.
 - The meaning MUST be inline at the `Asset` subclass. It states what the source
-  unit is and what it is not. A layout path or option used once MUST be inlined;
-  it MUST NOT become a module-level helper.
+  unit is and what it is not; a declaration with nothing to state MUST pass
+  `meaning=Omitted`. A layout path or option used once MUST be inlined; it MUST
+  NOT become a module-level helper.
 - The declaration MUST NOT have a docstring; the meaning is its documentation.
 
 ## Support

@@ -38,8 +38,8 @@ evidence:
 - **R8.** A declaration MUST carry at most one purpose. If it needs two incompatible purposes, the declaration MUST be split or one use MUST become a limitation.
 - **R9.** A project with any graph-local purpose MUST declare a graph purpose. Claims MAY be attached without a graph declaration; a relation purpose is not a graph-local purpose and MUST NOT require one.
 - **R10.** A node MUST accept at most one `NodeLabel`, and an edge MUST accept at most one `EdgeLabel`. A label of the wrong kind MUST be refused.
-- **R11.** Meaning MUST remain separate from annotations and descriptions. A description MUST NOT become a claim, and an annotation MUST NOT become a limitation.
-- **R12.** A category description MUST stay local to the category and MUST NOT flow to a child declaration. Child meaning MUST be attached explicitly.
+- **R11.** Meaning MUST remain separate from annotations. An annotation MUST NOT become a limitation, and a label MUST NOT stand in for a meaning.
+- **R12.** A category meaning MUST stay local to the category and MUST NOT flow to a child declaration. Child meaning MUST be attached explicitly.
 - **R13.** Every unit text MUST be non-empty.
 - **R14.** The graph declaration MUST become the optional fifth blueprint field `graph_declaration`, carrying a `MeaningDTO` with the same document shape as every other declaration. A project with no graph declaration MUST publish `graph_declaration` as `None`.
 - **R15.** A unit's text MUST answer the question its type owns. A definition, identity, grain, cardinality or measurement MUST be a claim; a prohibition, absence, exclusion or inference ceiling MUST be a limitation; an expected use MUST be a purpose.
@@ -47,6 +47,7 @@ evidence:
 - **R17.** A declaration with no positive use MUST carry claims only. A purpose MUST NOT be authored to satisfy the shape. Two declarations MAY share a purpose text only when their expected use is identical; a different subject or operation MUST have a different purpose.
 - **R18.** A binding purpose MUST state the fulfilment it performs: which relation satisfies which record purpose, at which grain, identity and coverage, and where that fulfilment falls short. A binding MUST NOT omit its purpose, and a binding purpose MUST NOT be the parent of either side's purpose.
 - **R19.** A declaration MUST author its meaning value at the declaration. A structural helper MAY accept a `Meaning` value and pass it through; it MUST NOT accept purpose, claim or limitation text. Meaning MUST NOT be assembled by a project-local helper.
+- **R20.** A declaration that states no meaning MUST pass the `Omitted` marker explicitly; `None` MUST NOT be an authoring value. The graph declaration, a published contract and a binding MUST NOT accept `Omitted`.
 
 ## Evidence
 
@@ -54,7 +55,8 @@ evidence:
 | --- | --- |
 | `tests/distribution/test_meaning_language.py` | Unit shape, one-purpose rule, DTO and source round trip for the meaning value. |
 | `tests/distribution/test_graph_language.py` | Required graph meaning with a purpose, one-graph refusal, and the graph declaration round trip. |
-| `tests/distribution/test_topology_meaning.py` | Node and edge meaning fragments, local purposes, labels, and local category descriptions. |
+| `tests/distribution/test_topology_meaning.py` | Node and edge meaning fragments, local purposes, labels, and local category meanings. |
+| `tests/distribution/test_omitted.py` | Explicit `Omitted` at every optional site, refusal where a declaration cannot opt out, and no meaning in the blueprint. |
 | `tests/distribution/test_data_meaning.py` | Source relation, struct, derived relation and field meaning attachment. |
 | `tests/distribution/test_binding_meaning.py` | Binding meaning and the absence of per-property binding meaning. |
 
@@ -66,8 +68,10 @@ evidence:
 | `Limitation` | What a purpose does not authorize. |
 | `Purpose` | One expected use of the subject, owning its limitations. |
 | `Meaning` | The one meaning value attached to a declaration; an optional purpose plus claims. |
+| `Omitted` | The explicit marker for a declaration that states no meaning. |
+| `is_omitted(value)` | Whether a value is the `Omitted` marker. |
 | `Graph` | The project's at most one graph declaration. |
-| `GraphOptions` | Graph name, description, and required meaning carrying the root purpose. |
+| `GraphOptions` | Graph name and the required meaning carrying the root purpose; it cannot opt out. |
 | `NodeLabel` / `EdgeLabel` | One portable label of the matching component kind. |
 
 ## Limits

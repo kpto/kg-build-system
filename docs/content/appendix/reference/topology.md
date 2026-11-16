@@ -25,7 +25,7 @@ sources:
 | `Edge[S, D]` | `class LinkedEdge(Edge[AssetNode, AssetNode])` | Directed, concrete and bindable edge. |
 | `AbstractEdge[S, D]` | `class LinkAbstractEdge(AbstractEdge[AssetNode, AssetNode])` | Graph-visible relationship family; never a binding target. |
 | `NodeTemplate` / `EdgeTemplate` | `class ProvenancedNodeTemplate(NodeTemplate)` | Inert property and annotation mixin; never a graph component. |
-| `PropertySlot[T]` + `property()` | `name: PropertySlot[str] = property()` | One declared graph property and its value type. |
+| `PropertySlot[T]` + `property()` | `name: PropertySlot[str] = property(meaning=...)` | One declared graph property, its value type and its meaning. |
 | `endpoint(target)` | `endpoint(SiteNode)` | One concrete node token for an abstract edge side. |
 
 Read [Declare topology](/book/part-2/02-topology) for the authoring path, [Topology specification](/appendix/spec/topology) for the requirement and [Topology subject](/appendix/subjects/topology) for the views.
@@ -36,24 +36,36 @@ Topology is data-independent: it names a component, its properties and, for an e
 
 ```python
 from kg_build_system import (
-    AbstractNode, Edge, EdgeLabel, EdgeOptions, Node, NodeLabel, NodeOptions,
-    PropertySlot, property,
+    AbstractNode, Claim, Edge, EdgeLabel, EdgeOptions, Meaning, Node,
+    NodeLabel, NodeOptions, PropertySlot, property,
 )
 
 class AssetNode(AbstractNode):
-    options = NodeOptions(annotations=(NodeLabel("Asset"),))
-    summary: PropertySlot[str] = property()
-    """A one-line description of the asset."""
+    options = NodeOptions(
+        annotations=(NodeLabel("Asset"),),
+        meaning=Meaning(claims=(Claim("A thing the register records."),)),
+    )
+    summary: PropertySlot[str] = property(
+        meaning=Meaning(claims=(Claim("A one-line summary of the asset."),)),
+    )
 
 class SiteNode(AssetNode, Node):
-    options = NodeOptions(annotations=(NodeLabel("Site"),))
-    name: PropertySlot[str] = property()
-    """The site's display name."""
+    options = NodeOptions(
+        annotations=(NodeLabel("Site"),),
+        meaning=Meaning(claims=(Claim("A monitored site."),)),
+    )
+    name: PropertySlot[str] = property(
+        meaning=Meaning(claims=(Claim("The site's display name."),)),
+    )
 
 class LinkedEdge(Edge[AssetNode, AssetNode]):
-    options = EdgeOptions(annotations=(EdgeLabel("LINKED"),))
-    since: PropertySlot[str | None] = property()
-    """When the link was asserted, when the source records it."""
+    options = EdgeOptions(
+        annotations=(EdgeLabel("LINKED"),),
+        meaning=Meaning(claims=(Claim("One asset is linked to another."),)),
+    )
+    since: PropertySlot[str | None] = property(
+        meaning=Meaning(claims=(Claim("When the link was asserted."),)),
+    )
 ```
 
 ### Component bases
@@ -76,16 +88,16 @@ A concrete component is terminal. A class declared as a concrete `Node` or `Edge
 ```python
 NodeOptions(
     name: str | None = None,
-    description: str | None = None,
     annotations: Sequence[Annotation] = (),
-    meaning: Meaning | None = None,
+    *,
+    meaning: Meaning | type[Omitted],
 )
 
 EdgeOptions(
     name: str | None = None,
-    description: str | None = None,
     annotations: Sequence[Annotation] = (),
-    meaning: Meaning | None = None,
+    *,
+    meaning: Meaning | type[Omitted],
 )
 ```
 
@@ -94,9 +106,8 @@ Assign the value to the class variable `options`.
 | Field | Meaning | Default |
 | --- | --- | --- |
 | `name` | Logical graph name; unique across nodes and edges | Inferred from the class name |
-| `description` | Prose description of the component | The class docstring, if present |
 | `annotations` | Portable metadata, including at most one matching label | Empty |
-| `meaning` | One declaration fragment attached under the graph purpose | `None` |
+| `meaning` | One declaration fragment attached under the graph purpose, or `Omitted` | Required |
 
 The inferred name removes one tier suffix and converts the remainder to snake case:
 
@@ -109,11 +120,14 @@ The inferred name removes one tier suffix and converts the remainder to snake ca
 
 An abstract class strips `AbstractNode` or `AbstractEdge` before the plain tier suffix, so `DocumentedAbstractNode` does not become `documented_abstract`.
 
-An explicit `options.name` replaces the inference completely. Component names must be unique across all reached nodes and edges. A concrete component does not inherit its category's `description` or label; see [Annotations reference](/appendix/reference/annotations) and [Semantic hierarchy](/appendix/philosophy/semantic-hierarchy).
+An explicit `options.name` replaces the inference completely. Component names must be unique across all reached nodes and edges. A concrete component does not inherit its category's meaning or label; see [Annotations reference](/appendix/reference/annotations) and [Semantic hierarchy](/appendix/philosophy/semantic-hierarchy).
 
 ```python
 class UnitNode(Node):
-    options = NodeOptions(name="equipment", description="Installed equipment.")
+    options = NodeOptions(
+        name="equipment",
+        meaning=Meaning(claims=(Claim("Installed equipment held on the register."),)),
+    )
 ```
 
 ### `property()`
@@ -122,9 +136,8 @@ class UnitNode(Node):
 property(
     *,
     name: str | None = None,
-    description: str | None = None,
     annotations: Sequence[Annotation] = (),
-    meaning: Meaning | None = None,
+    meaning: Meaning | type[Omitted],
 ) -> PropertySlot[T]
 ```
 
@@ -132,34 +145,38 @@ Declare a graph property by assigning the result to a class attribute annotated 
 
 ```python
 class UnitNode(Node):
-    asset_tag: PropertySlot[str] = property()
-    """The estate feed's asset tag for the unit."""
+    asset_tag: PropertySlot[str] = property(
+        meaning=Meaning(
+            claims=(Claim("The estate feed's asset tag for the unit."),),
+        ),
+    )
 
-    labels: PropertySlot[Array[str] | None] = property()
-    """Optional labels recorded for the unit."""
+    labels: PropertySlot[Array[str] | None] = property(meaning=Omitted)
 ```
 
 | Argument | Meaning | Default |
 | --- | --- | --- |
 | `name` | External property name | The attribute name in snake case, with one trailing underscore removed |
-| `description` | Property description | The docstring directly below the assignment |
 | `annotations` | Portable metadata for the property | Empty |
-| `meaning` | One declaration fragment attached under the graph purpose | `None` |
+| `meaning` | One declaration fragment attached under the graph purpose, or `Omitted` | Required |
 
 `PropertySlot[T]` accepts a scalar, `T | None`, a flat `Array[T]`, or `Array[T] | None`. Scalars are `bool`, `int`, `float`, `str`, `Date`, `Time`, `Timestamp`, `Uuid` and `CustomDataType`. Arrays are one level deep and hold non-null scalars. Structs, nested arrays and arrays with null items are not graph properties. See [Type vocabulary](/appendix/reference/types).
 
 `options_` is the escape for a name collision with the framework's `options` class variable: the external name is `options`. Two properties on one component may not share an external name.
 
-A property description belongs to the declaring class. An inherited property keeps its description and its declaration; a subclass does not replace it by writing a new docstring over the inherited slot.
+A property meaning belongs to the declaring class. An inherited property keeps
+its meaning and its declaration.
 
 ```python
-from kg_build_system import Array, Timestamp
+from kg_build_system import Array, Omitted, Timestamp
 
 class ReadingNode(Node):
     recorded_on: PropertySlot[Timestamp] = property(
-        description="The instant the reading was taken.",
+        meaning=Meaning(
+            claims=(Claim("The instant the reading was taken."),),
+        ),
     )
-    values: PropertySlot[Array[float]] = property()
+    values: PropertySlot[Array[float]] = property(meaning=Omitted)
 ```
 
 #### Errors
@@ -173,7 +190,8 @@ class ReadingNode(Node):
 | Two attributes resolve to one external name | `TypeError: <Class> properties '<a>' and '<b>' share external name '<name>'` |
 | `annotations` contains a non-`Annotation` value | `TypeError: annotations must contain only Annotation values` |
 
-A docstring is read from the declaration's source when the class is created. A class built from a string or typed directly into a REPL has no readable source, so its docstring yields no description; the `description=` argument always works.
+A declaration has no docstring. Its `meaning` is its documentation; a module or
+file docstring may state the file's role, not the declaration's meaning.
 
 ### Templates
 
@@ -185,12 +203,11 @@ from kg_build_system import (
 )
 
 class ProvenancedNodeTemplate(NodeTemplate):
-    options = NodeOptionsTemplate()
-    source_version: PropertySlot[str] = property()
-    """The data release the node's facts were built from."""
+    options = NodeOptionsTemplate(meaning=Omitted)
+    source_version: PropertySlot[str] = property(meaning=Omitted)
 
 class MeterNode(ProvenancedNodeTemplate, Node):
-    name: PropertySlot[str] = property()
+    name: PropertySlot[str] = property(meaning=Omitted)
 ```
 
 A template's options are annotations-only:
@@ -198,11 +215,13 @@ A template's options are annotations-only:
 ```python
 NodeOptionsTemplate(
     annotations: Sequence[Annotation] = (),
-    meaning: Meaning | None = None,
+    *,
+    meaning: Meaning | type[Omitted],
 )
 EdgeOptionsTemplate(
     annotations: Sequence[Annotation] = (),
-    meaning: Meaning | None = None,
+    *,
+    meaning: Meaning | type[Omitted],
 )
 ```
 
@@ -211,7 +230,7 @@ EdgeOptionsTemplate(
 | `NodeTemplate` subclass | `NodeOptionsTemplate` |
 | `EdgeTemplate` subclass | `EdgeOptionsTemplate` |
 
-A template has no `name` or `description`. Passing `NodeOptions` or `EdgeOptions` to a template is refused; so is passing a template-options value to a concrete or abstract component.
+A template has no `name`. Passing `NodeOptions` or `EdgeOptions` to a template is refused; so is passing a template-options value to a concrete or abstract component.
 
 A declaration may mix in any number of templates of its own kind. Keep one property slot per name: redeclaring an inherited slot at another type is a static type error.
 
@@ -245,13 +264,13 @@ A category may chain: `class PlaceNode(DocumentedAbstractNode, Node)` records `D
 An edge declares its endpoints with two node-side type arguments. An abstract edge may declare categories; a concrete edge under it may keep those endpoints or narrow them.
 
 ```python
-from kg_build_system import AbstractEdge, Edge, EdgeLabel, EdgeOptions
+from kg_build_system import AbstractEdge, Edge, EdgeLabel, EdgeOptions, Omitted
 
 class MonitoredAbstractEdge(AbstractEdge[AssetNode, AssetNode]):
-    options = EdgeOptions(annotations=(EdgeLabel("MONITORED"),))
+    options = EdgeOptions(annotations=(EdgeLabel("MONITORED"),), meaning=Omitted)
 
 class AssetAtEdge(MonitoredAbstractEdge, Edge[SiteNode, SiteNode]):
-    options = EdgeOptions(annotations=(EdgeLabel("ASSET_AT"),))
+    options = EdgeOptions(annotations=(EdgeLabel("ASSET_AT"),), meaning=Omitted)
 ```
 
 | Rule | Error |
@@ -308,8 +327,8 @@ A category entry carries the properties and annotations effective on the categor
 ```python
 from kg_build_system import (
     AbstractNode, Field, Meaning, Node, NodeLabel, NodeOptions, PropertySlot,
-    Purpose, SourceRelation, SourceRelationOptions,
-    field, node_binding, property,
+    Purpose, SourceRelation, SourceRelationOptions, field, node_binding,
+    property,
 )
 
 from estate.assets import Estate
@@ -317,17 +336,19 @@ from estate.assets import Estate
 class SiteSourceRelation(SourceRelation[Estate]):
     # The contract and field definitions are stated in full on Declarations.
     options = SourceRelationOptions(contract=...)
-    site_id: Field[str] = field()
-    summary: Field[str] = field()
-    name: Field[str] = field()
+    site_id: Field[str] = field(meaning=Omitted)
+    summary: Field[str] = field(meaning=Omitted)
+    name: Field[str] = field(meaning=Omitted)
 
 class DocumentedAbstractNode(AbstractNode):
-    options = NodeOptions(annotations=(NodeLabel("Documented"),))
-    summary: PropertySlot[str] = property()
+    options = NodeOptions(
+        annotations=(NodeLabel("Documented"),), meaning=Omitted,
+    )
+    summary: PropertySlot[str] = property(meaning=Omitted)
 
 class SiteNode(DocumentedAbstractNode, Node):
-    options = NodeOptions(annotations=(NodeLabel("Site"),))
-    name: PropertySlot[str] = property()
+    options = NodeOptions(annotations=(NodeLabel("Site"),), meaning=Omitted)
+    name: PropertySlot[str] = property(meaning=Omitted)
 
 site_binding = node_binding(
     target=SiteNode,
@@ -342,7 +363,7 @@ site_binding = node_binding(
 )
 ```
 
-Binding `SiteNode` reaches `DocumentedAbstractNode`; both appear in the blueprint. `DocumentedAbstractNode` keeps the `Documented` label and summary property; `SiteNode` keeps its own `Site` label and does not inherit the category description or label.
+Binding `SiteNode` reaches `DocumentedAbstractNode`; both appear in the blueprint. `DocumentedAbstractNode` keeps the `Documented` label and summary property; `SiteNode` keeps its own `Site` label and does not inherit the category meaning or label.
 
 A category does not create records. Its record count in the meta-graph is the sum of its own and its descendants' records. The nearest category parent is recorded on each concrete component, so a category chain is preserved.
 

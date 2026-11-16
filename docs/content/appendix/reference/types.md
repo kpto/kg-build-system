@@ -51,15 +51,15 @@ All eight scalars have a canonical text form through `to_string()`. Temporal and
 `Date`, `Time`, `Timestamp` and `Uuid` are aliases of `datetime.date`, `datetime.time`, `datetime.datetime` and `uuid.UUID`. They are not subclasses, and the alias and the stdlib spelling are the same annotation.
 
 ```python
-from kg_build_system import Field, SourceRelation, field
+from kg_build_system import Field, Omitted, SourceRelation, field
 from kg_build_system import Timestamp, Uuid
 
 
 from estate.assets import Estate
 
 class RegisterSourceRelation(SourceRelation[Estate]):
-    site_id: Field[Uuid] = field(name="site_id")
-    opened_on: Field[Timestamp] = field(name="opened_on")
+    site_id: Field[Uuid] = field(name="site_id", meaning=Omitted)
+    opened_on: Field[Timestamp] = field(name="opened_on", meaning=Omitted)
 ```
 
 `Field[Uuid]` and `Field[uuid.UUID]` normalize to the same type, because dispatch is on the class itself. Use one spelling consistently in a declaration.
@@ -69,7 +69,7 @@ class RegisterSourceRelation(SourceRelation[Estate]):
 An application-defined scalar is a class derived from `CustomDataType`.
 
 ```python
-from kg_build_system import CustomDataType, Field, SourceRelation, field
+from kg_build_system import CustomDataType, Field, Omitted, SourceRelation, field
 
 
 class Currency(CustomDataType):
@@ -79,7 +79,7 @@ class Currency(CustomDataType):
 from estate.assets import Estate
 
 class BudgetSourceRelation(SourceRelation[Estate]):
-    budget: Field[Currency] = field()
+    budget: Field[Currency] = field(meaning=Omitted)
 ```
 
 - Identity is the `(module, qualname)` pair, not the logical class name. Two `Currency` classes in different modules are different types.
@@ -114,21 +114,21 @@ A null array produces no rows when expanded. An empty array also produces no row
 A struct is a nested-record shape only. It is never a row source, has no location, and cannot be bound. A struct may contain structs and arrays of structs. Its identity is the `(module, qualname)` pair, so two structs with the same name in different modules are distinct.
 
 ```python
-from kg_build_system import Field, Struct, SourceRelation, field
+from kg_build_system import Field, Omitted, SourceRelation, Struct, field
 from kg_build_system import Array
 
 
 class AddressStruct(Struct):
-    city: Field[str] = field()
-    postcode: Field[str] = field()
+    city: Field[str] = field(meaning=Omitted)
+    postcode: Field[str] = field(meaning=Omitted)
 
 
 from estate.assets import Estate
 
 class SiteSourceRelation(SourceRelation[Estate]):
-    site_id: Field[str] = field()
-    address: Field[AddressStruct] = field()
-    previous_addresses: Field[Array[AddressStruct]] = field()
+    site_id: Field[str] = field(meaning=Omitted)
+    address: Field[AddressStruct] = field(meaning=Omitted)
+    previous_addresses: Field[Array[AddressStruct]] = field(meaning=Omitted)
 ```
 
 A source struct member reads as nullable because the source may omit it. A `ComputedStruct` member selection is a **type witness** when the computed struct is carried by a row: it fixes the member type, but it is not evaluated. The carrier row supplies the value, and `extract` is the only way to read it.
@@ -181,14 +181,14 @@ A generated package renders every source field as `Field[T]` from its value type
 A graph property is a scalar or a **flat, homogeneous array of non-null scalars**. It is declared as a `PropertySlot[T]` and accepts a selection of `T`. See [Topology](/appendix/reference/topology).
 
 ```python
-from kg_build_system import Node, PropertySlot, property
+from kg_build_system import Node, Omitted, PropertySlot, property
 from kg_build_system import Array
 
 
 class SiteNode(Node):
-    name: PropertySlot[str] = property()
-    rating: PropertySlot[float] = property()
-    tags: PropertySlot[Array[str]] = property()
+    name: PropertySlot[str] = property(meaning=Omitted)
+    rating: PropertySlot[float] = property(meaning=Omitted)
+    tags: PropertySlot[Array[str]] = property(meaning=Omitted)
 ```
 
 | Shape | Accepted as a property | Reason |
@@ -303,8 +303,8 @@ Acceptance by the digest gate is not acceptance as a graph property. A physical 
 
 ```python
 from kg_build_system import (
-    Field, Meaning, Node, NodeValues, PropertySlot, Purpose, SourceRelation,
-    field, node_binding, property,
+    Field, Meaning, Node, NodeValues, Omitted, PropertySlot, Purpose,
+    SourceRelation, field, node_binding, property,
 )
 from kg_build_system import Array, Nullable, Timestamp
 
@@ -312,16 +312,16 @@ from kg_build_system import Array, Nullable, Timestamp
 from estate.assets import Estate
 
 class ReadingSourceRelation(SourceRelation[Estate]):
-    reading_id: Field[str] = field()
-    recorded_on: Field[Timestamp] = field()
-    value: Field[float] = field()
-    labels: Field[Array[Nullable[str]]] = field()
+    reading_id: Field[str] = field(meaning=Omitted)
+    recorded_on: Field[Timestamp] = field(meaning=Omitted)
+    value: Field[float] = field(meaning=Omitted)
+    labels: Field[Array[Nullable[str]]] = field(meaning=Omitted)
 
 
 class ReadingNode(Node):
-    recorded_on: PropertySlot[Timestamp] = property()
-    value: PropertySlot[float] = property()
-    labels: PropertySlot[Array[str]] = property()
+    recorded_on: PropertySlot[Timestamp] = property(meaning=Omitted)
+    value: PropertySlot[float] = property(meaning=Omitted)
+    labels: PropertySlot[Array[str]] = property(meaning=Omitted)
 
 
 reading_binding = node_binding(

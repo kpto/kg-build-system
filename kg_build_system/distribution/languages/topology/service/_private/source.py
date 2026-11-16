@@ -53,6 +53,9 @@ def _options_source(
         lines.append("        ),")
     if meaning is not None:
         lines.extend(render_meaning_lines(meaning, imports, "        "))
+    else:
+        imports.add("from kg_build_system import Omitted")
+        lines.append("        meaning=Omitted,")
     lines.append("    )")
     return tuple(lines)
 
@@ -62,25 +65,22 @@ def _property_source(value: PropertyDTO, imports: set[str]) -> list[str]:
     type_source = render_logical_type(value.logical_type, imports)
     has_name = attribute != value.name
     has_annotations = bool(value.annotations)
-    has_meaning = value.meaning is not None
-    if not has_name and not has_annotations and not has_meaning:
-        lines = [f"    {attribute}: PropertySlot[{type_source}] = property()"]
+    lines = [f"    {attribute}: PropertySlot[{type_source}] = property("]
+    if has_name:
+        lines.append(f"        name={value.name!r},")
+    if has_annotations:
+        lines.append("        annotations=(")
+        lines.extend(
+            f"            {render_annotation(item, imports)},"
+            for item in value.annotations
+        )
+        lines.append("        ),")
+    if value.meaning is not None:
+        lines.extend(render_meaning_lines(value.meaning, imports, "        "))
     else:
-        lines = [f"    {attribute}: PropertySlot[{type_source}] = property("]
-        if has_name:
-            lines.append(f"        name={value.name!r},")
-        if has_annotations:
-            lines.append("        annotations=(")
-            lines.extend(
-                f"            {render_annotation(item, imports)},"
-                for item in value.annotations
-            )
-            lines.append("        ),")
-        if value.meaning is not None:
-            lines.extend(
-                render_meaning_lines(value.meaning, imports, "        ")
-            )
-        lines.append("    )")
+        imports.add("from kg_build_system import Omitted")
+        lines.append("        meaning=Omitted,")
+    lines.append("    )")
     return lines
 
 

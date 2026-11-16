@@ -38,9 +38,16 @@ what the graph asserts                   what the domain contains
 - **Inline the meaning.** `Meaning`, `Contract` and `FieldDefinition` belong at
   the declaration. Do not introduce a module-level meaning constant, a lookup
   table or a helper that assembles purpose, claim or limitation text.
-- **A declaration has no docstring.** Its `Meaning` is its documentation. A
-  module docstring MAY state the file's role, but it MUST NOT restate the
-  declaration's meaning.
+- **A declaration has no docstring and no description.** Its `Meaning` is its
+  documentation and the text a display surface reads. A module docstring MAY
+  state the file's role, but it MUST NOT restate the declaration's meaning.
+- **Meaning is required.** A declaration that states no meaning MUST pass
+  `meaning=Omitted`; a source relation with no contract MUST pass
+  `contract=Omitted`. The graph declaration, a published contract and a binding
+  MUST NOT opt out.
+- **Composition is `manifest.py`.** It declares `Blueprint` and `Workflow`
+  values; importing it builds nothing. The `kbs` commands find the values by
+  type. A declaration MUST NOT live there: discovery skips the module.
 
 ## First task
 
@@ -70,6 +77,10 @@ what the graph asserts                   what the domain contains
   or a helper is not attached to the declaration it governs.
 - A one-use expression MUST be inlined. A module-level selection used by one
   stage or relation is a second place to read, and it hides the grain.
+- A missing meaning is `Omitted`, not a forgotten argument. `field()`,
+  `property()`, `NodeOptions` and `StructOptions` refuse a missing meaning.
+- A binding's `name` is a display handle. It is excluded from the binding
+  identity digest, so renaming a binding does not change what it declares.
 
 The stranger test: could a reviewer who has not seen the code say what a
 declaration is for, what it asserts and what it excludes? If not, the meaning is

@@ -39,6 +39,7 @@ from kg_build_system.distribution.languages.topology.service.internal import (
     render_graph_source,
     transcribe_graph_part,
 )
+from kg_build_system import Omitted
 
 
 def _meaning() -> Meaning:
@@ -215,7 +216,7 @@ class MeaningDocumentTests(unittest.TestCase):
 
     def test_a_declaration_without_meaning_writes_no_member(self) -> None:
         class SiteNode(Node):
-            site_id: PropertySlot[str] = property()
+            site_id: PropertySlot[str] = property(meaning=Omitted)
 
         part = transcribe_graph_part((SiteNode,))
         document = graph_to_document(part)

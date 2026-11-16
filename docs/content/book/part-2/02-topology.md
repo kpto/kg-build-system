@@ -28,46 +28,46 @@ A concrete node is declared as a `Node` subclass. A concrete edge is declared as
 
 ```python
 from kg_build_system import (
-    AbstractNode, Edge, EdgeLabel, EdgeOptions, Node, NodeLabel,
-    NodeOptions, PropertySlot, property,
+    AbstractNode, Edge, EdgeLabel, EdgeOptions, Node, NodeLabel, NodeOptions,
+    Omitted, PropertySlot, property,
 )
 
 
 class AssetNode(AbstractNode):
     """A category: everything the estate records as an asset."""
 
-    options = NodeOptions(annotations=(NodeLabel("Asset"),))
-    summary: PropertySlot[str] = property()
+    options = NodeOptions(annotations=(NodeLabel("Asset"),), meaning=Omitted)
+    summary: PropertySlot[str] = property(meaning=Omitted)
     """One line describing the asset."""
 
 
 class SiteNode(AssetNode, Node):
     """A monitored site: premises the estate maintains."""
 
-    options = NodeOptions(annotations=(NodeLabel("Site"),))
-    name: PropertySlot[str] = property()
+    options = NodeOptions(annotations=(NodeLabel("Site"),), meaning=Omitted)
+    name: PropertySlot[str] = property(meaning=Omitted)
     """The site's display name."""
 
 
 class UnitNode(AssetNode, Node):
     """Installed equipment held on the asset register."""
 
-    options = NodeOptions(annotations=(NodeLabel("Unit"),))
-    name: PropertySlot[str] = property()
+    options = NodeOptions(annotations=(NodeLabel("Unit"),), meaning=Omitted)
+    name: PropertySlot[str] = property(meaning=Omitted)
     """The equipment name as the register records it."""
 
-    in_service: PropertySlot[bool] = property()
+    in_service: PropertySlot[bool] = property(meaning=Omitted)
     """True while the equipment is in service."""
 
-    survey_period: PropertySlot[str | None] = property()
+    survey_period: PropertySlot[str | None] = property(meaning=Omitted)
     """The period the register last reviewed the equipment, when recorded."""
 
 
 class HasUnitEdge(Edge[SiteNode, UnitNode]):
     """A site holds a unit."""
 
-    options = EdgeOptions(annotations=(EdgeLabel("HAS_UNIT"),))
-    as_at: PropertySlot[str] = property()
+    options = EdgeOptions(annotations=(EdgeLabel("HAS_UNIT"),), meaning=Omitted)
+    as_at: PropertySlot[str] = property(meaning=Omitted)
     """The period the relation is asserted as at."""
 ```
 

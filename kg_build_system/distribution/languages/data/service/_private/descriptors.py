@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from kg_build_system.distribution.languages.expressions.model.public import Selection
     from kg_build_system.distribution.languages.meaning.model.public import (
         Meaning,
+        Omitted,
     )
 
 T = TypeVar("T")
@@ -36,7 +37,7 @@ def make_field[T: DeclaredValue](  # pyright: ignore[reportInvalidTypeVarUse]
     definition: FieldDefinition | None = None,
     name: str | None = None,
     annotations: Sequence[Annotation] = (),
-    meaning: Meaning | None = None,
+    meaning: Meaning | type[Omitted],
 ) -> Field[T]:  # pyright: ignore[reportInvalidTypeVarUse]
     """Create a source-backed field descriptor; an empty name is rejected."""
     if name is not None and not name:
@@ -55,7 +56,7 @@ def make_computed_field[T: DeclaredValue](
     definition: FieldDefinition | None = None,
     name: str | None = None,
     annotations: Sequence[Annotation] = (),
-    meaning: Meaning | None = None,
+    meaning: Meaning | type[Omitted],
 ) -> Field[T]:
     """Create an expression-backed field descriptor; an empty name is rejected."""
     if name is not None and not name:

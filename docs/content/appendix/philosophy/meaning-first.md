@@ -46,17 +46,17 @@ A source-shaped relation:
 
 ```python
 from kg_build_system import (
-    Field, SourceRelation, SourceRelationOptions, field,
+    Field, Omitted, SourceRelation, SourceRelationOptions, field,
 )
 
 from estate.asset import Estate
 
 
 class Row1(SourceRelation[Estate]):
-    options = SourceRelationOptions(name="row1")
+    options = SourceRelationOptions(name="row1", contract=Omitted)
 
-    col_a: Field[str] = field()
-    col_b: Field[str] = field()
+    col_a: Field[str] = field(meaning=Omitted)
+    col_b: Field[str] = field(meaning=Omitted)
 ```
 
 The same source, designed:
@@ -64,8 +64,8 @@ The same source, designed:
 ```python
 from kg_build_system import (
     Claim, Contract, Definition, Field, FieldDefinition, Graph, GraphOptions,
-    Meaning, Node, NodeOptions, PropertySlot, Purpose, SourceRelation,
-    SourceRelationOptions, field, property,
+    Meaning, Node, NodeOptions, Omitted, PropertySlot, Purpose,
+    SourceRelation, SourceRelationOptions, field, property,
 )
 
 from estate.asset import Estate
@@ -88,8 +88,8 @@ class Site(Node):
         ),
     )
 
-    name: PropertySlot[str] = property()
-    city: PropertySlot[str] = property()
+    name: PropertySlot[str] = property(meaning=Omitted)
+    city: PropertySlot[str] = property(meaning=Omitted)
 
 
 class Sites(SourceRelation[Estate]):
@@ -106,12 +106,13 @@ class Sites(SourceRelation[Estate]):
         ),
     )
 
-    site_id: Field[str] = field()
+    site_id: Field[str] = field(meaning=Omitted)
     site_name: Field[str] = field(
         definition=FieldDefinition(
             value="Name used for the premises.",
             null_meaning="The register has not named the premises.",
         ),
+        meaning=Omitted,
     )
 ```
 

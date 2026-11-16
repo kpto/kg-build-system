@@ -23,6 +23,10 @@ Example:
 """
 from __future__ import annotations
 
-from .model.public import Claim, Limitation, Purpose, Meaning
+from .model.public import (
+    Claim, Limitation, Meaning, Omitted, Purpose, is_omitted,
+)
 
-__all__ = ["Claim", "Limitation", "Purpose", "Meaning"]
+__all__ = [
+    "Claim", "Limitation", "Meaning", "Omitted", "Purpose", "is_omitted",
+]
