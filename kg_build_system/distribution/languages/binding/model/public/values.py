@@ -165,8 +165,8 @@ class EdgeValues(Generic[E_co, K, SK, TK]):
 class NodeBinding(Generic[N_co]):
     """One row context mapped onto one concrete node component.
 
-    ``name`` is a display handle; it is excluded from the binding's identity, so
-    renaming a binding does not change what it declares.
+    ``name`` is a display handle; it is excluded from the binding's identity
+    digest, so renaming a binding does not change what it declares.
 
     Example:
         ```python
@@ -199,8 +199,8 @@ class NodeBinding(Generic[N_co]):
 class EdgeBinding(Generic[E_co]):
     """One row context mapped onto one concrete edge component.
 
-    ``name`` is a display handle; it is excluded from the binding's identity, so
-    renaming a binding does not change what it declares.
+    ``name`` is a display handle; it is excluded from the binding's identity
+    digest, so renaming a binding does not change what it declares.
 
     Example:
         ```python

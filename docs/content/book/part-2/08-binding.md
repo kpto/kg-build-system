@@ -396,7 +396,7 @@ to sixteen hexadecimal characters, with `name` and `python_ref` removed.
 The digest covers the target and kind, the build key, the edge endpoint keys, every
 property selection, the resolved endpoint components, the row-source plan, the
 binding annotations and the meaning. Change any of those and the identity changes.
-Rename a producer and it does not.
+Rename a producer and the digest does not change; only the display prefix does.
 
 `name` is the human handle. It prefixes the identity string for display and
 appears in the meta-graph's binding entries, but it does not enter the digest. This

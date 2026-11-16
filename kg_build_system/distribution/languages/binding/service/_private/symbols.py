@@ -2,7 +2,7 @@
 
 A binding's identity is a content digest of its document. Its ``name`` is a
 display handle and is excluded from that digest, so renaming a binding does not
-change its identity. Its references are read from the authoring binding: the target
+change the digest. Its references are read from the authoring binding: the target
 component, the endpoint nodes, the row sources it reads and every expression
 leaf. A transcribed DTO is never the source of those references.
 """
