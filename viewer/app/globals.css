@@ -1,35 +1,43 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: "Inter";
+  src: url("/fonts/InterVariable.ttf") format("truetype");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 @theme {
   /* Blender 4.x dark workbench: graphite surfaces, orange selection, blue
      links, and semantic green/amber/red. Nothing else is decorative. */
-  --color-abyss: #1d1d1d;
-  --color-panel: #232323;
-  --color-panel-raised: #2b2b2b;
-  --color-panel-soft: #333333;
-  --color-inset: #191919;
-  --color-gutter: #111111;
-  --color-line: #3f3f3f;
-  --color-line-soft: #333333;
-  --color-line-strong: #4a4a4a;
+  --color-abyss: #1a1a1a;
+  --color-panel: #303030;
+  --color-panel-raised: #3d3d3d;
+  --color-panel-soft: #474747;
+  --color-inset: #181818;
+  --color-gutter: #101010;
+  --color-line: #545454;
+  --color-line-soft: #444444;
+  --color-line-strong: #606060;
   --color-edge: #8b96a3;
   --color-edge-strong: #aab5c2;
 
   --color-text: #e6e6e6;
-  --color-muted: #c4c4c4;
-  --color-faint: #9a9a9a;
+  --color-muted: #d0d0d0;
+  --color-faint: #adadad;
   --color-ink: #e6e6e6;
   --color-ink-soft: #d2d2d2;
 
   /* Orange is selection and primary action. */
-  --color-selection: #ff9f43;
-  --color-selection-strong: #e87d0d;
+  --color-selection: #ed5700;
+  --color-selection-strong: #ff7a2a;
   --color-selection-soft: #4a2c12;
 
   /* Blue is a link, focus ring and quiet active state. */
-  --color-accent: #5b8bd0;
-  --color-accent-strong: #7aa7e6;
-  --color-accent-soft: #24364d;
+  --color-accent: #4772b3;
+  --color-accent-strong: #71a8ff;
+  --color-accent-soft: #2c4463;
   --color-accent-ink: #0b1620;
   --color-link: #5b8bd0;
   --color-on-accent: #ffffff;
@@ -56,7 +64,7 @@
   --color-group-9: #6f8fae;
   --color-group-10: #b07f5f;
 
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
   --font-mono: "SFMono-Regular", ui-monospace, Menlo, Monaco, Consolas, monospace;
 
   --ease-instrument: cubic-bezier(0.22, 0.8, 0.24, 1);
@@ -67,12 +75,12 @@
 
 :root {
   color-scheme: dark;
-  --background: #1d1d1d;
+  --background: #1a1a1a;
   --foreground: #e6e6e6;
-  --accent: #5b8bd0;
-  --selection: #ff9f43;
+  --accent: #4772b3;
+  --selection: #ed5700;
   --wb-titlebar-h: 36px;
-  --wb-statusbar-h: 22px;
+  --wb-statusbar-h: 24px;
   --wb-radius: 3px;
   --motion-fast: 110ms;
   --motion-base: 150ms;
@@ -100,6 +108,7 @@
     margin: 0;
     color: var(--foreground);
     font-family: var(--font-sans);
+    text-shadow: 0 1px 0 rgb(0 0 0 / 28%);
     font-synthesis: none;
     background-color: var(--color-abyss);
     overscroll-behavior: none;
@@ -154,8 +163,8 @@
   }
 
   *::-webkit-scrollbar {
-    width: 7px;
-    height: 7px;
+    width: 11px;
+    height: 11px;
   }
 
   *::-webkit-scrollbar-track {
@@ -229,7 +238,7 @@
     gap: 12px;
     padding: 0 8px;
     border-bottom: 1px solid #101010;
-    background-color: var(--color-panel);
+    background-color: var(--color-inset);
     color: var(--color-muted);
   }
 
@@ -249,7 +258,7 @@
     align-items: center;
     justify-content: center;
     border: 1px solid #f7b56d;
-    border-radius: 2px;
+    border-radius: 4px;
     background-color: #e8851f;
     color: #1a1208;
   }
@@ -303,7 +312,7 @@
     margin: 0 auto;
     padding: 0 9px;
     border: 1px solid var(--color-line);
-    border-radius: 2px;
+    border-radius: 4px;
     background-color: var(--color-panel);
     color: var(--color-faint);
     text-align: left;
@@ -374,7 +383,7 @@
 
   .wb-side-section-header {
     display: flex;
-    height: 28px;
+    height: 30px;
     flex: none;
     align-items: center;
     gap: 5px;
@@ -400,7 +409,7 @@
 
   .wb-side-section-title {
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 400;
     letter-spacing: 0;
     text-transform: none;
   }
@@ -422,7 +431,7 @@
 
   .wb-sidebar-header {
     display: flex;
-    height: 28px;
+    height: 30px;
     flex: none;
     align-items: center;
     gap: 7px;
@@ -437,7 +446,7 @@
     flex: 1;
     color: var(--color-text);
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 400;
     letter-spacing: 0;
     text-transform: none;
   }
@@ -489,7 +498,7 @@
     left: 50%;
     width: 11px;
     height: 11px;
-    border-radius: 2px;
+    border-radius: 4px;
     opacity: 0;
     transform: translate(-50%, -50%);
   }
@@ -539,7 +548,7 @@
     align-items: stretch;
     overflow: hidden;
     border-bottom: 1px solid #101010;
-    background-color: var(--color-panel);
+    background-color: var(--color-inset);
   }
 
   .wb-tabnav {
@@ -558,7 +567,7 @@
     align-items: center;
     justify-content: center;
     border: 0;
-    border-radius: 2px;
+    border-radius: 4px;
     background: transparent;
     color: var(--color-muted);
   }
@@ -592,7 +601,7 @@
     flex: none;
     align-items: stretch;
     border-right: 1px solid var(--color-line-soft);
-    background-color: var(--color-panel);
+    background-color: var(--color-inset);
     transition:
       background-color var(--motion-base) var(--ease-instrument),
       box-shadow var(--motion-base) var(--ease-instrument);
@@ -603,7 +612,7 @@
   }
 
   .wb-tab[data-active="true"] {
-    background-color: var(--color-panel-raised);
+    background-color: var(--color-panel);
     box-shadow: inset 0 -2px 0 var(--color-accent);
   }
 
@@ -650,7 +659,7 @@
     justify-content: center;
     margin-right: 3px;
     border: 0;
-    border-radius: 2px;
+    border-radius: 4px;
     background: transparent;
     color: var(--color-faint);
   }
@@ -736,7 +745,7 @@
     gap: 12px;
     padding: 0 6px;
     border-top: 1px solid #101010;
-    background-color: var(--color-panel);
+    background-color: var(--color-inset);
     color: var(--color-faint);
     font-size: 11.5px;
     line-height: 1;
@@ -796,7 +805,7 @@
     justify-content: center;
     padding: 0 3px;
     border: 0;
-    border-radius: 2px;
+    border-radius: 4px;
     background: transparent;
     color: var(--color-faint);
   }
@@ -823,7 +832,7 @@
     justify-content: center;
     padding: 0;
     border: 1px solid transparent;
-    border-radius: 2px;
+    border-radius: 4px;
     background: transparent;
     color: var(--color-muted);
   }
@@ -848,8 +857,9 @@
     gap: 6px;
     padding: 3px 10px;
     border: 1px solid var(--color-line-strong);
-    border-radius: 2px;
+    border-radius: 4px;
     background-color: var(--color-panel-raised);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 8%);
     color: var(--color-muted);
     font-size: 12px;
     font-weight: 500;
@@ -895,7 +905,7 @@
     justify-content: center;
     padding: 0 4px;
     border: 1px solid var(--color-line);
-    border-radius: 2px;
+    border-radius: 4px;
     background-color: var(--color-panel-soft);
     color: var(--color-muted);
     font-family: var(--font-mono);
@@ -910,7 +920,7 @@
     gap: 5px;
     padding: 0 7px;
     border: 1px solid var(--color-line);
-    border-radius: 2px;
+    border-radius: 4px;
     background-color: var(--color-panel-raised);
     color: var(--color-muted);
     font-family: var(--font-mono);
@@ -1024,7 +1034,7 @@
     gap: 9px;
     padding: 5px 8px;
     border: 0;
-    border-radius: 3px;
+    border-radius: 4px;
     background: transparent;
     color: var(--color-muted);
     text-align: left;
@@ -1044,7 +1054,7 @@
     align-items: center;
     justify-content: center;
     border: 1px solid var(--color-line);
-    border-radius: 3px;
+    border-radius: 4px;
     background-color: var(--color-panel-soft);
     color: var(--color-selection);
   }
@@ -1179,7 +1189,7 @@
     margin-top: 9px;
     padding: 8px 9px;
     border: 1px solid var(--color-line-soft);
-    border-radius: 3px;
+    border-radius: 4px;
     background-color: var(--color-abyss);
   }
 
@@ -1220,7 +1230,7 @@
     gap: 6px;
     padding: 5px 7px;
     border: 1px solid var(--color-line-soft);
-    border-radius: 3px;
+    border-radius: 4px;
     background-color: var(--color-abyss);
     color: var(--color-muted);
     font-size: 11.5px;
@@ -1237,7 +1247,7 @@
     height: 13px;
     flex: none;
     border: 1px solid rgb(255 255 255 / 18%);
-    border-radius: 2px;
+    border-radius: 4px;
   }
 
   /* ---- Loading and error gates ---------------------------------------- */
@@ -1289,7 +1299,7 @@
   .wb-gate-block {
     display: block;
     height: 19px;
-    border-radius: 2px;
+    border-radius: 4px;
     background: linear-gradient(
       90deg,
       #2a2a2a,
@@ -1350,7 +1360,7 @@
   .wb-gate-slow {
     padding: 6px 8px;
     border: 1px solid rgb(215 168 74 / 35%);
-    border-radius: 3px;
+    border-radius: 4px;
     background-color: rgb(215 168 74 / 8%);
     color: var(--color-open) !important;
     font-size: 12px !important;
@@ -1394,7 +1404,7 @@
     margin-bottom: 7px;
     overflow: hidden;
     border: 1px solid var(--color-line-soft);
-    border-radius: 3px;
+    border-radius: 4px;
     background-color: #252525;
   }
 
@@ -1455,7 +1465,7 @@
     gap: 8px;
     margin-top: 2px;
     padding: 0 4px;
-    border-radius: 2px;
+    border-radius: 4px;
   }
 
   .wb-side-row:hover {
@@ -1491,7 +1501,7 @@
     margin: 7px 0 2px;
     padding: 7px 8px;
     border: 1px dashed var(--color-line);
-    border-radius: 3px;
+    border-radius: 4px;
     color: var(--color-faint);
     font-size: 11px;
     line-height: 1.5;
@@ -1559,7 +1569,7 @@
     gap: 4px;
     padding: 7px 9px;
     border: 1px solid var(--color-line-soft);
-    border-radius: 3px;
+    border-radius: 4px;
     background-color: var(--color-panel);
   }
 
@@ -1631,7 +1641,7 @@
     margin-top: 12px;
     overflow: hidden;
     border: 1px solid var(--color-line-soft);
-    border-radius: 3px;
+    border-radius: 4px;
     background-color: var(--color-line-soft);
   }
 
@@ -1696,7 +1706,7 @@
 
   .ui-card {
     border: 1px solid var(--color-line-soft);
-    border-radius: 3px;
+    border-radius: 4px;
     background-color: var(--color-panel-raised);
     color: var(--color-text);
   }
@@ -1704,7 +1714,7 @@
   .ui-section {
     overflow: hidden;
     border: 1px solid var(--color-line-soft);
-    border-radius: 3px;
+    border-radius: 4px;
     background-color: #252525;
   }
 
@@ -1749,7 +1759,7 @@
     margin: 1px 3px;
     padding: 0 6px;
     border: 0;
-    border-radius: 2px;
+    border-radius: 4px;
     background-color: transparent;
     color: var(--color-muted);
     text-align: left;
@@ -1806,7 +1816,7 @@
     gap: 5px;
     padding: 3px 9px;
     border: 1px solid var(--color-line);
-    border-radius: 3px;
+    border-radius: 4px;
     background-color: var(--color-panel-raised);
     color: var(--color-muted);
     font-size: 12px;
@@ -1848,7 +1858,7 @@
     justify-content: center;
     padding: 0;
     border: 1px solid transparent;
-    border-radius: 3px;
+    border-radius: 4px;
     background: transparent;
     color: var(--color-muted);
   }
@@ -1865,7 +1875,7 @@
     height: 26px;
     padding: 0 7px;
     border: 1px solid var(--color-line);
-    border-radius: 3px;
+    border-radius: 4px;
     background-color: var(--color-panel-soft);
     box-shadow: inset 0 1px 1px rgb(0 0 0 / 22%);
     color: var(--color-text);
@@ -1888,7 +1898,7 @@
     gap: 4px;
     padding: 0 6px;
     border: 1px solid var(--color-line);
-    border-radius: 3px;
+    border-radius: 4px;
     background-color: var(--color-panel-raised);
     color: var(--color-muted);
     font-family: var(--font-mono);
@@ -1911,7 +1921,7 @@
     justify-content: center;
     padding: 0 4px;
     border: 1px solid var(--color-line);
-    border-radius: 2px;
+    border-radius: 4px;
     background-color: var(--color-panel-soft);
     color: var(--color-muted);
     font-family: var(--font-mono);
@@ -1928,7 +1938,7 @@
   .ui-empty {
     padding: 10px 9px;
     border: 1px dashed var(--color-line);
-    border-radius: 3px;
+    border-radius: 4px;
     background-color: rgb(0 0 0 / 10%);
     color: var(--color-faint);
     font-size: 11.5px;

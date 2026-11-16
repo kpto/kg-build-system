@@ -27,7 +27,7 @@ A level may be absent. It is never reordered or nested inside the same kind.
 | Editor | global document tabs + one mounted pane per document | `workbench/EditorArea` |
 | Status bar | snapshot, document view, selected subject, counts, compile-only, zoom | `workbench/StatusBar` |
 
-The side bar is 320–520 px wide and is the only resizable panel. One
+The side bar is 220–520 px wide and is the only resizable panel. One
 `WorkbenchLayout` is persisted per snapshot: the side-bar width and the split
 between the Control and Explorer sections. Side-bar visibility is shell state;
 `Cmd/Ctrl+B` changes it, not panel purpose. The Graph document owns its floating

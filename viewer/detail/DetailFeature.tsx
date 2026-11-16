@@ -2121,6 +2121,7 @@ function overviewFacts(
         {
           label: "Coverage",
           value: profile?.coverage ?? "not declared",
+          wrap: true,
           absent: !profile?.coverage,
         },
         {

@@ -11,7 +11,10 @@ Reference: Blender 4.x dark theme, not a generic dashboard.
 
 - **Areas, not floating cards.** The application is a workbench of flat
   rectangular regions separated by a 1px dark seam. Regions are plates, not
-  cards: no glass, no floating panel stacks, no shadow between regions.
+  cards: no glass, no floating panel stacks, no shadow between regions. A
+  detail panel body has 10/12px padding and plates are separated by 4px.
+- **One reading size.** Prose is 14px with a 1.46 line height; chrome is 13px;
+  metadata is 11–12px. The panel title weight is 400, not 600.
 - **Application header** is a single 34px line on the `panel` surface: brand,
   snapshot, search, panel toggles, layout reset and settings.
 - **Side-bar sections** are collapsible 25px headers: **Control** for the active
@@ -22,27 +25,28 @@ Reference: Blender 4.x dark theme, not a generic dashboard.
 - **Editor tabs** belong to the main area, not the window. They name the
   document, not a global destination.
 - **Side bar** is the function's subject browser and detail controls.
-- **Node editor surfaces.** Dark canvas with a locked dot grid plus a 120px
-  major grid; neutral cards with a 2px semantic lane stripe, body, small sockets
-  and bezier wires.
+- **Node editor surfaces.** Dark canvas (#1a1a1a) with a locked dot grid plus a
+  120px major grid (#303030); neutral cards with a 2px semantic lane stripe,
+  body, small sockets and bezier wires.
 - **Selection is orange; active/accent is blue.** Do not use orange for ordinary
   buttons. Blue = focus/active/primary; orange = selected graph item.
-- The scale is compact but readable (14.5px root). Body type is 12–13px;
-  panel titles are 13px sentence case; micro labels are 11px; a document title
-  is 16px. No structural label is smaller than 11px.
+- The scale is compact but readable (14.5px root). The UI font is Inter
+  (Blender/BUI's UI font). Body type is 13.5–14px; panel titles are 14px
+  sentence case; micro labels are 11–12px; a document title is 16px. No
+  structural label is smaller than 11px.
 
 ## Workbench measurements
 
 | Region | Size |
 | --- | ---: |
 | title bar | 36px |
-| side bar | 320–520px, default 340px |
-| status bar | 22px |
+| side bar | 220–520px, default 300px |
+| status bar | 24px |
 | region seam | 1px |
-| region / section radius | 2–3px |
+| region / section radius | 4–5px |
 | editor tab | 28px |
-| section band header | 30px |
-| compact row | 28px |
+| section band header | 31px |
+| compact row | 26px |
 
 The main editor always fills the remaining width. At 1600px there is no
 horizontal page overflow; the side bar and bottom panel are resizable and the
@@ -54,8 +58,9 @@ Topology is a **force-directed** graph: repulsion, spring links, gravity and a
 collision pass. Coordinates settle once; there is no mount animation and no
 rank wrapping. Pan/zoom and focus are the answers, not folding.
 
-- The canvas is a Blender node-editor surface: a 24px dot grid, a 120px major
-  grid and a flat graphite ground. No vignette, no gradient behind the graph.
+- The canvas is a Blender node-editor surface: a 25px dot grid on a flat
+  graphite ground (`#1a1a1a` dots `#303030`). No vignette, no gradient, no major
+  rules behind the graph.
 - A concrete node is a degree-sized disc tinted by its category; an abstract
   category is a dashed ring in the asset green. The selected node gets an orange
   ring, not an orange fill.
@@ -69,11 +74,13 @@ rank wrapping. Pan/zoom and focus are the answers, not folding.
 - Orange is the selected node outline and selected relationship only. A selected
   node's incident edges turn blue; every other edge dims. Hovering a node turns
   its incident edges blue.
-- Labels are 11px chips: a dark backing, a 1px muted border and the node label.
+- Labels are 12.5px chips: a 24px dark backing, a 4px radius and the node label.
   Hub labels only by default; **All** is a named control in the side bar.
 - No transitions, filters or drop shadows inside the SVG scene. Button motion
   is scoped to HTML controls so graph geometry never fades or translates.
-- Strokes use `vector-effect="non-scaling-stroke"`; a 200% zoom keeps 1px lines.
+- Strokes use `vector-effect="non-scaling-stroke"`; link cores are 1.55px
+  ambient, 2.35px hover and 3.25px selected, with a canvas-coloured halo only
+  on hover and selection. A 200% zoom keeps the stroke width.
 - Labels keep constant size, weight and position in every state. Cull
   overlapping labels deterministically with priority for selected, hovered,
   neighbours and high degree; the selected label is always visible.

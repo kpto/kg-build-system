@@ -69,7 +69,7 @@ export function WorkflowControls({ state }: WorkspaceProps) {
           placeholder="Filter workflow steps"
           aria-label="Filter workflow steps"
           spellCheck={false}
-          className="h-7 min-w-0 flex-1 border border-line bg-inset px-2 font-mono text-[13px] text-text outline-none placeholder:text-faint focus:border-selection"
+          className="h-7 min-w-0 flex-1 rounded border border-line bg-inset px-2 text-[13px] text-text outline-none placeholder:text-faint focus:border-selection"
           data-testid="workflow-filter-query"
         />
       </div>
@@ -82,7 +82,7 @@ export function WorkflowControls({ state }: WorkspaceProps) {
           <select
             value={ui.filters.component}
             onChange={(event) => store.setComponent(event.target.value)}
-            className="h-7 w-full border border-line bg-inset px-2 font-mono text-[13px] text-text outline-none focus:border-selection"
+            className="h-7 w-full rounded border border-line bg-inset px-2 text-[13px] text-text outline-none focus:border-selection"
             data-testid="workflow-filter-component"
           >
             <option value="all">All components · {model.components.length}</option>
@@ -101,7 +101,7 @@ export function WorkflowControls({ state }: WorkspaceProps) {
           <select
             value={ui.filters.kind}
             onChange={(event) => store.setKind(event.target.value)}
-            className="h-7 w-full border border-line bg-inset px-2 font-mono text-[13px] text-text outline-none focus:border-selection"
+            className="h-7 w-full rounded border border-line bg-inset px-2 text-[13px] text-text outline-none focus:border-selection"
             data-testid="workflow-filter-kind"
           >
             <option value="all">All instruction kinds</option>
@@ -113,7 +113,7 @@ export function WorkflowControls({ state }: WorkspaceProps) {
           </select>
         </label>
 
-        <div className="flex items-center justify-between border-t border-line-soft pt-2 font-mono text-[11px] text-faint">
+        <div className="flex items-center justify-between border-t border-line-soft pt-2 text-[11.5px] text-faint">
           <span>
             {rows.length} / {model.steps} steps
           </span>
@@ -129,7 +129,7 @@ export function WorkflowControls({ state }: WorkspaceProps) {
         <button
           type="button"
           onClick={() => store.resetFilters()}
-          className="flex w-full items-center justify-center gap-1.5 border border-line-soft px-2 py-1.5 font-mono text-[12px] text-muted hover:border-line-strong hover:text-text"
+          className="flex w-full items-center justify-center gap-1.5 rounded border border-line-soft px-2 py-1.5 text-[12px] text-muted hover:border-line-strong hover:text-text"
           data-testid="workflow-reset"
         >
           <RotateCcw aria-hidden className="size-3" />

@@ -91,17 +91,19 @@ purpose, a grain or an identity.
 
 ## Layout
 
-- A document is a stack of plates inset by 16px and capped at 1160px, separated
-  by a 6px seam and a 1px border. A plate has a 3px radius and no drop shadow;
-  it is a Blender properties panel, not a floating card.
+- A document is a stack of plates inset by 12px and capped at 1160px, separated
+  by a 4px seam and a 1px outline. A plate has a 5px radius and no drop shadow;
+  it is a Blender properties panel (`#3d3d3d` on the `#303030` region), not a
+  floating card.
 - The header is sticky; the bands scroll.
-- The band header is 30px with a chevron, a 13px sentence-case title, the
+- The band header is 31px with a chevron, a 14px sentence-case title, the
   question it answers and a right-aligned count. No structural label is smaller
   than 11px.
-- The band body is 14px above and 16px below its content; the plate cap keeps a
-  long meaning at a readable line length. A flush body is used for a canvas or
-  a table that owns its own padding.
+- The band body is 10px above and 12px below its content. Prose is capped at
+  74 characters per line; a flush body is used for a canvas or a table that
+  owns its own padding.
 - A table shares one `grid-template-columns` between its head and every row.
-  A member row is 28px; a fact row is 5px of vertical padding.
+  A member row is 26px; a fact row is 4px of vertical padding. Values use the
+  UI font, not the mono font; identifiers and expressions stay mono.
 - At narrow width the Sources groups stack and the full axis map becomes one
   column; nothing overflows horizontally.

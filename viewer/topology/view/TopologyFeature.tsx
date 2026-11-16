@@ -160,7 +160,7 @@ function PropertyRows({
           }
           title={`Inspect ${entityComponentName(entity)}.${property.name}`}
         >
-          <span className="truncate font-mono text-[12px] text-text">
+          <span className="truncate text-[12px] text-text">
             {property.name}
           </span>
           <span className="shrink-0 font-mono text-[11px] text-faint">
@@ -278,15 +278,22 @@ function FilterButton({
       onClick={onClick}
       title={title}
       className={cx(
-        "inline-flex min-h-7 items-center gap-1.5 border px-2.5 py-1 font-mono text-[13px] transition-colors",
+        "inline-flex min-h-[26px] items-center gap-1.5 rounded-[5px] border px-[7px] py-[2px] text-[13px] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition-colors",
         pressed
-          ? "border-accent/70 bg-accent/15 text-accent-strong"
+          ? "border-accent bg-accent text-white"
           : "border-line-soft bg-panel-soft/40 text-muted hover:border-line-strong hover:text-text",
       )}
     >
       <span>{children}</span>
       {count !== undefined ? (
-        <span className="text-[11px] text-faint tabular-nums">{count}</span>
+        <span
+          className={cx(
+            "text-[11px] tabular-nums",
+            pressed ? "text-white/75" : "text-faint",
+          )}
+        >
+          {count}
+        </span>
       ) : null}
     </button>
   );
@@ -332,7 +339,7 @@ function LegendRow({
         {label}
       </span>
       {count !== undefined ? (
-        <span className="font-mono text-[11.5px] text-faint tabular-nums">{count}</span>
+        <span className="text-[11.5px] text-faint tabular-nums">{count}</span>
       ) : null}
     </div>
   );
@@ -381,7 +388,7 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
           {visible.nodes.length} visible · {relationLinks} relations
           {containmentLinks ? ` · ${containmentLinks} containment` : ""}
         </p>
-        <p className="mt-0.5 font-mono text-[11.5px] text-faint tabular-nums">
+        <p className="mt-0.5 text-[11.5px] text-faint tabular-nums">
           {model.stats.nodes} nodes · {model.stats.edgeLinks} edges ·{" "}
           {model.stats.semantics} with semantics
         </p>
@@ -586,7 +593,7 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
             <button
               type="button"
               onClick={() => store.requestFit()}
-              className="inline-flex min-h-7 items-center border border-line-soft bg-panel-soft/40 px-3 font-mono text-[13px] text-muted hover:border-line-strong hover:text-text"
+              className="inline-flex min-h-[26px] items-center rounded-[5px] border border-line-soft bg-panel-soft/40 px-[7px] text-[13px] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] text-muted hover:border-line-strong hover:text-text"
               title="Fit every visible node and link in the editor"
             >
               Fit
@@ -594,7 +601,7 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
             <button
               type="button"
               onClick={() => store.requestZoom(1 / 1.25)}
-              className="inline-flex min-h-7 items-center border border-line-soft bg-panel-soft/40 px-3 font-mono text-[13px] text-muted hover:border-line-strong hover:text-text"
+              className="inline-flex min-h-[26px] items-center rounded-[5px] border border-line-soft bg-panel-soft/40 px-[7px] text-[13px] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] text-muted hover:border-line-strong hover:text-text"
               title="Zoom out"
               aria-label="Zoom out"
             >
@@ -603,7 +610,7 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
             <button
               type="button"
               onClick={() => store.requestZoom(1.25)}
-              className="inline-flex min-h-7 items-center border border-line-soft bg-panel-soft/40 px-3 font-mono text-[13px] text-muted hover:border-line-strong hover:text-text"
+              className="inline-flex min-h-[26px] items-center rounded-[5px] border border-line-soft bg-panel-soft/40 px-[7px] text-[13px] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] text-muted hover:border-line-strong hover:text-text"
               title="Zoom in"
               aria-label="Zoom in"
             >
@@ -614,7 +621,7 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
               aria-pressed={ui.pinned}
               onClick={() => store.setPinned(!ui.pinned)}
               className={cx(
-                "inline-flex min-h-7 items-center border px-3 font-mono text-[13px]",
+                "inline-flex min-h-[26px] items-center rounded-[5px] border px-[7px] text-[13px]",
                 ui.pinned
                   ? "border-selection/70 bg-selection/10 text-selection-strong"
                   : "border-line-soft bg-panel-soft/40 text-muted hover:border-line-strong hover:text-text",
@@ -626,7 +633,7 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
             <button
               type="button"
               onClick={() => store.requestReset()}
-              className="inline-flex min-h-7 items-center border border-line-soft bg-panel-soft/40 px-3 font-mono text-[13px] text-muted hover:border-line-strong hover:text-text"
+              className="inline-flex min-h-[26px] items-center rounded-[5px] border border-line-soft bg-panel-soft/40 px-[7px] text-[13px] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] text-muted hover:border-line-strong hover:text-text"
               title="Clear filters, detail and pinned positions, then fit the graph"
             >
               Reset
@@ -978,7 +985,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
     // The inspector is an overlay, so the graph is fitted into the canvas that
     // remains visible beside it instead of underneath it.
     const left = 56;
-    const right = inspectorOpen ? 400 : 56;
+    const right = inspectorOpen ? 352 : 56;
     const top = 56;
     const bottom = 56;
     const viewWidth = Math.max(120, width - left - right);
@@ -1243,8 +1250,8 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
       const box = {
         left: x - width / 2,
         right: x + width / 2,
-        top: y + radius + 2,
-        bottom: y + radius + 16,
+        top: y + radius + 4,
+        bottom: y + radius + 28,
       };
       const overlapsLabel = boxes.some((other) => intersects(box, other));
       const overlapsNode =
@@ -1437,19 +1444,16 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
         }}
       >
         <defs>
-          <pattern id="topology-grid" width="24" height="24" patternUnits="userSpaceOnUse">
-            <circle cx="1" cy="1" r="0.65" fill={theme.lineSoft} opacity="0.7" />
-          </pattern>
-          <pattern id="topology-grid-major" width="120" height="120" patternUnits="userSpaceOnUse">
-            <path d="M 120 0 L 0 0 0 120" fill="none" stroke={theme.lineSoft} strokeWidth="0.6" opacity="0.5" />
+          <pattern id="topology-grid" width="25" height="25" patternUnits="userSpaceOnUse">
+            <circle cx="1" cy="1" r="1.1" fill={theme.panel} opacity="0.9" />
           </pattern>
           <marker
             id="topology-arrow"
             viewBox="0 -4 8 8"
             refX="8"
             refY="0"
-            markerWidth="5"
-            markerHeight="5"
+            markerWidth="4"
+            markerHeight="4"
             orient="auto"
           >
             <path d="M0,-4 L8,0 L0,4" fill={theme.edge} />
@@ -1459,8 +1463,8 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
             viewBox="0 -4 8 8"
             refX="8"
             refY="0"
-            markerWidth="5"
-            markerHeight="5"
+            markerWidth="4"
+            markerHeight="4"
             orient="auto"
           >
             <path d="M0,-4 L8,0 L0,4" fill={theme.accentStrong} />
@@ -1470,8 +1474,8 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
             viewBox="0 -4 8 8"
             refX="8"
             refY="0"
-            markerWidth="5"
-            markerHeight="5"
+            markerWidth="4"
+            markerHeight="4"
             orient="auto"
           >
             <path d="M0,-4 L8,0 L0,4" fill={theme.selection} />
@@ -1481,8 +1485,8 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
             viewBox="0 -4 8 8"
             refX="8"
             refY="0"
-            markerWidth="4"
-            markerHeight="4"
+            markerWidth="3.5"
+            markerHeight="3.5"
             orient="auto"
           >
             <path d="M0,-4 L8,0 L0,4" fill={theme.lineStrong} />
@@ -1490,7 +1494,6 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
         </defs>
 
         <rect width="100%" height="100%" fill="url(#topology-grid)" pointerEvents="none" />
-        <rect width="100%" height="100%" fill="url(#topology-grid-major)" pointerEvents="none" />
 
         <g ref={sceneRef}>
           {clusterFrames.length ? (
@@ -1595,13 +1598,24 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
                     )
                   }
                 >
+                  {selected || hovered || incident ? (
+                    <path
+                      d={geometry.path}
+                      fill="none"
+                      stroke={theme.page}
+                      strokeWidth={selected ? 5.2 : 4.2}
+                      strokeOpacity={opacity * 0.9}
+                      vectorEffect="non-scaling-stroke"
+                      pointerEvents="none"
+                    />
+                  ) : null}
                   <path
                     d={geometry.path}
                     fill="none"
                     stroke={tone}
-                    strokeWidth={selected ? 2.6 : hovered || incident ? 1.8 : 1}
+                    strokeWidth={selected ? 3.25 : hovered || incident ? 2.35 : 1.55}
                     strokeOpacity={opacity}
-                    strokeDasharray={link.kind === "containment" ? "4 3" : undefined}
+                    strokeDasharray={link.kind === "containment" ? "5 4" : undefined}
                     markerEnd={markerEnd}
                     vectorEffect="non-scaling-stroke"
                     pointerEvents="none"
@@ -1797,15 +1811,15 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
                       {showLabel ? (
                         (() => {
                           const label = node.label;
-                          const width = Math.max(28, label.length * 6.4 + 12);
+                          const width = Math.max(32, label.length * 7.1 + 14);
                           return (
                             <g className="pointer-events-none select-none">
                               <rect
                                 x={-width / 2}
                                 y={radius + 4}
                                 width={width}
-                                height={18}
-                                rx={2}
+                                height={24}
+                                rx={4}
                                 fill={theme.page}
                                 fillOpacity={0.9}
                                 stroke={
@@ -1816,7 +1830,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
                                 strokeWidth={0.7}
                               />
                               <text
-                                y={radius + 17}
+                                y={radius + 20}
                                 textAnchor="middle"
                                 fill={
                                   selected
@@ -1825,7 +1839,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
                                       ? theme.text
                                       : theme.muted
                                 }
-                                fontSize={11}
+                                fontSize={12.5}
                                 fontFamily="var(--font-sans)"
                                 letterSpacing="0.01em"
                               >
@@ -1866,7 +1880,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
         >
           −
         </button>
-        <span className="flex w-16 items-center justify-center border-r border-line font-mono text-[12px] text-muted tabular-nums">
+        <span className="flex w-16 items-center justify-center border-r border-line text-[12px] text-muted tabular-nums">
           {Math.round(zoomK * 100)}%
         </span>
         <button
@@ -1903,7 +1917,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
         <button
           type="button"
           onClick={() => setInspectorOpen(true)}
-          className="absolute top-2 right-2 z-20 border border-line-soft bg-panel/95 px-3 py-1.5 font-mono text-[12px] text-muted hover:border-line-strong hover:text-text"
+          className="absolute top-2 right-2 z-20 border border-line-soft bg-panel/95 px-3 py-1.5 text-[12px] text-muted hover:border-line-strong hover:text-text"
           aria-label="Open inspector"
           title="Open inspector"
           data-testid="topology-open-inspector"
@@ -1988,7 +2002,7 @@ function SummaryField({
         {label}
       </span>
       <span
-        className="min-w-0 flex-1 truncate font-mono text-[12px] text-text"
+        className="min-w-0 flex-1 truncate text-[12px] text-text"
         title={String(value)}
       >
         {value}
@@ -2100,12 +2114,12 @@ export function TopologyInspector({
 
   return (
     <aside
-      className="inspector-panel absolute top-0 right-0 bottom-0 z-20 flex w-[384px] flex-col overflow-hidden border-l border-line bg-panel"
+      className="inspector-panel absolute top-0 right-0 bottom-0 z-20 flex w-[336px] flex-col overflow-hidden border-l border-line bg-panel"
       aria-label="Graph selection inspector"
       data-testid="topology-inspector"
     >
       <header className="flex flex-none items-center justify-between gap-2 border-b border-line-soft bg-panel-raised px-2.5 py-1.5">
-        <span className="text-[13px] font-semibold text-text">
+        <span className="text-[13px] font-normal text-text">
           Inspect
         </span>
         <button
@@ -2145,7 +2159,7 @@ export function TopologyInspector({
         <div className="thin-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-3">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <p className="truncate font-mono text-[13px] text-accent-strong">
+              <p className="truncate text-[13.5px] text-accent-strong">
                 {activeProperty ? `${entity.name}.${activeProperty}` : entity.name}
               </p>
               <p className="truncate text-[11px] text-faint">
@@ -2161,7 +2175,7 @@ export function TopologyInspector({
               <button
                 type="button"
                 onClick={() => openInDetail(props)}
-                className="border border-accent/60 bg-accent/10 px-2.5 py-1 font-mono text-[12px] text-accent-strong hover:border-accent hover:text-text"
+                className="rounded border border-accent/60 bg-accent/10 px-2.5 py-1 text-[12px] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] text-accent-strong hover:border-accent hover:text-text"
                 data-testid="topology-open-detail"
               >
                 Detail
@@ -2169,7 +2183,7 @@ export function TopologyInspector({
               <button
                 type="button"
                 onClick={() => clearSelection(props)}
-                className="border border-line-soft px-2.5 py-1 font-mono text-[12px] text-muted hover:border-line-strong hover:text-text"
+                className="rounded border border-line-soft px-2.5 py-1 text-[12px] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] text-muted hover:border-line-strong hover:text-text"
               >
                 Clear
               </button>
