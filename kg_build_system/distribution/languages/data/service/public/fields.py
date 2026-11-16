@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, overload
 
 from kg_build_system.distribution.languages.annotations.model.public import (
     Annotation,
@@ -17,7 +17,10 @@ if TYPE_CHECKING:
         Meaning,
         Omitted,
     )
-    from ...model.public.fields import Field, FieldDefinition
+    from kg_build_system.kernel.model.public.types import Nullable
+    from ...model.public.fields import (
+        Field, FieldDefinition, NullableComputedField,
+    )
 
 
 def field[T: DeclaredValue](  # pyright: ignore[reportInvalidTypeVarUse]
@@ -43,6 +46,7 @@ def field[T: DeclaredValue](  # pyright: ignore[reportInvalidTypeVarUse]
     )
 
 
+@overload
 def computed_field[T: DeclaredValue](
     value: "Selection[T]",
     *,
@@ -50,8 +54,29 @@ def computed_field[T: DeclaredValue](
     name: str | None = None,
     annotations: Sequence[Annotation] = (),
     meaning: Meaning | type[Omitted],
-) -> "Field[T]":
+) -> "Field[T]": ...
+@overload
+def computed_field[T: DeclaredValue](
+    value: "Selection[Nullable[T]]",
+    *,
+    definition: FieldDefinition | None = None,
+    name: str | None = None,
+    annotations: Sequence[Annotation] = (),
+    meaning: Meaning | type[Omitted],
+) -> "NullableComputedField[T]": ...
+def computed_field[T: DeclaredValue](
+    value: "Selection[Nullable[T]]",
+    *,
+    definition: FieldDefinition | None = None,
+    name: str | None = None,
+    annotations: Sequence[Annotation] = (),
+    meaning: Meaning | type[Omitted],
+) -> "Field[DeclaredValue] | NullableComputedField[DeclaredValue]":
     """Declare an expression-backed field: an output or computed member.
+
+    A present selection yields a ``Field[T]``; a nullable selection yields a
+    ``NullableComputedField[T]`` whose computed read stays nullable. The
+    declared value type is never nullable, so ``Field[str | None]`` is refused.
 
     Example:
         ```python

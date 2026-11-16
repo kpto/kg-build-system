@@ -111,6 +111,18 @@ class TopologyDeclarationBase:
         prepare_topology_declaration(cls)
 
 
+class EdgeRoot(TopologyDeclarationBase):
+    """The non-generic root of every concrete edge declaration.
+
+    A concrete edge is invariant in its endpoint pair, so no narrower
+    instantiation is a supertype of every edge. Code that must accept any
+    concrete edge names this root instead of ``Edge[Any, Any]``; endpoint
+    types stay on the declaration.
+    """
+
+    _framework_root: ClassVar[bool] = True
+
+
 class NodeSideBase(TopologyDeclarationBase):
     """Internal node-side root shared by ``AbstractNode`` and ``Node``.
 
@@ -250,7 +262,7 @@ class AbstractEdge(TopologyDeclarationBase, Generic[S_co, D_co]):
     options: ClassVar[Any] = EdgeOptions(meaning=Omitted)
 
 
-class Edge(AbstractEdge[S, D], Generic[S, D]):
+class Edge(AbstractEdge[S, D], EdgeRoot, Generic[S, D]):
     """Concrete edge base; endpoint parameters stay invariant.
 
     Declare a directed relationship by subclassing ``Edge[Source, Target]``.
@@ -300,7 +312,7 @@ class Endpoint(Generic[N_co]):
 
 __all__ = [
     "AbstractEdge", "AbstractNode", "D", "D_co", "Edge", "EdgeOptions",
-    "EdgeOptionsTemplate", "EdgeTemplate", "Endpoint", "GraphArray",
+    "EdgeOptionsTemplate", "EdgeRoot", "EdgeTemplate", "Endpoint", "GraphArray",
     "GraphScalar", "GraphValue", "N_co", "Node", "NodeOptions",
     "NodeOptionsTemplate", "NodeSideBase", "NodeTemplate",
     "NonNullableGraphValue", "PropertySlot", "S", "S_co",

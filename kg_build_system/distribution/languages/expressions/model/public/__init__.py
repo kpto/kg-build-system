@@ -6,8 +6,9 @@ from .selection import NullableSelection, Selection
 from .selections.effects import (
     ArrayRowEffects, NullableArrayRowEffects, NullableRowEffects, RowEffects,
 )
+from .values import LiteralValue
 
 __all__ = [
     "ArrayRowEffects", "NullableArrayRowEffects", "NullableRowEffects",
-    "NullableSelection", "Pair", "RowEffects", "Selection",
+    "LiteralValue", "NullableSelection", "Pair", "RowEffects", "Selection",
 ]

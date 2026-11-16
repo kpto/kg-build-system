@@ -9,13 +9,16 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from kg_build_system.distribution.languages.binding.model.public import (
         Binding,
     )
-    from kg_build_system.kernel import Toolchain
+    from kg_build_system.distribution.interpreter.model.public import (
+        GraphBlueprint,
+    )
+    from kg_build_system.kernel import Language, Planner, Toolchain
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,7 +40,7 @@ class Blueprint:
 
     namespace_path: str | Path | None = None
     bindings: Iterable[Binding] = ()
-    languages: Sequence[Any] | None = None
+    languages: Sequence[Language] | None = None
 
     def __post_init__(self) -> None:
         bindings = tuple(self.bindings)
@@ -79,8 +82,8 @@ class Workflow:
     """
 
     blueprint: Blueprint
-    planners: Sequence[Any] = ()
-    toolchain: Toolchain[Any] | None = None
+    planners: Sequence[Planner[GraphBlueprint]] = ()
+    toolchain: Toolchain[GraphBlueprint] | None = None
     output_directory: str | Path | None = None
 
     def __post_init__(self) -> None:

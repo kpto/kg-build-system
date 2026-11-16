@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from tempfile import mkdtemp
+from typing import Literal
 
 from kg_build_system.distribution.service.internal.relations import (
     RelationService,
@@ -23,8 +24,12 @@ from .service import DuckDbService
 def _settings(configuration: RuntimeConfiguration) -> DuckDbSettings:
     """Read the safe DuckDB settings from the ``duckdb`` provider configuration."""
     component = configuration.provider_configuration.get("duckdb", {})
-    storage = component.get("storage", "memory")
-    if storage not in {"memory", "disk"}:
+    requested_storage = component.get("storage", "memory")
+    if requested_storage == "memory":
+        storage: Literal["memory", "disk"] = "memory"
+    elif requested_storage == "disk":
+        storage = "disk"
+    else:
         raise ValueError("duckdb storage must be 'memory' or 'disk'")
     threads = component.get("threads")
     if threads is not None and (

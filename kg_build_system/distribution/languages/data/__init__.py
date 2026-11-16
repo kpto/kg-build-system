@@ -14,8 +14,9 @@ Example:
 from __future__ import annotations
 
 from .model.public import (
-    ComputedStruct, Contract, Definition, DerivedRowSource, Field,
-    FieldDefinition, JoinHow, DerivedRelation, DerivedRelationMeta,
+    ComputedStruct, Contract, DeclaredValue, Definition, DerivedRowSource,
+    Field, FieldDefinition, JoinHow, NullableComputedField, ScalarValue,
+    DerivedRelation, DerivedRelationMeta,
     DerivedRelationOptions, RelationRowSource, RowSource, RowSourceProvider,
     ShapeField, Stage, StageMeta, StageOptions, StageRowSource, Struct,
     StructOptions, StructOptionsTemplate, StructTemplate, SourceRelation,
@@ -25,8 +26,9 @@ from .model.public import (
 from .service.public import computed_field, field, derived_relation_row_source
 
 __all__ = [
-    "ComputedStruct", "Contract", "Definition", "DerivedRowSource", "Field",
-    "FieldDefinition", "JoinHow", "DerivedRelation", "DerivedRelationMeta",
+    "ComputedStruct", "Contract", "DeclaredValue", "Definition",
+    "DerivedRowSource", "Field", "FieldDefinition", "JoinHow",
+    "NullableComputedField", "ScalarValue", "DerivedRelation", "DerivedRelationMeta",
     "DerivedRelationOptions", "RelationRowSource", "RowSource",
     "RowSourceProvider", "ShapeField", "Stage", "StageMeta", "StageOptions",
     "StageRowSource", "Struct", "StructOptions", "StructOptionsTemplate",

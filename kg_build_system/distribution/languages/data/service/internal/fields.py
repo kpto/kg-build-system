@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, overload
 
 from kg_build_system.distribution.languages.annotations.model.public import (
     Annotation,
@@ -15,7 +15,10 @@ if TYPE_CHECKING:
         Meaning,
         Omitted,
     )
-    from ...model.public.fields import Field, FieldDefinition
+    from kg_build_system.kernel.model.public.types import Nullable
+    from ...model.public.fields import (
+        Field, FieldDefinition, NullableComputedField,
+    )
 
 
 def field[T: DeclaredValue](  # pyright: ignore[reportInvalidTypeVarUse]
@@ -34,6 +37,7 @@ def field[T: DeclaredValue](  # pyright: ignore[reportInvalidTypeVarUse]
     )
 
 
+@overload
 def computed_field[T: DeclaredValue](
     value: "Selection[T]",
     *,
@@ -41,7 +45,24 @@ def computed_field[T: DeclaredValue](
     name: str | None = None,
     annotations: Sequence[Annotation] = (),
     meaning: Meaning | type[Omitted],
-) -> "Field[T]":
+) -> "Field[T]": ...
+@overload
+def computed_field[T: DeclaredValue](
+    value: "Selection[Nullable[T]]",
+    *,
+    definition: FieldDefinition | None = None,
+    name: str | None = None,
+    annotations: Sequence[Annotation] = (),
+    meaning: Meaning | type[Omitted],
+) -> "NullableComputedField[T]": ...
+def computed_field(
+    value: "Selection[DeclaredValue | None]",
+    *,
+    definition: FieldDefinition | None = None,
+    name: str | None = None,
+    annotations: Sequence[Annotation] = (),
+    meaning: Meaning | type[Omitted],
+) -> "Field[DeclaredValue] | NullableComputedField[DeclaredValue]":
     """Create an expression-backed field descriptor."""
     from .._private.descriptors import make_computed_field
 

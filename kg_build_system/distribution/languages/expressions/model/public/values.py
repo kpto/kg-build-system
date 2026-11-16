@@ -6,10 +6,27 @@ and exposes only the operations the compiler needs.
 """
 from __future__ import annotations
 
-from typing import Any
-
-from kg_build_system.kernel.model.public.types import LogicalType, NullableType, UnitType
+from kg_build_system.kernel.model.public.types import (
+    Date, LogicalType, Nullable, NullableType, Time, Timestamp, UnitType, Uuid,
+)
 from ...model.internal.model import ExpressionNode
+
+type LiteralValue = (
+    bool | int | float | str
+    | Date | Time | Timestamp | Uuid
+    | list["LiteralValue"] | tuple["LiteralValue", ...] | None
+)
+"""A portable literal the expression layer accepts.
+
+Example:
+    ```python
+    from kg_build_system.distribution.languages.expressions.model.public import (
+        LiteralValue,
+    )
+
+    value: LiteralValue = ["a", None]
+    ```
+"""
 
 
 class ValueExpression[T]:
@@ -30,7 +47,7 @@ class ValueExpression[T]:
         """The canonical logical type of the expression."""
         return self._model.logical_type
 
-    def to_string(self) -> "ValueExpression[Any]":
+    def to_string(self) -> "ValueExpression[Nullable[str]]":
         """Render this scalar as canonical text for keys and identifiers."""
         logical_type = self.logical_type
         base = (
@@ -50,4 +67,4 @@ class ValueExpression[T]:
         return f"{type(self).__name__}({self._model!r})"
 
 
-__all__ = ["ValueExpression"]
+__all__ = ["LiteralValue", "ValueExpression"]

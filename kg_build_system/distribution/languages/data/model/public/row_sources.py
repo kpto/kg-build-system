@@ -30,7 +30,7 @@ from kg_build_system.kernel.model.public.types import Array, Nullable, Shape
 from ..internal.dto.blueprint_dto import RowScanDTO, RowSourcePlanDTO
 from .shapes import ShapeField
 
-S = TypeVar("S", bound=Shape)
+S = TypeVar("S", bound=Shape, covariant=True)
 JoinHow = Literal["inner", "left", "right", "full"]
 
 
@@ -38,7 +38,7 @@ class RowSourceProvider:
     """A declaration that provides a row source through ``row_source()``."""
 
     @classmethod
-    def row_source(cls) -> "RowSource[Any]":
+    def row_source(cls) -> "RowSource[Shape]":
         """Return the relation row source for this declaration.
 
         Example:

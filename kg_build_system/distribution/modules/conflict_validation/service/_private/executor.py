@@ -1,8 +1,8 @@
 """Execute the conflict-report step."""
 from __future__ import annotations
 
-from collections.abc import Mapping
-from typing import Any
+from collections.abc import Iterable, Mapping
+from typing import Any, cast
 
 from kg_build_system.kernel import (
     Artifact,
@@ -18,6 +18,7 @@ from kg_build_system.kernel import (
     StepStatus,
 )
 
+from ...model.public.report import ConflictingNonNullValueFinding
 from ....runtime import (
     instruction_payload,
     output_name,
@@ -63,7 +64,9 @@ class ConflictReportExecutor:
             finding
             for item in context.inputs.get(_FINDINGS, ())
             if item.artifact is not None
-            for finding in item.artifact.value
+            for finding in cast(
+                Iterable[ConflictingNonNullValueFinding], item.artifact.value,
+            )
         )
         records: dict[ArtifactType, Any] = {}
         for input_name, contributions in context.inputs.items():

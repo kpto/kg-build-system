@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import types as pytypes
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, TypeVar, Union, get_args, get_origin, get_type_hints
+from typing import TYPE_CHECKING, Any, TypeVar, Union, get_args, get_origin, get_type_hints, overload
 
 from kg_build_system.distribution.languages.annotations.model.public import Annotation
 from kg_build_system.distribution.languages.annotations.service.internal import annotation_tuple
@@ -20,6 +20,7 @@ from .naming import declaration_name, member_name
 from ...model.internal.model.fields import FieldSpec
 from ...model.public.fields import (
     DeclaredValue, Field, FieldDefinition, FieldDescriptor, FieldMetadata,
+    NullableComputedField,
 )
 
 if TYPE_CHECKING:
@@ -50,6 +51,7 @@ def make_field[T: DeclaredValue](  # pyright: ignore[reportInvalidTypeVarUse]
     ))
 
 
+@overload
 def make_computed_field[T: DeclaredValue](
     value: "Selection[T]",
     *,
@@ -57,12 +59,35 @@ def make_computed_field[T: DeclaredValue](
     name: str | None = None,
     annotations: Sequence[Annotation] = (),
     meaning: Meaning | type[Omitted],
-) -> Field[T]:
+) -> Field[T]: ...
+@overload
+def make_computed_field[T: DeclaredValue](
+    value: "Selection[Nullable[T]]",
+    *,
+    definition: FieldDefinition | None = None,
+    name: str | None = None,
+    annotations: Sequence[Annotation] = (),
+    meaning: Meaning | type[Omitted],
+) -> NullableComputedField[T]: ...
+def make_computed_field(
+    value: "Selection[DeclaredValue | None]",
+    *,
+    definition: FieldDefinition | None = None,
+    name: str | None = None,
+    annotations: Sequence[Annotation] = (),
+    meaning: Meaning | type[Omitted],
+) -> "Field[DeclaredValue] | NullableComputedField[DeclaredValue]":
     """Create an expression-backed field descriptor; an empty name is rejected."""
     if name is not None and not name:
         raise ValueError("computed field names must be non-empty")
-    return Field(
-        as_expression(value),
+    expression = as_expression(value)
+    descriptor: type[Field[DeclaredValue]] = (
+        NullableComputedField
+        if isinstance(expression.logical_type, NullableType)
+        else Field
+    )
+    return descriptor(
+        expression,
         FieldMetadata(
             name=name,
             annotations=annotation_tuple(list(annotations)),

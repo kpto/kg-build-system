@@ -8,7 +8,9 @@ from .declarations import (
     SourceRelationGroupOptions, SourceRelationOptions, Stage, StageMeta, StageOptions,
     is_concrete_source_relation, is_source_relation_group,
 )
-from .fields import Field, FieldDefinition
+from .fields import (
+    DeclaredValue, Field, FieldDefinition, NullableComputedField, ScalarValue,
+)
 from .row_sources import (
     DerivedRowSource, JoinHow, RelationRowSource, RowSource, RowSourceProvider,
     StageRowSource,
@@ -16,8 +18,9 @@ from .row_sources import (
 from .shapes import ShapeField
 
 __all__ = [
-    "ComputedStruct", "Contract", "Definition", "DerivedRowSource", "Field",
-    "FieldDefinition", "JoinHow", "DerivedRelation", "DerivedRelationMeta",
+    "ComputedStruct", "Contract", "DeclaredValue", "Definition",
+    "DerivedRowSource", "Field", "FieldDefinition", "JoinHow",
+    "NullableComputedField", "ScalarValue", "DerivedRelation", "DerivedRelationMeta",
     "DerivedRelationOptions", "RelationRowSource", "RowSource",
     "RowSourceProvider", "ShapeField", "Stage", "StageMeta", "StageOptions",
     "StageRowSource", "Struct", "StructOptions", "StructOptionsTemplate",

@@ -17,7 +17,7 @@ Example:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, TypeVar, overload
+from typing import TYPE_CHECKING, overload
 
 from kg_build_system.distribution.languages.annotations.model.public import (
     Annotation,
@@ -31,6 +31,7 @@ from kg_build_system.kernel.model.public.types import (
     CustomDataType,
     Date,
     Nullable,
+    Shape,
     Struct,
     Time,
     Timestamp,
@@ -41,6 +42,9 @@ if TYPE_CHECKING:
     from kg_build_system.distribution.languages.expressions.model.public import (
         Selection,
     )
+    from kg_build_system.distribution.languages.expressions.model.public.values import (
+        ValueExpression,
+    )
     from kg_build_system.distribution.languages.meaning.model.public import (
         Meaning,
     )
@@ -49,8 +53,6 @@ if TYPE_CHECKING:
         ComputedStruct, DerivedRelation, Stage, Struct as SourceStruct,
         SourceRelation,
     )
-
-T = TypeVar("T")
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,14 +93,19 @@ class FieldDefinition:
                 )
 
 
-# The closed value vocabulary a field may declare. A bound keeps the actual
-# subtype (`Address`, `Array[Address]`) instead of promoting it to the bound.
-type DeclaredValue = (
+# The closed scalar vocabulary shared by values, keys and literals. A bound
+# keeps the actual subtype (`Address`, `Array[Address]`) instead of promoting it
+# to the bound.
+type ScalarValue = (
     bool | int | float | str
     | Date | Time | Timestamp | Uuid
     | CustomDataType
-    | Struct | Array[Any] | Nullable[Any]
 )
+
+# The closed value vocabulary a field may declare: a scalar, a record or an
+# array of either, with an absent item allowed. `Nullable` never wraps the whole
+# alias: a field declares a value type, never absence.
+type DeclaredValue = ScalarValue | Struct | Array[ScalarValue | Struct | None]
 
 
 @dataclass(frozen=True, slots=True)
@@ -137,18 +144,18 @@ class Field[T: DeclaredValue]:
 
     def __init__(
         self,
-        expression: Any | None = None,
+        expression: "ValueExpression[T] | None" = None,
         metadata: FieldMetadata = FieldMetadata(),
         *,
         generated_logical_type: "LogicalType | None" = None,
     ) -> None:
         self._expression = expression
         self._metadata = metadata
-        self._owner: type[Any] | None = None
+        self._owner: type[Shape] | None = None
         self._generated_logical_type = generated_logical_type
 
     @property
-    def expression(self) -> Any | None:
+    def expression(self) -> "ValueExpression[T] | None":
         """The private implementation of a computed field; source fields have none."""
         return self._expression
 
@@ -157,12 +164,12 @@ class Field[T: DeclaredValue]:
         """The name and annotations declared on this field."""
         return self._metadata
 
-    def __set_name__(self, owner: type[Any], attribute: str) -> None:
+    def __set_name__(self, owner: type[Shape], attribute: str) -> None:
         from ...service._private.descriptors import field_set_name
 
         field_set_name(self, owner, attribute)
 
-    def access_type(self, owner: type[Any]) -> "LogicalType":
+    def access_type(self, owner: type[Shape]) -> "LogicalType":
         """The type one read yields for ``owner``.
 
         Example:
@@ -188,13 +195,49 @@ class Field[T: DeclaredValue]:
     ) -> "Selection[T]": ...
     @overload
     def __get__(
-        self, instance: "SourceRelation | SourceStruct", owner: type[Any],
+        self, instance: "SourceRelation | SourceStruct", owner: type[Shape],
     ) -> "Selection[Nullable[T]]": ...
     @overload
     def __get__(
-        self, instance: "DerivedRelation | Stage | ComputedStruct", owner: type[Any],
+        self, instance: "DerivedRelation | Stage | ComputedStruct", owner: type[Shape],
     ) -> "Selection[T]": ...
-    def __get__(self, instance: Any, owner: type[Any] | None = None) -> Any:
+    def __get__(
+        self, instance: object, owner: type[Shape] | None = None,
+    ) -> "Selection[Nullable[T]] | Selection[T]":
+        from ...service._private.descriptors import field_get
+
+        return field_get(self, instance, owner)
+
+
+class NullableComputedField[T: DeclaredValue](Field[T]):
+    """A computed field whose expression may be absent.
+
+    The declared value type is ``T``; only a read of the computed owner is
+    nullable. ``Field[T]`` stays the present computed descriptor, and a source
+    annotation of ``Field[str | None]`` remains illegal. The descriptor class
+    carries presence because Python 3.12 has no PEP 696 type-parameter defaults.
+    """
+
+    @overload
+    def __get__(
+        self, instance: None, owner: type["SourceRelation"] | type["SourceStruct"],
+    ) -> "Selection[Nullable[T]]": ...
+    @overload
+    def __get__(
+        self, instance: None,
+        owner: type["DerivedRelation"] | type["Stage"] | type["ComputedStruct"],
+    ) -> "Selection[Nullable[T]]": ...
+    @overload
+    def __get__(
+        self, instance: "SourceRelation | SourceStruct", owner: type[Shape],
+    ) -> "Selection[Nullable[T]]": ...
+    @overload
+    def __get__(
+        self, instance: "DerivedRelation | Stage | ComputedStruct", owner: type[Shape],
+    ) -> "Selection[Nullable[T]]": ...
+    def __get__(
+        self, instance: object, owner: type[Shape] | None = None,
+    ) -> "Selection[Nullable[T]]":
         from ...service._private.descriptors import field_get
 
         return field_get(self, instance, owner)
@@ -207,5 +250,5 @@ FieldDescriptor = Field
 
 __all__ = [
     "DeclaredValue", "Field", "FieldDefinition", "FieldDescriptor",
-    "FieldMetadata",
+    "FieldMetadata", "NullableComputedField", "ScalarValue",
 ]

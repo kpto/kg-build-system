@@ -14,11 +14,11 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, Literal, TypeVar
+from typing import Any, Literal, Protocol, TypeVar, cast
 
 from .key import Key
 from .workflow import (
-    ArtifactType, OpeningDirection, OpeningId, Step, StepId, step_id,
+    ArtifactType, JsonValue, OpeningDirection, OpeningId, Step, StepId, step_id,
 )
 
 ResourceT = TypeVar("ResourceT")
@@ -52,10 +52,10 @@ class RuntimeConfiguration:
     working_directory: Path
     temporary_directory: Path | None = None
     credentials: Mapping[str, str] = field(default_factory=dict)
-    component_configuration: Mapping[str, Mapping[str, Any]] = field(
+    component_configuration: Mapping[str, Mapping[str, JsonValue]] = field(
         default_factory=dict,
     )
-    provider_configuration: Mapping[str, Mapping[str, Any]] = field(
+    provider_configuration: Mapping[str, Mapping[str, JsonValue]] = field(
         default_factory=dict,
     )
 
@@ -76,7 +76,7 @@ class ResourceView:
     ```
     """
 
-    resources: Mapping[type, Any]
+    resources: Mapping[type[object], object]
 
     def get(self, resource: type[ResourceT]) -> ResourceT:
         """Return the resource of one exact type.
@@ -87,7 +87,7 @@ class ResourceView:
         ```
         """
         try:
-            return self.resources[resource]
+            return cast(ResourceT, self.resources[resource])
         except KeyError:
             name = f"{resource.__module__}.{resource.__qualname__}"
             raise KeyError(
@@ -154,7 +154,7 @@ class Artifact:
 
     output_name: Key
     type: ArtifactType
-    value: Any
+    value: object
 
     def opening(self, step: StepId) -> OpeningId:
         """Derive this artifact's output opening on its producing step.
@@ -255,6 +255,19 @@ class DisruptingInput:
     failure: Failure | None
 
 
+class Logger(Protocol):
+    """The step-scoped logger an executor may write to.
+
+    The runtime supplies a listener-backed logger; ``logging.Logger`` conforms
+    structurally because its message parameter is also positional-only here.
+    """
+
+    def debug(self, message: str, /, *args: object) -> None: ...
+    def info(self, message: str, /, *args: object) -> None: ...
+    def warning(self, message: str, /, *args: object) -> None: ...
+    def error(self, message: str, /, *args: object) -> None: ...
+
+
 @dataclass(frozen=True, slots=True)
 class ExecutionContext:
     """Everything an executor needs to run one normal step.
@@ -280,10 +293,10 @@ class ExecutionContext:
     """
 
     step: Step
-    runtime_configuration: Mapping[str, Any]
+    runtime_configuration: Mapping[str, JsonValue]
     inputs: Mapping[str, tuple[ContinuableInput, ...]]
     resources: ResourceView
-    logger: Any
+    logger: Logger | None
 
     @property
     def step_id(self) -> StepId:
@@ -320,11 +333,11 @@ class DisruptedExecutionContext:
     """
 
     step: Step
-    runtime_configuration: Mapping[str, Any]
+    runtime_configuration: Mapping[str, JsonValue]
     inputs: Mapping[str, tuple[ContinuableInput | DisruptingInput, ...]]
     disruptions: tuple[DisruptingInput, ...]
     resources: ResourceView
-    logger: Any
+    logger: Logger | None
 
     @property
     def step_id(self) -> StepId:
@@ -360,7 +373,7 @@ class PublishedArtifact:
 
     opening: OpeningId
     type: ArtifactType
-    value: Any
+    value: object
 
 
 @dataclass(frozen=True, slots=True)
@@ -379,7 +392,7 @@ class WorkflowReport:
     published_artifacts: tuple[PublishedArtifact, ...]
     recovered_failures: tuple[Failure, ...]
     unresolved_failures: tuple[Failure, ...]
-    provenance: dict[str, Any]
+    provenance: dict[str, JsonValue]
 
     @property
     def succeeded(self) -> bool:
@@ -395,7 +408,7 @@ class WorkflowReport:
 
 
 __all__ = [
-    "Artifact", "ContinuableInput", "DisruptedExecutionContext",
+    "Artifact", "ContinuableInput", "DisruptedExecutionContext", "Logger",
     "DisruptingInput", "ExecutionContext", "Failure", "PublishedArtifact",
     "ResourceView", "RuntimeConfiguration", "StepOutcome", "StepStatus",
     "WorkflowReport",

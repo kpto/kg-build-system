@@ -113,7 +113,7 @@ class Planner(Protocol[PlannerModelT]):
     runtime_fields: tuple[RuntimeField, ...]
 
     def plan(
-        self, model: PlannerModelT, context: PlanContext,
+        self, model: PlannerModelT, context: PlanContext, /,
     ) -> Sequence[Step]:
         """Return the steps this component contributes to the plan.
 
@@ -178,7 +178,10 @@ class StepExecutor(Executor, Protocol):
     ```
     """
 
-    resources: tuple[type, ...] = ()
+    @property
+    def resources(self) -> tuple[type[object], ...]:
+        """The exact resource types this executor reads."""
+        ...
 
 
 class Resource(Protocol):

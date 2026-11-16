@@ -22,7 +22,6 @@ import json
 from collections.abc import Iterable, Sequence
 from dataclasses import replace
 from pathlib import Path
-from typing import Any
 
 from .distribution import (
     AssetLanguage,
@@ -50,6 +49,9 @@ from .distribution.languages.binding import Binding
 from .distribution.model.public.runtime import BuildRuntime
 from .frontend import Monitor, resolve_monitor
 from .kernel import (
+    JsonValue,
+    Language,
+    Planner,
     RuntimeConfiguration,
     StepExecutor,
     Toolchain,
@@ -76,10 +78,10 @@ DEFAULT_EXECUTORS = (
 
 def default_toolchain(
     *,
-    planners: Sequence[Any] = (),
+    planners: Sequence[Planner[GraphBlueprint]] = (),
     executors: Sequence[StepExecutor] | None = None,
-    engine: Any = None,
-) -> Toolchain[Any]:
+    engine: DuckDbSqlEmitter | None = None,
+) -> Toolchain[GraphBlueprint]:
     """Return a graph toolchain with the supplied planners and executors added.
 
     The generic DuckDB source planner is added before the core planners, and a
@@ -98,9 +100,9 @@ def default_toolchain(
     )
     ```
     """
-    configured: tuple[Any, ...] = tuple(planners)
+    configured: tuple[Planner[GraphBlueprint], ...] = tuple(planners)
     selected_engine = engine if engine is not None else DuckDbSqlEmitter()
-    sources: tuple[Any, ...] = (
+    sources: tuple[Planner[GraphBlueprint], ...] = (
         ()
         if any(planner.component_id == "duckdb" for planner in configured)
         else (DuckDbSourcePlanner(),)
@@ -146,7 +148,7 @@ def create_blueprint(
     *,
     namespace_path: str | Path | None = None,
     bindings: Iterable[Binding] = (),
-    languages: Sequence[Any] | None = None,
+    languages: Sequence[Language] | None = None,
 ) -> GraphBlueprint:
     """Create the semantic blueprint for one declaration namespace.
 
@@ -177,9 +179,9 @@ def compile(
     blueprint: GraphBlueprint | None = None,
     namespace_path: str | Path | None = None,
     bindings: Iterable[Binding] | None = None,
-    planners: Sequence[Any] = (),
+    planners: Sequence[Planner[GraphBlueprint]] = (),
     toolchain: Toolchain[GraphBlueprint] | None = None,
-    engine: Any = None,
+    engine: DuckDbSqlEmitter | None = None,
 ) -> WorkflowPlan:
     """Compile a graph blueprint into a workflow plan.
 
@@ -224,7 +226,7 @@ def compile(
         )
     plan = selected.compile(prepared)
     existing = plan.provenance
-    provenance: dict[str, Any] = dict(existing) if isinstance(existing, dict) else (
+    provenance: dict[str, JsonValue] = dict(existing) if isinstance(existing, dict) else (
         {} if existing is None else {"plan": existing}
     )
     provenance["blueprint"] = blueprint_to_document(prepared)

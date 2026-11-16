@@ -31,7 +31,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, ClassVar, Self
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, Self, TypeVar
 
 from kg_build_system.distribution.languages.annotations.service.internal import annotation_tuple
 from kg_build_system.distribution.languages.annotations.model.public import (
@@ -158,7 +158,15 @@ def is_source_relation_group(cls: type[Any]) -> bool:
     return spec is not None and spec.kind == "source_relation_group" and spec.final
 
 
-class SourceRelation[AssetT: Asset](RowSourceProvider, Shape, RowSource["SourceRelation[AssetT]"]):
+AssetT_co = TypeVar("AssetT_co", bound=Asset, covariant=True)
+
+
+class SourceRelation(
+    RowSourceProvider,
+    Shape,
+    RowSource["SourceRelation[AssetT_co]"],
+    Generic[AssetT_co],
+):
     """A final source relation declaration read from one logical asset.
 
     The asset is part of the declaration: ``class Site(SourceRelation[Estate])`` states

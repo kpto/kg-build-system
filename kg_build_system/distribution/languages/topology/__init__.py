@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from .model.public import (
     AbstractEdge, AbstractNode, Edge, EdgeOptions, EdgeOptionsTemplate,
-    EdgeTemplate, Endpoint, Node, NodeOptions, NodeOptionsTemplate, NodeTemplate,
-    PropertySlot,
+    EdgeRoot, EdgeTemplate, Endpoint, Node, NodeOptions, NodeOptionsTemplate,
+    NodeTemplate, PropertySlot,
 )
 from .service.public import endpoint, property
 
@@ -20,6 +20,7 @@ __all__ = [
     "Edge",
     "EdgeOptions",
     "EdgeOptionsTemplate",
+    "EdgeRoot",
     "EdgeTemplate",
     "Endpoint",
     "Node",
