@@ -39,7 +39,9 @@ Reference: Blender 4.x dark theme, not a generic dashboard.
   toggle lives in that header. The frame is implemented once in
   `shared/ui/Viewport.tsx` as `ViewportFrame`, `ViewportAction`, `ViewportNav`
   and `ViewportChip`; Graph, Workflow and the detail Build steps canvas compose
-  those names rather than restating the markup.
+  those names rather than restating the markup. A canvas hint is the same
+  26px `panel` surface as the navigation cluster: same 1px outline, 4px radius,
+  inset and type, so the two boxes sit on one line.
 - **Selection is orange; active/accent is blue.** Do not use orange for ordinary
   buttons. Blue = focus/active/primary; orange = selected graph item.
 - The scale is compact but readable (14.5px root). The UI font is Inter
