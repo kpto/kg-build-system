@@ -117,8 +117,8 @@ export interface DetailBandProps {
  * The header is structural and shared by every kind: a micro title, the
  * question the section answers, and one count. This component is the one card
  * frame: every section in every detail view renders through it, so the card
- * outline, surface and header cannot drift between node, edge, table,
- * projection or step documents. The body holds content only.
+ * outline, surface and header cannot drift between node, edge, source
+ * relation, derived relation or step documents. The body holds content only.
  */
 export function DetailBand({
   title,

@@ -38,7 +38,7 @@ count. Every card gets a logo; the title-to-concept mapping lives once beside
 | Edge | **Overview**, **Meaning**, **Fulfilment**, **Members**, **Connections**, Sources, Build steps, Expression, Bindings | Overview states the endpoints; Connections repeats them with the label. |
 | Property | **Overview**, **Meaning**, **Fulfilment**, **Branches**, **Connections**, **Expression**, Sources, Build steps, Bindings | Branches is the type/presence chain and lane canvas; Connections is its ledger. |
 | Abstract category | **Overview**, **Meaning**, **Members**, Fulfilment | Members are concrete descendants. |
-| Asset | **Overview**, **Meaning**, **Sources**, **Members**, **Fields**, Fulfilment, Bindings | Sources states the release boundary; Members are relations, then fields. |
+| Asset | **Overview**, **Meaning**, **Sources**, **Members**, **Fields**, Bindings, Fulfilment | Sources states the release boundary; Members are relations, then fields. |
 | Source relation | **Overview**, **Meaning**, **Members**, **Sources**, **Fulfilment**, Build steps, Bindings, Expression | Columns are the relation; Sources states its asset and scans. |
 | Derived relation | **Overview**, **Meaning**, **Expression**, **Members**, **Fulfilment**, Sources, Build steps, Bindings | Expression is the computation; Members are its outputs. |
 | Step | **Overview**, **Ports**, **Payload**, **Connections**, **Bindings**, Meaning, Sources | A step is build machinery; Meaning and Sources state their absence last. |
