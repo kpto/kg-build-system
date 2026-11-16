@@ -47,8 +47,8 @@ relations and bindings all say “replace it”. The order is:
 7. Delete `data/items.json` and add your source.
 8. Run `uv run pytest`.
 
-`kbs init clinic-kg --empty` starts without the fixture when you prefer to write
-the first slice directly.
+`kbs init` will copy this template; an empty variant will start without the
+fixture when you prefer to write the first slice directly.
 
 ## The gate
 
