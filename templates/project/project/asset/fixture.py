@@ -19,8 +19,6 @@ from kg_build_system import (
     Purpose,
 )
 
-DATA = Path(__file__).parent.parent / "data"
-
 
 class Fixture(Asset):
 
@@ -35,7 +33,7 @@ class Fixture(Asset):
         ),
         layout=AssetLayout(
             kind="json",
-            locator=str(DATA),
+            locator=str(Path(__file__).parent.parent / "data"),
             format="json",
             members={"items": "items.json"},
         ),

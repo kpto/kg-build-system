@@ -15,16 +15,17 @@ to a record.
 
 ## Execution
 
-- One package MUST own one relation: `relation.py` publishes, `_<stage>.py`
-  composes.
-- `DerivedRelation(rows)`, `computed_field(...)`,
-  `Contract(Definition(...), Meaning(...))`.
-- The identity MUST name declared outputs and MUST be true of the plan; add a
-  key output or `distinct()` rather than declare a false identity.
+- One package MUST own one relation: `relation.py` MUST publish, `_<stage>.py`
+  MUST compose.
+- A derived relation MUST be declared with `DerivedRelation(rows)`,
+  `computed_field(...)` and `Contract(Definition(...), Meaning(...))`.
+- The identity MUST name declared outputs and MUST be true of the plan; add a key
+  output or `distinct()` rather than declare a false identity.
 - A published relation MUST NOT name a record's property, key or endpoint.
 - A step with no consumer MUST be a `Stage`, not a relation.
-- The contract MUST be inline at the declaration. The declaration MUST NOT have a
-  docstring; the contract is its documentation.
+- Each output expression MUST be inlined at its `computed_field`; a one-use
+  selection MUST NOT become a module-level helper. The contract MUST be inline at
+  the declaration. The declaration MUST NOT have a docstring.
 
 ## Support
 

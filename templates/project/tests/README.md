@@ -14,11 +14,11 @@ Own `test_philosophy.py` and the smoke test. Do not own declarations.
 
 ## Execution
 
-- `test_philosophy.py` checks facades, import direction, stage privacy, derived
-  contracts, binding purposes and the graph purpose.
-- `test_project.py` proves the blueprint and plan compile and the fixture builds.
-- A rule MUST have a test. Do not add a test that only repeats a declaration's
-  text.
+- `test_philosophy.py` MUST check facades, import direction, stage privacy,
+  derived contracts, binding purposes and the graph purpose.
+- `test_project.py` MUST prove the blueprint and plan compile and the fixture
+  builds.
+- A rule MUST have a test. A test MUST NOT only repeat a declaration's text.
 
 ## Support
 

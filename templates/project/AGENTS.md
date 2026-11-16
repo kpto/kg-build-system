@@ -27,6 +27,10 @@ what the graph asserts                   what the domain contains
 - A **published relation must not know the record**. If it names the record's key,
   properties or endpoints, it is a stage in disguise.
 - The **declaration is the product**; the build is replaceable.
+- **Prefer inline.** Write an expression at the field or declaration that uses
+  it. A one-use module-level helper, selection alias or meaning constant is
+  forbidden. Name a value only when it is itself a declaration, or when several
+  declarations genuinely share it.
 - **Inline the meaning.** `Meaning`, `Contract` and `FieldDefinition` belong at
   the declaration. Do not introduce a module-level meaning constant, a lookup
   table or a helper that assembles purpose, claim or limitation text.
@@ -60,6 +64,8 @@ what the graph asserts                   what the domain contains
 - A missing value is a design decision, not a default hidden in a binding.
 - A declaration MUST attach its meaning inline. A meaning that lives in a table
   or a helper is not attached to the declaration it governs.
+- A one-use expression MUST be inlined. A module-level selection used by one
+  stage or relation is a second place to read, and it hides the grain.
 
 The stranger test: could a reviewer who has not seen the code say what a
 declaration is for, what it asserts and what it excludes? If not, the meaning is

@@ -15,15 +15,18 @@ Own source relations and derived relations. Do not own records or bindings.
 
 ## Execution
 
-- A source relation is asset-backed; a derived relation is computed and published.
-- A published relation MUST be a `Contract`: Definition(grain, identity) + Meaning.
+- A source relation MUST be asset-backed; a derived relation MUST be computed and
+  published.
+- A published relation MUST be a `Contract`: Definition(grain, identity) +
+  Meaning.
 - The relation MUST be stateable in one sentence with no graph nouns and no
   operator verbs.
-- If the sentence needs a join, filter or expansion, that operation is a row
-  source or a private stage, not the relation's name.
+- If the sentence needs a join, filter or expansion, that operation MUST be a row
+  source or a private stage; the relation name MUST NOT stand for the operation.
 - A published relation MUST NOT name a record's key, properties or endpoints.
-- The contract MUST be inline at the declaration. The declaration MUST NOT have a
-  docstring; the contract is its documentation.
+- The contract MUST be inline at the declaration; a one-use contract MUST NOT be
+  a module-level constant. The declaration MUST NOT have a docstring; the contract
+  is its documentation.
 
 ## Support
 

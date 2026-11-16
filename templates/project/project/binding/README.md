@@ -14,15 +14,19 @@ record's meaning, the relation's meaning, or the row plan.
 
 ## Execution
 
-- A binding MUST own one file, grouped by the target node: `binding/<node>/binding.py`
-  for the node and `<predicate>__<target>.py` for an edge.
-- The meaning MUST be present and inline. Its purpose answers the four
+- A binding MUST own one file, grouped by the target node:
+  `binding/<node>/binding.py` for the node and `<predicate>__<target>.py` for an
+  edge.
+- The meaning MUST be present and inline. Its purpose MUST answer the four
   questions: grain, identity, coverage, meaning.
-- A binding has no docstring; its meaning is its documentation.
-- Name the record's use in a clause, then say how the relation answers it. A row
-  recipe ("Supply X from each row's y") is not a fulfilment.
+- A binding MUST NOT have a docstring; its meaning is its documentation.
+- The purpose MUST name the record's use in a clause, then state how the relation
+  answers it. It MUST NOT be a row recipe ("Supply X from each row's y").
 - A binding MUST read a published relation, never a stage.
-- A missing key is a row to drop or a data failure, never a silent default.
+- A missing key MUST be a row to drop or a data failure; it MUST NOT be a silent
+  default.
+- The row mapping MUST be inline in the binding; a one-use mapping helper MUST NOT
+  become a module-level name.
 
 ## Support
 

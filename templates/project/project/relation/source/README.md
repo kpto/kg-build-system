@@ -16,17 +16,18 @@ definitions.
 ## Execution
 
 - A source relation MUST own one file.
-- `class Sites(SourceRelation[AssetT])` with `SourceRelationOptions(...)`.
-- Fields use `field(...)`; a nested record is a `Struct` beside it.
-- A field's definition states the value, its unit and its null meaning; name,
-  type and provenance are derived.
-- A source relation read by a binding SHOULD declare a contract. The identity
-  names the source's key fields.
+- A source relation MUST be declared as
+  `class Sites(SourceRelation[AssetT])` with `SourceRelationOptions(...)`.
+- Fields MUST use `field(...)`; a nested record MUST be a `Struct` beside it.
+- A field's definition MUST state the value, its unit and its null meaning; name,
+  type and provenance MUST be derived, never restated.
+- A source relation read by a binding SHOULD declare a contract. The identity MUST
+  name the source's key fields.
 - A nested `Struct` MAY live beside the source relation it serves.
 - A source relation MUST NOT expand an array or join another relation; that
   belongs in `../derived/`.
-- The contract MUST be inline at the declaration. The declaration MUST NOT have a
-  docstring; the contract is its documentation.
+- The contract MUST be inline at the declaration; a one-use field expression MUST
+  be inlined. The declaration MUST NOT have a docstring.
 
 ## Support
 

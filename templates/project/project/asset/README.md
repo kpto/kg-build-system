@@ -16,11 +16,15 @@ Do not own joins, record shapes, or access logic.
 
 ## Execution
 
-- One asset MUST back one logical source unit. One asset MAY back several source relations.
-- `AssetOptions(profile=..., layout=..., meaning=...)`.
-- `AssetLayout` is descriptive metadata: `kind`, `locator`, `format`, `members`.
-  It is not an access contract; an access contract is a source relation.
-- The meaning MUST be inline at the `Asset` subclass. It states what the source unit is and what it is not.
+- One asset MUST back one logical source unit. One asset MAY back several source
+  relations.
+- An asset MUST declare `AssetOptions(profile=..., layout=..., meaning=...)`.
+- `AssetLayout` MUST be descriptive metadata: `kind`, `locator`, `format`,
+  `members`. It MUST NOT be an access contract; an access contract is a source
+  relation.
+- The meaning MUST be inline at the `Asset` subclass. It states what the source
+  unit is and what it is not. A layout path or option used once MUST be inlined;
+  it MUST NOT become a module-level helper.
 - The declaration MUST NOT have a docstring; the meaning is its documentation.
 
 ## Support

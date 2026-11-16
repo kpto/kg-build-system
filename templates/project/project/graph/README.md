@@ -15,12 +15,14 @@ access, derived relations, or the mapping from rows to records.
 
 ## Execution
 
-- `graph.py` holds the one `Graph` declaration and its root `Meaning`.
+- `graph.py` MUST hold the one `Graph` declaration and its root `Meaning`.
 - A concrete node MUST own one directory: `node.py` and one file per edge from
   that node, named `<predicate>__<target>.py`.
-- A concrete node or edge MUST state its own purpose, claims and limitations inline.
+- A concrete node or edge MUST state its own purpose, claims and limitations
+  inline. A one-use expression MUST be inlined at the property or declaration.
 - The declaration MUST NOT have a docstring; the meaning is its documentation.
-- A property is a value on a record, not a column and not a foreign key.
+- A property MUST be a value on a record; it MUST NOT be a column and MUST NOT be
+  a foreign key.
 - `__init__.py` MUST be a facade; it declares nothing.
 
 ## Support
