@@ -118,7 +118,7 @@ class VisitSourceRelation(SourceRelation[Estate]):
     )
 ```
 
-`Field[T]` accepts the eight canonical scalar types, `Array[...]` of a supported type, a declared `Struct` or `ComputedStruct`, and a declared `CustomDataType`. A field type must be one of those value types; `Field[SomeSourceRelation]` and `Field[SomeDerivedRelation]` are not legal. The full type table is on [Types reference](/appendix/reference/types).
+`Field[T]` accepts the eight canonical scalar types, `Array[...]` of a supported type, a declared `Struct` or `ComputedStruct`, and a declared `CustomDataType`. A field type must be one of those value types; `Field[SomeSourceRelation]` and `Field[SomeDerivedRelation]` are not legal. The bound is closed and non-null: a field declares a value type, never absence, so `Field[str | None]` is refused and presence belongs to the read. The full type table is on [Types reference](/appendix/reference/types).
 
 A source `Field[T]` read yields `Selection[Nullable[T]]`. The declaration names the value type; the source owner decides presence.
 
@@ -146,7 +146,7 @@ def computed_field[T: DeclaredValue] (
     name: str | None = None,
     annotations: Sequence[Annotation] = (),
     meaning: Meaning | type[Omitted],
-) -> Field[T]: ...
+) -> Field[T] | NullableComputedField[T]: ...
 ```
 
 `computed_field()` declares a selection-backed member. It is legal on a `DerivedRelation` output, a `Stage` output and a `ComputedStruct` member; the host decides what the selection means.
@@ -159,7 +159,12 @@ def computed_field[T: DeclaredValue] (
 | `annotations` | `Sequence[Annotation]` | Portable metadata carried by the output | `()` |
 | `meaning` | `Meaning or Omitted` | The output's own meaning, or the explicit opt-out | Required |
 
-Returns a `Field[T]` descriptor. On a `DerivedRelation` or `Stage`, the field is an output typed by `value`; on a `ComputedStruct`, the field is a type witness. A field definition is optional and states the output's value, unit and null meaning; the relation contract never copies field definitions.
+Returns a `Field[T]` descriptor for a present selection and a
+`NullableComputedField[T]` for a nullable one. Both declare the same value type
+`T`; the descriptor class carries whether a computed read is present or
+nullable, so a nullable expression never reads as a present value and a field
+type never states absence. On a `DerivedRelation` or `Stage`, the field is an
+output typed by `value`; on a `ComputedStruct`, the field is a type witness. A field definition is optional and states the output's value, unit and null meaning; the relation contract never copies field definitions.
 
 ```python
 from kg_build_system import (

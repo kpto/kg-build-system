@@ -13,7 +13,7 @@ Example:
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any, cast
+from typing import cast
 
 from kg_build_system.kernel.model.public.types import Array, Nullable
 

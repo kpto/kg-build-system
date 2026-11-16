@@ -38,7 +38,7 @@ Example:
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, cast, overload
+from typing import TYPE_CHECKING, overload
 
 from kg_build_system.distribution.languages.expressions.model.public import (
     Selection,
@@ -48,7 +48,7 @@ from kg_build_system.distribution.languages.data.model.public import (
     RelationRowSource,
 )
 from kg_build_system.distribution.languages.topology.model.public import (
-    Edge, Endpoint, Node, NodeSideBase, NonNullableGraphValue,
+    Edge, EdgeRoot, Endpoint, Node, NodeSideBase, NonNullableGraphValue,
 )
 from kg_build_system.kernel.model.public.types import Shape
 from ...model.public.values import (
@@ -67,7 +67,7 @@ if TYPE_CHECKING:
 def node_binding[N: Node, S: Shape](
     *, target: type[N],
     rows: DerivedRowSource[S] | RelationRowSource[S],
-    bind: Callable[[S], NodeValues[N, Any]],
+    bind: Callable[[S], NodeValues[N, NonNullableGraphValue]],
     name: str | None = None, options: BindingOptions | None = None,
     meaning: Meaning | None = None,
 ) -> NodeBinding[N]: ...
@@ -81,9 +81,12 @@ def node_binding[N: Node, Key: NonNullableGraphValue](
 ) -> NodeBinding[N]: ...
 
 
-def node_binding[N: Node](
-    *, target: type[N], build_key: Selection[Any] | None = None,
-    properties: Any = None, rows: Any = None, bind: Any = None,
+def node_binding[N: Node, S: Shape](
+    *, target: type[N],
+    build_key: Selection[NonNullableGraphValue] | None = None,
+    properties: N | None = None,
+    rows: DerivedRowSource[S] | RelationRowSource[S] | None = None,
+    bind: Callable[[S], NodeValues[N, NonNullableGraphValue]] | None = None,
     name: str | None = None, options: BindingOptions | None = None,
     meaning: Meaning | None = None,
 ) -> NodeBinding[N]:
@@ -118,7 +121,7 @@ def node_binding[N: Node](
     )
     ```
     """
-    return cast(Any, node_binding_impl)(
+    return node_binding_impl(
         target=target,
         build_key=build_key,
         properties=properties,
@@ -131,20 +134,22 @@ def node_binding[N: Node](
 
 
 @overload
-def edge_binding[E: Edge[Any, Any], S: Shape](
+def edge_binding[E: EdgeRoot, S: Shape](
     *, target: type[E],
     rows: DerivedRowSource[S] | RelationRowSource[S],
-    bind: Callable[[S], EdgeValues[E, Any, Any, Any]],
+    bind: Callable[[S], EdgeValues[
+        E, NonNullableGraphValue, NonNullableGraphValue, NonNullableGraphValue,
+    ]],
     name: str | None = None, options: BindingOptions | None = None,
     meaning: Meaning | None = None,
-    source_node: Endpoint[Any] | None = None,
-    target_node: Endpoint[Any] | None = None,
+    source_node: Endpoint[NodeSideBase] | None = None,
+    target_node: Endpoint[NodeSideBase] | None = None,
 ) -> EdgeBinding[E]: ...
 
 
 @overload
 def edge_binding[
-    E: Edge[Any, Any], S: Node, D: Node, Key: NonNullableGraphValue,
+    E: EdgeRoot, S: Node, D: Node, Key: NonNullableGraphValue,
     SourceKey: NonNullableGraphValue, TargetKey: NonNullableGraphValue,
 ](
     *, target: type[Edge[S, D]], build_key: Selection[Key],
@@ -157,7 +162,7 @@ def edge_binding[
 
 @overload
 def edge_binding[
-    E: Edge[Any, Any], S: Node, DC: NodeSideBase, Key: NonNullableGraphValue,
+    E: EdgeRoot, S: Node, DC: NodeSideBase, Key: NonNullableGraphValue,
     SourceKey: NonNullableGraphValue, TargetKey: NonNullableGraphValue,
 ](
     *, target: type[Edge[S, DC]], target_node: Endpoint[DC],
@@ -170,7 +175,7 @@ def edge_binding[
 
 @overload
 def edge_binding[
-    E: Edge[Any, Any], SC: NodeSideBase, D: Node, Key: NonNullableGraphValue,
+    E: EdgeRoot, SC: NodeSideBase, D: Node, Key: NonNullableGraphValue,
     SourceKey: NonNullableGraphValue, TargetKey: NonNullableGraphValue,
 ](
     *, target: type[Edge[SC, D]], source_node: Endpoint[SC],
@@ -183,7 +188,7 @@ def edge_binding[
 
 @overload
 def edge_binding[
-    E: Edge[Any, Any], SC: NodeSideBase, DC: NodeSideBase,
+    E: EdgeRoot, SC: NodeSideBase, DC: NodeSideBase,
     Key: NonNullableGraphValue, SourceKey: NonNullableGraphValue,
     TargetKey: NonNullableGraphValue,
 ](
@@ -196,16 +201,21 @@ def edge_binding[
 ) -> EdgeBinding[E]: ...
 
 
-def edge_binding(
-    *, target: type[Edge[Any, Any]], build_key: Selection[Any] | None = None,
-    source_build_key: Selection[Any] | None = None,
-    target_build_key: Selection[Any] | None = None, properties: Any = None,
-    rows: Any = None, bind: Any = None,
+def edge_binding[E: EdgeRoot, S: Shape](
+    *, target: type[EdgeRoot],
+    build_key: Selection[NonNullableGraphValue] | None = None,
+    source_build_key: Selection[NonNullableGraphValue] | None = None,
+    target_build_key: Selection[NonNullableGraphValue] | None = None,
+    properties: E | None = None,
+    rows: DerivedRowSource[S] | RelationRowSource[S] | None = None,
+    bind: Callable[[S], EdgeValues[
+        E, NonNullableGraphValue, NonNullableGraphValue, NonNullableGraphValue,
+    ]] | None = None,
     name: str | None = None, options: BindingOptions | None = None,
     meaning: Meaning | None = None,
-    source_node: Endpoint[Any] | None = None,
-    target_node: Endpoint[Any] | None = None,
-) -> EdgeBinding[Any]:
+    source_node: Endpoint[NodeSideBase] | None = None,
+    target_node: Endpoint[NodeSideBase] | None = None,
+) -> EdgeBinding[E]:
     """Validate one edge binding and return its frozen value.
 
     Accepts either the direct form, the three keys plus ``properties``, or the
@@ -248,7 +258,7 @@ def edge_binding(
     )
     ```
     """
-    return cast(Any, edge_binding_impl)(
+    return edge_binding_impl(
         target=target,
         build_key=build_key,
         source_build_key=source_build_key,

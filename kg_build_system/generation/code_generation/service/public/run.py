@@ -6,7 +6,7 @@ from pathlib import Path
 from threading import Event
 
 from ...model.public import FileChange, GenerationResult
-from ...model.internal.models import DiscoveredGeneration
+from ...model.public.requests import DiscoveredGeneration
 from .session import GenerationSession
 
 

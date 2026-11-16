@@ -49,10 +49,19 @@ def _optional_text(value: Mapping[str, Any], key: str) -> str | None:
     return result
 
 
+def _ref_document(value: object) -> Sequence[str]:
+    """A reference document is a non-empty sequence of non-empty strings."""
+    if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
+        raise ValueError("a reference must be a document sequence")
+    if not value or not all(isinstance(item, str) and item for item in value):
+        raise ValueError("a reference must name at least one non-empty segment")
+    return value
+
+
 def _node_ref(value: Mapping[str, Any], key: str):
     from kg_build_system.distribution.model.public.refs import NodeRef
 
-    reference = ref_from_document(value.get(key))
+    reference = ref_from_document(_ref_document(value.get(key)))
     if not isinstance(reference, NodeRef):
         raise ValueError(f"{key!r} must be a node reference")
     return reference
@@ -63,7 +72,7 @@ def _optional_node_ref(value: Mapping[str, Any], key: str):
 
     if value.get(key) is None:
         return None
-    reference = ref_from_document(value.get(key))
+    reference = ref_from_document(_ref_document(value.get(key)))
     if not isinstance(reference, NodeRef):
         raise ValueError(f"{key!r} must be a node reference")
     return reference
@@ -74,7 +83,7 @@ def _optional_edge_ref(value: Mapping[str, Any], key: str):
 
     if value.get(key) is None:
         return None
-    reference = ref_from_document(value.get(key))
+    reference = ref_from_document(_ref_document(value.get(key)))
     if not isinstance(reference, EdgeRef):
         raise ValueError(f"{key!r} must be an edge reference")
     return reference
@@ -100,7 +109,7 @@ def _property_to_document(value: PropertyDTO) -> dict[str, Any]:
 
 
 def _property_from_document(value: Mapping[str, Any]) -> PropertyDTO:
-    reference = ref_from_document(value.get("ref"))
+    reference = ref_from_document(_ref_document(value.get("ref")))
     if not isinstance(reference, PropertyRef):
         raise ValueError("a property 'ref' must be a property reference")
     return PropertyDTO(

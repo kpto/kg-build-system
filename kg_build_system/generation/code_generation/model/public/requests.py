@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from ..internal.models import DiscoveredGeneration
 from .values import StaticValue
 
 
@@ -45,4 +46,4 @@ class GenerationRequest:
     asset_digest: str = ""
 
 
-__all__ = ["GenerationRequest"]
+__all__ = ["DiscoveredGeneration", "GenerationRequest"]

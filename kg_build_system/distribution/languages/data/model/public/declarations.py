@@ -31,7 +31,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, ClassVar, Generic, Self, TypeVar
+from typing import TYPE_CHECKING, ClassVar, Generic, Self, TypeVar
 
 from kg_build_system.distribution.languages.annotations.service.internal import annotation_tuple
 from kg_build_system.distribution.languages.annotations.model.public import (
@@ -135,7 +135,9 @@ class StageOptions:
 
 @dataclass(frozen=True, slots=True)
 class SourceRelationGroupOptions:
-    members: tuple[type, ...] = ()
+    members: tuple[
+        type[SourceRelation[Asset]] | type[SourceRelationGroup], ...
+    ] = ()
     name: str | None = None
     annotations: tuple[Annotation, ...] | list[Annotation] = ()
 
@@ -146,13 +148,13 @@ class SourceRelationGroupOptions:
 
 
 
-def is_concrete_source_relation(cls: type[Any]) -> bool:
+def is_concrete_source_relation(cls: type[object]) -> bool:
     """Return whether a class is a final source relation."""
     spec = vars(cls).get("_kg_declaration_spec")
     return spec is not None and spec.kind == "source_relation" and spec.final
 
 
-def is_source_relation_group(cls: type[Any]) -> bool:
+def is_source_relation_group(cls: type[object]) -> bool:
     """Return whether a class is a final source relation group."""
     spec = vars(cls).get("_kg_declaration_spec")
     return spec is not None and spec.kind == "source_relation_group" and spec.final
@@ -178,7 +180,7 @@ class SourceRelation(
         contract=Omitted,
     )
 
-    def __init_subclass__(cls, **kwargs: Any) -> None:
+    def __init_subclass__(cls, **kwargs: object) -> None:
         super().__init_subclass__(**kwargs)
         from ...service._private.declarations import prepare_source_relation_declaration
 
@@ -224,9 +226,9 @@ class StructTemplate:
     enters the blueprint DTO. It carries annotations only, no name.
     """
 
-    options: ClassVar[Any] = StructOptionsTemplate()
+    options: ClassVar[StructOptions | StructOptionsTemplate] = StructOptionsTemplate()
 
-    def __init_subclass__(cls, **kwargs: Any) -> None:
+    def __init_subclass__(cls, **kwargs: object) -> None:
         from ...service._private.declarations import require_struct_template_host
 
         require_struct_template_host(cls)
@@ -243,7 +245,7 @@ class Struct(StructDeclaration):
 
     options: ClassVar[StructOptions] = StructOptions(meaning=Omitted)
 
-    def __init_subclass__(cls, **kwargs: Any) -> None:
+    def __init_subclass__(cls, **kwargs: object) -> None:
         super().__init_subclass__(**kwargs)
         from ...service._private.declarations import prepare_struct_declaration
 
@@ -255,7 +257,7 @@ class ComputedStruct(StructDeclaration):
 
     options: ClassVar[StructOptions] = StructOptions(meaning=Omitted)
 
-    def __init_subclass__(cls, **kwargs: Any) -> None:
+    def __init_subclass__(cls, **kwargs: object) -> None:
         super().__init_subclass__(**kwargs)
         from ...service._private.declarations import (
             prepare_computed_struct_declaration,
@@ -267,7 +269,9 @@ class ComputedStruct(StructDeclaration):
 class DerivedRelationMeta(type):
     """Make ``DerivedRelation(source)`` return a base pinned to a row source."""
 
-    def __call__(cls, source: Any | None = None) -> type["DerivedRelation"]:
+    def __call__[S: Shape](
+        cls, source: RowSource[S] | None = None,
+    ) -> type["DerivedRelation"]:
         from ...service._private.declarations import prepare_derived_relation_type
 
         return prepare_derived_relation_type(source)
@@ -278,7 +282,7 @@ class DerivedRelation(RowSourceProvider, Shape, RowSource["DerivedRelation"], me
 
     options: ClassVar[DerivedRelationOptions | None] = None
 
-    def __init_subclass__(cls, **kwargs: Any) -> None:
+    def __init_subclass__(cls, **kwargs: object) -> None:
         super().__init_subclass__(**kwargs)
         from ...service._private.declarations import (
             prepare_derived_relation_declaration,
@@ -309,7 +313,7 @@ class DerivedRelation(RowSourceProvider, Shape, RowSource["DerivedRelation"], me
 
 
     @classmethod
-    def row_source(cls) -> RelationRowSource[Any]:
+    def row_source(cls) -> RelationRowSource[Shape]:
         """Return the relation row source for this derived relation.
 
         Example:
@@ -323,7 +327,9 @@ class DerivedRelation(RowSourceProvider, Shape, RowSource["DerivedRelation"], me
 class StageMeta(type):
     """Make ``Stage(source)`` return a base pinned to a row source."""
 
-    def __call__(cls, source: Any | None = None) -> type["Stage"]:
+    def __call__[S: Shape](
+        cls, source: RowSource[S] | None = None,
+    ) -> type["Stage"]:
         from ...service._private.declarations import prepare_stage_type
 
         return prepare_stage_type(source)
@@ -353,9 +359,9 @@ class Stage(RowSourceProvider, Shape, metaclass=StageMeta):
     """
 
     options: ClassVar[StageOptions | None] = None
-    shape: type[Any]
+    shape: type[Shape]
 
-    def __init_subclass__(cls, **kwargs: Any) -> None:
+    def __init_subclass__(cls, **kwargs: object) -> None:
         super().__init_subclass__(**kwargs)
         from ...service._private.declarations import (
             prepare_stage_declaration,
@@ -364,7 +370,7 @@ class Stage(RowSourceProvider, Shape, metaclass=StageMeta):
         prepare_stage_declaration(cls)
 
     @classmethod
-    def row_source(cls) -> StageRowSource[Any]:
+    def row_source(cls) -> StageRowSource[Shape]:
         """Return the private row source of this stage.
 
         Example:
@@ -406,7 +412,7 @@ class SourceRelationGroup:
 
     options: ClassVar[SourceRelationGroupOptions] = SourceRelationGroupOptions()
 
-    def __init_subclass__(cls, **kwargs: Any) -> None:
+    def __init_subclass__(cls, **kwargs: object) -> None:
         super().__init_subclass__(**kwargs)
         from ...service._private.declarations import (
             prepare_source_relation_group_declaration,

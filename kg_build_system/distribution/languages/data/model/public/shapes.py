@@ -17,7 +17,8 @@ Example:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+
+from kg_build_system.kernel.model.public.types import LogicalType
 
 
 @dataclass(frozen=True, slots=True)
@@ -26,7 +27,7 @@ class ShapeField:
 
     attribute: str
     name: str
-    logical_type: Any
+    logical_type: LogicalType
 
 
 __all__ = ["ShapeField"]

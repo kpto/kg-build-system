@@ -435,6 +435,10 @@ missing, not the code.
   protocols, functions, errors and their invariants.
 - The interface is not `__all__`; it is the surface designed to be depended on.
 - The reviewer supervises interfaces; implementation is replaceable behind them.
+- A public annotation states the narrowest type true of the value: no `Any`;
+  an opaque value is `object`, an open payload is `JsonValue`, and an invariant
+  generic top is a named non-generic root or a variance decision. A decoder that
+  validates its input takes `object` and narrows at the boundary.
 - An implementation detail is sampled only when it suggests the interface or the
   responsibility is wrong.
 - An interface change is a model change, visible before implementation.

@@ -134,9 +134,13 @@ class BindingLanguage(Language):
             fragment = BindingLanguage().render(blueprint.bindings, None)
             ```
         """
-        value = symbol.value if isinstance(symbol, Symbol) else symbol
+        value: object = symbol.value if isinstance(symbol, Symbol) else symbol
         if isinstance(value, (NodeBindingDTO, EdgeBindingDTO)):
             value = (value,)
+        if not isinstance(value, tuple) or not all(
+            isinstance(item, (NodeBindingDTO, EdgeBindingDTO)) for item in value
+        ):
+            raise TypeError("a binding render requires symbols or binding DTOs")
         return render_binding_source(value, context)
 
 

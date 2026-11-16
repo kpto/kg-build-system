@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import Protocol
 
 
 @dataclass(frozen=True, slots=True)
@@ -26,13 +26,17 @@ class RelationQueryResult(Protocol):
     """Synchronous result access executed through the relation worker."""
 
     @property
-    def description(self) -> Sequence[Sequence[Any]]: ...
+    def description(
+        self,
+    ) -> Sequence[
+        tuple[str, object, int | None, int | None, int | None, int | None, int | None]
+    ]: ...
 
-    def fetchone(self) -> Any: ...
+    def fetchone(self) -> tuple[object, ...] | None: ...
 
-    def fetchall(self) -> list[Any]: ...
+    def fetchall(self) -> list[tuple[object, ...]]: ...
 
-    def fetchmany(self, size: int) -> list[Any]: ...
+    def fetchmany(self, size: int) -> list[tuple[object, ...]]: ...
 
 
 __all__ = ["RelationQueryResult", "RelationRef"]

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, cast
 
 from kg_build_system.kernel import (
     DisruptedExecutionContext,
@@ -218,7 +218,7 @@ class DuckDbExecutor:
                 component=str(payload["component"]),
                 build_key=str(key),
                 property_name=field_name,
-                distinct_values=count,
+                distinct_values=int(cast(int, count)),
             )
             for key, count in relations.query(sql).fetchall()
         )

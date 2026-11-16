@@ -1,7 +1,7 @@
 """The concrete graph declaration an author writes."""
 from __future__ import annotations
 
-from typing import Any, ClassVar
+from typing import ClassVar
 
 from .options import GraphOptions
 
@@ -39,7 +39,7 @@ class Graph:
     _graph_options: ClassVar[GraphOptions]
     _graph_name: ClassVar[str]
 
-    def __init_subclass__(cls, **kwargs: Any) -> None:
+    def __init_subclass__(cls, **kwargs: object) -> None:
         super().__init_subclass__(**kwargs)
         from ...service._private.declarations import prepare_graph_declaration
 

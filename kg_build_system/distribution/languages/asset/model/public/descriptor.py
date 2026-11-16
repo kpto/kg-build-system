@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
 
 from kg_build_system.distribution.model.public.refs import AssetRef
 from kg_build_system.kernel import Key
@@ -71,7 +70,7 @@ def asset_name(value: type[Asset] | AssetDescriptor | AssetDTO) -> str:
     if isinstance(value, (AssetDescriptor, AssetDTO)):
         return value.name
     if isinstance(value, type) and issubclass(value, Asset):
-        name: Any = getattr(value, "_asset_name", None)
+        name: object = getattr(value, "_asset_name", None)
         if isinstance(name, str) and name:
             return name
     raise TypeError(f"{value!r} is not an asset declaration or descriptor")

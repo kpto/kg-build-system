@@ -191,8 +191,8 @@ A failure before execution raises. A failure inside a step becomes a report entr
 ```python
 BuildRuntime(
     credentials: dict[str, str] = {},
-    component_configuration: dict[str, dict[str, Any]] = {},
-    provider_configuration: dict[str, dict[str, Any]] = {},
+    component_configuration: dict[str, dict[str, JsonValue]] = {},
+    provider_configuration: dict[str, dict[str, JsonValue]] = {},
     output_directory: Path = Path.cwd() / "build",
     working_directory: Path = Path("_workdir"),
     temporary_directory: Path | None = None,

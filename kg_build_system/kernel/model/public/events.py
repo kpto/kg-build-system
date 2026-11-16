@@ -12,10 +12,12 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from typing import Any
+from typing import TypeVar, cast
 
 from .runtime import RuntimeConfiguration, StepOutcome, WorkflowReport
 from .workflow import StepId, WorkflowPlan
+
+ResourceT = TypeVar("ResourceT")
 
 
 class ResourceRegistry:
@@ -36,9 +38,9 @@ class ResourceRegistry:
     """
 
     def __init__(self) -> None:
-        self._values: dict[type, Any] = {}
+        self._values: dict[type[object], object] = {}
 
-    def add(self, resource_type: type, value: Any) -> None:
+    def add(self, resource_type: type[ResourceT], value: ResourceT) -> None:
         """Add one live resource under its exact type.
 
         A second provider that supplies the same type raises ``ValueError``.
@@ -57,7 +59,7 @@ class ResourceRegistry:
             )
         self._values[resource_type] = value
 
-    def get(self, resource_type: type) -> Any:
+    def get(self, resource_type: type[ResourceT]) -> ResourceT:
         """Return the resource of one exact type.
 
         Example:
@@ -67,9 +69,9 @@ class ResourceRegistry:
         assert resources.get(str) == "connected"
         ```
         """
-        return self._values[resource_type]
+        return cast(ResourceT, self._values[resource_type])
 
-    def snapshot(self) -> Mapping[type, Any]:
+    def snapshot(self) -> Mapping[type[object], object]:
         """Return a copy of the resources available at this moment.
 
         Example:

@@ -233,7 +233,7 @@ TYPE_NAME_ALIASES: Final[dict[str, str]] = {
 #: Names DuckDB lists only while an extension provides them, so they are absent
 #: from ``duckdb_types()`` on a machine that has not loaded one. They stay in the
 #: table because a definition that uses one is still a definition to refuse.
-EXTENSION_CONDITIONAL_TYPE_NAMES: Final = frozenset({"GEOGRAPHY"})
+EXTENSION_CONDITIONAL_TYPE_NAMES: Final[frozenset[str]] = frozenset({"GEOGRAPHY"})
 
 _PARAMETER_LIST = re.compile(r"\s*\(.*\)$")
 

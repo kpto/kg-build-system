@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import overload
 
 from kg_build_system.kernel.model.public.types import (
-    Date, LogicalType, Time, Timestamp, Uuid,
+    Array, Date, LogicalType, Time, Timestamp, Uuid,
 )
 from ...model.public.selection import Selection
 from ...model.public.values import LiteralValue, ValueExpression
@@ -39,6 +39,10 @@ def value_expression(
 ) -> Selection[Timestamp]: ...
 @overload
 def value_expression(value: Uuid, *, logical_type: None = None) -> Selection[Uuid]: ...
+@overload
+def value_expression[T: LiteralValue](
+    value: list[T], *, logical_type: None = None,
+) -> Selection[Array[T]]: ...
 @overload
 def value_expression(
     value: LiteralValue, *, logical_type: LogicalType | None = None,

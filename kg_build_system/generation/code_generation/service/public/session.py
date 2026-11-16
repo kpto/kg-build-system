@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable
 from pathlib import Path
-from typing import Any
 
 from ...model.public import GenerationResult
 from ...model.public.results import GenerationAction
@@ -39,7 +38,7 @@ class GenerationSession:
         """
         from .._private.engine import GenerationSession as implementation
 
-        self._session: Any = implementation(project_root)
+        self._session = implementation(project_root)
 
     async def start(self) -> GenerationResult:
         """Run the baseline generation pass and index the resulting requests.

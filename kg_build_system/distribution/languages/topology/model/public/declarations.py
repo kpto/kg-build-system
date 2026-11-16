@@ -29,7 +29,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import (
-    Any, ClassVar, Generic, TypeVar, dataclass_transform, cast,
+    ClassVar, Generic, TypeVar, dataclass_transform, cast,
 )
 
 from kg_build_system.distribution.languages.annotations.model.public import (
@@ -48,7 +48,7 @@ from .values import (
 )
 
 
-def property[T: GraphValue](  # pyright: ignore[reportInvalidTypeVarUse]
+def property[T: GraphValue](
     *, name: str | None = None,
     annotations: Sequence[Annotation] = (),
     meaning: Meaning | type[Omitted],
@@ -88,21 +88,21 @@ class TopologyDeclarationBase:
     _framework_root: ClassVar[bool] = True
     _kind: ClassVar[str] = "component"
     _properties: ClassVar[dict[str, PropertyDeclaration]] = {}
-    _metadata: ClassVar[dict[str, Any]] = {}
+    _metadata: ClassVar[dict[str, type[TopologyDeclarationBase]]] = {}
     _component_declaration_kind: ClassVar[str | None] = None
     _component_abstract: ClassVar[bool] = False
-    _component_parent_class: ClassVar[type[Any] | None] = None
+    _component_parent_class: ClassVar[type[TopologyDeclarationBase] | None] = None
     _component_name: ClassVar[str] = "component"
     _component_annotations: ClassVar[tuple[Annotation, ...]] = ()
     _template_annotations: ClassVar[tuple[Annotation, ...]] = ()
     _template_meaning: ClassVar[Meaning | None] = None
     _declaration: ClassVar[ComponentMetadata | None] = None
 
-    def __init__(self, **values: Any) -> None:
+    def __init__(self, **values: object) -> None:
         for name, value in values.items():
             setattr(self, name, value)
 
-    def __init_subclass__(cls, **kwargs: Any) -> None:
+    def __init_subclass__(cls, **kwargs: object) -> None:
         super().__init_subclass__(**kwargs)
         from ...service._private.class_creation import (
             prepare_topology_declaration,
@@ -153,7 +153,9 @@ class NodeTemplate(TopologyDeclarationBase):
     """
 
     _framework_root: ClassVar[bool] = True
-    options: ClassVar[Any] = NodeOptionsTemplate(meaning=Omitted)
+    options: ClassVar[NodeOptions | NodeOptionsTemplate] = (
+        NodeOptionsTemplate(meaning=Omitted)
+    )
     _template_annotations: ClassVar[tuple[Annotation, ...]] = ()
 
 
@@ -180,7 +182,9 @@ class EdgeTemplate(TopologyDeclarationBase):
     """
 
     _framework_root: ClassVar[bool] = True
-    options: ClassVar[Any] = EdgeOptionsTemplate(meaning=Omitted)
+    options: ClassVar[EdgeOptions | EdgeOptionsTemplate] = (
+        EdgeOptionsTemplate(meaning=Omitted)
+    )
     _template_annotations: ClassVar[tuple[Annotation, ...]] = ()
 
 
@@ -213,7 +217,7 @@ class AbstractNode(NodeSideBase):
     """
 
     _framework_root: ClassVar[bool] = True
-    options: ClassVar[Any] = NodeOptions(meaning=Omitted)
+    options: ClassVar[NodeOptions] = NodeOptions(meaning=Omitted)
 
 
 class Node(NodeSideBase):
@@ -234,7 +238,7 @@ class Node(NodeSideBase):
     """
 
     _framework_root: ClassVar[bool] = True
-    options: ClassVar[Any] = NodeOptions(meaning=Omitted)
+    options: ClassVar[NodeOptions] = NodeOptions(meaning=Omitted)
 
 
 class AbstractEdge(TopologyDeclarationBase, Generic[S_co, D_co]):
@@ -259,7 +263,7 @@ class AbstractEdge(TopologyDeclarationBase, Generic[S_co, D_co]):
     """
 
     _framework_root: ClassVar[bool] = True
-    options: ClassVar[Any] = EdgeOptions(meaning=Omitted)
+    options: ClassVar[EdgeOptions] = EdgeOptions(meaning=Omitted)
 
 
 class Edge(AbstractEdge[S, D], EdgeRoot, Generic[S, D]):

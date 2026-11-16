@@ -36,7 +36,7 @@ The model and the choice of grain are on [Set the grain](/book/part-2/05-grain-a
 
 ```text
 SourceRelation.row_source() -> RelationRowSource[Self]
-DerivedRelation.row_source() -> RelationRowSource[Any]
+DerivedRelation.row_source() -> RelationRowSource[Shape]
 ```
 
 Returns the relation row source for a source relation or derived relation. The relation's `.shape` is the shape class of one row.
@@ -82,8 +82,8 @@ Every derived operation returns another row source, so calls compose.
 | `where` | `where(predicate: Callable[[S], Selection[bool]])` | `DerivedRowSource[S]` | Unchanged |
 | `unnest` | `unnest(selector: Callable[[S], Selection[Array[I]]])` | `DerivedRowSource[S]` with the selected member narrowed to `I` | Narrowed |
 | `union` | `union(other, *, all: bool = True)` | `DerivedRowSource[S]` | Unchanged |
-| `join` | `join(other, *, on, how="inner")` | `DerivedRowSource[Any]` | `{on, left, right}` |
-| `group_by` | `group_by(*, by)` | `DerivedRowSource[Any]` | `{by, members}` |
+| `join` | `join(other, *, on, how="inner")` | `DerivedRowSource[Shape]` | `{on, left, right}` |
+| `group_by` | `group_by(*, by)` | `DerivedRowSource[Shape]` | `{by, members}` |
 | `distinct` | `distinct()` | `DerivedRowSource[S]` | Unchanged |
 | `order_by` | `order_by(*keys, ascending: bool = True)` | `DerivedRowSource[S]` | Unchanged |
 
@@ -193,9 +193,9 @@ everyone = SiteSourceRelation.row_source().union(ArchivedSiteSourceRelation.row_
 RowSource.join(
     other: RowSource,
     *,
-    on: Callable[[S, R], tuple[Selection[Any], Selection[Any]] | Selection[bool]],
+    on: Callable[[S, R], tuple[Selection[Nullable[ScalarValue]], Selection[Nullable[ScalarValue]]] | Selection[bool]],
     how: str = "inner",
-) -> DerivedRowSource[Any]
+) -> DerivedRowSource[Shape]
 ```
 
 Combines two row sources on one equality. `on` receives one row proxy per side and returns either:
@@ -244,8 +244,8 @@ matched = SiteSourceRelation.row_source().join(
 ```text
 RowSource.group_by(
     *,
-    by: Callable[[S], Selection[Any] | Mapping[str, Selection[Any]] | Sequence[tuple[str, Selection[Any]]]],
-) -> DerivedRowSource[Any]
+    by: Callable[[S], Mapping[str, Selection[Nullable[ScalarValue]]] | Sequence[tuple[str, Selection[Nullable[ScalarValue]]]] | Selection[Nullable[ScalarValue]]],
+) -> DerivedRowSource[Shape]
 ```
 
 Groups rows by one or more scalar selections. `by` returns one key selection (named `key`), a mapping of names to selections, or `(name, selection)` pairs.
@@ -278,7 +278,7 @@ Rows whose key tuple contains a null are dropped before grouping, so every gener
 RowSource.distinct() -> DerivedRowSource[S]
 
 RowSource.order_by(
-    *keys: str | Selection[Any] | Callable[[S], Selection[Any]],
+    *keys: str | Selection[object] | Callable[[S], Selection[object]],
     ascending: bool = True,
 ) -> DerivedRowSource[S]
 ```
@@ -339,12 +339,12 @@ site_ids = by_region.shape.members.transform_items(
 
 ### Types and limits
 
-`SourceRelation.row_source()` and `DerivedRelation.row_source()` return a `RelationRowSource[Self]` or `RelationRowSource[Any]`. A `Stage` returns a `StageRowSource`, which is not bindable. Every derived operation returns a `DerivedRowSource`; both are frozen row-source values with a `.shape`.
+`SourceRelation.row_source()` and `DerivedRelation.row_source()` return a `RelationRowSource[Self]` or `RelationRowSource[Shape]`; a declaration does not carry its generated row shape as a type parameter, so the derived form names the shape base rather than an erased `Any`. A `Stage` returns a `StageRowSource`, which is not bindable. Every derived operation returns a `DerivedRowSource`; both are frozen row-source values with a `.shape`.
 
 | Operation | Static result |
 | --- | --- |
 | `where`, `union`, `distinct`, `order_by` | `DerivedRowSource[S]` with the input shape |
 | `unnest` | `DerivedRowSource[S]` with a generated narrowed shape |
-| `join`, `group_by` | `DerivedRowSource[Any]` with a generated shape |
+| `join`, `group_by` | `DerivedRowSource[Shape]` with a generated shape |
 
 A generated `join`, `group_by` or `unnest` shape is correct at runtime, but a static type checker sees its members through `.shape` as `Any`. Input shapes remain statically typed. Use `.shape.on`, `.shape.left`, `.shape.right`, `.shape.by`, `.shape.members` and the narrowed `.shape` member explicitly.

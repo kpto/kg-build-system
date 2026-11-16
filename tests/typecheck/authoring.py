@@ -276,3 +276,94 @@ manifest_blueprint = Blueprint(namespace_path=".")
 manifest_workflow = Workflow(blueprint=manifest_blueprint)
 assert_type(manifest_blueprint, Blueprint)
 assert_type(manifest_workflow, Workflow)
+
+
+# ---------------------------------------------------------------------------
+# Typing precision: the public surface names the model, not Any.
+# ---------------------------------------------------------------------------
+from collections.abc import Sequence
+from datetime import date
+
+from kg_build_system import (
+    DEFAULT_TOOLCHAIN,
+    GraphBlueprint,
+    NullableComputedField,
+    compile,
+    default_toolchain,
+    edge_binding,
+    endpoint,
+)
+from kg_build_system.distribution.languages.binding.model.public import (
+    EdgeBinding,
+    EdgeValues,
+)
+from kg_build_system.distribution.languages.data.model.public import (
+    RelationRowSource,
+    StageRowSource,
+)
+from kg_build_system.distribution.languages.topology.model.public import (
+    Edge,
+    EdgeRoot,
+    Endpoint,
+)
+from kg_build_system.kernel import (
+    Key,
+    Language,
+    Planner,
+    ResourceRegistry,
+    ResourceView,
+    Shape,
+    Symbol,
+    Toolchain,
+    WorkflowPlan,
+)
+
+
+class SiteEdge(Edge[SiteNode, SiteNode]):
+    weight: PropertySlot[int] = property(meaning=Omitted)
+
+
+def bind_edge(row: Site) -> EdgeValues[SiteEdge, str, str, str]:
+    return EdgeValues(
+        build_key=row.site_id.alter_rows().drop_null(),
+        source_build_key=row.site_id.alter_rows().drop_null(),
+        target_build_key=row.region_id.alter_rows().drop_null(),
+        properties=SiteEdge(weight=row.count.alter_rows().drop_null()),
+    )
+
+
+assert_type(
+    computed_field(Site.count.alter_rows().drop_null(), meaning=Omitted),
+    Field[int],
+)
+assert_type(
+    computed_field(Site.detail, meaning=Omitted),
+    NullableComputedField[Detail],
+)
+assert_type(value_expression(date(2024, 1, 1)), Selection[date])
+assert_type(value_expression(["a"]), Selection[Array[str]])
+assert_type(Site.row_source(), RelationRowSource[Site])
+assert_type(SiteStage.row_source(), StageRowSource[Shape])
+assert_type(Node.options, NodeOptions)
+_edge_root: type[EdgeRoot] = SiteEdge
+assert_type(endpoint(SiteNode), Endpoint[SiteNode])
+assert_type(DEFAULT_TOOLCHAIN, Toolchain[GraphBlueprint])
+assert_type(default_toolchain(), Toolchain[GraphBlueprint])
+assert_type(compile(planners=()), WorkflowPlan)
+assert_type(ResourceRegistry().get(str), str)
+assert_type(ResourceView({str: "available"}).get(str), str)
+assert_type(Symbol(Key(("site",)), "node", "value").value, object)
+assert_type(manifest_blueprint.languages, Sequence[Language] | None)
+assert_type(manifest_workflow.planners, Sequence[Planner[GraphBlueprint]])
+assert_type(manifest_workflow.toolchain, Toolchain[GraphBlueprint] | None)
+assert_type(
+    edge_binding(
+        target=SiteEdge,
+        rows=Site.row_source(),
+        bind=bind_edge,
+        meaning=Meaning(
+            purpose=Purpose("Fulfil the site edge from the site relation."),
+        ),
+    ),
+    EdgeBinding[SiteEdge],
+)

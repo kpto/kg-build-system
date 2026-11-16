@@ -143,7 +143,7 @@ A derived relation is final and terminal. It may not inherit from another final 
 | Member | Returns | Use |
 | --- | --- | --- |
 | `options` | `DerivedRelationOptions` | Identity, annotations and the contract |
-| `row_source()` | `RelationRowSource[Any]` | Read the derived relation as a relation |
+| `row_source()` | `RelationRowSource[Shape]` | Read the derived relation as a relation; the generated row shape is the declared `Shape`, not a tracked class parameter |
 
 | Error | Trigger |
 | --- | --- |

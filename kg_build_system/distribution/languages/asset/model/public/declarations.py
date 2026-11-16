@@ -1,7 +1,7 @@
 """The concrete asset declaration an author writes."""
 from __future__ import annotations
 
-from typing import Any, ClassVar
+from typing import ClassVar
 
 from .options import AssetOptions
 
@@ -35,7 +35,7 @@ class Asset:
     _asset_options: ClassVar[AssetOptions]
     _asset_name: ClassVar[str]
 
-    def __init_subclass__(cls, **kwargs: Any) -> None:
+    def __init_subclass__(cls, **kwargs: object) -> None:
         super().__init_subclass__(**kwargs)
         from ...service._private.declarations import prepare_asset_declaration
 

@@ -15,7 +15,8 @@ from __future__ import annotations
 
 from .model.public import (
     ComputedStruct, Contract, DeclaredValue, Definition, DerivedRowSource,
-    Field, FieldDefinition, JoinHow, NullableComputedField, ScalarValue,
+    Field, FieldDefinition, GroupByKeys, JoinHow, NullableComputedField,
+    OrderByKey, ScalarValue,
     DerivedRelation, DerivedRelationMeta,
     DerivedRelationOptions, RelationRowSource, RowSource, RowSourceProvider,
     ShapeField, Stage, StageMeta, StageOptions, StageRowSource, Struct,
@@ -27,8 +28,9 @@ from .service.public import computed_field, field, derived_relation_row_source
 
 __all__ = [
     "ComputedStruct", "Contract", "DeclaredValue", "Definition",
-    "DerivedRowSource", "Field", "FieldDefinition", "JoinHow",
-    "NullableComputedField", "ScalarValue", "DerivedRelation", "DerivedRelationMeta",
+    "DerivedRowSource", "Field", "FieldDefinition", "GroupByKeys", "JoinHow",
+    "OrderByKey", "NullableComputedField", "ScalarValue", "DerivedRelation",
+    "DerivedRelationMeta",
     "DerivedRelationOptions", "RelationRowSource", "RowSource",
     "RowSourceProvider", "ShapeField", "Stage", "StageMeta", "StageOptions",
     "StageRowSource", "Struct", "StructOptions", "StructOptionsTemplate",

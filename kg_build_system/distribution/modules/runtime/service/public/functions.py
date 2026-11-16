@@ -2,19 +2,20 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
 
 from kg_build_system.kernel import (
     DisruptedExecutionContext,
     ExecutionContext,
+    Given,
     Instruction,
+    JsonValue,
     Key,
     StepOutcome,
     StepStatus,
 )
 
 
-def output_name(given: Any) -> Key:
+def output_name(given: Given) -> Key:
     """The output opening name an output or publication takes in an outcome.
 
     Example:
@@ -31,7 +32,7 @@ def output_name(given: Any) -> Key:
 
 def succeeded(
     context: ExecutionContext,
-    value: Any,
+    value: object,
     *,
     status: StepStatus = StepStatus.SUCCEEDED,
 ) -> StepOutcome:
@@ -60,7 +61,7 @@ def skipped(context: DisruptedExecutionContext) -> StepOutcome:
     return implementation(context)
 
 
-def instruction_payload(instruction: Instruction) -> Mapping[str, Any]:
+def instruction_payload(instruction: Instruction) -> Mapping[str, JsonValue]:
     """Return one instruction payload as a plain JSON object.
 
     Example:

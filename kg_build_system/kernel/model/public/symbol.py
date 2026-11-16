@@ -9,7 +9,6 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from types import MappingProxyType
-from typing import Any
 
 from .key import Key
 
@@ -53,7 +52,7 @@ class Declaration:
     ```
     """
 
-    value: Any
+    value: object
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,7 +74,7 @@ class Symbol:
 
     key: Key
     kind: str
-    value: Any
+    value: object
     references: tuple[SymbolRef, ...] = ()
 
 
@@ -119,7 +118,7 @@ class SymbolContext:
         except KeyError:
             raise KeyError(f"unknown symbol {reference}") from None
 
-    def get_value(self, reference: SymbolRef) -> Any:
+    def get_value(self, reference: SymbolRef) -> object:
         """Return one transcribed symbol's value.
 
         Example:

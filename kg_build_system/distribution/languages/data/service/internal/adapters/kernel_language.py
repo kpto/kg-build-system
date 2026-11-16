@@ -182,6 +182,8 @@ class DataLanguage(Language):
             value = DataPartDTO((), (value,), ())
         elif isinstance(value, DerivedRelationDTO):
             value = DataPartDTO((), (), (value,))
+        if not isinstance(value, DataPartDTO):
+            raise TypeError("a data render requires a symbol or data part")
         return render_data(value, context, class_names=class_names)
 
 

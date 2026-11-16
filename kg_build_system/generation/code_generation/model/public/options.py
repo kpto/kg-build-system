@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Generic, TypeVar
+from typing import Generic, TypeVar
 
 from ..internal.providers import Provider, ProviderGenerationConfig
 
@@ -36,7 +36,7 @@ class AssetGenerationOptions(Generic[ConfigT]):
         ```
     """
 
-    provider: type[Provider[Any]]
+    provider: type[Provider[ConfigT]]
     configuration: ConfigT
     package: str
 

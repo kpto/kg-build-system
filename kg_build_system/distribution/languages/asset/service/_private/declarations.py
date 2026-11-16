@@ -1,11 +1,14 @@
 """Prepare an ``Asset`` subclass for discovery and transcription."""
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any, TypeGuard
 
 from kg_build_system.distribution.service.internal.rendering import snake_case
 
 from ...model.public.options import AssetOptions
+
+if TYPE_CHECKING:
+    from ...model.public.declarations import Asset
 
 
 def prepare_asset_declaration(cls: type[Any]) -> None:
@@ -22,7 +25,7 @@ def prepare_asset_declaration(cls: type[Any]) -> None:
     cls._asset_name = name
 
 
-def is_asset_declaration(value: Any) -> bool:
+def is_asset_declaration(value: object) -> "TypeGuard[type[Asset]]":
     """Whether a value is a concrete ``Asset`` subclass."""
     from ...model.public.declarations import Asset
 

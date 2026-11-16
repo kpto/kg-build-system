@@ -17,6 +17,8 @@ from kg_build_system.kernel import (
 )
 
 from ....model.internal.dto.asset_dto import AssetDTO, AssetPartDTO
+from ....model.public.declarations import Asset
+from ....model.public.descriptor import AssetDescriptor
 from ..._private.declarations import is_asset_declaration
 from ..._private.symbols import symbol_for_declaration, value_identity
 from ..source import render_asset_source
@@ -64,7 +66,12 @@ class AssetLanguage(Language):
         """
         from ....model.public.descriptor import asset_name
 
-        return Key((asset_name(declaration.value),))
+        value = declaration.value
+        if isinstance(value, (AssetDescriptor, AssetDTO)) or (
+            isinstance(value, type) and issubclass(value, Asset)
+        ):
+            return Key((asset_name(value),))
+        raise TypeError(f"{value!r} is not an asset declaration")
 
     def get_kind(self, declaration: Declaration) -> str:
         """Return ``asset``.
@@ -127,9 +134,11 @@ class AssetLanguage(Language):
             fragment = AssetLanguage().render(blueprint.assets, None)
             ```
         """
-        value = symbol.value if isinstance(symbol, Symbol) else symbol
+        value: object = symbol.value if isinstance(symbol, Symbol) else symbol
         if isinstance(value, AssetDTO):
             value = AssetPartDTO((value,))
+        if not isinstance(value, AssetPartDTO):
+            raise TypeError("an asset render requires an asset symbol or DTO part")
         return render_asset_source(value, context)
 
 

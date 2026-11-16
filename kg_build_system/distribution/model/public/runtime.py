@@ -7,9 +7,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal
+from typing import Literal
 
-from kg_build_system.kernel import RuntimeConfiguration
+from kg_build_system.kernel import JsonValue, RuntimeConfiguration
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,10 +46,10 @@ class BuildRuntime:
     """
 
     credentials: dict[str, str] = field(default_factory=dict)
-    component_configuration: dict[str, dict[str, Any]] = field(
+    component_configuration: dict[str, dict[str, JsonValue]] = field(
         default_factory=dict,
     )
-    provider_configuration: dict[str, dict[str, Any]] = field(
+    provider_configuration: dict[str, dict[str, JsonValue]] = field(
         default_factory=dict,
     )
     output_directory: Path = field(default_factory=lambda: Path.cwd() / "build")

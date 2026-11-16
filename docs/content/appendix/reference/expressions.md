@@ -193,9 +193,9 @@ window = tags.slice(0, 2)      # Selection[Array[str]]
 ```text
 Selection.lookup(
     relation: type[S] | RelationRef,
-    key: Selection[Any] | None = None,
+    key: Selection[object] | None = None,
     *,
-    target_key: str | Selection[Any] | None = None,
+    target_key: str | Selection[object] | None = None,
 ) -> Selection[Nullable[Array[S]]]
 ```
 
@@ -311,13 +311,13 @@ active = SiteSourceRelation.active.alter_rows().drop_null().and_(True)
 
 ```python
 def value_expression(
-    value: Any,
+    value: LiteralValue,
     *,
     logical_type: LogicalType | None = None,
-) -> Selection[Any]: ...
+) -> Selection[object]: ...
 ```
 
-`value_expression()` constructs a typed literal and checks the Python class at that point. It returns a `Selection`, so a constant can be used wherever a selection is accepted.
+`value_expression()` constructs a typed literal and checks the Python class at that point. It returns a `Selection`, so a constant can be used wherever a selection is accepted. Scalar, date/time/UUID and homogeneous-list literals have typed overloads and infer their result; anything else that is a literal falls back to `Selection[object]`. A dict, set, bytes or arbitrary object is not a literal and is refused by the type checker before the runtime check.
 
 | Python value | Inferred result |
 | --- | --- |

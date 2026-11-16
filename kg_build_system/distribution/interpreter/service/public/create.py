@@ -3,16 +3,22 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING
 
 from ...model.public import GraphBlueprint
+
+if TYPE_CHECKING:
+    from kg_build_system.distribution.languages.binding.model.public import (
+        Binding,
+    )
+    from kg_build_system.kernel import Language
 
 
 def create_blueprint(
     *,
     namespace_path: str | Path | None = None,
-    bindings: Iterable[Any] = (),
-    languages: Sequence[Any] | None = None,
+    bindings: Iterable[Binding] = (),
+    languages: Sequence[Language] | None = None,
 ) -> GraphBlueprint:
     """Collect declarations into a validated, frozen graph blueprint.
 

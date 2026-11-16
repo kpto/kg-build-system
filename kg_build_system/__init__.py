@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import sys
 from importlib import import_module
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .api import (
@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     from .distribution.languages.data import (
         ComputedStruct, Contract, DeclaredValue, Definition, DerivedRowSource,
         Field, FieldDefinition, JoinHow, NullableComputedField, ScalarValue,
-        DerivedRelation, DerivedRelationOptions,
+        GroupByKeys, OrderByKey, DerivedRelation, DerivedRelationOptions,
         RelationRowSource, RowSource, Struct, StructOptions,
         StructOptionsTemplate, StructTemplate, SourceRelation, SourceRelationGroup,
         SourceRelationGroupOptions, SourceRelationOptions, Stage, StageOptions,
@@ -90,7 +90,9 @@ _GROUPS: dict[str, tuple[str, ...]] = {'api': ('DEFAULT_TOOLCHAIN',
                                  'DeclaredValue',
                                  'Field',
                                  'FieldDefinition',
+                                 'GroupByKeys',
                                  'NullableComputedField',
+                                 'OrderByKey',
                                  'ScalarValue',
                                  'JoinHow',
                                  'DerivedRelation',
@@ -211,7 +213,9 @@ __all__ = ['DEFAULT_TOOLCHAIN',
  'DeclaredValue',
  'Field',
  'FieldDefinition',
+ 'GroupByKeys',
  'NullableComputedField',
+ 'OrderByKey',
  'ScalarValue',
  'JoinHow',
  'DerivedRelation',
@@ -277,7 +281,7 @@ __all__ = ['DEFAULT_TOOLCHAIN',
  'WorkflowPlan']
 
 
-def __getattr__(name: str) -> Any:
+def __getattr__(name: str) -> object:
     """Load one public name from the module that defines it."""
     for module_name, names in _GROUPS.items():
         if name in names:

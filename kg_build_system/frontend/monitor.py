@@ -6,7 +6,7 @@ A monitor is a listener. It does not own execution, resources or scheduling;
 """
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Literal, Protocol, overload
 
 from kg_build_system.kernel import (
     PipelineEvent,
@@ -17,6 +17,9 @@ from kg_build_system.kernel import (
     StepLogged,
     StepStarted,
 )
+
+if TYPE_CHECKING:
+    from rich.console import Console
 
 
 class Monitor(Protocol):
@@ -93,7 +96,7 @@ class ConsoleMonitor:
     ```
     """
 
-    def __init__(self, console: Any = None) -> None:
+    def __init__(self, console: Console | None = None) -> None:
         self._console = console
 
     def _write(self, text: str) -> None:
@@ -147,6 +150,22 @@ class ConsoleMonitor:
             ```
         """
         self.on_event(event)
+
+
+@overload
+def resolve_monitor(value: Literal[True]) -> ConsoleMonitor: ...
+
+
+@overload
+def resolve_monitor(value: Literal[False] | None) -> None: ...
+
+
+@overload
+def resolve_monitor[T: Monitor](value: T) -> T: ...
+
+
+@overload
+def resolve_monitor(value: bool) -> Monitor | None: ...
 
 
 def resolve_monitor(value: Monitor | bool | None) -> Monitor | None:

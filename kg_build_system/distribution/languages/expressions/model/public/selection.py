@@ -8,7 +8,7 @@ current value shape. The compiler expression tree stays private.
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, cast, overload
+from typing import TYPE_CHECKING, cast, overload
 
 from kg_build_system.distribution.model.public.refs import RelationRef
 from kg_build_system.kernel.model.public.types import (
@@ -78,8 +78,8 @@ class Selection[T]:
     @overload
     def alter_rows[N](self: Selection[Array[N]]) -> "ArrayRowEffects[N]": ...
     @overload
-    def alter_rows(self) -> "RowEffects[Selection[T]]": ...
-    def alter_rows(self) -> Any:
+    def alter_rows[S](self: Selection[S]) -> "RowEffects[Selection[S]]": ...
+    def alter_rows[S](self: Selection[S]) -> "RowEffects[Selection[S]]":
         """Return the one-shot handle for a row effect.
 
         Example:
@@ -103,11 +103,17 @@ class Selection[T]:
         logical_type = self.logical_type
         if isinstance(logical_type, NullableType):
             if isinstance(logical_type.value, ArrayType):
-                return NullableArrayRowEffects[Any](self)
-            return NullableRowEffects[Any](self)
+                return cast(
+                    "RowEffects[Selection[S]]", NullableArrayRowEffects(self),
+                )
+            return cast(
+                "RowEffects[Selection[S]]", NullableRowEffects(self),
+            )
         if isinstance(logical_type, ArrayType):
-            return ArrayRowEffects[Any](self)
-        return RowEffects[Any](self)
+            return cast(
+                "RowEffects[Selection[S]]", ArrayRowEffects(self),
+            )
+        return cast("RowEffects[Selection[S]]", RowEffects(self))
 
     # -------------------------------------------------------- struct navigation
 
@@ -124,7 +130,9 @@ class Selection[T]:
     def extract[S: Struct, U](
         self: Selection[Nullable[S]], selector: Callable[[S], Selection[U]],
     ) -> Selection[Nullable[U]]: ...
-    def extract(self, selector: Callable[[Any], Selection[Any]]) -> Any:
+    def extract[S: Struct, U](
+        self: Selection[Nullable[S]], selector: Callable[[S], Selection[U]],
+    ) -> Selection[Nullable[U]]:
         """Select one declared member, composing presence and owner kind.
 
         Example:
@@ -142,7 +150,9 @@ class Selection[T]:
         """
         from ...service._private.selections import extract_member
 
-        return extract_member(self, selector)
+        return cast(
+            "Selection[Nullable[U]]", extract_member(self, selector),
+        )
 
     # ------------------------------------------------- ungated array operations
 
@@ -154,7 +164,9 @@ class Selection[T]:
     def at[U](
         self: Selection[Array[U]], index: int | Selection[int],
     ) -> Selection[Nullable[U]]: ...
-    def at(self, index: int | Selection[int]) -> Any:
+    def at[U](
+        self: Selection[Array[U]], index: int | Selection[int],
+    ) -> Selection[Nullable[U]]:
         """Index an array; an out-of-bounds index is a nullable result.
 
         Example:
@@ -169,7 +181,7 @@ class Selection[T]:
         """
         from ...service._private.selections import array_at
 
-        return array_at(self, index)
+        return cast("Selection[Nullable[U]]", array_at(self, index))
 
     def slice[I](
         self: Selection[Array[I]],
@@ -195,9 +207,9 @@ class Selection[T]:
     def lookup[S: Shape](
         self,
         relation: type[S] | RelationRef,
-        key: Selection[Any] | None = None,
+        key: Selection[object] | None = None,
         *,
-        target_key: str | Selection[Any] | None = None,
+        target_key: str | Selection[object] | None = None,
     ) -> Selection[Nullable[Array[S]]]:
         """Read every target record whose key equals this row's key.
 
@@ -250,7 +262,10 @@ class Selection[T]:
         self: Selection[Nullable[Array[L]]],
         other: Selection[Nullable[Array[R]]],
     ) -> Selection[Nullable[Array[Pair[L, R]]]]: ...
-    def zip(self, other: Any) -> Any:
+    def zip[L, R](
+        self: Selection[Nullable[Array[L]]],
+        other: Selection[Nullable[Array[R]]],
+    ) -> Selection[Nullable[Array[Pair[L, R]]]]:
         """Pair two arrays by position into an array of paired records.
 
         The arrays must have the same length; a mismatch raises at execution.
@@ -274,7 +289,9 @@ class Selection[T]:
         """
         from ...service._private.selections import zip_arrays
 
-        return zip_arrays(self, other)
+        return cast(
+            "Selection[Nullable[Array[Pair[L, R]]]]", zip_arrays(self, other),
+        )
 
     def unique[I](self: Selection[Array[I]]) -> Selection[Array[I]]:
         """Deduplicate array items.
@@ -491,7 +508,9 @@ class Selection[T]:
     def add(self: Selection[int], other: int | Selection[int]) -> Selection[int]: ...
     @overload
     def add(self: Selection[float], other: float | Selection[float]) -> Selection[float]: ...
-    def add(self, other: Any) -> Any:
+    def add[N: int | float](
+        self: Selection[N], other: N | Selection[N],
+    ) -> Selection[N]:
         """Add another number of the same logical type.
 
         Example:
@@ -506,13 +525,15 @@ class Selection[T]:
         """
         from ...service._private.selections import numeric_binary
 
-        return numeric_binary(self, "add", other)
+        return cast("Selection[N]", numeric_binary(self, "add", other))
 
     @overload
     def sub(self: Selection[int], other: int | Selection[int]) -> Selection[int]: ...
     @overload
     def sub(self: Selection[float], other: float | Selection[float]) -> Selection[float]: ...
-    def sub(self, other: Any) -> Any:
+    def sub[N: int | float](
+        self: Selection[N], other: N | Selection[N],
+    ) -> Selection[N]:
         """Subtract another number of the same logical type.
 
         Example:
@@ -527,7 +548,7 @@ class Selection[T]:
         """
         from ...service._private.selections import numeric_binary
 
-        return numeric_binary(self, "subtract", other)
+        return cast("Selection[N]", numeric_binary(self, "subtract", other))
 
     def not_(self: Selection[bool]) -> Selection[bool]:
         """Negate a present Boolean.

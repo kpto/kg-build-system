@@ -5,26 +5,32 @@ import json
 from collections.abc import Callable, Mapping
 from dataclasses import replace
 from hashlib import sha256
-from typing import Any, cast
+from typing import cast
 
 from kg_build_system.distribution.languages.expressions.model.internal import ExpressionDTO, ExpressionNode, FieldReferenceDTO, FieldReferenceExpression, LookupExpressionDTO, OperationExpression, OperationExpressionDTO; from kg_build_system.distribution.languages.expressions.service.internal import expression_dto, field_reference, expression_field_path
 from kg_build_system.distribution.languages.expressions.model.public import Selection; from kg_build_system.distribution.languages.expressions.service.internal import as_expression, select_expression
 from kg_build_system.distribution.model.public.refs import FieldRef, RelationRef
 from kg_build_system.kernel import Key
-from kg_build_system.kernel.model.public.types import ArrayType, LogicalType, NullableType, StructType
+from kg_build_system.kernel.model.public.types import (
+    Array, ArrayType, LogicalType, Nullable, NullableType, Shape, StructType,
+)
 from kg_build_system.kernel.model.internal.types.dto import ArrayTypeDTO
 from ...model.internal.dto.blueprint_dto import (
     RowDistinctDTO, RowFilterDTO, RowGroupByDTO, RowJoinDTO, RowOrderByDTO,
     RowScanDTO, RowSourcePlanDTO, RowUnionDTO, RowUnnestDTO,
 )
+from ...model.public.row_sources import (
+    DerivedRowSource, GroupByKeys, JoinHow, OrderByKey, RelationRowSource,
+    RowSource, StageRowSource,
+)
 from .shapes import (
-    ShapeField, _base, _is_nullable, _nullable_dto, _traversals,
+    ShapeField, _base, _canonical, _is_nullable, _nullable_dto, _traversals,
     make_row_shape, record_shape_type, shape_fields, shape_source_name,
     union_shape_fields,
 )
 
 
-def declaration_source_name(source: Any) -> str:
+def declaration_source_name(source: type[object]) -> str:
     """Return the logical name a source or derived relation writes."""
     spec = vars(source).get("_kg_declaration_spec")
     if spec is not None and spec.name and spec.kind in {
@@ -40,29 +46,23 @@ def declaration_source_name(source: Any) -> str:
     return name
 
 
-def _root_source(value: Any) -> Any:
-    from ...model.public.row_sources import (
-        DerivedRowSource, RelationRowSource, StageRowSource,
-    )
-
+def _root_source(value: RowSource[Shape]) -> type[Shape]:
     if isinstance(value, (DerivedRowSource, RelationRowSource, StageRowSource)):
         return value.source
     return value.shape
 
 
-def as_row_source(value: Any) -> Any:
+def as_row_source(value: object) -> RowSource[Shape]:
     """Require a value row source; declarations provide one via ``row_source()``."""
-    from ...model.public.row_sources import RowSource
-
     if isinstance(value, RowSource) and not isinstance(value, type):
-        return cast(Any, value)
+        return cast("RowSource[Shape]", value)
     raise TypeError(
         "rows must be a published row source value; use "
         "SourceRelation.row_source() or DerivedRelation.row_source()"
     )
 
 
-def _plan_document(plan: RowSourcePlanDTO) -> dict[str, Any]:
+def _plan_document(plan: RowSourcePlanDTO) -> dict[str, object]:
     from .codec import _encode_plan
 
     return _encode_plan(plan)
@@ -128,13 +128,18 @@ def plan_expressions(plan: RowSourcePlanDTO) -> tuple[ExpressionDTO, ...]:
 
 
 def plan_fields(
-    plan: RowSourcePlanDTO, declarations: Mapping[str, Any],
+    plan: RowSourcePlanDTO, declarations: Mapping[str, tuple[ShapeField, ...]],
 ) -> tuple[ShapeField, ...]:
     """Return the row shape a plan produces from its plan and declarations."""
     if isinstance(plan, RowScanDTO):
         key = plan.relation.name
         try:
-            return tuple(declarations[key])
+            return tuple(
+                ShapeField(
+                    field.attribute, field.name, _canonical(field.logical_type),
+                )
+                for field in declarations[key]
+            )
         except KeyError as error:
             raise ValueError(
                 f"row-source plan reads unknown logical source {key!r}"
@@ -152,11 +157,11 @@ def plan_fields(
     if isinstance(plan, RowJoinDTO):
         left = plan_fields(plan.left, declarations)
         right = plan_fields(plan.right, declarations)
-        left_key = _base(plan.left_key.logical_type)
-        right_key = _base(plan.right_key.logical_type)
+        left_key = _canonical(_base(plan.left_key.logical_type))
+        right_key = _canonical(_base(plan.right_key.logical_type))
         if left_key != right_key:
             raise ValueError("join key expressions must have the same logical type")
-        on_type: Any = left_key
+        on_type: LogicalType = left_key
         if (
             plan.how in {"left", "full"}
             and _is_nullable(plan.left_key.logical_type)
@@ -181,7 +186,7 @@ def plan_fields(
     if isinstance(plan, RowGroupByDTO):
         source = plan_fields(plan.input, declarations)
         keys = tuple(
-            ShapeField(name, name, _base(key.logical_type))
+            ShapeField(name, name, _canonical(_base(key.logical_type)))
             for name, key in plan.keys
         )
         if not keys:
@@ -190,7 +195,7 @@ def plan_fields(
             ShapeField("by", "by", record_shape_type(keys)),
             ShapeField(
                 "members", "members",
-                ArrayTypeDTO(cast(Any, record_shape_type(source))),
+                ArrayType(record_shape_type(source)),
             ),
         )
     if isinstance(plan, RowUnnestDTO):
@@ -203,7 +208,9 @@ def plan_fields(
                 f"unnest field {plan.field!r} is not a member of its input shape"
             )
         return tuple(
-            ShapeField(field.attribute, field.name, array.item)
+            ShapeField(
+                field.attribute, field.name, _canonical(array.item),
+            )
             if field.name == plan.field else field
             for field in fields
         )
@@ -252,8 +259,8 @@ def _retarget(
     return retarget_expression_dto(expression, mapping)
 
 
-def _evaluate_predicate(
-    shape: Any, predicate: Callable[[Any], Selection[bool]],
+def _evaluate_predicate[S: Shape](
+    shape: type[S], predicate: Callable[[S], Selection[bool]],
 ) -> Selection[bool]:
     from .shapes import make_shape_context
 
@@ -266,8 +273,9 @@ def _evaluate_predicate(
 
 
 def derive_row_source(
-    parent: Any, predicate: Selection[bool], *, shape: Any | None = None,
-) -> Any:
+    parent: RowSource[Shape], predicate: Selection[bool], *,
+    shape: type[Shape] | None = None,
+) -> DerivedRowSource[Shape]:
     """Add one filter over a row source, preserving its shape by default."""
     from ...model.public.row_sources import DerivedRowSource
 
@@ -286,16 +294,20 @@ def derive_row_source(
     )
 
 
-def derive_where(
-    source: Any, predicate: Callable[[Any], Selection[bool]],
-) -> Any:
+def derive_where[S: Shape](
+    source: RowSource[S], predicate: Callable[[S], Selection[bool]],
+) -> DerivedRowSource[S]:
     """Add one validated filter over a value row source."""
-    return derive_row_source(source, _evaluate_predicate(source.shape, predicate))
+    return cast(
+        "DerivedRowSource[S]",
+        derive_row_source(source, _evaluate_predicate(source.shape, predicate)),
+    )
 
 
-def _join_pair(
-    on: Any, left_shape: Any, right_shape: Any,
-) -> tuple[Selection[Any], Selection[Any]]:
+def _join_pair[S: Shape, S2: Shape, K1, K2](
+    on: Callable[[S, S2], tuple[Selection[K1], Selection[K2]] | Selection[bool]],
+    left_shape: type[S], right_shape: type[S2],
+) -> tuple[Selection[K1], Selection[K2]]:
     from .shapes import make_shape_context
 
     if not callable(on):
@@ -328,7 +340,9 @@ def _join_pair(
     return left, right
 
 
-def derive_union(source: Any, other: Any, *, all: bool = True) -> Any:
+def derive_union[S: Shape, S2: Shape](
+    source: RowSource[S], other: RowSource[S2], *, all: bool = True,
+) -> DerivedRowSource[S]:
     """Stack two same-shaped sources; ``all=False`` removes duplicates."""
     from ...model.public.row_sources import DerivedRowSource
 
@@ -342,17 +356,19 @@ def derive_union(source: Any, other: Any, *, all: bool = True) -> Any:
     )
 
 
-def derive_join(
-    source: Any, other: Any, *,
-    on: Callable[[Any, Any], tuple[Any, Any]],
+def derive_join[
+    S: Shape, S2: Shape, K1, K2,
+](
+    source: RowSource[S], other: RowSource[S2], *,
+    on: Callable[[S, S2], tuple[Selection[K1], Selection[K2]] | Selection[bool]],
     how: str = "inner",
-) -> Any:
+) -> DerivedRowSource[Shape]:
     """Equi-join two value row sources on one key expression from each side."""
     from ...model.public.row_sources import DerivedRowSource
 
     if how not in {"inner", "left", "right", "full"}:
         raise ValueError("join how must be 'inner', 'left', 'right', or 'full'")
-    right = as_row_source(other)
+    right = cast("RowSource[S2]", as_row_source(other))
     left_key, right_key = _join_pair(on, source.shape, right.shape)
     left_plan = row_source_plan_dto(source)
     right_plan = row_source_plan_dto(right)
@@ -367,7 +383,7 @@ def derive_join(
             expression_dto(as_expression(right_key).model),
             {shape_source_name(right.shape): row_source_key(right_plan)},
         ),
-        cast(Any, how),
+        cast(JoinHow, how),
     )
     key_type = _base(left_key.logical_type)
     on_type: LogicalType = key_type
@@ -382,11 +398,11 @@ def derive_join(
         ShapeField("on", "on", on_type),
         ShapeField(
             "left", "left",
-            left_record if how in {"inner", "left"} else NullableType(cast(Any, left_record)),
+            left_record if how in {"inner", "left"} else NullableType(left_record),
         ),
         ShapeField(
             "right", "right",
-            right_record if how in {"inner", "right"} else NullableType(cast(Any, right_record)),
+            right_record if how in {"inner", "right"} else NullableType(right_record),
         ),
     )
     return DerivedRowSource(
@@ -396,7 +412,9 @@ def derive_join(
     )
 
 
-def derive_group_by(source: Any, *, by: Callable[[Any], Any]) -> Any:
+def derive_group_by[S: Shape](
+    source: RowSource[S], *, by: Callable[[S], GroupByKeys],
+) -> DerivedRowSource[Shape]:
     """Group rows by named key expressions; null keys are dropped."""
     from ...model.public.row_sources import DerivedRowSource
     from .shapes import make_shape_context
@@ -429,7 +447,7 @@ def derive_group_by(source: Any, *, by: Callable[[Any], Any]) -> Any:
         if name in seen:
             raise ValueError("group_by key names must be unique")
         seen.add(name)
-        expression = as_expression(cast(Any, value))
+        expression = as_expression(value)
         logical_type = _base(expression.logical_type)
         if isinstance(logical_type, (ArrayType, StructType)):
             raise TypeError("group_by keys must be scalar expressions")
@@ -443,7 +461,7 @@ def derive_group_by(source: Any, *, by: Callable[[Any], Any]) -> Any:
         ShapeField("by", "by", record_shape_type(fields)),
         ShapeField(
             "members", "members",
-            ArrayType(cast(Any, record_shape_type(shape_fields(source.shape)))),
+            ArrayType(record_shape_type(shape_fields(source.shape))),
         ),
     )
     return DerivedRowSource(
@@ -466,9 +484,12 @@ def _selected_field(expression: ExpressionNode) -> str | None:
     return None
 
 
-def derive_unnest(
-    source: Any, selector: Callable[[Any], Selection[Any]],
-) -> Any:
+def derive_unnest[S: Shape, I](
+    source: RowSource[S],
+    selector: Callable[
+        [S], Selection[Array[I]] | Selection[Nullable[Array[I]]],
+    ],
+) -> DerivedRowSource[S]:
     """Expand one array member into rows, narrowing that member to its item.
 
     The selector must read one declared array field, possibly through a
@@ -503,14 +524,17 @@ def derive_unnest(
         if item.name == field else item
         for item in shape_fields(source.shape)
     )
-    return DerivedRowSource(
-        shape=make_row_shape(plan_shape_source_name(plan), fields),
-        source=_root_source(source),
-        plan_dto=plan,
+    return cast(
+        "DerivedRowSource[S]",
+        DerivedRowSource(
+            shape=make_row_shape(plan_shape_source_name(plan), fields),
+            source=_root_source(source),
+            plan_dto=plan,
+        ),
     )
 
 
-def derive_distinct(source: Any) -> Any:
+def derive_distinct[S: Shape](source: RowSource[S]) -> DerivedRowSource[S]:
     """Drop duplicate rows without changing the shape."""
     from ...model.public.row_sources import DerivedRowSource
 
@@ -520,9 +544,9 @@ def derive_distinct(source: Any) -> Any:
     )
 
 
-def derive_order_by(
-    source: Any, *keys: Any, ascending: bool = True,
-) -> Any:
+def derive_order_by[S: Shape](
+    source: RowSource[S], *keys: OrderByKey[S], ascending: bool = True,
+) -> DerivedRowSource[S]:
     """Order rows by expressions, selections, or column names."""
     from ...model.public.row_sources import DerivedRowSource
     from .shapes import make_shape_context
@@ -549,7 +573,7 @@ def derive_order_by(
             ))
         elif callable(key):
             expression = as_expression(
-                cast(Callable[[Any], Any], key)(make_shape_context(source.shape))
+                key(make_shape_context(source.shape))
             )
         else:
             expression = as_expression(key)
@@ -568,7 +592,7 @@ def derive_order_by(
     )
 
 
-def row_source_plan_dto(value: Any) -> RowSourcePlanDTO:
+def row_source_plan_dto(value: RowSource[Shape]) -> RowSourcePlanDTO:
     """Return the plan a value row source authors."""
     from ...model.public.row_sources import (
         DerivedRowSource, RelationRowSource, StageRowSource,

@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections.abc import Mapping, MutableMapping, Sequence
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Any, Generic, Protocol, TypeVar
+from typing import Generic, Protocol, TypeVar
 
 from ...model.public.events import Listener, PipelineEvent
 from ...model.public.language import Language, Namespace, ReferenceResolver
@@ -24,6 +24,7 @@ from ...model.public.runtime import (
 from ...model.public.workflow import (
     Instruction,
     InstructionKind,
+    JsonValue,
     RuntimeField,
     Step,
     WorkflowPlan,
@@ -82,10 +83,10 @@ class PlanContext:
     ```
     """
 
-    runtime_configuration: Mapping[str, Mapping[str, Any]] = field(
+    runtime_configuration: Mapping[str, Mapping[str, JsonValue]] = field(
         default_factory=dict,
     )
-    shared: MutableMapping[str, Any] = field(default_factory=dict)
+    shared: MutableMapping[str, object] = field(default_factory=dict)
 
 
 class Planner(Protocol[PlannerModelT]):

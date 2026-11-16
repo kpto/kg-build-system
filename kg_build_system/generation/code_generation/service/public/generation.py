@@ -2,18 +2,20 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, TypeVar
 
+from ...model.internal.providers import ProviderGenerationConfig
 from ...model.public.options import AssetGenerationOptions
 
 if TYPE_CHECKING:
     from kg_build_system.distribution.languages.asset import Asset
 
 AssetT = TypeVar("AssetT", bound="Asset")
+ConfigT = TypeVar("ConfigT", bound=ProviderGenerationConfig)
 
 
 def asset_generation(
-    options: AssetGenerationOptions[Any],
+    options: AssetGenerationOptions[ConfigT],
 ) -> Callable[[type[AssetT]], type[AssetT]]:
     """Attach generation intent to an ``Asset`` subclass without doing any work.
 

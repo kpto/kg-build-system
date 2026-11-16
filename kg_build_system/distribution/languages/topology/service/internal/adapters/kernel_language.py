@@ -148,11 +148,13 @@ class TopologyLanguage(Language):
             fragment = TopologyLanguage().render(blueprint.graph, None)
             ```
         """
-        value = symbol.value if isinstance(symbol, Symbol) else symbol
+        value: object = symbol.value if isinstance(symbol, Symbol) else symbol
         if isinstance(value, NodeDTO):
             value = GraphPartDTO(nodes=(value,), edges=())
         elif isinstance(value, EdgeDTO):
             value = GraphPartDTO(nodes=(), edges=(value,))
+        if not isinstance(value, GraphPartDTO):
+            raise TypeError("a topology render requires a symbol or graph part")
         return render_graph_source(value, context)
 
 

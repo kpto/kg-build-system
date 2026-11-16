@@ -24,7 +24,7 @@ Example:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, ClassVar, Sequence
+from typing import ClassVar, Self, Sequence, overload
 
 from kg_build_system.kernel import Key, SymbolRef
 
@@ -49,6 +49,12 @@ class Ref:
 
     symbol: SymbolRef
     role: ClassVar[str] = ""
+
+    @overload
+    def __init__(self, language: SymbolRef, key: None = None) -> None: ...
+
+    @overload
+    def __init__(self, language: str, key: Key) -> None: ...
 
     def __init__(self, language: str | SymbolRef, key: Key | None = None) -> None:
         if isinstance(language, SymbolRef):
@@ -113,7 +119,7 @@ class Ref:
         return encode_ref(self)
 
     @classmethod
-    def from_document(cls, value: Sequence[str]) -> "Ref":
+    def from_document(cls, value: Sequence[str]) -> Self:
         """Decode one reference document into this role type.
 
         The document may carry the role token or omit it; an explicit token
@@ -335,7 +341,7 @@ def ref_to_document(reference: Ref) -> list[str]:
     return encode_ref(reference)
 
 
-def ref_from_document(value: Any) -> Ref:
+def ref_from_document(value: object) -> Ref:
     """Decode a reference document into its role type.
 
     Example:

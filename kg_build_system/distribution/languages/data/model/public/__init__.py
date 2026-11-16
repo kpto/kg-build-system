@@ -12,14 +12,15 @@ from .fields import (
     DeclaredValue, Field, FieldDefinition, NullableComputedField, ScalarValue,
 )
 from .row_sources import (
-    DerivedRowSource, JoinHow, RelationRowSource, RowSource, RowSourceProvider,
-    StageRowSource,
+    DerivedRowSource, GroupByKeys, JoinHow, OrderByKey, RelationRowSource,
+    RowSource, RowSourceProvider, StageRowSource,
 )
 from .shapes import ShapeField
 
 __all__ = [
     "ComputedStruct", "Contract", "DeclaredValue", "Definition",
     "DerivedRowSource", "Field", "FieldDefinition", "JoinHow",
+    "GroupByKeys", "OrderByKey",
     "NullableComputedField", "ScalarValue", "DerivedRelation", "DerivedRelationMeta",
     "DerivedRelationOptions", "RelationRowSource", "RowSource",
     "RowSourceProvider", "ShapeField", "Stage", "StageMeta", "StageOptions",

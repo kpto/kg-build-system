@@ -108,4 +108,4 @@ def _declares_nullable_field() -> None:
 def _uses_removed_projection_constructor() -> None:
     from kg_build_system import projection_field  # pyright: ignore[reportAttributeAccessIssue]
 
-    projection_field(Site.site_id)  # pyright: ignore[reportAttributeAccessIssue]
+    projection_field(Site.site_id)  # pyright: ignore[reportCallIssue]

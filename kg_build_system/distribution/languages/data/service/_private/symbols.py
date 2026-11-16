@@ -294,6 +294,8 @@ def _dto_for_declaration(
     declaration: Declaration, counts: dict[str, int],
 ) -> tuple[Any, str, Key]:
     value = declaration.value
+    if not isinstance(value, type):
+        raise TypeError(f"data declaration {value!r} is not a class")
     kind = declaration_kind(value)
     qualify = needs_qualified_struct(value, counts)
     if kind == "struct":

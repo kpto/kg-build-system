@@ -111,10 +111,10 @@ A binding may be simple when the relation already has the record's grain. It mus
 node_binding(
     *,
     target: type[N],
-    build_key: Selection[Any] | None = None,
+    build_key: Selection[NonNullableGraphValue] | None = None,
     properties: N | None = None,
     rows: RelationRowSource[S] | DerivedRowSource[S] | None = None,
-    bind: Callable[[S], NodeValues[N, Any]] | None = None,
+    bind: Callable[[S], NodeValues[N, NonNullableGraphValue]] | None = None,
     name: str | None = None,
     options: BindingOptions | None = None,
     meaning: Meaning | None = None,
@@ -123,17 +123,17 @@ node_binding(
 edge_binding(
     *,
     target: type[E],
-    build_key: Selection[Any] | None = None,
-    source_build_key: Selection[Any] | None = None,
-    target_build_key: Selection[Any] | None = None,
+    build_key: Selection[NonNullableGraphValue] | None = None,
+    source_build_key: Selection[NonNullableGraphValue] | None = None,
+    target_build_key: Selection[NonNullableGraphValue] | None = None,
     properties: E | None = None,
     rows: RelationRowSource[S] | DerivedRowSource[S] | None = None,
-    bind: Callable[[S], EdgeValues[E, Any, Any, Any]] | None = None,
+    bind: Callable[[S], EdgeValues[E, NonNullableGraphValue, NonNullableGraphValue, NonNullableGraphValue]] | None = None,
     name: str | None = None,
     options: BindingOptions | None = None,
     meaning: Meaning | None = None,
-    source_node: Endpoint[Any] | None = None,
-    target_node: Endpoint[Any] | None = None,
+    source_node: Endpoint[NodeSideBase] | None = None,
+    target_node: Endpoint[NodeSideBase] | None = None,
 ) -> EdgeBinding[E]
 ```
 

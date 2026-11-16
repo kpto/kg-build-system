@@ -98,7 +98,7 @@ def expression_from_document(value: Mapping[str, Any]) -> ExpressionDTO:
     if kind == "variable":
         return VariableExpressionDTO(name=text_field(value, "name"), **common)
     if kind == "field":
-        field = ref_from_document(value.get("field"))
+        field = ref_from_document(string_sequence(value.get("field"), field="field"))
         if not isinstance(field, FieldRef):
             raise ValueError("expression field 'field' must be a field reference")
         return FieldReferenceDTO(
@@ -109,7 +109,9 @@ def expression_from_document(value: Mapping[str, Any]) -> ExpressionDTO:
             **common,
         )
     if kind == "lookup":
-        relation = ref_from_document(value.get("relation"))
+        relation = ref_from_document(
+            string_sequence(value.get("relation"), field="relation")
+        )
         if not isinstance(relation, RelationRef):
             raise ValueError(
                 "expression field 'relation' must be a relation reference"
@@ -132,7 +134,9 @@ def expression_from_document(value: Mapping[str, Any]) -> ExpressionDTO:
         ):
             raise ValueError("expression field 'arguments' must be an array")
         parameters = object_field(value.get("parameters", {}), "parameters")
-        operator = ref_from_document(value.get("operator"))
+        operator = ref_from_document(
+            string_sequence(value.get("operator"), field="operator")
+        )
         if not isinstance(operator, OperationRef):
             raise ValueError(
                 "expression field 'operator' must be an operation reference"

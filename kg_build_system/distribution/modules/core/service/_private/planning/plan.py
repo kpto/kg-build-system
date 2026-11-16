@@ -22,6 +22,7 @@ from kg_build_system.distribution.languages.data.model.internal import (
 from kg_build_system.distribution.languages.data.model.public.shapes import (
     ShapeField,
 )
+from kg_build_system.kernel.service.internal.types import type_from_dto
 from kg_build_system.distribution.languages.data.service.internal import (
     plan_fields,
     plan_inputs,
@@ -118,14 +119,18 @@ def declaration_fields(
     """The top-level field shape of every relation a plan scans."""
     fields = {
         item.name: tuple(
-            ShapeField(field.name, field.name, field.logical_type)
+            ShapeField(
+                field.name, field.name, type_from_dto(field.logical_type),
+            )
             for field in item.columns
         )
         for item in blueprint.data.source_relations
     }
     fields.update({
         item.name: tuple(
-            ShapeField(field.name, field.name, field.logical_type)
+            ShapeField(
+                field.name, field.name, type_from_dto(field.logical_type),
+            )
             for field in item.columns
         )
         for item in blueprint.data.derived_relations

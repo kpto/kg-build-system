@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import Any, Literal, Protocol
+from typing import Literal, Protocol
 
 from .key import Key
 from .symbol import Declaration, Symbol, SymbolContext, SymbolRef
@@ -79,7 +79,7 @@ class ReferenceResolver(Protocol):
     ```
     """
 
-    def get_identity(self, value: Any) -> SymbolRef | None:
+    def get_identity(self, value: object) -> SymbolRef | None:
         """Return the reference of ``value``, or ``None`` when it has none.
 
         Example:
@@ -166,7 +166,7 @@ class Language(Protocol):
         """
         ...
 
-    def get_identity(self, value: Any) -> SymbolRef | None:
+    def get_identity(self, value: object) -> SymbolRef | None:
         """Return the reference one authoring value denotes.
 
         The value is an authoring value, not a transcribed symbol or DTO. A
@@ -181,7 +181,7 @@ class Language(Protocol):
         ...
 
     def get_references(
-        self, value: Any, resolver: ReferenceResolver,
+        self, value: object, resolver: ReferenceResolver,
     ) -> tuple[SymbolRef, ...]:
         """Return the direct dependencies one authoring declaration value declares.
 

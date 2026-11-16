@@ -130,7 +130,7 @@ Emits one distinct step per bound record component. It removes rows identical in
 
 ```python
 MergingPlanner(configuration: MergingConfiguration)
-MergingConfiguration(components: tuple[type[Node] | type[Edge[Any, Any]], ...] | None = None)
+MergingConfiguration(components: tuple[type[TopologyDeclarationBase], ...] | None = None)
 ```
 
 Emits one merge step per component in scope. It groups by build key and keeps the minimum value for every property. `components=None` applies it to every bound component; a tuple restricts it to those concrete `Node` and `Edge` classes.

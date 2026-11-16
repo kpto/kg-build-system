@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import inspect
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, overload
+from typing import TYPE_CHECKING, cast
 
 from kg_build_system.distribution.languages.expressions.model.public import (
     Selection,
@@ -23,7 +23,7 @@ from kg_build_system.distribution.languages.data.service.internal import (
     shape_context,
 )
 from kg_build_system.distribution.languages.topology.model.public import (
-    Edge, Endpoint, Node, NodeSideBase, NonNullableGraphValue,
+    EdgeRoot, Endpoint, Node, NodeSideBase, NonNullableGraphValue,
 )
 from kg_build_system.distribution.languages.meaning.model.public import (
     Meaning,
@@ -36,6 +36,7 @@ from kg_build_system.kernel.service.internal.types import (
     require_non_nullable, require_scalar,
 )
 from ...model.public.values import (
+    BindingMode,
     BindingOptions,
     EdgeBinding,
     EdgeValues,
@@ -52,7 +53,9 @@ if TYPE_CHECKING:
     )
 
 
-def _require_key(value: object, *, argument: str) -> Selection[Any]:
+def _require_key(
+    value: object, *, argument: str,
+) -> Selection[NonNullableGraphValue]:
     try:
         selection = (
             value if isinstance(value, Selection)
@@ -66,7 +69,7 @@ def _require_key(value: object, *, argument: str) -> Selection[Any]:
         require_scalar(selection.logical_type, context=argument),
         context=argument,
     )
-    return selection
+    return cast("Selection[NonNullableGraphValue]", selection)
 
 
 def _compatible(expected: object, actual: object) -> bool:
@@ -79,7 +82,7 @@ def _compatible(expected: object, actual: object) -> bool:
 
 
 def _property_values[
-    C: Node | Edge[Any, Any],
+    C: Node | EdgeRoot,
 ](value: C, *, target: type[C]) -> PropertyValues:
     """Normalize a component instance into an immutable property tuple."""
     if not isinstance(value, target):
@@ -91,7 +94,7 @@ def _property_values[
         raise TypeError(
             f"{target.__name__} has no declared property {names}"
         )
-    result: list[tuple[str, Selection[Any]]] = []
+    result: list[tuple[str, Selection[object]]] = []
     for attribute, declaration in declarations.items():
         try:
             supplied = getattr(value, attribute)
@@ -119,7 +122,9 @@ def _property_values[
     return tuple(sorted(result, key=lambda item: item[0]))
 
 
-def _as_row_source(value: Any) -> Any:
+def _as_row_source(
+    value: object,
+) -> DerivedRowSource[Shape] | RelationRowSource[Shape]:
     """Require a published row-source value; a stage is not accepted."""
     if isinstance(value, StageRowSource):
         name = getattr(value.source, "_stage_name", None) or getattr(
@@ -129,7 +134,10 @@ def _as_row_source(value: Any) -> Any:
             f"a binding cannot read a stage '{name}'; read a published relation"
         )
     try:
-        return as_row_source(value)
+        return cast(
+            "DerivedRowSource[Shape] | RelationRowSource[Shape]",
+            as_row_source(value),
+        )
     except TypeError as error:
         raise TypeError(
             "rows must be a published row source value; use "
@@ -137,7 +145,7 @@ def _as_row_source(value: Any) -> Any:
         ) from error
 
 
-def _require_concrete_component(target: Any, kind: str) -> None:
+def _require_concrete_component(target: object, kind: str) -> None:
     if (
         not isinstance(target, type)
         or component_kind(target) != kind
@@ -147,7 +155,7 @@ def _require_concrete_component(target: Any, kind: str) -> None:
         raise TypeError(f"target must be a concrete {kind} component, not {name}")
 
 
-def _declared_endpoints(target: type[Any]) -> tuple[type[Node], type[Node]]:
+def _declared_endpoints(target: type[object]) -> tuple[type[Node], type[Node]]:
     """Read the two node categories an edge declares."""
     metadata = metadata_for(target)
     if (
@@ -168,7 +176,7 @@ def _declared_endpoints(target: type[Any]) -> tuple[type[Node], type[Node]]:
 
 
 def _resolve_endpoint(
-    token: Any, *, declared: Any, side: str,
+    token: Endpoint[NodeSideBase] | None, *, declared: type[object], side: str,
 ) -> type[Node] | None:
     """Each endpoint token is required exactly when its declared endpoint is abstract."""
     declared_is_abstract = bool(
@@ -201,10 +209,10 @@ def _resolve_endpoint(
             f"{side}_node {selected.__name__} must equal or descend from the "
             f"declared endpoint category {declared.__name__}"
         )
-    return selected
+    return cast("type[Node]", selected)
 
 
-def _python_reference(value: Any) -> PythonRef | None:
+def _python_reference[P](value: Callable[[P], object]) -> PythonRef | None:
     """Return the stable reference of a rows-form callable, if it names one."""
     module = getattr(value, "__module__", None)
     qualname = getattr(value, "__qualname__", None)
@@ -236,34 +244,22 @@ def _binding_meaning(
     return chosen
 
 
-@overload
 def node_binding[N: Node, S: Shape](
     *, target: type[N],
-    rows: DerivedRowSource[S] | RelationRowSource[S],
-    bind: Callable[[S], NodeValues[N, Any]],
-    name: str | None = None, options: BindingOptions | None = None,
-    meaning: Meaning | None = None,
-) -> NodeBinding[N]: ...
-
-
-@overload
-def node_binding[N: Node, Key: NonNullableGraphValue](
-    *, target: type[N], build_key: Selection[Key], properties: N,
-    name: str | None = None, options: BindingOptions | None = None,
-    meaning: Meaning | None = None,
-) -> NodeBinding[N]: ...
-
-
-def node_binding[N: Node](
-    *, target: type[N], build_key: Selection[Any] | None = None,
-    properties: Any = None, rows: Any = None, bind: Any = None,
+    build_key: Selection[NonNullableGraphValue] | None = None,
+    properties: N | None = None,
+    rows: DerivedRowSource[S] | RelationRowSource[S] | None = None,
+    bind: Callable[[S], NodeValues[N, NonNullableGraphValue]] | None = None,
     name: str | None = None, options: BindingOptions | None = None,
     meaning: Meaning | None = None,
 ) -> NodeBinding[N]:
     """Validate a node declaration into a frozen :class:`NodeBinding`."""
     _require_concrete_component(target, "node")
     validate_meaning(meaning)
-    mode = "declarative"
+    key: Selection[NonNullableGraphValue]
+    supplied: N
+    row_source: DerivedRowSource[Shape] | RelationRowSource[Shape] | None = None
+    mode: BindingMode = "declarative"
     reference: PythonRef | None = None
     if rows is not None or bind is not None:
         if build_key is not None or properties is not None:
@@ -272,110 +268,56 @@ def node_binding[N: Node](
             )
         if rows is None or bind is None:
             raise TypeError("rows and bind must be supplied together")
-        rows = _as_row_source(rows)
+        row_source = _as_row_source(rows)
         reference = _python_reference(bind)
-        values = bind(shape_context(rows.shape))
+        values = bind(shape_context(row_source.shape))
         if not isinstance(values, NodeValues):
             raise TypeError("node_binding bind must return NodeValues")
-        build_key, properties = values.build_key, values.properties
+        key, supplied = values.build_key, values.properties
         mode = "python"
-    elif build_key is None or properties is None:
-        raise TypeError(
-            "node_binding requires build_key and properties, or rows and bind"
-        )
+    else:
+        if build_key is None or properties is None:
+            raise TypeError(
+                "node_binding requires build_key and properties, or rows and bind"
+            )
+        key, supplied = build_key, properties
     return NodeBinding(
         name,
         target,
-        _require_key(build_key, argument="build_key"),
-        _property_values(properties, target=target),
+        _require_key(key, argument="build_key"),
+        _property_values(supplied, target=target),
         () if options is None else tuple(options.annotations),
-        rows,
-        mode=mode,  # type: ignore[arg-type]
+        row_source,
+        mode=mode,
         python_ref=reference,
         meaning=_binding_meaning(options, meaning),
     )
 
 
-@overload
-def edge_binding[E: Edge[Any, Any], S: Shape](
-    *, target: type[E],
-    rows: DerivedRowSource[S] | RelationRowSource[S],
-    bind: Callable[[S], EdgeValues[E, Any, Any, Any]],
+def edge_binding[E: EdgeRoot, S: Shape](
+    *, target: type[EdgeRoot],
+    build_key: Selection[NonNullableGraphValue] | None = None,
+    source_build_key: Selection[NonNullableGraphValue] | None = None,
+    target_build_key: Selection[NonNullableGraphValue] | None = None,
+    properties: E | None = None,
+    rows: DerivedRowSource[S] | RelationRowSource[S] | None = None,
+    bind: Callable[[S], EdgeValues[
+        E, NonNullableGraphValue, NonNullableGraphValue, NonNullableGraphValue,
+    ]] | None = None,
     name: str | None = None, options: BindingOptions | None = None,
     meaning: Meaning | None = None,
-    source_node: Endpoint[Any] | None = None,
-    target_node: Endpoint[Any] | None = None,
-) -> EdgeBinding[E]: ...
-
-
-@overload
-def edge_binding[
-    E: Edge[Any, Any], S: Node, D: Node, Key: NonNullableGraphValue,
-    SourceKey: NonNullableGraphValue, TargetKey: NonNullableGraphValue,
-](
-    *, target: type[Edge[S, D]], build_key: Selection[Key],
-    source_build_key: Selection[SourceKey],
-    target_build_key: Selection[TargetKey], properties: E,
-    name: str | None = None, options: BindingOptions | None = None,
-    meaning: Meaning | None = None,
-) -> EdgeBinding[E]: ...
-
-
-@overload
-def edge_binding[
-    E: Edge[Any, Any], S: Node, DC: NodeSideBase, Key: NonNullableGraphValue,
-    SourceKey: NonNullableGraphValue, TargetKey: NonNullableGraphValue,
-](
-    *, target: type[Edge[S, DC]], target_node: Endpoint[DC],
-    build_key: Selection[Key], source_build_key: Selection[SourceKey],
-    target_build_key: Selection[TargetKey], properties: E,
-    name: str | None = None, options: BindingOptions | None = None,
-    meaning: Meaning | None = None,
-) -> EdgeBinding[E]: ...
-
-
-@overload
-def edge_binding[
-    E: Edge[Any, Any], SC: NodeSideBase, D: Node, Key: NonNullableGraphValue,
-    SourceKey: NonNullableGraphValue, TargetKey: NonNullableGraphValue,
-](
-    *, target: type[Edge[SC, D]], source_node: Endpoint[SC],
-    build_key: Selection[Key], source_build_key: Selection[SourceKey],
-    target_build_key: Selection[TargetKey], properties: E,
-    name: str | None = None, options: BindingOptions | None = None,
-    meaning: Meaning | None = None,
-) -> EdgeBinding[E]: ...
-
-
-@overload
-def edge_binding[
-    E: Edge[Any, Any], SC: NodeSideBase, DC: NodeSideBase,
-    Key: NonNullableGraphValue, SourceKey: NonNullableGraphValue,
-    TargetKey: NonNullableGraphValue,
-](
-    *, target: type[Edge[SC, DC]], source_node: Endpoint[SC],
-    target_node: Endpoint[DC], build_key: Selection[Key],
-    source_build_key: Selection[SourceKey],
-    target_build_key: Selection[TargetKey], properties: E,
-    name: str | None = None, options: BindingOptions | None = None,
-    meaning: Meaning | None = None,
-) -> EdgeBinding[E]: ...
-
-
-def edge_binding(
-    *, target: type[Edge[Any, Any]], build_key: Selection[Any] | None = None,
-    source_build_key: Selection[Any] | None = None,
-    target_build_key: Selection[Any] | None = None, properties: Any = None,
-    rows: Any = None, bind: Any = None,
-    name: str | None = None, options: BindingOptions | None = None,
-    meaning: Meaning | None = None,
-    source_node: Endpoint[Any] | None = None,
-    target_node: Endpoint[Any] | None = None,
-) -> EdgeBinding[Any]:
+    source_node: Endpoint[NodeSideBase] | None = None,
+    target_node: Endpoint[NodeSideBase] | None = None,
+) -> EdgeBinding[E]:
     """Validate an edge declaration into a frozen :class:`EdgeBinding`."""
     _require_concrete_component(target, "edge")
     validate_meaning(meaning)
-    mode = "declarative"
+    key: Selection[NonNullableGraphValue]
+    source_key: Selection[NonNullableGraphValue]
+    target_key: Selection[NonNullableGraphValue]
+    supplied: E
+    row_source: DerivedRowSource[Shape] | RelationRowSource[Shape] | None = None
+    mode: BindingMode = "declarative"
     reference: PythonRef | None = None
     if rows is not None or bind is not None:
         if any(value is not None for value in (
@@ -386,35 +328,43 @@ def edge_binding(
             )
         if rows is None or bind is None:
             raise TypeError("rows and bind must be supplied together")
-        rows = _as_row_source(rows)
+        row_source = _as_row_source(rows)
         reference = _python_reference(bind)
-        values = bind(shape_context(rows.shape))
+        values = bind(shape_context(row_source.shape))
         if not isinstance(values, EdgeValues):
             raise TypeError("edge_binding bind must return EdgeValues")
-        build_key, properties = values.build_key, values.properties
-        source_build_key, target_build_key = (
-            values.source_build_key, values.target_build_key,
-        )
+        key = values.build_key
+        source_key = values.source_build_key
+        target_key = values.target_build_key
+        supplied = values.properties
         mode = "python"
-    elif any(value is None for value in (
-        build_key, source_build_key, target_build_key, properties,
-    )):
-        raise TypeError(
-            "edge_binding requires keys and properties, or rows and bind"
-        )
+    else:
+        if (
+            build_key is None or source_build_key is None
+            or target_build_key is None or properties is None
+        ):
+            raise TypeError(
+                "edge_binding requires keys and properties, or rows and bind"
+            )
+        key = build_key
+        source_key = source_build_key
+        target_key = target_build_key
+        supplied = properties
     declared_source, declared_target = _declared_endpoints(target)
+    # ``properties`` was validated against ``target``, so the binding names the
+    # concrete edge class the factory was given.
     return EdgeBinding(
         name,
-        target,
-        _require_key(build_key, argument="build_key"),
-        _require_key(source_build_key, argument="source_build_key"),
-        _require_key(target_build_key, argument="target_build_key"),
-        _property_values(properties, target=target),
+        cast("type[E]", target),
+        _require_key(key, argument="build_key"),
+        _require_key(source_key, argument="source_build_key"),
+        _require_key(target_key, argument="target_build_key"),
+        _property_values(supplied, target=target),
         () if options is None else tuple(options.annotations),
         _resolve_endpoint(source_node, declared=declared_source, side="source"),
         _resolve_endpoint(target_node, declared=declared_target, side="target"),
-        rows,
-        mode=mode,  # type: ignore[arg-type]
+        row_source,
+        mode=mode,
         python_ref=reference,
         meaning=_binding_meaning(options, meaning),
     )

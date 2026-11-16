@@ -22,13 +22,17 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
+from typing import TYPE_CHECKING, Generic, Literal, TypeVar
 
 from kg_build_system.distribution.languages.annotations.model.public import (
     Annotation,
 )
 from kg_build_system.distribution.languages.annotations.service.internal import (
     annotation_tuple,
+)
+from kg_build_system.distribution.languages.data.model.public import (
+    DerivedRowSource,
+    RelationRowSource,
 )
 from kg_build_system.distribution.languages.expressions.model.public import (
     Selection,
@@ -38,8 +42,11 @@ from kg_build_system.distribution.languages.meaning.model.public import (
     require_declaration_meaning,
 )
 from kg_build_system.distribution.languages.topology.model.public import (
-    Edge, Node,
+    EdgeRoot,
+    Node,
+    NonNullableGraphValue,
 )
+from kg_build_system.kernel.model.public.types import Shape
 
 if TYPE_CHECKING:
     from kg_build_system.distribution.languages.meaning.model.public import (
@@ -47,13 +54,13 @@ if TYPE_CHECKING:
     )
 
 N_co = TypeVar("N_co", bound=Node, covariant=True)
-E_co = TypeVar("E_co", bound=Edge[Any, Any], covariant=True)
-K = TypeVar("K")
-SK = TypeVar("SK")
-TK = TypeVar("TK")
+E_co = TypeVar("E_co", bound=EdgeRoot, covariant=True)
+K = TypeVar("K", bound=NonNullableGraphValue, covariant=True)
+SK = TypeVar("SK", bound=NonNullableGraphValue, covariant=True)
+TK = TypeVar("TK", bound=NonNullableGraphValue, covariant=True)
 
 # External property name paired with the expression the binding supplies for it.
-type PropertyValues = tuple[tuple[str, Selection[Any]], ...]
+type PropertyValues = tuple[tuple[str, Selection[object]], ...]
 type BindingMode = Literal["declarative", "python"]
 
 
@@ -186,10 +193,10 @@ class NodeBinding(Generic[N_co]):
 
     name: str | None
     target: type[N_co]
-    build_key: Selection[Any]
+    build_key: Selection[NonNullableGraphValue]
     properties: PropertyValues
     annotations: tuple[Annotation, ...] = ()
-    rows: Any = None
+    rows: DerivedRowSource[Shape] | RelationRowSource[Shape] | None = None
     mode: BindingMode = "declarative"
     python_ref: PythonRef | None = None
     meaning: Meaning | None = None
@@ -222,20 +229,20 @@ class EdgeBinding(Generic[E_co]):
 
     name: str | None
     target: type[E_co]
-    build_key: Selection[Any]
-    source_build_key: Selection[Any]
-    target_build_key: Selection[Any]
+    build_key: Selection[NonNullableGraphValue]
+    source_build_key: Selection[NonNullableGraphValue]
+    target_build_key: Selection[NonNullableGraphValue]
     properties: PropertyValues
     annotations: tuple[Annotation, ...] = ()
     source_node: type[Node] | None = None
     target_node: type[Node] | None = None
-    rows: Any = None
+    rows: DerivedRowSource[Shape] | RelationRowSource[Shape] | None = None
     mode: BindingMode = "declarative"
     python_ref: PythonRef | None = None
     meaning: Meaning | None = None
 
 
-type Binding = NodeBinding[Any] | EdgeBinding[Any]
+type Binding = NodeBinding[Node] | EdgeBinding[EdgeRoot]
 
 
 __all__ = [

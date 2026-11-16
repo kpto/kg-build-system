@@ -19,19 +19,27 @@ Example:
 """
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, Generic, Literal, TypeVar, overload
+from typing import Generic, Literal, TypeVar, overload
 
 from kg_build_system.distribution.languages.expressions.model.public import (
     Selection,
 )
 from kg_build_system.kernel.model.public.types import Array, Nullable, Shape
 from ..internal.dto.blueprint_dto import RowScanDTO, RowSourcePlanDTO
+from .fields import ScalarValue
 from .shapes import ShapeField
 
 S = TypeVar("S", bound=Shape, covariant=True)
 JoinHow = Literal["inner", "left", "right", "full"]
+
+type GroupByKeys = (
+    Mapping[str, Selection[Nullable[ScalarValue]]]
+    | Sequence[tuple[str, Selection[Nullable[ScalarValue]]]]
+    | Selection[Nullable[ScalarValue]]
+)
+type OrderByKey[S: Shape] = str | Selection[object] | Callable[[S], Selection[object]]
 
 
 class RowSourceProvider:
@@ -85,7 +93,12 @@ class RowSource(Generic[S]):
     def unnest[I](
         self, selector: Callable[[S], Selection[Nullable[Array[I]]]],
     ) -> "DerivedRowSource[S]": ...
-    def unnest(self, selector: Callable[[Any], Any]) -> "DerivedRowSource[S]":
+    def unnest[I](
+        self,
+        selector: Callable[
+            [S], Selection[Array[I]] | Selection[Nullable[Array[I]]],
+        ],
+    ) -> "DerivedRowSource[S]":
         """Expand one array member into rows, one row per item.
 
         The selected array must be a direct field read. The result keeps the
@@ -110,7 +123,9 @@ class RowSource(Generic[S]):
 
         return derive_unnest(self, selector)
 
-    def union(self, other: Any, *, all: bool = True) -> "DerivedRowSource[S]":
+    def union[S2: Shape](
+        self, other: "RowSource[S2]", *, all: bool = True,
+    ) -> "DerivedRowSource[S]":
         """Stack two same-shaped sources; ``all=False`` removes duplicates.
 
         Example:
@@ -124,10 +139,13 @@ class RowSource(Generic[S]):
 
         return derive_union(self, other, all=all)
 
-    def join(
-        self, other: Any, *, on: Callable[[Any, Any], tuple[Any, Any]],
+    def join[
+        S2: Shape, K1: Nullable[ScalarValue], K2: Nullable[ScalarValue],
+    ](
+        self, other: "RowSource[S2]", *,
+        on: Callable[[S, S2], tuple[Selection[K1], Selection[K2]]],
         how: JoinHow = "inner",
-    ) -> "DerivedRowSource[Any]":
+    ) -> "DerivedRowSource[Shape]":
         """Equi-join two sources on one expression from each side.
 
         ``on`` receives one shape instance per side and returns the two key
@@ -146,7 +164,7 @@ class RowSource(Generic[S]):
 
         return derive_join(self, other, on=on, how=how)
 
-    def group_by(self, *, by: Callable[[S], Any]) -> "DerivedRowSource[Any]":
+    def group_by(self, *, by: Callable[[S], GroupByKeys]) -> "DerivedRowSource[Shape]":
         """Group rows by named key expressions; null keys are dropped.
 
         Example:
@@ -172,7 +190,9 @@ class RowSource(Generic[S]):
 
         return derive_distinct(self)
 
-    def order_by(self, *keys: Any, ascending: bool = True) -> "DerivedRowSource[S]":
+    def order_by(
+        self, *keys: OrderByKey[S], ascending: bool = True,
+    ) -> "DerivedRowSource[S]":
         """Order rows by expressions, selections, or column names.
 
         Example:
@@ -189,7 +209,7 @@ class RowSource(Generic[S]):
 class RelationRowSource(RowSource[S], Generic[S]):
     """A row source over one named source or derived relation."""
 
-    source: type[Any]
+    source: type[Shape]
     shape: type[S]
     filters: tuple[Selection[bool], ...] = ()
 
@@ -210,7 +230,7 @@ class StageRowSource(RowSource[S], Generic[S]):
     source, but only a derived relation that publishes the stage may read it.
     """
 
-    source: type[Any]
+    source: type[Shape]
     shape: type[S]
     filters: tuple[Selection[bool], ...] = ()
 
@@ -227,14 +247,14 @@ class DerivedRowSource(RowSource[S], Generic[S]):
     """A row source derived by filtering or by the relational algebra."""
 
     shape: type[S]
-    source: type[Any]
+    source: type[Shape]
     filters: tuple[Selection[bool], ...] = ()
     plan_dto: RowSourcePlanDTO | None = None
 
 
 
 __all__ = [
-    "DerivedRowSource", "RelationRowSource", "RowSource",
-    "RowSourceProvider", "ShapeField", "StageRowSource",
-    "JoinHow",
+    "DerivedRowSource", "GroupByKeys", "JoinHow", "OrderByKey",
+    "RelationRowSource", "RowSource", "RowSourceProvider", "ShapeField",
+    "StageRowSource",
 ]

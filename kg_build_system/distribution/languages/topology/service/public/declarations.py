@@ -1,7 +1,7 @@
 """Author-facing property and endpoint wrappers for topology declarations."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, TypeVar, cast
+from typing import TYPE_CHECKING, TypeVar
 
 from ...model.public.declarations import property
 from ..internal.endpoints import make_endpoint
@@ -30,9 +30,7 @@ def endpoint(target: type[N]) -> "Endpoint[N]":
         assert site.target is SiteNode
         ```
     """
-    from ...model.public.declarations import Endpoint
-
-    return cast("Endpoint[N]", make_endpoint(target))
+    return make_endpoint(target)
 
 
 __all__ = ["endpoint", "property"]
