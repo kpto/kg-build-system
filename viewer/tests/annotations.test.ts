@@ -6,27 +6,55 @@ import {
   enrichAnnotations,
   flattenAnnotations,
 } from "../lib/annotations";
-import { snapshot } from "./fixtures";
 
-const node = snapshot.blueprint.graph.nodes.find((candidate) => candidate.name === "defect");
-const edge = snapshot.blueprint.graph.edges.find(
-  (candidate) => candidate.name === "has_observation",
-);
-const metaGraph = buildMetaGraphIndex(snapshot.metaGraph);
+const annotation = {
+  namespace: "example",
+  id: "provenance",
+  arguments: { stage: "built" },
+};
+const annotations = [annotation];
+const metaGraph = buildMetaGraphIndex({
+  nodes: [
+    {
+      kind: "node",
+      name: "defect",
+      properties: [
+        {
+          name: "title",
+          description: "The defect label.",
+          examples: ["Bearing wear"],
+        },
+      ],
+      counts: { records: 3 },
+    },
+  ],
+  edges: [
+    {
+      kind: "edge",
+      name: "has_observation",
+      properties: [
+        {
+          name: "as_at",
+          examples: ["2026-07-14T10:12"],
+        },
+      ],
+    },
+  ],
+});
 
 describe("annotation flattening", () => {
   it("flattens namespace:id keys and arguments", () => {
-    const annotations = flattenAnnotations(node?.annotations);
-    expect(annotations).toHaveLength(1);
-    expect(annotations[0]).toMatchObject({
-      key: "reference_project:provenance",
-      namespace: "reference_project",
+    const flattened = flattenAnnotations(annotations);
+    expect(flattened).toHaveLength(1);
+    expect(flattened[0]).toMatchObject({
+      key: "example:provenance",
+      namespace: "example",
       id: "provenance",
       arguments: { stage: "built" },
-      text: "reference_project/provenance(stage=built)",
+      text: "example/provenance(stage=built)",
     });
-    expect(annotations[0].argumentList).toEqual([{ key: "stage", value: "built" }]);
-    expect(annotationKey(annotations[0].source)).toBe("reference_project:provenance");
+    expect(flattened[0].argumentList).toEqual([{ key: "stage", value: "built" }]);
+    expect(annotationKey(flattened[0].source)).toBe("example:provenance");
   });
 
   it("handles missing annotations", () => {
@@ -35,19 +63,19 @@ describe("annotation flattening", () => {
   });
 
   it("deduplicates by key and arguments", () => {
-    const annotations = flattenAnnotations(node?.annotations);
-    expect(dedupeAnnotations([...annotations, ...annotations])).toHaveLength(1);
+    const flattened = flattenAnnotations(annotations);
+    expect(dedupeAnnotations([...flattened, ...flattened])).toHaveLength(1);
   });
 });
 
 describe("metaGraph enrichment", () => {
   it("uses property examples and component counts for a node property", () => {
     const enriched = enrichAnnotations(
-      node?.annotations,
+      annotations,
       { kind: "node", component: "defect", property: "title" },
       metaGraph,
     );
-    expect(enriched[0].description).toBe("What the defect is, as the surveyor described it.");
+    expect(enriched[0].description).toBe("The defect label.");
     expect(enriched[0].examples).toContain("Bearing wear");
     expect(enriched[0].counts?.records).toBe(3);
     expect(enriched[0].metaProperty?.name).toBe("title");
@@ -55,7 +83,7 @@ describe("metaGraph enrichment", () => {
 
   it("uses edge property examples", () => {
     const enriched = enrichAnnotations(
-      edge?.annotations,
+      annotations,
       { kind: "edge", component: "has_observation", property: "as_at" },
       metaGraph,
     );
@@ -64,7 +92,7 @@ describe("metaGraph enrichment", () => {
   });
 
   it("returns the annotation unenriched when no context exists", () => {
-    const enriched = enrichAnnotations(node?.annotations, {});
+    const enriched = enrichAnnotations(annotations, {});
     expect(enriched[0].examples).toEqual([]);
     expect(enriched[0].metaComponent).toBeUndefined();
   });

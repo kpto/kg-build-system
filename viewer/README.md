@@ -13,9 +13,9 @@ frame, one document tab strip, and two collapsible side-bar sections:
 | **Control** | Controls for the active view: graph filters, labels, containment, meaning, legend and layout; workflow component and instruction filters. |
 | **Explorer** | Everything in the design: assets, source relations, derived relations, nodes, abstract categories, edges and their properties, plus the workflow components and step catalogue. Right-clicking an item jumps to its Graph or Workflow view; relations open their own documents. |
 
-The viewer opens the snapshot named by the URL (`?snapshot=reference` selects the
-reference estate); there is no file picker. The workbench frame and its indexes
-are built for that snapshot.
+The viewer reads the snapshot from its configured `/snapshot` source, or from a
+URL passed as `?snapshot=<url>`; there is no bundled project dataset and no file
+picker. The workbench frame and its indexes are built for that snapshot.
 
 The tab strip is the document axis:
 
@@ -49,7 +49,7 @@ to a bundled demo.
 
 ```console
 kbs view --snapshot path/to/workflow_plan.json
-kbs view --snapshot path/to/reference.snapshot.json --port 8002
+kbs view --snapshot path/to/snapshot.json --port 8002
 kbs view --no-open
 ```
 
@@ -177,21 +177,12 @@ subject or step tab; the pinned Graph and Workflow tabs cannot be closed. **Back
 back/forward buttons) walk the document history. Every open tab keeps its own
 editor state and scroll position. There is no JSON/Data tab.
 
-## Snapshot
+## Snapshot source
 
-The default snapshot is the current Open Targets 26.09 **compile-only** build:
-
-| Artifact | Value |
-| --- | --- |
-| Blueprint | 63 nodes, 163 edges, 61 source relations, 9 derived relations, 239 bindings |
-| Workflow | 1,000 steps, 1,423 connections |
-| Meaning | graph purpose, 9 claims and 5 limitations; attached meaning on graph components, assets and bindings |
-| Mode | compile-only; the graph was not executed |
-
-`viewer/public/data/opentargets.snapshot.json` is checked in (the `.gz` copy is
-served through `/api/snapshot`). The snapshot contains only the workflow plan;
-its `provenance.blueprint` member is the source blueprint, so no second artifact
-is needed. Regenerate it from the Open Targets project:
+The viewer does not bundle a project snapshot. It reads `/snapshot` from the
+configured discovery endpoint, or a plain/gzip JSON URL passed as
+`?snapshot=<url>`. A snapshot's `provenance.blueprint` member carries the source
+blueprint, so no second artifact is needed.
 
 The blueprint document follows the current model: `graph_declaration.meaning`,
 topology `meaning`, `data.source_relations` and `data.derived_relations`,
@@ -200,16 +191,6 @@ The loader still reads the legacy keys (`relations`, `projections`,
 `semantics`, `description`, `debug_name`) so older snapshots remain viewable;
 display text prefers purpose, claim, contract definition and field definition
 over the retired description field.
-
-```console
-cd ~/Repos/opentargets-kg
-uv run python ~/Repos/kg-build-system/viewer/scripts/compile_opentargets_snapshot.py \
-  --project . \
-  --output ~/Repos/kg-build-system/viewer/public/data/opentargets.snapshot.json
-```
-
-The reference estate is available at `?snapshot=reference`; it is not the
-default dataset.
 
 ## Verification
 
@@ -224,7 +205,7 @@ Headless browser screenshots use Selenium + the system Firefox:
 ```console
 uv run --with selenium python scripts/screenshot.py \
   --url http://127.0.0.1:3000/ \
-  --output /tmp/opentargets-topology.png \
+  --output /tmp/viewer-topology.png \
   --width 1600 --height 1000
 ```
 

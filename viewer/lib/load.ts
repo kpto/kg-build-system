@@ -405,34 +405,6 @@ export async function loadSnapshotFromFile(file: File): Promise<ViewerSnapshot> 
 
 const DEFAULT_FETCH_TIMEOUT_MS = 20_000;
 
-async function fetchJson(url: string, timeoutMs: number): Promise<unknown> {
-  if (typeof fetch !== "function") {
-    throw new Error("This browser does not provide fetch");
-  }
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const response = await fetch(url, {
-      signal: controller.signal,
-      cache: "no-store",
-    });
-    if (!response.ok) {
-      throw new Error(`${response.status} ${response.statusText}`.trim());
-    }
-    return await response.json();
-  } catch (error) {
-    if (
-      error instanceof DOMException &&
-      (error.name === "AbortError" || error.name === "TimeoutError")
-    ) {
-      throw new Error(`request timed out after ${Math.round(timeoutMs / 1000)}s`);
-    }
-    throw error;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
 const SNAPSHOT_TIMEOUT_MS = 45_000;
 
 async function fetchGzipJson(url: string, timeoutMs: number): Promise<unknown> {
@@ -472,57 +444,22 @@ async function fetchGzipJson(url: string, timeoutMs: number): Promise<unknown> {
 }
 
 /**
- * Load the default Open Targets snapshot.
+ * Load the configured snapshot.
  *
- * `/snapshot` serves committed gzip bytes or plain JSON; the client detects the
- * gzip magic and decompresses, so the transfer is roughly 450 KB. The plain
- * public JSON is a fallback for static hosting. A base URL selects the plain
- * file directly.
+ * `/snapshot` is the composition root's discovery endpoint. A caller may pass
+ * an explicit URL instead; the response may be plain JSON or gzip and the
+ * client detects the gzip magic. No project dataset is bundled in the viewer.
  */
-export async function loadDefaultSnapshot(baseUrl = ""): Promise<ViewerSnapshot> {
-  const prefix = baseUrl && !baseUrl.endsWith("/") ? `${baseUrl}/` : baseUrl;
-  const failures: string[] = [];
-
-  if (!baseUrl) {
-    try {
-      return loadSnapshotFromObject(
-        await fetchGzipJson("/snapshot", SNAPSHOT_TIMEOUT_MS),
-      );
-    } catch (error) {
-      failures.push(
-        `/snapshot: ${error instanceof Error ? error.message : String(error)}`,
-      );
-    }
+export async function loadSnapshot(source = ""): Promise<ViewerSnapshot> {
+  const url = source || "/snapshot";
+  try {
+    return loadSnapshotFromObject(await fetchGzipJson(url, SNAPSHOT_TIMEOUT_MS));
+  } catch (error) {
+    throw new Error(
+      `Could not load the snapshot from ${url}. ${
+        error instanceof Error ? error.message : String(error)
+      }. Start the viewer with a configured snapshot source or pass ?snapshot=<url>.`,
+    );
   }
-
-  const endpoints = baseUrl
-    ? [`${prefix}data/opentargets.snapshot.json`]
-    : ["/data/opentargets.snapshot.json"];
-  for (const url of endpoints) {
-    try {
-      return loadSnapshotFromObject(await fetchJson(url, SNAPSHOT_TIMEOUT_MS));
-    } catch (error) {
-      failures.push(
-        `${url}: ${error instanceof Error ? error.message : String(error)}`,
-      );
-    }
-  }
-  throw new Error(
-    `Could not load the Open Targets snapshot. ${failures.join("; ")}. ` +
-      "The default data is served from /snapshot (gzip or JSON) or the plain public JSON. " +
-      "A remote proxy can block either path; use Import to open a snapshot file directly.",
-  );
 }
 
-/** Load the bundled reference-estate snapshot for comparison and tests. */
-export async function loadReferenceSnapshot(
-  baseUrl = "",
-): Promise<ViewerSnapshot> {
-  const prefix = baseUrl && !baseUrl.endsWith("/") ? `${baseUrl}/` : baseUrl;
-  return loadSnapshotFromObject(
-    await fetchJson(
-      `${prefix}data/reference.snapshot.json`,
-      SNAPSHOT_TIMEOUT_MS,
-    ),
-  );
-}

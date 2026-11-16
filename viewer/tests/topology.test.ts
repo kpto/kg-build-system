@@ -126,15 +126,15 @@ describe("topology design model", () => {
       label: "Defect",
       kind: "node",
       abstract: false,
-      category: "documented",
+      category: "uncategorized",
     });
     expect(
       first.links.find((link) => link.edgeName === "has_observation"),
     ).toMatchObject({
       id: "topology:edge:has_observation",
       kind: "edge",
-      sourceName: "defect",
-      targetName: "observation",
+      sourceName: "documented",
+      targetName: "defect",
     });
   });
 
@@ -208,13 +208,13 @@ describe("topology design model", () => {
       ...base,
       semantics: "present",
     });
-    expect(present.nodes).toHaveLength(0);
+    expect(present.nodes).toHaveLength(2);
 
     const missing = applyTopologyFilters(built, {
       ...base,
       semantics: "missing",
     });
-    expect(missing.nodes).toHaveLength(built.nodes.length);
+    expect(missing.nodes).toHaveLength(0);
 
     const contract = buildTopologyModel(contractSnapshot, contractIndex);
     const contractPresent = applyTopologyFilters(contract, {

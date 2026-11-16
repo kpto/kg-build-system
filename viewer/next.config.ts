@@ -71,12 +71,7 @@ const nextConfig: NextConfig = staticExport
             },
           ];
         }
-        return [
-          {
-            source: "/snapshot",
-            destination: "/data/opentargets.snapshot.json.gz",
-          },
-        ];
+        return [];
       },
     };
 

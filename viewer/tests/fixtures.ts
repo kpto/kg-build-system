@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import { buildViewerIndex } from "../lib/indexes";
 import { loadSnapshotFromObject } from "../lib/load";
 
@@ -7,7 +6,7 @@ import { loadSnapshotFromObject } from "../lib/load";
  *
  * It carries a graph declaration, an asset profile and attached semantics on
  * an asset, relation, projection, struct, field, node, edge, property and
- * binding. The five-megabyte Open Targets snapshot is not read here.
+ * binding. No project snapshot is read here.
  */
 const contractDocument = {
   format: "kg-viewer-snapshot",
@@ -329,18 +328,5 @@ const contractDocument = {
 export const contractSnapshot = loadSnapshotFromObject(contractDocument);
 export const contractIndex = buildViewerIndex(contractSnapshot);
 
-/**
- * The reference estate snapshot. It is kept under distinct names because older
- * viewer tests still import it; new contract tests use the fixture above.
- */
-const referenceText = readFileSync(
-  new URL("../public/data/reference.snapshot.json", import.meta.url),
-  "utf8",
-);
-
-export const referenceSnapshot = loadSnapshotFromObject(JSON.parse(referenceText));
-export const referenceIndex = buildViewerIndex(referenceSnapshot);
-
-// Compatibility aliases for the restored viewer's remaining tests.
-export const snapshot = referenceSnapshot;
-export const index = referenceIndex;
+export const snapshot = contractSnapshot;
+export const index = contractIndex;

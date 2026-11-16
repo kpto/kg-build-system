@@ -35,11 +35,11 @@ describe("effective licence", () => {
     const index = indexWith({
       open_target: {
         identifier: "CC-BY-4.0",
-        attribution: "Open Targets",
+        attribution: "Example release",
       },
     });
     expect(effectiveLicense(index, ["open_target"])).toMatchObject({
-      value: "CC-BY-4.0 · Open Targets",
+      value: "CC-BY-4.0 · Example release",
       source: "declared",
     });
   });

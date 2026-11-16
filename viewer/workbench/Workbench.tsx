@@ -4,10 +4,7 @@ import { useEffect, useState } from "react";
 import { CircleExclamationPoint, LoaderCircle, RefreshCw } from "lucide-react";
 
 import { buildViewerIndex } from "@/lib/indexes";
-import {
-  loadDefaultSnapshot,
-  loadReferenceSnapshot,
-} from "@/lib/load";
+import { loadSnapshot } from "@/lib/load";
 import type { ViewerIndex, ViewerSnapshot } from "@/lib/types";
 import { CommandPalette } from "./CommandPalette";
 import { EditorArea } from "./EditorArea";
@@ -45,8 +42,8 @@ function LoadingGate({ onRetry }: { onRetry(): void }) {
             <h1>Loading snapshot</h1>
             <p>Reading the compile-only graph and building indexes.</p>
             <p className="wb-gate-hint">
-              Open Targets is served gzipped; the first paint follows the
-              decompression and index build.
+              The snapshot is read from the configured source; the first paint
+              follows the transfer and index build.
             </p>
             {slow ? (
               <p className="wb-gate-slow">
@@ -91,8 +88,9 @@ function LoadErrorGate({
           <h1>Could not load the workbench</h1>
           <p>{message}</p>
           <p className="wb-gate-hint">
-            The default snapshot is served from <code>/api/snapshot</code> with a
-            plain JSON fallback. Retry after checking the route.
+            The viewer reads the configured <code>/snapshot</code> source, or a
+            URL passed as <code>?snapshot=&lt;url&gt;</code>. Check that source
+            and retry.
           </p>
           <button type="button" className="wb-button wb-button-primary" onClick={onRetry}>
             <RefreshCw aria-hidden className="size-3" />
@@ -220,11 +218,10 @@ export function Workbench() {
 
     const requested =
       typeof window === "undefined"
-        ? null
-        : new URLSearchParams(window.location.search).get("snapshot");
-    const reference = requested === "reference";
+        ? ""
+        : new URLSearchParams(window.location.search).get("snapshot") ?? "";
 
-    (reference ? loadReferenceSnapshot() : loadDefaultSnapshot())
+    loadSnapshot(requested)
       .then((snapshot) => {
         if (!active) return;
         setLoaded({

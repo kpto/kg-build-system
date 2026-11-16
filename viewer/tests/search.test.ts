@@ -34,13 +34,13 @@ describe("search", () => {
   });
 
   it("finds workflow steps by component and name", () => {
-    const results = searchIndex(index.searchRecords, "aggregate defect", { limit: 20 });
+    const results = searchIndex(index.searchRecords, "binding.0", { limit: 20 });
     expect(
       results.some(
         (record) =>
           record.kind === "step" &&
           record.stepId?.[0] === "core" &&
-          record.stepId?.[1] === "aggregate.defect",
+          record.stepId?.[1] === "binding.0",
       ),
     ).toBe(true);
   });
