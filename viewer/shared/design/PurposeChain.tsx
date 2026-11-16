@@ -12,7 +12,8 @@ export interface PurposeChainProps {
   emptyText?: string;
 }
 
-const INDENT = 26;
+/** The root is the broad premise; each narrower purpose steps in. */
+const WIDTH_STEP = 14;
 
 /**
  * The record-axis purpose chain, drawn as a descent.
@@ -43,28 +44,26 @@ export function PurposeChain({
           const interactive =
             !current && level.kind !== "graph" && Boolean(onOpen);
           const text = level.purpose ?? "No purpose is stated.";
-          const depth = index * INDENT;
+          const width = 100 - index * WIDTH_STEP;
           return (
             <div
               className={styles.purposeLevel}
               key={`${level.kind}:${level.name}`}
             >
               {index > 0 ? (
-                <div
-                  className={styles.purposeConnector}
-                  style={{ marginLeft: `${depth + 130 - 7}px` }}
-                  aria-hidden
-                >
+                <div className={styles.purposeConnector} aria-hidden>
                   <span className={styles.purposeConnectorLine} />
                   <ArrowDown size={13} strokeWidth={1.8} />
                 </div>
               ) : null}
               <div
-                className={styles.purposeRow}
-                data-current={current || undefined}
-                style={{ paddingLeft: `${depth}px` }}
+                className={styles.purposeNode}
+                style={{ width: `${width}%` }}
               >
-                <div className={styles.purposeMeta}>
+                <div
+                  className={styles.purposeMeta}
+                  data-current={current || undefined}
+                >
                   <span className={styles.purposeKind}>{level.label}</span>
                   <span className={styles.purposeName}>{level.name}</span>
                   {current ? (
