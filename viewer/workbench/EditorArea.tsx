@@ -14,12 +14,21 @@ function paneState(state: WorkbenchState, tab: WorkbenchTab): WorkbenchState {
   return tab.id === state.activeTabId ? state : { ...state, activeTabId: tab.id };
 }
 
-export function EditorArea() {
+export function EditorArea({
+  sidebarVisible,
+  onToggleSidebar,
+}: {
+  sidebarVisible: boolean;
+  onToggleSidebar(): void;
+}) {
   const { state, actions } = useWorkbench();
 
   return (
     <section className="wb-editor" aria-label="Design editor">
-      <EditorTabs />
+      <EditorTabs
+        sidebarVisible={sidebarVisible}
+        onToggleSidebar={onToggleSidebar}
+      />
       <div className="wb-editor-body thin-scrollbar" data-testid="editor-body">
         {state.tabs.map((tab) => {
           const active = tab.id === state.activeTabId;

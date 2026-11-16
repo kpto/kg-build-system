@@ -22,15 +22,14 @@ A level may be absent. It is never reordered or nested inside the same kind.
 
 | Region | Contents | Owner |
 | --- | --- | --- |
-| Title bar | brand, one snapshot chip (name and built/compiled mode), centred command trigger, open-workflow-file, side-bar toggle, settings | `workbench/TitleBar` |
-| Side bar | collapsible **Control** and **Explorer** sections | `workbench/SideBar` |
-| Editor | global document tabs + one mounted pane per document | `workbench/EditorArea` |
-| Status bar | active document and selection, unresolved build failures, counts, zoom | `workbench/StatusBar` |
+| Side bar | snapshot search trigger (the KG name), collapsible **Control** and **Explorer** sections | `workbench/SideBar` |
+| Editor | document tabs, the side-bar toggle at the right of the tab strip, and one mounted pane per document | `workbench/EditorArea` |
 
 The side bar is 220–520 px wide and is the only resizable panel. One
 `WorkbenchLayout` is persisted per snapshot: the side-bar width and the split
 between the Control and Explorer sections. Side-bar visibility is shell state;
-`Cmd/Ctrl+B` changes it, not panel purpose. The Graph document owns its floating
+`Cmd/Ctrl+B` and the tab-strip toggle change it, not panel purpose. There is no
+window header or status bar; the tab strip is the top of the frame. The Graph document owns its floating
 Inspector window; there is no bottom panel.
 
 ## Side-bar sections

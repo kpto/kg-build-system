@@ -15,8 +15,9 @@ Reference: Blender 4.x dark theme, not a generic dashboard.
   detail panel body has 10/12px padding and plates are separated by 4px.
 - **One reading size.** Prose is 14px with a 1.46 line height; chrome is 13px;
   metadata is 11–12px. The panel title weight is 400, not 600.
-- **Application header** is a single 34px line on the `panel` surface: brand,
-  snapshot, search, panel toggles, layout reset and settings.
+- **No application header or status bar.** The tab strip is the top of the
+  frame and the side-bar search trigger carries the snapshot name; transient
+  context is shown where it belongs, not in a decorative footer.
 - **Side-bar sections** are collapsible 25px headers: **Control** for the active
   view's controls, **Explorer** for the whole design.
 - **Area headers** are 30px bands on `panel-raised` with a chevron, a 13px
@@ -39,9 +40,8 @@ Reference: Blender 4.x dark theme, not a generic dashboard.
 
 | Region | Size |
 | --- | ---: |
-| title bar | 36px |
 | side bar | 220–520px, default 300px |
-| status bar | 24px |
+| tab strip | 32px |
 | region seam | 1px |
 | region / section radius | 4–5px |
 | editor tab | 28px |

@@ -1,23 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { CircleExclamationPoint, LoaderCircle, RefreshCw } from "lucide-react";
 
 import { buildViewerIndex } from "@/lib/indexes";
 import {
   loadDefaultSnapshot,
   loadReferenceSnapshot,
-  loadSnapshotFromText,
 } from "@/lib/load";
 import type { ViewerIndex, ViewerSnapshot } from "@/lib/types";
 import { CommandPalette } from "./CommandPalette";
 import { EditorArea } from "./EditorArea";
-import { SettingsDialog } from "./SettingsDialog";
 import { SideBar } from "./SideBar";
 import { Splitter } from "./Splitter";
-import { StatusBar } from "./StatusBar";
 import { WorkbenchProvider, useWorkbench } from "./store";
-import { TitleBar } from "./TitleBar";
 import { MAX_SIDEBAR, MIN_SIDEBAR } from "./types";
 
 interface LoadedWorkbench {
@@ -112,65 +108,15 @@ function LoadErrorGate({
   );
 }
 
-const GENERIC_SNAPSHOT_NAMES = new Set(["workflow", "blueprint", "snapshot"]);
-
-function snapshotForFile(
-  snapshot: ViewerSnapshot,
-  file: File,
-): ViewerSnapshot {
-  if (!GENERIC_SNAPSHOT_NAMES.has(snapshot.name)) return snapshot;
-  const stem = file.name.replace(/\.json$/i, "").trim();
-  return stem && stem !== snapshot.name ? { ...snapshot, name: stem } : snapshot;
-}
-
-function WorkbenchShell({
-  onOpenSnapshot,
-}: {
-  onOpenSnapshot(snapshot: ViewerSnapshot): void;
-}) {
+function WorkbenchShell() {
   const { state, actions } = useWorkbench();
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(true);
-  const [zoom, setZoom] = useState(1);
-  const [fileError, setFileError] = useState<string>();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const openFilePicker = useCallback(() => {
-    fileInputRef.current?.click();
-  }, []);
-
-  const readWorkflowFile = useCallback(
-    async (file: File | undefined) => {
-      if (!file) return;
-      try {
-        const snapshot = snapshotForFile(
-          loadSnapshotFromText(await file.text()),
-          file,
-        );
-        setFileError(undefined);
-        onOpenSnapshot(snapshot);
-      } catch (reason) {
-        setFileError(
-          reason instanceof Error ? reason.message : String(reason),
-        );
-      } finally {
-        if (fileInputRef.current) fileInputRef.current.value = "";
-      }
-    },
-    [onOpenSnapshot],
-  );
 
   const layout = state.layout;
 
   const openPalette = useCallback(() => {
-    setSettingsOpen(false);
     setPaletteOpen(true);
-  }, []);
-
-  const openSettings = useCallback(() => {
-    setPaletteOpen(false);
-    setSettingsOpen(true);
   }, []);
 
   useEffect(() => {
@@ -182,21 +128,11 @@ function WorkbenchShell({
 
       if (command && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        setSettingsOpen(false);
         setPaletteOpen((open) => !open);
         return;
       }
-      if (command && event.key === ",") {
-        event.preventDefault();
-        setPaletteOpen(false);
-        setSettingsOpen(true);
-        return;
-      }
       if (textEntry) {
-        if (event.key === "Escape") {
-          setPaletteOpen(false);
-          setSettingsOpen(false);
-        }
+        if (event.key === "Escape") setPaletteOpen(false);
         return;
       }
       if (command && event.key.toLowerCase() === "b") {
@@ -216,7 +152,6 @@ function WorkbenchShell({
       }
       if (event.key === "Escape") {
         setPaletteOpen(false);
-        setSettingsOpen(false);
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -245,49 +180,12 @@ function WorkbenchShell({
     };
   }, [actions]);
 
-  const bodyStyle = useMemo<CSSProperties | undefined>(() => {
-    if (zoom === 1) return undefined;
-    return {
-      zoom,
-      width: `calc(100% / ${zoom})`,
-      height: `calc((100vh - 60px) / ${zoom})`,
-    };
-  }, [zoom]);
-
   return (
     <div className="wb-shell ui-grain" data-testid="workbench">
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".json,application/json"
-        className="hidden"
-        data-testid="open-workflow-file-input"
-        onChange={(event) => readWorkflowFile(event.target.files?.[0])}
-      />
-      {fileError ? (
-        <div className="wb-file-notice" role="alert" data-testid="open-file-error">
-          <span>{fileError}</span>
-          <button
-            type="button"
-            aria-label="Dismiss file error"
-            onClick={() => setFileError(undefined)}
-          >
-            ×
-          </button>
-        </div>
-      ) : null}
-      <TitleBar
-        onOpenPalette={openPalette}
-        onOpenSettings={openSettings}
-        onOpenWorkflowFile={openFilePicker}
-        sidebarVisible={sidebarVisible}
-        onToggleSidebar={() => setSidebarVisible((visible) => !visible)}
-      />
-
-      <div className="wb-body" style={bodyStyle}>
+      <div className="wb-body">
         {sidebarVisible ? (
           <>
-            <SideBar />
+            <SideBar onOpenPalette={openPalette} />
             <Splitter
               orientation="vertical"
               value={layout.sidebarWidth}
@@ -300,19 +198,14 @@ function WorkbenchShell({
         ) : null}
 
         <div className="wb-main">
-          <EditorArea />
+          <EditorArea
+            sidebarVisible={sidebarVisible}
+            onToggleSidebar={() => setSidebarVisible((visible) => !visible)}
+          />
         </div>
       </div>
 
-      <StatusBar
-        zoom={zoom}
-        onZoomIn={() => setZoom((value) => Math.min(1.3, Math.round((value + 0.1) * 10) / 10))}
-        onZoomOut={() => setZoom((value) => Math.max(0.8, Math.round((value - 0.1) * 10) / 10))}
-        onZoomReset={() => setZoom(1)}
-      />
-
       {paletteOpen ? <CommandPalette onClose={() => setPaletteOpen(false)} /> : null}
-      {settingsOpen ? <SettingsDialog onClose={() => setSettingsOpen(false)} /> : null}
     </div>
   );
 }
@@ -322,14 +215,6 @@ export function Workbench() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | undefined>();
   const [loaded, setLoaded] = useState<LoadedWorkbench | null>(null);
-  const [revision, setRevision] = useState(0);
-
-  const openSnapshot = useCallback((snapshot: ViewerSnapshot) => {
-    setError(undefined);
-    setLoading(false);
-    setLoaded({ snapshot, index: buildViewerIndex(snapshot) });
-    setRevision((value) => value + 1);
-  }, []);
 
   useEffect(() => {
     let active = true;
@@ -378,11 +263,11 @@ export function Workbench() {
 
   return (
     <WorkbenchProvider
-      key={`${loaded.snapshot.name}:${attempt}:${revision}`}
+      key={`${loaded.snapshot.name}:${attempt}`}
       snapshot={loaded.snapshot}
       index={loaded.index}
     >
-      <WorkbenchShell onOpenSnapshot={openSnapshot} />
+      <WorkbenchShell />
     </WorkbenchProvider>
   );
 }

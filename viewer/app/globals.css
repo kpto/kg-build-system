@@ -194,7 +194,7 @@
   .wb-shell {
     position: relative;
     display: grid;
-    grid-template-rows: var(--wb-titlebar-h) minmax(0, 1fr) var(--wb-statusbar-h);
+    grid-template-rows: minmax(0, 1fr);
     height: 100vh;
     min-width: 0;
     overflow: hidden;
@@ -480,6 +480,43 @@
     overscroll-behavior: contain;
   }
 
+  .wb-side-search {
+    flex: none;
+    padding: 3px 6px;
+    border-bottom: 1px solid var(--color-line-soft);
+    background-color: var(--color-panel);
+  }
+
+  .wb-side-search-button {
+    display: flex;
+    width: 100%;
+    height: 26px;
+    align-items: center;
+    gap: 7px;
+    padding: 0 7px;
+    border: 1px solid var(--color-line);
+    border-radius: 4px;
+    background-color: var(--color-panel-raised);
+    color: var(--color-faint);
+    text-align: left;
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 8%);
+  }
+
+  .wb-side-search-button:hover {
+    border-color: var(--color-line-strong);
+    color: var(--color-text);
+  }
+
+  .wb-side-search-name {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    color: var(--color-text);
+    font-size: 13px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   /* ---- Splitters ------------------------------------------------------ */
 
   .wb-splitter {
@@ -608,6 +645,15 @@
 
   .wb-tabs::-webkit-scrollbar {
     display: none;
+  }
+
+  .wb-tabbar-actions {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 2px;
+    padding: 0 6px;
+    border-left: 1px solid var(--color-line-soft);
   }
 
   .wb-tab {

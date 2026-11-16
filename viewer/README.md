@@ -13,9 +13,9 @@ frame, one document tab strip, and two collapsible side-bar sections:
 | **Control** | Controls for the active view: graph filters, labels, containment, semantics, legend and layout; workflow component and instruction filters. |
 | **Explorer** | Everything in the design: assets, tables, projections, nodes, abstract categories, edges and their properties, plus the workflow components and step catalogue. Right-clicking an item jumps to its Graph or Workflow view; tables and projections open their own documents. |
 
-The title-bar folder button opens another workflow or snapshot JSON file. The
-workbench frame stays; the loaded artifact and its indexes are replaced. An
-invalid file is reported in place and leaves the current artifact intact.
+The viewer opens the snapshot named by the URL (`?snapshot=reference` selects the
+reference estate); there is no file picker. The workbench frame and its indexes
+are built for that snapshot.
 
 The tab strip is the document axis:
 

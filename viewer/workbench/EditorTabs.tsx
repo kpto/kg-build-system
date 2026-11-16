@@ -1,6 +1,12 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, X } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  PanelLeftClose,
+  PanelLeftOpen,
+  X,
+} from "lucide-react";
 
 import { ConceptGlyph } from "@/shared/ui/ConceptMark";
 import { conceptForSelection } from "@/shared/ui/concepts";
@@ -16,7 +22,13 @@ function tabConcept(tab: WorkbenchTab) {
   );
 }
 
-export function EditorTabs() {
+export function EditorTabs({
+  sidebarVisible,
+  onToggleSidebar,
+}: {
+  sidebarVisible: boolean;
+  onToggleSidebar(): void;
+}) {
   const { state, actions } = useWorkbench();
   const canBack = state.historyIndex > 0;
   const canForward = state.historyIndex < state.history.length - 1;
@@ -98,6 +110,24 @@ export function EditorTabs() {
             </div>
           );
         })}
+      </div>
+
+      <div className="wb-tabbar-actions">
+        <button
+          type="button"
+          className="wb-tabnav-button"
+          onClick={onToggleSidebar}
+          aria-label={sidebarVisible ? "Hide side bar" : "Show side bar"}
+          aria-pressed={sidebarVisible}
+          title={sidebarVisible ? "Hide side bar (Ctrl/Cmd+B)" : "Show side bar (Ctrl/Cmd+B)"}
+          data-testid="toggle-sidebar"
+        >
+          {sidebarVisible ? (
+            <PanelLeftClose aria-hidden className="size-3.5" />
+          ) : (
+            <PanelLeftOpen aria-hidden className="size-3.5" />
+          )}
+        </button>
       </div>
     </div>
   );

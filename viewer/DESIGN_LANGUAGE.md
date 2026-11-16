@@ -127,7 +127,7 @@ mark wherever it appears.
   regions. A view does not add its own section margins.
 - Both side-bar sections start expanded, split 50/50. Each body sits directly
   below its header; the separator between the two open sections is adjustable. The
-  title-bar toggle and `Cmd/Ctrl+B` change side-bar visibility, not purpose.
+  tab-strip toggle and `Cmd/Ctrl+B` change side-bar visibility, not purpose.
 - Geometry is one workbench value per snapshot. Opening a side-bar section or a
   tab never changes it.
 - The editor tab strip is one global document strip. Its tab views are **Graph**
@@ -140,9 +140,7 @@ mark wherever it appears.
   in a context menu, or using the command palette opens a permanent tab. The
   context menu also offers **Go to Graph** for graph subjects and **Go to
   Workflow** for workflow items. A workflow component selected in Control or in
-  the Workflow graph expands its step group in Explorer. The title-bar folder button
-opens another workflow or snapshot JSON without changing the workbench frame.
-That reveal is one-shot:
+  the Workflow graph expands its step group in Explorer. That reveal is one-shot:
   once the reader collapses the Workflow section or a component group, it stays
   collapsed until the active subject changes again.
   Preview tabs are reused by the next single click; double-clicking a preview
@@ -177,7 +175,7 @@ That reveal is one-shot:
 - Orange is the selected graph item; blue is focus, active tab and primary
   action. They are not interchangeable.
 - Selecting in the canvas highlights the same subject in the Graph inspector and
-  status bar. It does not open a document tab or change the panel geometry.
+  tab strip. It does not open a document tab or change the panel geometry.
 - Inspection and documents are different: inspection is transient state on the
   canvas or in the floating Inspector; a document is a tab. A canvas click
   updates inspection. **Open Detail**, **Go to Detail** in a context menu, a
