@@ -152,25 +152,15 @@
   min-width: 0;
   flex: 1;
   flex-direction: column;
-  gap: 0;
+  gap: 8px;
   padding: 10px 12px 26px;
-}
-
-/* One frame holds every section; sections divide inside it, they do not each
-   become a separate card. */
-.bodyCard {
-  min-width: 0;
-  overflow: hidden;
-  border: 1px solid var(--color-line-strong);
-  border-radius: 3px;
-  background-color: var(--color-panel);
 }
 
 .levelBody {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 0;
+  gap: 8px;
 }
 
 /* ---- Provenance summary ---------------------------------------------- */
@@ -1888,14 +1878,14 @@ button.expressionToggle:hover {
  * body is flat content, never a floating card.
  */
 
+/* The one card frame. Every section renders through DetailBand, so this is
+   the only place a section card outline, radius or surface is declared. */
 .band {
   min-width: 0;
-  border-bottom: 1px solid var(--color-line-soft);
-}
-
-.bodyCard > .band:last-child,
-.bodyCard > .levelBody:last-child > .band:last-child {
-  border-bottom: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: 3px;
+  background-color: var(--color-panel);
 }
 
 .bandHead {
@@ -1907,13 +1897,18 @@ button.expressionToggle:hover {
   padding: 0 12px;
   border: 0;
   border-bottom: 1px solid var(--color-line-soft);
-  background-color: transparent;
+  border-left: 2px solid transparent;
+  background-color: var(--color-panel-raised);
   color: var(--color-text);
   text-align: left;
 }
 
 .bandHead:hover {
   background-color: var(--color-panel-soft);
+}
+
+.band[data-open="true"] .bandHead {
+  border-left-color: var(--color-accent);
 }
 
 .band[data-open="true"] .bandChevron {

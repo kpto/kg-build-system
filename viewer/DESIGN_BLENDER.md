@@ -18,10 +18,11 @@ Reference: Blender 4.x dark theme, not a generic dashboard.
   view's controls, **Explorer** for the whole design.
 - **Area headers** are 25px bands on `panel-raised` with an icon, an uppercase
   micro title, optional counts and right-aligned controls.
-- **Detail sections share one card.** A detail document is one inset `panel`
-  card frame with a 1px outline and 3px radius; sections divide inside it with
-  1px rules and `panel-raised` headers. The frame has no drop shadow. The
-  workbench regions remain flat plates; only the document body is a card.
+- **Detail sections are cards.** A detail document is a stack of inset `panel`
+  cards with a `panel-raised` header, 1px outline, 3px radius and no drop
+  shadow. Every card renders through the one `DetailBand` frame, so the card
+  surface is not reimplemented per detail kind. The workbench regions remain
+  flat plates; only document sections are cards.
 - **Editor tabs** belong to the main area, not the window. They name the
   document, not a global destination.
 - **Side bar** is the function's subject browser and detail controls.

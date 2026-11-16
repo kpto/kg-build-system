@@ -91,11 +91,11 @@ purpose, a grain or an identity.
 
 ## Layout
 
-- A document renders one card frame inset 12px from the document edge. Every
-  section lives inside that frame; the sections divide with 1px rules rather
-  than each becoming a separate card. The frame has a 1px outline, a 3px
-  radius and no drop shadow.
-- The header is sticky; the frame scrolls.
+- A document is a stack of section cards inset 12px from the document edge and
+  separated by 8px. Each card has a 1px outline, a 3px radius and no drop
+  shadow. Every card is rendered by the one shared `DetailBand` frame; a detail
+  view does not declare its own card markup or surface.
+- The header is sticky; the cards scroll.
 - The section body is 8px above and 10px below its content; a flush body is
   used for a canvas or a table that owns its own padding.
 - A table shares one `grid-template-columns` between its head and every row.
