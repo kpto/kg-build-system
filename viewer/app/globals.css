@@ -412,7 +412,6 @@
     min-height: 0;
     flex: 1;
     overflow: hidden;
-    mask-image: linear-gradient(to bottom, #000 calc(100% - 18px), transparent);
     animation: wb-fade-in var(--motion-base) var(--ease-instrument);
   }
 
@@ -438,7 +437,6 @@
     min-height: 0;
     flex: 1;
     overflow: hidden;
-    mask-image: linear-gradient(to bottom, #000 calc(100% - 18px), transparent);
     animation: wb-fade-in var(--motion-base) var(--ease-instrument);
   }
 
