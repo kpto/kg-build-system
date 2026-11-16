@@ -139,7 +139,7 @@ function PropertyRows({
 }) {
   const properties = entityProperties(props, entity);
   if (!properties.length) {
-    return <p className="text-[10px] text-faint">No properties are declared.</p>;
+    return <p className="text-[12px] text-faint">No properties are declared.</p>;
   }
   return (
     <div className="grid gap-0.5" data-testid="topology-properties">
@@ -151,7 +151,7 @@ function PropertyRows({
           onContextMenu={(event) =>
             onContextMenu ? onContextMenu(property, event) : undefined
           }
-          className="flex min-h-6 w-full items-baseline justify-between gap-2 border border-transparent px-1 text-left hover:border-line-soft hover:bg-panel-soft/40"
+          className="flex min-h-7 w-full items-baseline justify-between gap-2 border border-transparent px-1 text-left hover:border-line-soft hover:bg-panel-soft/40"
           data-active={activeProperty === property.name ? "true" : undefined}
           style={
             activeProperty === property.name
@@ -160,10 +160,10 @@ function PropertyRows({
           }
           title={`Inspect ${entityComponentName(entity)}.${property.name}`}
         >
-          <span className="truncate font-mono text-[10px] text-text">
+          <span className="truncate font-mono text-[12px] text-text">
             {property.name}
           </span>
-          <span className="shrink-0 font-mono text-[9px] text-faint">
+          <span className="shrink-0 font-mono text-[11px] text-faint">
             {logicalTypeName(property.logical_type)}
           </span>
         </button>
@@ -195,7 +195,7 @@ function useTopologyUi(snapshot: string): readonly [ReturnType<TopologyUiStore["
 // ---------------------------------------------------------------------------
 
 function nodeRadius(node: TopologyNodeModel): number {
-  return Math.max(5, Math.min(24, 4.2 + Math.sqrt(Math.max(1, node.degree)) * 2.4));
+  return Math.max(6, Math.min(27, 4.8 + Math.sqrt(Math.max(1, node.degree)) * 2.7));
 }
 
 function clusterColors(categories: string[]): Map<string, string> {
@@ -278,7 +278,7 @@ function FilterButton({
       onClick={onClick}
       title={title}
       className={cx(
-        "inline-flex min-h-6 items-center gap-1 border px-1.5 py-0.5 font-mono text-[10px] transition-colors",
+        "inline-flex min-h-7 items-center gap-1.5 border px-2.5 py-1 font-mono text-[13px] transition-colors",
         pressed
           ? "border-accent/70 bg-accent/15 text-accent-strong"
           : "border-line-soft bg-panel-soft/40 text-muted hover:border-line-strong hover:text-text",
@@ -286,7 +286,7 @@ function FilterButton({
     >
       <span>{children}</span>
       {count !== undefined ? (
-        <span className="text-[9px] text-faint tabular-nums">{count}</span>
+        <span className="text-[11px] text-faint tabular-nums">{count}</span>
       ) : null}
     </button>
   );
@@ -301,7 +301,7 @@ function FilterGroup({
 }) {
   return (
     <div className="space-y-1">
-      <p className="text-[9px] tracking-[0.08em] text-faint uppercase">{label}</p>
+      <p className="text-[12px] font-medium text-muted">{label}</p>
       <div className="flex flex-wrap gap-1">{children}</div>
     </div>
   );
@@ -328,11 +328,11 @@ function LegendRow({
         )}
         style={dashed ? { borderColor: color } : { backgroundColor: color }}
       />
-      <span className="min-w-0 flex-1 truncate text-[10px] text-muted">
+      <span className="min-w-0 flex-1 truncate text-[13px] text-muted">
         {label}
       </span>
       {count !== undefined ? (
-        <span className="font-mono text-[9px] text-faint tabular-nums">{count}</span>
+        <span className="font-mono text-[11.5px] text-faint tabular-nums">{count}</span>
       ) : null}
     </div>
   );
@@ -376,19 +376,19 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-panel">
-      <header className="border-b border-line-soft px-3 py-2">
-        <p className="text-[10px] text-muted">
+      <header className="border-b border-line-soft px-4 py-2.5">
+        <p className="text-[12px] text-muted">
           {visible.nodes.length} visible · {relationLinks} relations
           {containmentLinks ? ` · ${containmentLinks} containment` : ""}
         </p>
-        <p className="mt-0.5 font-mono text-[9px] text-faint tabular-nums">
+        <p className="mt-0.5 font-mono text-[11.5px] text-faint tabular-nums">
           {model.stats.nodes} nodes · {model.stats.edgeLinks} edges ·{" "}
           {model.stats.semantics} with semantics
         </p>
       </header>
 
-      <div className="thin-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-2">
-        <section className="space-y-2" aria-label="Topology filters">
+      <div className="thin-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-3">
+        <section className="space-y-3" aria-label="Topology filters">
           <FilterGroup label="Kind">
             <FilterButton
               pressed={filters.kinds.node}
@@ -458,7 +458,7 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
         </section>
 
         <section
-          className="space-y-2 border-t border-line-soft pt-2"
+          className="space-y-3 border-t border-line-soft pt-3"
           aria-label="Topology detail"
         >
           <FilterGroup label="Labels">
@@ -542,10 +542,10 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
         </section>
 
         <section
-          className="space-y-1.5 border-t border-line-soft pt-2"
+          className="space-y-2 border-t border-line-soft pt-3"
           aria-label="Topology legend"
         >
-          <p className="text-[9px] tracking-[0.08em] text-faint uppercase">Legend</p>
+          <p className="text-[12px] font-semibold text-muted">Legend</p>
           <LegendRow
             color={theme.source}
             label="Concrete node"
@@ -578,15 +578,15 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
         </section>
 
         <section
-          className="space-y-1.5 border-t border-line-soft pt-2"
+          className="space-y-2 border-t border-line-soft pt-3"
           aria-label="Topology layout"
         >
-          <p className="text-[9px] tracking-[0.08em] text-faint uppercase">Layout</p>
+          <p className="text-[12px] font-semibold text-muted">Layout</p>
           <div className="flex flex-wrap gap-1">
             <button
               type="button"
               onClick={() => store.requestFit()}
-              className="inline-flex min-h-6 items-center border border-line-soft bg-panel-soft/40 px-2 font-mono text-[10px] text-muted hover:border-line-strong hover:text-text"
+              className="inline-flex min-h-7 items-center border border-line-soft bg-panel-soft/40 px-3 font-mono text-[13px] text-muted hover:border-line-strong hover:text-text"
               title="Fit every visible node and link in the editor"
             >
               Fit
@@ -594,7 +594,7 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
             <button
               type="button"
               onClick={() => store.requestZoom(1 / 1.25)}
-              className="inline-flex min-h-6 items-center border border-line-soft bg-panel-soft/40 px-2 font-mono text-[10px] text-muted hover:border-line-strong hover:text-text"
+              className="inline-flex min-h-7 items-center border border-line-soft bg-panel-soft/40 px-3 font-mono text-[13px] text-muted hover:border-line-strong hover:text-text"
               title="Zoom out"
               aria-label="Zoom out"
             >
@@ -603,7 +603,7 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
             <button
               type="button"
               onClick={() => store.requestZoom(1.25)}
-              className="inline-flex min-h-6 items-center border border-line-soft bg-panel-soft/40 px-2 font-mono text-[10px] text-muted hover:border-line-strong hover:text-text"
+              className="inline-flex min-h-7 items-center border border-line-soft bg-panel-soft/40 px-3 font-mono text-[13px] text-muted hover:border-line-strong hover:text-text"
               title="Zoom in"
               aria-label="Zoom in"
             >
@@ -614,7 +614,7 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
               aria-pressed={ui.pinned}
               onClick={() => store.setPinned(!ui.pinned)}
               className={cx(
-                "inline-flex min-h-6 items-center border px-2 font-mono text-[10px]",
+                "inline-flex min-h-7 items-center border px-3 font-mono text-[13px]",
                 ui.pinned
                   ? "border-selection/70 bg-selection/10 text-selection-strong"
                   : "border-line-soft bg-panel-soft/40 text-muted hover:border-line-strong hover:text-text",
@@ -626,13 +626,13 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
             <button
               type="button"
               onClick={() => store.requestReset()}
-              className="inline-flex min-h-6 items-center border border-line-soft bg-panel-soft/40 px-2 font-mono text-[10px] text-muted hover:border-line-strong hover:text-text"
+              className="inline-flex min-h-7 items-center border border-line-soft bg-panel-soft/40 px-3 font-mono text-[13px] text-muted hover:border-line-strong hover:text-text"
               title="Clear filters, detail and pinned positions, then fit the graph"
             >
               Reset
             </button>
           </div>
-          <p className="text-[9px] leading-relaxed text-faint">
+          <p className="text-[12px] leading-relaxed text-faint">
             Drag a node to move it; drag empty space to pan; wheel to zoom;
             double-click a node to focus.
           </p>
@@ -978,7 +978,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
     // The inspector is an overlay, so the graph is fitted into the canvas that
     // remains visible beside it instead of underneath it.
     const left = 56;
-    const right = inspectorOpen ? 352 : 56;
+    const right = inspectorOpen ? 400 : 56;
     const top = 56;
     const bottom = 56;
     const viewWidth = Math.max(120, width - left - right);
@@ -1526,7 +1526,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
                     x={frame.labelX}
                     y={frame.labelY}
                     fill={theme.faint}
-                    fontSize={8.5}
+                    fontSize={10.5}
                     fontFamily="var(--font-sans)"
                     letterSpacing="0.08em"
                     className="select-none"
@@ -1612,7 +1612,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
                       y={midY - 4}
                       textAnchor="middle"
                       fill={selected ? theme.selection : theme.muted}
-                      fontSize={9}
+                      fontSize={11}
                       fontFamily="var(--font-mono)"
                       stroke={theme.page}
                       strokeWidth={3}
@@ -1783,7 +1783,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
                           y={-radius - 2}
                           textAnchor="end"
                           fill={theme.faint}
-                          fontSize={9}
+                          fontSize={10.5}
                           fontFamily="var(--font-mono)"
                           stroke={theme.page}
                           strokeWidth={3}
@@ -1797,14 +1797,14 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
                       {showLabel ? (
                         (() => {
                           const label = node.label;
-                          const width = Math.max(22, label.length * 5.6 + 10);
+                          const width = Math.max(28, label.length * 6.4 + 12);
                           return (
                             <g className="pointer-events-none select-none">
                               <rect
                                 x={-width / 2}
-                                y={radius + 3}
+                                y={radius + 4}
                                 width={width}
-                                height={14}
+                                height={18}
                                 rx={2}
                                 fill={theme.page}
                                 fillOpacity={0.9}
@@ -1816,7 +1816,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
                                 strokeWidth={0.7}
                               />
                               <text
-                                y={radius + 13}
+                                y={radius + 17}
                                 textAnchor="middle"
                                 fill={
                                   selected
@@ -1825,9 +1825,9 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
                                       ? theme.text
                                       : theme.muted
                                 }
-                                fontSize={9}
+                                fontSize={11}
                                 fontFamily="var(--font-sans)"
-                                letterSpacing="0.02em"
+                                letterSpacing="0.01em"
                               >
                                 {label}
                               </text>
@@ -1845,12 +1845,12 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
 
       <div className="pointer-events-none absolute top-2 left-2 z-10 flex flex-wrap items-center gap-1">
         {hasSelection ? (
-          <span className="pointer-events-auto inline-flex items-center gap-1 border border-line-soft bg-panel/95 px-1.5 py-0.5 font-mono text-[9px] text-selection-strong">
+          <span className="pointer-events-auto inline-flex items-center gap-1 border border-line-soft bg-panel/95 px-2 py-1 font-mono text-[11.5px] text-selection-strong">
             selected · {selection?.name}
           </span>
         ) : null}
         {ui.pinned ? (
-          <span className="pointer-events-auto inline-flex items-center border border-selection/60 bg-selection/10 px-1.5 py-0.5 font-mono text-[9px] text-selection-strong">
+          <span className="pointer-events-auto inline-flex items-center border border-selection/60 bg-selection/10 px-2 py-1 font-mono text-[11.5px] text-selection-strong">
             positions pinned
           </span>
         ) : null}
@@ -1860,19 +1860,19 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
         <button
           type="button"
           onClick={() => zoomBy(1 / 1.25)}
-          className="flex size-6 items-center justify-center border-r border-line text-muted hover:bg-panel-soft hover:text-text"
+          className="flex size-7 items-center justify-center border-r border-line text-muted hover:bg-panel-soft hover:text-text"
           aria-label="Zoom out"
           title="Zoom out"
         >
           −
         </button>
-        <span className="flex w-12 items-center justify-center border-r border-line font-mono text-[10px] text-muted tabular-nums">
+        <span className="flex w-16 items-center justify-center border-r border-line font-mono text-[12px] text-muted tabular-nums">
           {Math.round(zoomK * 100)}%
         </span>
         <button
           type="button"
           onClick={() => zoomBy(1.25)}
-          className="flex size-6 items-center justify-center border-r border-line text-muted hover:bg-panel-soft hover:text-text"
+          className="flex size-7 items-center justify-center border-r border-line text-muted hover:bg-panel-soft hover:text-text"
           aria-label="Zoom in"
           title="Zoom in"
         >
@@ -1881,7 +1881,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
         <button
           type="button"
           onClick={() => fitRef.current()}
-          className="flex size-6 items-center justify-center text-muted hover:bg-panel-soft hover:text-text"
+          className="flex size-7 items-center justify-center text-muted hover:bg-panel-soft hover:text-text"
           aria-label="Fit graph"
           title="Fit graph"
         >
@@ -1891,7 +1891,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
 
       {visibleCount === 0 ? (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <p className="border border-line-soft bg-panel/95 px-3 py-2 font-mono text-[11px] text-muted">
+          <p className="border border-line-soft bg-panel/95 px-3 py-2 font-mono text-[13px] text-muted">
             No topology entities match these filters.
           </p>
         </div>
@@ -1903,7 +1903,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
         <button
           type="button"
           onClick={() => setInspectorOpen(true)}
-          className="absolute top-2 right-2 z-20 border border-line-soft bg-panel/95 px-2 py-1 font-mono text-[9px] text-muted hover:border-line-strong hover:text-text"
+          className="absolute top-2 right-2 z-20 border border-line-soft bg-panel/95 px-3 py-1.5 font-mono text-[12px] text-muted hover:border-line-strong hover:text-text"
           aria-label="Open inspector"
           title="Open inspector"
           data-testid="topology-open-inspector"
@@ -1934,13 +1934,13 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
           className="pointer-events-none absolute z-30 w-[270px] overflow-hidden border border-line-soft bg-panel/98 shadow-lg"
           style={{ left: hover.x + 14, top: hover.y + 14 }}
         >
-          <p className="border-b border-line-soft px-2 py-1 font-mono text-[10px] break-words text-accent-strong">
+          <p className="border-b border-line-soft px-2 py-1 font-mono text-[12px] break-words text-accent-strong">
             {hoverEntity.label}
             {hoverEntity.label !== hoverEntity.name ? (
               <span className="text-faint"> · {hoverEntity.name}</span>
             ) : null}
           </p>
-          <div className="space-y-0.5 px-2 py-1 font-mono text-[9px] text-muted">
+          <div className="space-y-0.5 px-2 py-1 font-mono text-[11px] text-muted">
             {hoverEntity.kind === "node" ? (
               <>
                 <p>
@@ -1984,11 +1984,11 @@ function SummaryField({
 }) {
   return (
     <div className="flex items-baseline gap-2">
-      <span className="w-20 shrink-0 text-[9px] tracking-[0.06em] text-faint uppercase">
+      <span className="w-24 shrink-0 text-[11.5px] text-faint">
         {label}
       </span>
       <span
-        className="min-w-0 flex-1 truncate font-mono text-[10px] text-text"
+        className="min-w-0 flex-1 truncate font-mono text-[12px] text-text"
         title={String(value)}
       >
         {value}
@@ -2100,17 +2100,17 @@ export function TopologyInspector({
 
   return (
     <aside
-      className="inspector-panel absolute top-0 right-0 bottom-0 z-20 flex w-[336px] flex-col overflow-hidden border-l border-line bg-panel"
+      className="inspector-panel absolute top-0 right-0 bottom-0 z-20 flex w-[384px] flex-col overflow-hidden border-l border-line bg-panel"
       aria-label="Graph selection inspector"
       data-testid="topology-inspector"
     >
       <header className="flex flex-none items-center justify-between gap-2 border-b border-line-soft bg-panel-raised px-2.5 py-1.5">
-        <span className="text-[10px] font-semibold tracking-[0.08em] text-text uppercase">
+        <span className="text-[13px] font-semibold text-text">
           Inspect
         </span>
         <button
           type="button"
-          className="text-[10px] text-faint hover:text-text"
+          className="text-[12px] text-faint hover:text-text"
           onClick={onClose}
           aria-label="Close inspector"
           title="Close inspector"
@@ -2120,8 +2120,8 @@ export function TopologyInspector({
       </header>
 
       {!entity ? (
-        <div className="thin-scrollbar min-h-0 flex-1 overflow-y-auto px-3 py-2">
-          <p className="mb-1 text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
+        <div className="thin-scrollbar min-h-0 flex-1 overflow-y-auto px-4 py-3">
+          <p className="mb-2 text-[12px] font-semibold text-muted">
             Graph overview
           </p>
           <div className="mb-2 grid grid-cols-2 gap-x-3 gap-y-1">
@@ -2142,13 +2142,13 @@ export function TopologyInspector({
           />
         </div>
       ) : (
-        <div className="thin-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-2">
+        <div className="thin-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-3">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <p className="truncate font-mono text-[11px] text-accent-strong">
+              <p className="truncate font-mono text-[13px] text-accent-strong">
                 {activeProperty ? `${entity.name}.${activeProperty}` : entity.name}
               </p>
-              <p className="truncate text-[9px] text-faint">
+              <p className="truncate text-[11px] text-faint">
                 {activeProperty
                   ? "property"
                   : isTopologyNode(entity)
@@ -2161,7 +2161,7 @@ export function TopologyInspector({
               <button
                 type="button"
                 onClick={() => openInDetail(props)}
-                className="border border-accent/60 bg-accent/10 px-1.5 py-0.5 font-mono text-[9px] text-accent-strong hover:border-accent hover:text-text"
+                className="border border-accent/60 bg-accent/10 px-2.5 py-1 font-mono text-[12px] text-accent-strong hover:border-accent hover:text-text"
                 data-testid="topology-open-detail"
               >
                 Detail
@@ -2169,7 +2169,7 @@ export function TopologyInspector({
               <button
                 type="button"
                 onClick={() => clearSelection(props)}
-                className="border border-line-soft px-1.5 py-0.5 font-mono text-[9px] text-muted hover:border-line-strong hover:text-text"
+                className="border border-line-soft px-2.5 py-1 font-mono text-[12px] text-muted hover:border-line-strong hover:text-text"
               >
                 Clear
               </button>
@@ -2177,7 +2177,7 @@ export function TopologyInspector({
           </div>
 
           <section>
-            <p className="mb-1 text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
+            <p className="mb-2 text-[12px] font-semibold text-muted">
               Identity
             </p>
             <div className="grid gap-1">
@@ -2204,14 +2204,14 @@ export function TopologyInspector({
               />
             </div>
             {entity.description ? (
-              <p className="mt-1.5 text-[10px] leading-relaxed text-muted">
+              <p className="mt-1.5 text-[12px] leading-relaxed text-muted">
                 {entity.description}
               </p>
             ) : null}
           </section>
 
           <section>
-            <p className="mb-1 text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
+            <p className="mb-2 text-[12px] font-semibold text-muted">
               Properties · {entityProperties(props, entity).length}
             </p>
             <PropertyRows
@@ -2231,7 +2231,7 @@ export function TopologyInspector({
           </section>
 
           <section>
-            <p className="mb-1 text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
+            <p className="mb-2 text-[12px] font-semibold text-muted">
               Meaning
             </p>
             <DesignMeaning
@@ -2248,7 +2248,7 @@ export function TopologyInspector({
           </section>
 
           <section>
-            <p className="mb-1 text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
+            <p className="mb-2 text-[12px] font-semibold text-muted">
               Fulfilment
             </p>
             <FulfilmentMap

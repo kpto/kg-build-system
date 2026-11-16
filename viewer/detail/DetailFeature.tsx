@@ -2009,6 +2009,7 @@ function overviewFacts(
     label: "License",
     value: license.value,
     title: license.licenses.join(" · ") || "No asset declares a license.",
+    wrap: true,
   };
   switch (model.level) {
     case "property": {
@@ -2032,6 +2033,7 @@ function overviewFacts(
           value: chain?.narrowed
             ? "present · source nullable"
             : chain?.steps.at(0)?.presence ?? "unknown",
+          wrap: true,
           absent: !chain,
         },
         { label: "Branches", value: `${model.branches.length}` },

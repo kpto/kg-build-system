@@ -144,11 +144,11 @@ export function documentSignature(document: WorkbenchDocument): string {
 }
 
 export const DEFAULT_LAYOUT: WorkbenchLayout = {
-  sidebarWidth: 300,
-  sidebarSplit: 0.5,
+  sidebarWidth: 340,
+  sidebarSplit: 0.68,
 };
 
-export const MIN_SIDEBAR = 220;
+export const MIN_SIDEBAR = 320;
 export const MAX_SIDEBAR = 520;
-export const MIN_SIDEBAR_SPLIT = 0.2;
+export const MIN_SIDEBAR_SPLIT = 0.6;
 export const MAX_SIDEBAR_SPLIT = 0.8;

@@ -48,8 +48,8 @@ describe("workbench documents and geometry", () => {
     });
     expect(activeTitle(initial)).toBe("Graph");
     expect(initial.inspection).toBeUndefined();
-    expect(initial.layout.sidebarWidth).toBe(300);
-    expect(initial.layout.sidebarSplit).toBe(0.5);
+    expect(initial.layout.sidebarWidth).toBe(340);
+    expect(initial.layout.sidebarSplit).toBe(0.68);
   });
 
   it("resizes one geometry for every document", () => {

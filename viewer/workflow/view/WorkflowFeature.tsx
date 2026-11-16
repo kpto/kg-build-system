@@ -61,7 +61,7 @@ export function WorkflowControls({ state }: WorkspaceProps) {
 
   return (
     <div className="flex h-full flex-col" data-testid="workflow-controls">
-      <div className="flex flex-none items-center gap-1.5 border-b border-line-soft p-2">
+      <div className="flex flex-none items-center gap-1.5 border-b border-line-soft p-3">
         <Search aria-hidden className="size-3 text-faint" />
         <input
           value={ui.filters.query}
@@ -69,20 +69,20 @@ export function WorkflowControls({ state }: WorkspaceProps) {
           placeholder="Filter workflow steps"
           aria-label="Filter workflow steps"
           spellCheck={false}
-          className="h-6 min-w-0 flex-1 border border-line bg-inset px-1.5 font-mono text-[10px] text-text outline-none placeholder:text-faint focus:border-selection"
+          className="h-7 min-w-0 flex-1 border border-line bg-inset px-2 font-mono text-[13px] text-text outline-none placeholder:text-faint focus:border-selection"
           data-testid="workflow-filter-query"
         />
       </div>
 
-      <div className="thin-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto p-2">
+      <div className="thin-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
         <label className="block">
-          <span className="mb-1 block text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
+          <span className="mb-1 block text-[12px] font-medium text-muted">
             Component
           </span>
           <select
             value={ui.filters.component}
             onChange={(event) => store.setComponent(event.target.value)}
-            className="h-6 w-full border border-line bg-inset px-1 font-mono text-[10px] text-text outline-none focus:border-selection"
+            className="h-7 w-full border border-line bg-inset px-2 font-mono text-[13px] text-text outline-none focus:border-selection"
             data-testid="workflow-filter-component"
           >
             <option value="all">All components · {model.components.length}</option>
@@ -95,13 +95,13 @@ export function WorkflowControls({ state }: WorkspaceProps) {
         </label>
 
         <label className="block">
-          <span className="mb-1 block text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
+          <span className="mb-1 block text-[12px] font-medium text-muted">
             Instruction
           </span>
           <select
             value={ui.filters.kind}
             onChange={(event) => store.setKind(event.target.value)}
-            className="h-6 w-full border border-line bg-inset px-1 font-mono text-[10px] text-text outline-none focus:border-selection"
+            className="h-7 w-full border border-line bg-inset px-2 font-mono text-[13px] text-text outline-none focus:border-selection"
             data-testid="workflow-filter-kind"
           >
             <option value="all">All instruction kinds</option>
@@ -113,14 +113,14 @@ export function WorkflowControls({ state }: WorkspaceProps) {
           </select>
         </label>
 
-        <div className="flex items-center justify-between border-t border-line-soft pt-2 font-mono text-[9px] text-faint">
+        <div className="flex items-center justify-between border-t border-line-soft pt-2 font-mono text-[11px] text-faint">
           <span>
             {rows.length} / {model.steps} steps
           </span>
           <span>{model.connections} connections</span>
         </div>
 
-        <p className="text-[9px] leading-relaxed text-faint">
+        <p className="text-[11px] leading-relaxed text-faint">
           Choosing a component selects it. Use Open step group in the canvas
           toolbar to enter its step graph. Filters narrow that graph and dim the
           component overview; every step remains available in Explorer.
@@ -129,7 +129,7 @@ export function WorkflowControls({ state }: WorkspaceProps) {
         <button
           type="button"
           onClick={() => store.resetFilters()}
-          className="flex w-full items-center justify-center gap-1.5 border border-line-soft px-2 py-1 font-mono text-[9px] text-muted hover:border-line-strong hover:text-text"
+          className="flex w-full items-center justify-center gap-1.5 border border-line-soft px-2 py-1.5 font-mono text-[12px] text-muted hover:border-line-strong hover:text-text"
           data-testid="workflow-reset"
         >
           <RotateCcw aria-hidden className="size-3" />
@@ -153,10 +153,10 @@ function Fact({
 }) {
   return (
     <div className="flex min-w-0 items-baseline gap-2">
-      <span className="w-24 shrink-0 text-[8.5px] font-semibold tracking-[0.07em] text-faint uppercase">
+      <span className="w-24 shrink-0 text-[11.5px] font-medium text-faint">
         {label}
       </span>
-      <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-text">
+      <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-text">
         {children}
       </span>
     </div>
@@ -176,7 +176,7 @@ function PayloadFacts({ step }: { step: WorkflowStep }) {
   const entries = Object.entries(step.instruction.payload ?? {});
   if (!entries.length) {
     return (
-      <p className="text-[10px] text-faint">
+      <p className="text-[12px] text-faint">
         This instruction carries no payload.
       </p>
     );
@@ -185,14 +185,24 @@ function PayloadFacts({ step }: { step: WorkflowStep }) {
     <div className="grid gap-1" data-testid="workflow-payload">
       {entries.map(([key, value]) => {
         const text = scalar(value);
+        if (text && (text.length > 120 || text.includes("\n"))) {
+          return (
+            <div key={key} className="grid gap-1">
+              <span className="font-mono text-[11.5px] text-faint">{key}</span>
+              <pre className="thin-scrollbar max-h-44 overflow-auto border border-line-soft bg-inset p-2 font-mono text-[12px] leading-relaxed whitespace-pre text-text">
+                {text}
+              </pre>
+            </div>
+          );
+        }
         if (text) {
           return (
             <div key={key} className="flex items-baseline gap-2">
-              <span className="w-40 shrink-0 truncate font-mono text-[9px] text-faint">
+              <span className="w-40 shrink-0 truncate font-mono text-[11px] text-faint">
                 {key}
               </span>
               <span
-                className="min-w-0 flex-1 truncate font-mono text-[10px] text-text"
+                className="thin-scrollbar min-w-0 flex-1 overflow-x-auto whitespace-pre font-mono text-[12px] text-text"
                 title={text}
               >
                 {text}
@@ -208,14 +218,14 @@ function PayloadFacts({ step }: { step: WorkflowStep }) {
         return (
           <details key={key} className="group rounded border border-line-soft">
             <summary className="flex cursor-pointer list-none items-baseline gap-2 px-1.5 py-1 hover:bg-panel-soft/50">
-              <span className="w-40 shrink-0 truncate font-mono text-[9px] text-faint">
+              <span className="w-40 shrink-0 truncate font-mono text-[11px] text-faint">
                 {key}
               </span>
-              <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-muted">
+              <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-muted">
                 {label}
               </span>
             </summary>
-            <pre className="thin-scrollbar max-h-56 overflow-auto border-t border-line-soft bg-inset p-2 font-mono text-[9px] leading-relaxed text-muted">
+            <pre className="thin-scrollbar max-h-56 overflow-auto border-t border-line-soft bg-inset p-2 font-mono text-[11px] leading-relaxed text-muted">
               {JSON.stringify(value, null, 2)}
             </pre>
           </details>
@@ -235,7 +245,7 @@ function Openings({
   const items = direction === "input" ? step.inputs ?? [] : step.outputs ?? [];
   if (!items.length) {
     return (
-      <p className="text-[10px] text-faint">No {direction}s are declared.</p>
+      <p className="text-[12px] text-faint">No {direction}s are declared.</p>
     );
   }
   return (
@@ -245,10 +255,10 @@ function Openings({
           key={`${direction}:${index}:${formatOpening(item.opening_name)}`}
           className="flex min-w-0 items-baseline gap-2"
         >
-          <span className="w-40 shrink-0 truncate font-mono text-[9px] text-muted">
+          <span className="w-40 shrink-0 truncate font-mono text-[11px] text-muted">
             {formatOpening(item.opening_name)}
           </span>
-          <span className="min-w-0 flex-1 truncate font-mono text-[9.5px] text-text">
+          <span className="min-w-0 flex-1 truncate font-mono text-[11.5px] text-text">
             {formatArtifactType(item.type)}
           </span>
         </div>
@@ -281,10 +291,10 @@ function ConnectionLine({
           direction === "in" ? "text-source" : "text-target",
         )}
       />
-      <span className="min-w-0 flex-1 truncate font-mono text-[9.5px] text-text">
+      <span className="min-w-0 flex-1 truncate font-mono text-[11.5px] text-text">
         {formatStepId(other)}
       </span>
-      <span className="min-w-0 max-w-[42%] shrink-0 truncate font-mono text-[8.5px] text-faint">
+      <span className="min-w-0 max-w-[42%] shrink-0 truncate font-mono text-[10.5px] text-faint">
         {formatOpening(remote.opening)} → {formatOpening(local.opening)}
       </span>
     </div>
@@ -293,7 +303,7 @@ function ConnectionLine({
 
 function DetailSubhead({ children }: { children: ReactNode }) {
   return (
-    <h3 className="mb-1.5 text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
+    <h3 className="mb-1.5 text-[12px] font-semibold text-muted">
       {children}
     </h3>
   );
@@ -333,7 +343,7 @@ function StepDetail({
       >
         <FactGrid
           facts={[
-            { label: "Step id", value: formatStepId(step.id) },
+            { label: "Step id", value: formatStepId(step.id), wrap: true },
             { label: "Component", value: step.id[0] },
             {
               label: "Instruction",
@@ -356,7 +366,7 @@ function StepDetail({
         question="What is this step for?"
         meta="build machinery"
       >
-        <p className="text-[10px] leading-relaxed text-faint">
+        <p className="text-[12px] leading-relaxed text-faint">
           A step is build machinery. It carries no design meaning of its own;
           the meaning of the values it moves stays on the record and the
           relation declarations.
@@ -369,7 +379,7 @@ function StepDetail({
         question="Where does this step read from?"
         meta="upstream ports"
       >
-        <p className="text-[10px] leading-relaxed text-faint">
+        <p className="text-[12px] leading-relaxed text-faint">
           A step has no release source. It reads the artifacts its input
           openings declare; the source of a value is stated by the record and
           relation documents.
@@ -422,13 +432,13 @@ function StepDetail({
                   />
                 ))}
                 {incoming.length > 24 ? (
-                  <p className="py-1 font-mono text-[8.5px] text-faint">
+                  <p className="py-1 font-mono text-[10.5px] text-faint">
                     showing 24 of {incoming.length}
                   </p>
                 ) : null}
               </div>
             ) : (
-              <p className="text-[10px] text-faint">
+              <p className="text-[12px] text-faint">
                 This step has no inputs.
               </p>
             )}
@@ -445,13 +455,13 @@ function StepDetail({
                   />
                 ))}
                 {outgoing.length > 24 ? (
-                  <p className="py-1 font-mono text-[8.5px] text-faint">
+                  <p className="py-1 font-mono text-[10.5px] text-faint">
                     showing 24 of {outgoing.length}
                   </p>
                 ) : null}
               </div>
             ) : (
-              <p className="text-[10px] text-faint">
+              <p className="text-[12px] text-faint">
                 This step has no outputs.
               </p>
             )}
@@ -470,7 +480,7 @@ function StepDetail({
             {bindings.slice(0, 16).map((binding) => (
               <div
                 key={binding.index}
-                className="flex items-baseline gap-2 border-b border-line-soft py-1 font-mono text-[9.5px] last:border-b-0"
+                className="flex items-baseline gap-2 border-b border-line-soft py-1 font-mono text-[11.5px] last:border-b-0"
               >
                 <span className="w-12 shrink-0 text-faint">
                   #{binding.index}
@@ -484,7 +494,7 @@ function StepDetail({
               </div>
             ))}
             {bindings.length > 16 ? (
-              <p className="font-mono text-[8.5px] text-faint">
+              <p className="font-mono text-[10.5px] text-faint">
                 showing 16 of {bindings.length}
               </p>
             ) : null}
@@ -516,7 +526,7 @@ export function WorkflowStepEditor({ state }: WorkspaceProps) {
         subtitle="This step is not present in the workflow plan."
       >
         <DetailBand concept="step" title="Overview" question="What is this step?">
-          <p className="text-[10.5px] leading-relaxed text-faint">
+          <p className="text-[12.5px] leading-relaxed text-faint">
             The selected workflow step could not be resolved from the snapshot.
           </p>
         </DetailBand>
@@ -643,7 +653,7 @@ export function WorkflowEditor(props: WorkspaceProps) {
         className="flex h-full items-center justify-center p-6"
         data-testid="workflow-editor"
       >
-        <p className="max-w-[42ch] text-center text-[11px] leading-relaxed text-muted">
+        <p className="max-w-[42ch] text-center text-[13px] leading-relaxed text-muted">
           This snapshot has no workflow plan.
         </p>
       </div>
@@ -706,7 +716,7 @@ export function WorkflowEditor(props: WorkspaceProps) {
           {inStepGroup && stepScene ? (
             <>
               <span
-                className="rounded border border-line-soft bg-panel/95 px-2 py-1 font-mono text-[9px] text-faint"
+                className="rounded border border-line-soft bg-panel/95 px-2 py-1 font-mono text-[11px] text-faint"
                 data-testid="workflow-step-group-label"
               >
                 {focusedNode?.id ?? "Step group"} ·{" "}
@@ -717,7 +727,7 @@ export function WorkflowEditor(props: WorkspaceProps) {
                 <button
                   type="button"
                   onClick={() => openStepNode(selectedStepRow, false)}
-                  className="flex items-center gap-1 border border-accent/60 bg-accent/10 px-2 py-1 font-mono text-[9px] text-accent-strong hover:border-accent hover:text-text"
+                  className="flex items-center gap-1 border border-accent/60 bg-accent/10 px-2 py-1 font-mono text-[11px] text-accent-strong hover:border-accent hover:text-text"
                   data-testid="workflow-open-step"
                 >
                   Open step →
@@ -728,7 +738,7 @@ export function WorkflowEditor(props: WorkspaceProps) {
                   onClick={() =>
                     store.focusComponent(selectedBoundaryNode.component)
                   }
-                  className="flex items-center gap-1 border border-accent/60 bg-accent/10 px-2 py-1 font-mono text-[9px] text-accent-strong hover:border-accent hover:text-text"
+                  className="flex items-center gap-1 border border-accent/60 bg-accent/10 px-2 py-1 font-mono text-[11px] text-accent-strong hover:border-accent hover:text-text"
                   data-testid="workflow-open-step-group"
                 >
                   Open {selectedBoundaryNode.component} step group →
@@ -737,7 +747,7 @@ export function WorkflowEditor(props: WorkspaceProps) {
               <button
                 type="button"
                 onClick={() => store.focusComponent(undefined)}
-                className="flex items-center gap-1 border border-line-soft bg-panel/95 px-2 py-1 font-mono text-[9px] text-muted hover:border-line-strong hover:text-text"
+                className="flex items-center gap-1 border border-line-soft bg-panel/95 px-2 py-1 font-mono text-[11px] text-muted hover:border-line-strong hover:text-text"
                 data-testid="workflow-back-components"
               >
                 ← Components
@@ -749,13 +759,13 @@ export function WorkflowEditor(props: WorkspaceProps) {
                 <button
                   type="button"
                   onClick={() => store.focusComponent(selectedNode.id)}
-                  className="flex items-center gap-1 border border-accent/60 bg-accent/10 px-2 py-1 font-mono text-[9px] text-accent-strong hover:border-accent hover:text-text"
+                  className="flex items-center gap-1 border border-accent/60 bg-accent/10 px-2 py-1 font-mono text-[11px] text-accent-strong hover:border-accent hover:text-text"
                   data-testid="workflow-open-step-group"
                 >
                   Open step group →
                 </button>
               ) : null}
-              <span className="rounded border border-line-soft bg-panel/95 px-2 py-1 font-mono text-[9px] text-faint">
+              <span className="rounded border border-line-soft bg-panel/95 px-2 py-1 font-mono text-[11px] text-faint">
                 {activeComponents.size} / {componentMap.nodes.length} components
                 active
               </span>
@@ -915,7 +925,7 @@ export function WorkflowEditor(props: WorkspaceProps) {
             −
           </button>
           <span
-            className="flex w-12 items-center justify-center border-r border-line font-mono text-[10px] text-muted tabular-nums"
+            className="flex w-12 items-center justify-center border-r border-line font-mono text-[12px] text-muted tabular-nums"
             data-testid="workflow-zoom"
           >
             {Math.round(view.scale * 100)}%
@@ -944,13 +954,13 @@ export function WorkflowEditor(props: WorkspaceProps) {
 
         {inStepGroup && stepScene && (stepScene.stats?.stepCount ?? 0) === 0 ? (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <p className="border border-line-soft bg-panel/95 px-3 py-2 font-mono text-[11px] text-muted">
+            <p className="border border-line-soft bg-panel/95 px-3 py-2 font-mono text-[13px] text-muted">
               No steps match the current query and instruction filters.
             </p>
           </div>
         ) : null}
 
-        <div className="pointer-events-none absolute bottom-3 left-3 rounded border border-line-soft bg-panel/95 px-2 py-1 font-mono text-[9px] text-faint">
+        <div className="pointer-events-none absolute bottom-3 left-3 rounded border border-line-soft bg-panel/95 px-2 py-1 font-mono text-[11px] text-faint">
           {inStepGroup
             ? "drag to pan · wheel to zoom · click a step to select · double-click to open · Open step in the toolbar"
             : "drag to pan · wheel to zoom · right-click a component for actions · node = component · link = aggregated step connections"}

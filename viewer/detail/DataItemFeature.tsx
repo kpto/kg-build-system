@@ -234,6 +234,7 @@ export function DataItemEditor(props: WorkspaceProps) {
     label: "License",
     value: license.value,
     title: license.licenses.join(" · ") || "No asset declares a license.",
+    wrap: true,
   });
 
   const memberRows: MemberRow[] = model.columns.map((column) => ({

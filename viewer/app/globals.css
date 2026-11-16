@@ -9,15 +9,15 @@
   --color-panel-soft: #333333;
   --color-inset: #191919;
   --color-gutter: #111111;
-  --color-line: #3a3a3a;
-  --color-line-soft: #2c2c2c;
+  --color-line: #3f3f3f;
+  --color-line-soft: #333333;
   --color-line-strong: #4a4a4a;
   --color-edge: #8b96a3;
   --color-edge-strong: #aab5c2;
 
   --color-text: #e6e6e6;
-  --color-muted: #b0b0b0;
-  --color-faint: #808080;
+  --color-muted: #c4c4c4;
+  --color-faint: #9a9a9a;
   --color-ink: #e6e6e6;
   --color-ink-soft: #d2d2d2;
 
@@ -71,8 +71,8 @@
   --foreground: #e6e6e6;
   --accent: #5b8bd0;
   --selection: #ff9f43;
-  --wb-titlebar-h: 34px;
-  --wb-statusbar-h: 20px;
+  --wb-titlebar-h: 36px;
+  --wb-statusbar-h: 22px;
   --wb-radius: 3px;
   --motion-fast: 110ms;
   --motion-base: 150ms;
@@ -91,7 +91,7 @@
   }
 
   html {
-    font-size: 12.5px;
+    font-size: 14.5px;
     background: var(--color-abyss);
     overflow: hidden;
   }
@@ -208,7 +208,7 @@
     color: var(--color-text);
     box-shadow: 0 12px 30px rgb(0 0 0 / 35%);
     padding: 7px 9px;
-    font-size: 10px;
+    font-size: 12px;
     line-height: 1.4;
     animation: wb-pop-in var(--motion-base) var(--ease-instrument);
   }
@@ -218,7 +218,7 @@
     border: 0;
     background: transparent;
     color: var(--color-faint);
-    font-size: 13px;
+    font-size: 15px;
     line-height: 1;
   }
 
@@ -226,8 +226,8 @@
     display: flex;
     min-width: 0;
     align-items: center;
-    gap: 10px;
-    padding: 0 6px;
+    gap: 12px;
+    padding: 0 8px;
     border-bottom: 1px solid #101010;
     background-color: var(--color-panel);
     color: var(--color-muted);
@@ -243,8 +243,8 @@
 
   .wb-brand-mark {
     display: inline-flex;
-    width: 21px;
-    height: 21px;
+    width: 24px;
+    height: 24px;
     flex: none;
     align-items: center;
     justify-content: center;
@@ -255,14 +255,14 @@
   }
 
   .wb-brand-initial {
-    font-size: 13px;
+    font-size: 15px;
     font-weight: 800;
     line-height: 1;
   }
 
   .wb-brand-name {
     color: var(--color-text);
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 650;
     letter-spacing: -0.01em;
     white-space: nowrap;
@@ -281,27 +281,27 @@
   .wb-snapshot-name {
     color: var(--color-text);
     font-family: var(--font-mono);
-    font-size: 10.5px;
+    font-size: 12.5px;
     font-variant-numeric: tabular-nums;
   }
 
   .wb-snapshot-title {
     overflow: hidden;
     color: var(--color-faint);
-    font-size: 10px;
+    font-size: 12px;
     text-overflow: ellipsis;
   }
 
   .wb-command {
     display: flex;
-    width: min(560px, 36vw);
-    height: 23px;
+    width: min(620px, 38vw);
+    height: 26px;
     min-width: 160px;
     flex: 1 1 auto;
     align-items: center;
-    gap: 6px;
+    gap: 7px;
     margin: 0 auto;
-    padding: 0 7px;
+    padding: 0 9px;
     border: 1px solid var(--color-line);
     border-radius: 2px;
     background-color: var(--color-panel);
@@ -319,7 +319,7 @@
     min-width: 0;
     flex: 1;
     overflow: hidden;
-    font-size: 10.5px;
+    font-size: 12.5px;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -374,14 +374,14 @@
 
   .wb-side-section-header {
     display: flex;
-    height: 25px;
+    height: 28px;
     flex: none;
     align-items: center;
     gap: 5px;
     border: 0;
     border-bottom: 1px solid var(--color-line-soft);
     background-color: var(--color-panel-raised);
-    padding: 0 7px;
+    padding: 0 9px;
     color: var(--color-text);
     text-align: left;
   }
@@ -390,6 +390,7 @@
     min-height: 0;
     flex: 1;
     overflow: hidden;
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 18px), transparent);
     animation: wb-fade-in var(--motion-base) var(--ease-instrument);
   }
 
@@ -398,33 +399,34 @@
   }
 
   .wb-side-section-title {
-    font-size: 9px;
+    font-size: 13px;
     font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    letter-spacing: 0;
+    text-transform: none;
   }
 
   .wb-side-section-meta {
     margin-left: auto;
     color: var(--color-faint);
     font-family: var(--font-mono);
-    font-size: 9px;
+    font-size: 11px;
   }
 
   .wb-side-section-body {
     min-height: 0;
     flex: 1;
     overflow: hidden;
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 18px), transparent);
     animation: wb-fade-in var(--motion-base) var(--ease-instrument);
   }
 
   .wb-sidebar-header {
     display: flex;
-    height: 25px;
+    height: 28px;
     flex: none;
     align-items: center;
-    gap: 6px;
-    padding: 0 7px;
+    gap: 7px;
+    padding: 0 9px;
     border-bottom: 1px solid var(--color-line-soft);
     background-color: var(--color-panel-raised);
     color: var(--color-muted);
@@ -434,16 +436,16 @@
     min-width: 0;
     flex: 1;
     color: var(--color-text);
-    font-size: 10.5px;
+    font-size: 13px;
     font-weight: 600;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
+    letter-spacing: 0;
+    text-transform: none;
   }
 
   .wb-sidebar-meta {
     color: var(--color-faint);
     font-family: var(--font-mono);
-    font-size: 9px;
+    font-size: 11px;
     font-variant-numeric: tabular-nums;
   }
 
@@ -532,7 +534,7 @@
 
   .wb-tabbar {
     display: flex;
-    height: 28px;
+    height: 32px;
     flex: none;
     align-items: stretch;
     overflow: hidden;
@@ -551,8 +553,8 @@
 
   .wb-tabnav-button {
     display: inline-flex;
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
     align-items: center;
     justify-content: center;
     border: 0;
@@ -612,11 +614,11 @@
     align-items: center;
     gap: 5px;
     overflow: hidden;
-    padding: 0 5px 0 9px;
+    padding: 0 7px 0 11px;
     border: 0;
     background: transparent;
     color: var(--color-faint);
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 500;
     text-align: left;
   }
@@ -641,8 +643,8 @@
 
   .wb-tab-close {
     display: inline-flex;
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
     align-self: center;
     align-items: center;
     justify-content: center;
@@ -706,13 +708,13 @@
 
   .wb-editor-empty-title {
     color: var(--color-text);
-    font-size: 14px;
+    font-size: 16px;
     font-weight: 600;
   }
 
   .wb-editor-empty-copy {
     max-width: 360px;
-    font-size: 11px;
+    font-size: 13px;
     line-height: 1.55;
   }
 
@@ -736,7 +738,7 @@
     border-top: 1px solid #101010;
     background-color: var(--color-panel);
     color: var(--color-faint);
-    font-size: 9.5px;
+    font-size: 11.5px;
     line-height: 1;
     overflow: hidden;
   }
@@ -806,7 +808,7 @@
 
   .wb-zoom-value {
     font-family: var(--font-mono);
-    font-size: 9px;
+    font-size: 11px;
     font-variant-numeric: tabular-nums;
   }
 
@@ -814,8 +816,8 @@
 
   .wb-icon-button {
     display: inline-flex;
-    width: 23px;
-    height: 23px;
+    width: 26px;
+    height: 26px;
     flex: none;
     align-items: center;
     justify-content: center;
@@ -840,16 +842,16 @@
 
   .wb-button {
     display: inline-flex;
-    min-height: 22px;
+    min-height: 26px;
     align-items: center;
     justify-content: center;
-    gap: 5px;
-    padding: 2px 8px;
+    gap: 6px;
+    padding: 3px 10px;
     border: 1px solid var(--color-line-strong);
     border-radius: 2px;
     background-color: var(--color-panel-raised);
     color: var(--color-muted);
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 500;
     line-height: 1;
     text-decoration: none;
@@ -887,8 +889,8 @@
 
   .wb-kbd {
     display: inline-flex;
-    min-width: 17px;
-    height: 16px;
+    min-width: 19px;
+    height: 18px;
     align-items: center;
     justify-content: center;
     padding: 0 4px;
@@ -897,22 +899,22 @@
     background-color: var(--color-panel-soft);
     color: var(--color-muted);
     font-family: var(--font-mono);
-    font-size: 8.5px;
+    font-size: 10.5px;
     line-height: 1;
   }
 
   .wb-chip {
     display: inline-flex;
-    min-height: 17px;
+    min-height: 20px;
     align-items: center;
-    gap: 4px;
-    padding: 0 5px;
+    gap: 5px;
+    padding: 0 7px;
     border: 1px solid var(--color-line);
     border-radius: 2px;
     background-color: var(--color-panel-raised);
     color: var(--color-muted);
     font-family: var(--font-mono);
-    font-size: 8.5px;
+    font-size: 10.5px;
     line-height: 1;
     white-space: nowrap;
   }
@@ -922,7 +924,7 @@
     background-color: rgb(215 168 74 / 12%);
     color: var(--color-open);
     font-family: var(--font-sans);
-    font-size: 9px;
+    font-size: 11px;
   }
 
   .wb-mono {
@@ -932,7 +934,7 @@
 
   .wb-kicker {
     color: var(--color-faint);
-    font-size: 8.5px;
+    font-size: 10.5px;
     font-weight: 600;
     letter-spacing: 0.09em;
     line-height: 1.2;
@@ -989,7 +991,7 @@
     outline: none;
     background: transparent;
     color: var(--color-text);
-    font-size: 12px;
+    font-size: 14px;
   }
 
   .wb-palette-results {
@@ -1008,7 +1010,7 @@
   .wb-palette-group-label {
     padding: 5px 8px;
     color: var(--color-faint);
-    font-size: 8.5px;
+    font-size: 10.5px;
     font-weight: 600;
     letter-spacing: 0.09em;
     text-transform: uppercase;
@@ -1057,7 +1059,7 @@
 
   .wb-palette-result-label {
     overflow: hidden;
-    font-size: 11.5px;
+    font-size: 13.5px;
     font-weight: 550;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1067,7 +1069,7 @@
     overflow: hidden;
     color: var(--color-faint);
     font-family: var(--font-mono);
-    font-size: 9px;
+    font-size: 11px;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -1076,7 +1078,7 @@
     flex: none;
     color: var(--color-faint);
     font-family: var(--font-mono);
-    font-size: 8.5px;
+    font-size: 10.5px;
     text-transform: uppercase;
   }
 
@@ -1087,7 +1089,7 @@
     gap: 7px;
     padding: 28px 14px;
     color: var(--color-faint);
-    font-size: 11px;
+    font-size: 13px;
     text-align: center;
   }
 
@@ -1101,7 +1103,7 @@
     border-top: 1px solid var(--color-line-soft);
     background-color: var(--color-panel-raised);
     color: var(--color-faint);
-    font-size: 9px;
+    font-size: 11px;
   }
 
   .wb-palette-footer span {
@@ -1135,7 +1137,7 @@
 
   .wb-dialog-head h2 {
     margin-top: 3px;
-    font-size: 18px;
+    font-size: 20px;
     font-weight: 600;
   }
 
@@ -1159,14 +1161,14 @@
   .wb-settings-section h3 {
     margin-bottom: 5px;
     color: var(--color-text);
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 600;
   }
 
   .wb-settings-section p {
     max-width: 70ch;
     color: var(--color-faint);
-    font-size: 10px;
+    font-size: 12px;
     line-height: 1.55;
   }
 
@@ -1187,7 +1189,7 @@
 
   .wb-settings-facts dt {
     color: var(--color-faint);
-    font-size: 9.5px;
+    font-size: 11.5px;
   }
 
   .wb-settings-facts dd {
@@ -1195,7 +1197,7 @@
     margin: 0;
     overflow-wrap: anywhere;
     color: var(--color-muted);
-    font-size: 9.5px;
+    font-size: 11.5px;
   }
 
   .wb-settings-actions {
@@ -1221,13 +1223,13 @@
     border-radius: 3px;
     background-color: var(--color-abyss);
     color: var(--color-muted);
-    font-size: 9.5px;
+    font-size: 11.5px;
   }
 
   .wb-swatch .wb-mono {
     margin-left: auto;
     color: var(--color-faint);
-    font-size: 8.5px;
+    font-size: 10.5px;
   }
 
   .wb-swatch-chip {
@@ -1263,7 +1265,7 @@
     padding-left: 7px;
     border-left: 1px solid var(--color-line);
     color: var(--color-faint);
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .wb-gate-body {
@@ -1329,20 +1331,20 @@
 
   .wb-gate-card h1 {
     color: var(--color-text);
-    font-size: 18px;
+    font-size: 20px;
     font-weight: 600;
   }
 
   .wb-gate-card p {
     color: var(--color-muted);
-    font-size: 11px;
+    font-size: 13px;
     line-height: 1.6;
   }
 
   .wb-gate-hint {
     color: var(--color-faint) !important;
     font-family: var(--font-mono);
-    font-size: 9px !important;
+    font-size: 11px !important;
   }
 
   .wb-gate-slow {
@@ -1351,7 +1353,7 @@
     border-radius: 3px;
     background-color: rgb(215 168 74 / 8%);
     color: var(--color-open) !important;
-    font-size: 10px !important;
+    font-size: 12px !important;
   }
 
   .wb-gate-error {
@@ -1367,7 +1369,7 @@
     background-color: var(--color-abyss);
     color: var(--color-faint);
     font-family: var(--font-mono);
-    font-size: 9px;
+    font-size: 11px;
   }
 
   @keyframes wb-pulse {
@@ -1385,7 +1387,7 @@
   .wb-placeholder-side {
     padding: 6px;
     color: var(--color-muted);
-    font-size: 10.5px;
+    font-size: 12.5px;
   }
 
   .wb-side-section {
@@ -1405,7 +1407,7 @@
     border-bottom: 1px solid var(--color-line-soft);
     background-color: var(--color-panel-raised);
     color: var(--color-text);
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 600;
   }
 
@@ -1417,7 +1419,7 @@
   .wb-side-count {
     color: var(--color-faint);
     font-family: var(--font-mono);
-    font-size: 9px;
+    font-size: 11px;
     font-weight: 400;
   }
 
@@ -1432,7 +1434,7 @@
 
   .wb-side-group-label {
     color: var(--color-selection);
-    font-size: 8.5px;
+    font-size: 10.5px;
     font-weight: 650;
     letter-spacing: 0.07em;
     text-transform: uppercase;
@@ -1441,7 +1443,7 @@
   .wb-side-group-detail {
     margin-top: 3px;
     color: var(--color-faint);
-    font-size: 9px;
+    font-size: 11px;
     line-height: 1.45;
   }
 
@@ -1471,7 +1473,7 @@
     flex: none;
     color: var(--color-text);
     font-family: var(--font-mono);
-    font-size: 9px;
+    font-size: 11px;
     font-variant-numeric: tabular-nums;
   }
 
@@ -1481,7 +1483,7 @@
     gap: 4px;
     padding: 7px 8px;
     color: var(--color-muted);
-    font-size: 9.5px;
+    font-size: 11.5px;
     overflow-wrap: anywhere;
   }
 
@@ -1491,7 +1493,7 @@
     border: 1px dashed var(--color-line);
     border-radius: 3px;
     color: var(--color-faint);
-    font-size: 9px;
+    font-size: 11px;
     line-height: 1.5;
   }
 
@@ -1532,7 +1534,7 @@
   .wb-placeholder-head h1 {
     margin: 2px 0 3px;
     color: var(--color-text);
-    font-size: 20px;
+    font-size: 22px;
     font-weight: 600;
     letter-spacing: -0.02em;
   }
@@ -1540,7 +1542,7 @@
   .wb-placeholder-lede {
     max-width: 65ch;
     color: var(--color-muted);
-    font-size: 10.5px;
+    font-size: 12.5px;
     line-height: 1.5;
   }
 
@@ -1563,7 +1565,7 @@
 
   .wb-stat-label {
     color: var(--color-faint);
-    font-size: 8.5px;
+    font-size: 10.5px;
     font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
@@ -1572,7 +1574,7 @@
   .wb-stat-value {
     color: var(--color-text);
     font-family: var(--font-mono);
-    font-size: 17px;
+    font-size: 19px;
     font-variant-numeric: tabular-nums;
     line-height: 1;
   }
@@ -1594,7 +1596,7 @@
     border-bottom: 1px solid var(--color-line-soft);
     background-color: var(--color-panel-raised);
     color: var(--color-muted);
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .wb-placeholder-panel-head > span:first-of-type {
@@ -1608,7 +1610,7 @@
 
   .wb-placeholder-panel-head .wb-mono {
     color: var(--color-faint);
-    font-size: 9px;
+    font-size: 11px;
   }
 
   .wb-placeholder-copy {
@@ -1618,7 +1620,7 @@
   .wb-placeholder-copy > p {
     max-width: 75ch;
     color: var(--color-muted);
-    font-size: 10.5px;
+    font-size: 12.5px;
     line-height: 1.65;
   }
 
@@ -1644,7 +1646,7 @@
 
   .wb-placeholder-facts dt {
     color: var(--color-faint);
-    font-size: 8.5px;
+    font-size: 10.5px;
     letter-spacing: 0.05em;
     text-transform: uppercase;
   }
@@ -1653,7 +1655,7 @@
     margin: 0;
     overflow: hidden;
     color: var(--color-text);
-    font-size: 9.5px;
+    font-size: 11.5px;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -1719,21 +1721,21 @@
   }
 
   .ui-section-title {
-    font-size: 10.5px;
+    font-size: 12.5px;
     font-weight: 600;
   }
 
   .ui-section-count {
     color: var(--color-faint);
     font-family: var(--font-mono);
-    font-size: 9px;
+    font-size: 11px;
     font-variant-numeric: tabular-nums;
   }
 
   .ui-section-label,
   .ui-label {
     color: var(--color-faint);
-    font-size: 9px;
+    font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
@@ -1769,7 +1771,7 @@
     flex: none;
     color: var(--color-faint);
     font-family: var(--font-mono);
-    font-size: 9px;
+    font-size: 11px;
     font-variant-numeric: tabular-nums;
   }
 
@@ -1783,7 +1785,7 @@
 
   .ui-field-label {
     color: var(--color-faint);
-    font-size: 9.5px;
+    font-size: 11.5px;
     font-weight: 500;
   }
 
@@ -1792,7 +1794,7 @@
     overflow-wrap: anywhere;
     color: var(--color-text);
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: 12px;
     line-height: 1.4;
   }
 
@@ -1807,7 +1809,7 @@
     border-radius: 3px;
     background-color: var(--color-panel-raised);
     color: var(--color-muted);
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 500;
     line-height: 1;
     white-space: nowrap;
@@ -1867,7 +1869,7 @@
     background-color: var(--color-panel-soft);
     box-shadow: inset 0 1px 1px rgb(0 0 0 / 22%);
     color: var(--color-text);
-    font-size: 11px;
+    font-size: 13px;
     line-height: 1;
   }
 
@@ -1890,7 +1892,7 @@
     background-color: var(--color-panel-raised);
     color: var(--color-muted);
     font-family: var(--font-mono);
-    font-size: 8.5px;
+    font-size: 10.5px;
     line-height: 1;
     white-space: nowrap;
   }
@@ -1913,13 +1915,13 @@
     background-color: var(--color-panel-soft);
     color: var(--color-muted);
     font-family: var(--font-mono);
-    font-size: 8.5px;
+    font-size: 10.5px;
     line-height: 1;
   }
 
   .ui-hint {
     color: var(--color-faint);
-    font-size: 9px;
+    font-size: 11px;
     line-height: 1.5;
   }
 
@@ -1929,7 +1931,7 @@
     border-radius: 3px;
     background-color: rgb(0 0 0 / 10%);
     color: var(--color-faint);
-    font-size: 9.5px;
+    font-size: 11.5px;
     text-align: center;
   }
 

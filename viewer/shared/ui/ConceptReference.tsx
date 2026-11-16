@@ -30,7 +30,7 @@ export function ConceptReferenceChip({
     color: definition.color,
   } as CSSProperties;
   const classes = [
-    "inline-flex max-w-full items-center gap-1 rounded border px-1.5 py-0.5 font-mono text-[9px]",
+    "inline-flex max-w-full items-center gap-1 rounded border px-1.5 py-0.5 font-mono text-[11px]",
     onOpen ? "cursor-pointer hover:underline" : "",
     className ?? "",
   ]

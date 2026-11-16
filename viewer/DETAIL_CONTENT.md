@@ -91,11 +91,17 @@ purpose, a grain or an identity.
 
 ## Layout
 
-- A document is a stack of full-width bands separated by 1px rules. No band is
-  a floating card and no band has a drop shadow.
+- A document is a stack of plates inset by 16px and capped at 1160px, separated
+  by a 6px seam and a 1px border. A plate has a 3px radius and no drop shadow;
+  it is a Blender properties panel, not a floating card.
 - The header is sticky; the bands scroll.
-- The band body is 8px above and 10px below its content; a flush body is used
-  for a canvas or a table that owns its own padding.
+- The band header is 30px with a chevron, a 13px sentence-case title, the
+  question it answers and a right-aligned count. No structural label is smaller
+  than 11px.
+- The band body is 14px above and 16px below its content; the plate cap keeps a
+  long meaning at a readable line length. A flush body is used for a canvas or
+  a table that owns its own padding.
 - A table shares one `grid-template-columns` between its head and every row.
+  A member row is 28px; a fact row is 5px of vertical padding.
 - At narrow width the Sources groups stack and the full axis map becomes one
   column; nothing overflows horizontally.

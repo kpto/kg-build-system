@@ -270,7 +270,7 @@ export function GraphCanvas({
         >
           −
         </button>
-        <span className="flex w-11 items-center justify-center border-r border-line font-mono text-[10px] text-muted tabular-nums">
+        <span className="flex w-11 items-center justify-center border-r border-line font-mono text-[12px] text-muted tabular-nums">
           {Math.round(view.scale * 100)}%
         </span>
         <button

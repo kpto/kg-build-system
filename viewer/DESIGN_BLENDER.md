@@ -16,8 +16,9 @@ Reference: Blender 4.x dark theme, not a generic dashboard.
   snapshot, search, panel toggles, layout reset and settings.
 - **Side-bar sections** are collapsible 25px headers: **Control** for the active
   view's controls, **Explorer** for the whole design.
-- **Area headers** are 25px bands on `panel-raised` with an icon, an uppercase
-  micro title, optional counts and right-aligned controls.
+- **Area headers** are 30px bands on `panel-raised` with a chevron, a 13px
+  sentence-case title, the question the section answers, optional counts and
+  right-aligned controls.
 - **Editor tabs** belong to the main area, not the window. They name the
   document, not a global destination.
 - **Side bar** is the function's subject browser and detail controls.
@@ -26,21 +27,22 @@ Reference: Blender 4.x dark theme, not a generic dashboard.
   and bezier wires.
 - **Selection is orange; active/accent is blue.** Do not use orange for ordinary
   buttons. Blue = focus/active/primary; orange = selected graph item.
-- The scale is compact (12.5px root). Micro type is 8.5–9.5px; body type is
-  10–11px; a document title is 13px.
+- The scale is compact but readable (14.5px root). Body type is 12–13px;
+  panel titles are 13px sentence case; micro labels are 11px; a document title
+  is 16px. No structural label is smaller than 11px.
 
 ## Workbench measurements
 
 | Region | Size |
 | --- | ---: |
-| title bar | 34px |
-| side bar | 220–520px, default 300px |
-| status bar | 20px |
+| title bar | 36px |
+| side bar | 320–520px, default 340px |
+| status bar | 22px |
 | region seam | 1px |
 | region / section radius | 2–3px |
 | editor tab | 28px |
-| section band header | 25px |
-| compact row | 22px |
+| section band header | 30px |
+| compact row | 28px |
 
 The main editor always fills the remaining width. At 1600px there is no
 horizontal page overflow; the side bar and bottom panel are resizable and the
@@ -67,7 +69,7 @@ rank wrapping. Pan/zoom and focus are the answers, not folding.
 - Orange is the selected node outline and selected relationship only. A selected
   node's incident edges turn blue; every other edge dims. Hovering a node turns
   its incident edges blue.
-- Labels are 9px chips: a dark backing, a 1px muted border and the node label.
+- Labels are 11px chips: a dark backing, a 1px muted border and the node label.
   Hub labels only by default; **All** is a named control in the side bar.
 - No transitions, filters or drop shadows inside the SVG scene. Button motion
   is scoped to HTML controls so graph geometry never fades or translates.
@@ -102,13 +104,13 @@ panel-raised#2b2b2b   area header / section band
 panel-soft  #333333   raised control
 inset       #191919   inset field
 gutter      #111111   seam between regions
-line        #3a3a3a
-line-soft   #2c2c2c
+line        #3f3f3f
+line-soft   #333333
 line-strong #4a4a4a
 edge        #8b96a3   graph connection, never a panel border
 text        #e6e6e6
-muted       #b0b0b0
-faint       #808080
+muted       #c4c4c4
+faint       #9a9a9a
 accent      #5b8bd0   Blender blue: active/primary
 accent-strong #7aa7e6
 accent-soft #24364d
