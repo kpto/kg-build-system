@@ -52,7 +52,6 @@ import {
   provenanceReferences,
   type ProvenanceReferences,
 } from "@/proof/references";
-import { Collapse } from "@/shared/ui/Collapse";
 import { ConceptGlyph, ConceptMark } from "@/shared/ui/ConceptMark";
 import { ConceptReferenceChip } from "@/shared/ui/ConceptReference";
 import { selectionForConceptTarget } from "@/workbench/conceptTarget";
@@ -433,9 +432,7 @@ function SideSection({
         <span>{title}</span>
         <span className={styles.sideCount}>{count}</span>
       </button>
-      <Collapse open={open}>
-        <div className={styles.sideSectionBody}>{children}</div>
-      </Collapse>
+      {open ? <div className={styles.sideSectionBody}>{children}</div> : null}
     </section>
   );
 }
@@ -727,10 +724,9 @@ export function ExplorerSidebar(props: WorkspaceProps) {
             </span>
           </button>
         </div>
-        {properties.length ? (
-          <Collapse open={nodeOpen}>
-            <div className={styles.treeChildren}>
-              {properties.map((property) => (
+        {nodeOpen && properties.length ? (
+          <div className={styles.treeChildren}>
+            {properties.map((property) => (
               <button
                 key={`${node.name}.${property.name}`}
                 type="button"
@@ -790,10 +786,9 @@ export function ExplorerSidebar(props: WorkspaceProps) {
               >
                 <ConceptGlyph concept="property" className={styles.conceptDot} />
                 <span>{property.name}</span>
-                </button>
-              ))}
-            </div>
-          </Collapse>
+              </button>
+            ))}
+          </div>
         ) : null}
       </div>
     );
@@ -877,10 +872,9 @@ export function ExplorerSidebar(props: WorkspaceProps) {
             </span>
           </button>
         </div>
-        {properties.length ? (
-          <Collapse open={edgeOpen}>
-            <div className={styles.treeChildren}>
-              {properties.map((property) => (
+        {edgeOpen && properties.length ? (
+          <div className={styles.treeChildren}>
+            {properties.map((property) => (
               <button
                 key={`${edge.name}.${property.name}`}
                 type="button"
@@ -939,10 +933,9 @@ export function ExplorerSidebar(props: WorkspaceProps) {
               >
                 <ConceptGlyph concept="property" className={styles.conceptDot} />
                 <span>{property.name}</span>
-                </button>
-              ))}
-            </div>
-          </Collapse>
+              </button>
+            ))}
+          </div>
         ) : null}
       </div>
     );
@@ -1140,7 +1133,7 @@ export function ExplorerSidebar(props: WorkspaceProps) {
                       </span>
                     </button>
                   </div>
-                  <Collapse open={groupOpen}>
+                  {groupOpen ? (
                     <div className={styles.treeChildren}>
                       {group.rows.map((row) => (
                         <button
@@ -1177,7 +1170,7 @@ export function ExplorerSidebar(props: WorkspaceProps) {
                         </button>
                       ))}
                     </div>
-                  </Collapse>
+                  ) : null}
                 </div>
               );
             })
@@ -1756,7 +1749,7 @@ function ComponentProofView({
       >
         <MemberTable
           columns={["Property", "Type", "Branches", "Sources", "Bindings"]}
-          template="minmax(0, 1fr) 64px 72px minmax(0, 1fr) 72px"
+          template="minmax(160px, 1.3fr) minmax(110px, 1fr) 64px minmax(100px, 1fr) 70px"
           rows={rows}
           empty="No properties are declared for this subject."
         />
@@ -2016,7 +2009,6 @@ function overviewFacts(
     label: "License",
     value: license.value,
     title: license.licenses.join(" · ") || "No asset declares a license.",
-    wrap: true,
   };
   switch (model.level) {
     case "property": {
@@ -2040,7 +2032,6 @@ function overviewFacts(
           value: chain?.narrowed
             ? "present · source nullable"
             : chain?.steps.at(0)?.presence ?? "unknown",
-          wrap: true,
           absent: !chain,
         },
         { label: "Branches", value: `${model.branches.length}` },
@@ -2067,7 +2058,6 @@ function overviewFacts(
         {
           label: "Identity",
           value: identity.length ? identity.join(", ") : "not declared",
-          wrap: true,
           absent: !identity.length,
         },
         {
@@ -2080,7 +2070,6 @@ function overviewFacts(
         facts.push({
           label: "Endpoints",
           value: `${edge?.source?.[2] ?? "?"} → ${edge?.target?.[2] ?? "?"}`,
-          wrap: true,
           absent: !edge?.source || !edge?.target,
         });
       } else {
@@ -2130,7 +2119,6 @@ function overviewFacts(
         {
           label: "Coverage",
           value: profile?.coverage ?? "not declared",
-          wrap: true,
           absent: !profile?.coverage,
         },
         {

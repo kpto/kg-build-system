@@ -4,7 +4,6 @@ import { useState, type ReactNode } from "react";
 import { ChevronRight } from "lucide-react";
 
 import type { ConceptKind } from "@/lib/concepts";
-import { Collapse } from "@/shared/ui/Collapse";
 import { ConceptGlyph, ConceptMark } from "@/shared/ui/ConceptMark";
 import styles from "../detail.module.css";
 
@@ -133,11 +132,11 @@ export function DetailBand({
           <span className={styles.bandMeta}>{meta}</span>
         ) : null}
       </button>
-      <Collapse open={open}>
+      {open ? (
         <div className={flush ? styles.bandBodyFlush : styles.bandBody}>
           {children}
         </div>
-      </Collapse>
+      ) : null}
     </section>
   );
 }
@@ -153,8 +152,6 @@ export interface DetailFact {
   mono?: boolean;
   /** State that a value is absent instead of dressing it as a value. */
   absent?: boolean;
-  /** Let a long value wrap instead of ellipsising it. */
-  wrap?: boolean;
   onOpen?(): void;
 }
 
@@ -168,7 +165,6 @@ export function FactGrid({ facts }: { facts: DetailFact[] }) {
           <dd
             className={styles.factValue}
             data-honest={fact.absent ? "absent" : undefined}
-            data-wrap={fact.wrap ? "true" : undefined}
             title={fact.title ?? (typeof fact.value === "string" ? fact.value : undefined)}
           >
             {fact.onOpen ? (

@@ -91,19 +91,11 @@ purpose, a grain or an identity.
 
 ## Layout
 
-- A document is a stack of plates inset by 12px and capped at 1160px, separated
-  by a 4px seam and a 1px outline. A plate has a 5px radius and no drop shadow;
-  it is a Blender properties panel (`#3d3d3d` on the `#303030` region), not a
-  floating card.
+- A document is a stack of full-width bands separated by 1px rules. No band is
+  a floating card and no band has a drop shadow.
 - The header is sticky; the bands scroll.
-- The band header is 31px with a chevron, a 14px sentence-case title, the
-  question it answers and a right-aligned count. No structural label is smaller
-  than 11px. The document uses five sizes only: 11 / 12 / 13 / 14 / 16.
-- The band body is 10px above and 12px below its content. Prose is capped at
-  74 characters per line; a flush body is used for a canvas or a table that
-  owns its own padding.
+- The band body is 8px above and 10px below its content; a flush body is used
+  for a canvas or a table that owns its own padding.
 - A table shares one `grid-template-columns` between its head and every row.
-  A member row is 26px; a fact row is 4px of vertical padding. Values use the
-  UI font, not the mono font; identifiers and expressions stay mono.
 - At narrow width the Sources groups stack and the full axis map becomes one
   column; nothing overflows horizontally.

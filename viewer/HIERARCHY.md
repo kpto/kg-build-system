@@ -22,16 +22,15 @@ A level may be absent. It is never reordered or nested inside the same kind.
 
 | Region | Contents | Owner |
 | --- | --- | --- |
-| Side bar | snapshot search trigger (the KG name), collapsible **Control** and **Explorer** sections | `workbench/SideBar` |
-| Editor | document tabs, the side-bar toggle at the right of the tab strip, and one mounted pane per document | `workbench/EditorArea` |
+| Side bar | snapshot search trigger, collapsible **Control** and **Explorer** sections | `workbench/SideBar` |
+| Editor | document tabs with the side-bar toggle at the right of the strip, and one mounted pane per document | `workbench/EditorArea` |
 
 The side bar is 220–520 px wide and is the only resizable panel. One
 `WorkbenchLayout` is persisted per snapshot: the side-bar width and the split
 between the Control and Explorer sections. Side-bar visibility is shell state;
-`Cmd/Ctrl+B` and the tab-strip toggle change it, not panel purpose. There is no
-window header or status bar; the tab strip is the top of the frame. Graph and
-Workflow render through the one frame in `shared/ui/Viewport.tsx`; the Graph
-document owns its floating Inspector window; there is no bottom panel.
+the tab-strip toggle and `Cmd/Ctrl+B` change it, not panel purpose. There is no
+window header or status bar. The Graph document owns its floating Inspector
+window; there is no bottom panel.
 
 ## Side-bar sections
 
@@ -53,8 +52,8 @@ position.
 
 | Document | Editor |
 | --- | --- |
-| **Graph** (pinned) | shared visualisation frame: a header with the view name, visible node/link counts and the **Inspect** toggle above a D3 force canvas; bottom-left zoom/fit navigation; floating Inspector shows graph purpose/overview when nothing is selected, or the selected entity's identity, properties and meaning; clicking empty space deselects |
-| **Workflow** (pinned) | compositor-style component graph in the same visualisation frame; the header names the workflow or focused component, states component or step counts, and carries step-group actions; selecting a component and using **Open step group** drills into its step-level flow graph with one block per dependency layer, a large layer wrapping into aligned sub-columns, and boundary components aligned to the steps they feed; selecting a component, step or boundary node highlights its incident links and dims the other nodes in the same graph view, and entering another step group requires **Open step group**; drag to pan, wheel to zoom, Fit in the navigation cluster resets; Back returns to components; filters from Control narrow the step graph |
+| **Graph** (pinned) | shared visualisation frame with a header (view name, visible node/link counts, **Inspect** toggle) above a D3 force canvas; bottom-left zoom/Fit navigation; floating Inspector shows graph purpose/overview when nothing is selected, or the selected entity's identity, properties and meaning; clicking empty space deselects |
+| **Workflow** (pinned) | compositor-style component graph in the same visualisation frame; the header names the workflow or focused component, states component or step counts and carries step-group actions; selecting a component and using **Open step group** drills into its step-level flow graph with one block per dependency layer, a large layer wrapping into aligned sub-columns, and boundary components aligned to the steps they feed; selecting a component, step or boundary node highlights its incident links and dims the other nodes in the same graph view, and entering another step group requires **Open step group**; drag to pan, wheel to zoom, Fit in the navigation cluster resets; Back returns to components; filters from Control narrow the step graph |
 | **Step** | one workflow step's instruction, payload, openings, connections and blueprint bindings on the same detail surface as node and subject documents; opened from the workflow section of Explorer |
 | **Table** | a relation's identity, owning asset, columns, indented expression outline from the table back through its fields to the asset, and attached semantics on the shared detail surface; the effective licence is in the banner |
 | **Projection** | a projection's identity, owning asset, columns, row source, indented expression outline from each column back through its operators and row source to the asset, and attached semantics on the shared detail surface; the effective licence is in the banner |

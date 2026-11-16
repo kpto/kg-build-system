@@ -51,12 +51,12 @@ export function ContextMenu({ x, y, label, items, onClose }: ContextMenuProps) {
       ref={ref}
       role="menu"
       aria-label={label}
-      className="context-menu-pop fixed z-[100] w-[212px] overflow-hidden rounded border border-line-strong bg-panel"
+      className="context-menu-pop fixed z-[100] w-[212px] overflow-hidden rounded border border-line-strong bg-panel shadow-2xl"
       style={{ left, top }}
       data-testid="context-menu"
       onContextMenu={(event) => event.preventDefault()}
     >
-      <p className="truncate border-b border-line-soft px-2 py-1 font-mono text-[11px] text-faint">
+      <p className="truncate border-b border-line-soft px-2 py-1 font-mono text-[9px] text-faint">
         {label}
       </p>
       {items.map((item) => (
@@ -64,7 +64,7 @@ export function ContextMenu({ x, y, label, items, onClose }: ContextMenuProps) {
           key={item.label}
           type="button"
           role="menuitem"
-          className="flex w-full items-center justify-between gap-3 px-2 py-1.5 text-left text-[13px] text-muted hover:bg-panel-soft hover:text-text"
+          className="flex w-full items-center justify-between gap-3 px-2 py-1.5 text-left text-[10.5px] text-muted hover:bg-panel-soft hover:text-text"
           onClick={() => {
             item.onSelect();
             onClose();
@@ -73,7 +73,7 @@ export function ContextMenu({ x, y, label, items, onClose }: ContextMenuProps) {
         >
           <span>{item.label}</span>
           {item.hint ? (
-            <span className="font-mono text-[11px] text-faint">{item.hint}</span>
+            <span className="font-mono text-[9px] text-faint">{item.hint}</span>
           ) : null}
         </button>
       ))}

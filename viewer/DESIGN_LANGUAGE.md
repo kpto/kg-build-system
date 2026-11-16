@@ -98,10 +98,9 @@ meaning and no release source, and it says so; it is build machinery.
 
 A detail document banner leads with the kind's mark from the one concept
 registry, and the tab names the document. Graph and Workflow are working
-surfaces: they have no detail banner, and they share one visualisation frame
-whose 30px header names the view, states its live extent and carries the view's
-own actions above the canvas. Every graph surface, including the detail Build
-steps canvas, shares one bottom-left navigation cluster.
+surfaces: they have no detail banner and share one visualisation frame. Its
+25px header names the view and its extent and carries the view's own actions;
+every graph surface shares one bottom-left navigation cluster.
 
 One concept registry supplies the mark and representative colour for graph,
 workflow, node, edge, property, asset, source relation, derived relation,
@@ -117,16 +116,8 @@ mark wherever it appears.
   200ms; a palette or dialog may take 200ms.
 - Buttons press down by 1px. Tabs transition their surface and active
   indicator. Context menus enter from their anchor; the Graph inspector enters
-  from the right.
-- A document switch is instant: the tab surface and the view header are the
-  feedback. Entrance motion is reserved for transient surfaces, not documents.
-- A collapsible body animates its own height: one grid row moves from `0fr` to
-  `1fr` over 180ms with an ease-in-out curve, so the surrounding document
-  expands and collapses with it. The content stays opaque and is clipped; the
-  closed body is `inert`. Bands, detail groups and expression branches use the
-  one `Collapse` component. The side bar animates `flex-grow` so the splitter
-  and both section shares stay live; a splitter drag bypasses the transition.
-- A selected graph item's dim or highlight fades; a settled node never moves.
+  from the right. A document switch is instant.
+- A graph node's dim or highlight fades; a settled node never moves.
 - `prefers-reduced-motion` keeps the state change and removes movement.
 
 ## Panels and persistence
@@ -151,9 +142,9 @@ mark wherever it appears.
   in a context menu, or using the command palette opens a permanent tab. The
   context menu also offers **Go to Graph** for graph subjects and **Go to
   Workflow** for workflow items. A workflow component selected in Control or in
-  the Workflow graph expands its step group in Explorer. That reveal is one-shot:
-  once the reader collapses the Workflow section or a component group, it stays
-  collapsed until the active subject changes again.
+  the Workflow graph expands its step group in Explorer. That reveal is
+  one-shot: once the reader collapses the Workflow section or a component group,
+  it stays collapsed until the active subject changes again.
   Preview tabs are reused by the next single click; double-clicking a preview
   tab label pins it. Middle-clicking a subject or step tab closes it; pinned
   Graph and Workflow tabs cannot be closed.

@@ -34,14 +34,10 @@ function SideBarSplitter({
   ratio,
   container,
   onChange,
-  onResizeStart,
-  onResizeEnd,
 }: {
   ratio: number;
   container: RefObject<HTMLElement | null>;
   onChange(value: number): void;
-  onResizeStart(): void;
-  onResizeEnd(): void;
 }) {
   const drag = useRef<{ start: number; ratio: number; height: number } | null>(
     null,
@@ -50,7 +46,6 @@ function SideBarSplitter({
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return;
     event.preventDefault();
-    onResizeStart();
     drag.current = {
       start: event.clientY,
       ratio,
@@ -67,7 +62,6 @@ function SideBarSplitter({
 
   const endDrag = (event: PointerEvent<HTMLDivElement>) => {
     drag.current = null;
-    onResizeEnd();
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
@@ -122,7 +116,7 @@ function ControlBody({ state, actions }: WorkspaceProps) {
   }
   if (document.kind === "subject") {
     return (
-      <p className="p-3 text-[12px] leading-relaxed text-faint">
+      <p className="p-3 text-[10px] leading-relaxed text-faint">
         This document has no view controls. Control applies to the Graph and
         Workflow documents.
       </p>
@@ -139,7 +133,6 @@ export function SideBar({ onOpenPalette }: { onOpenPalette(): void }) {
     control: true,
     explorer: true,
   });
-  const [resizing, setResizing] = useState(false);
   const container = useRef<HTMLElement>(null);
   const stats = state.index.stats;
   const document = activeDocument(state);
@@ -195,12 +188,9 @@ export function SideBar({ onOpenPalette }: { onOpenPalette(): void }) {
           <span className="wb-side-section-title">{label}</span>
           <span className="wb-side-section-meta">{meta}</span>
         </button>
-        <div
-          className="wb-side-section-collapse"
-          inert={expanded ? undefined : true}
-        >
+        {expanded ? (
           <div className="wb-side-section-body thin-scrollbar">{body}</div>
-        </div>
+        ) : null}
       </section>
     );
   };
@@ -212,7 +202,6 @@ export function SideBar({ onOpenPalette }: { onOpenPalette(): void }) {
       style={{ width: state.layout.sidebarWidth }}
       aria-label="Workbench side bar"
       data-testid="sidebar"
-      data-resizing={resizing ? "true" : undefined}
     >
 
       <div className="wb-side-search">
@@ -240,8 +229,6 @@ export function SideBar({ onOpenPalette }: { onOpenPalette(): void }) {
           ratio={state.layout.sidebarSplit}
           container={container}
           onChange={setSplit}
-          onResizeStart={() => setResizing(true)}
-          onResizeEnd={() => setResizing(false)}
         />
       ) : null}
       {section(

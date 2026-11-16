@@ -11,55 +11,39 @@ Reference: Blender 4.x dark theme, not a generic dashboard.
 
 - **Areas, not floating cards.** The application is a workbench of flat
   rectangular regions separated by a 1px dark seam. Regions are plates, not
-  cards: no glass, no floating panel stacks, and no drop, text or emboss shadow
-  on any component. Selection bars and focus rings are state indicators, not
-  shadows. A
-  detail panel body has 10/12px padding and plates are separated by 4px.
-- **One reading size.** Prose is 14px with a 1.46 line height; chrome is 13px;
-  metadata is 11–12px. The panel title weight is 400, not 600.
+  cards: no glass, no floating panel stacks, no shadow between regions.
 - **No application header or status bar.** The tab strip is the top of the
-  frame and the side-bar search trigger carries the snapshot name; transient
-  context is shown where it belongs, not in a decorative footer.
+  frame; the side-bar search trigger carries the snapshot name and opens the
+  command palette.
 - **Side-bar sections** are collapsible 25px headers: **Control** for the active
   view's controls, **Explorer** for the whole design.
-- **Area headers** are 30px bands on `panel-raised` with a chevron, a 13px
-  sentence-case title, the question the section answers, optional counts and
-  right-aligned controls.
+- **Area headers** are 25px bands on `panel-raised` with an icon, an uppercase
+  micro title, optional counts and right-aligned controls.
 - **Editor tabs** belong to the main area, not the window. They name the
   document, not a global destination.
 - **Side bar** is the function's subject browser and detail controls.
-- **Node editor surfaces.** Dark canvas (#1a1a1a) with a locked 25px dot grid
-  (#303030); neutral cards with a 2px semantic lane stripe, body, small sockets
+- **Node editor surfaces.** Dark canvas with a locked dot grid plus a 120px
+  major grid; neutral cards with a 2px semantic lane stripe, body, small sockets
   and bezier wires.
-- **One visualisation frame.** Graph and Workflow share a 30px `panel` header
-  (concept glyph, view name, live extent, the view's own actions) above a flat
-  canvas. Every graph surface, including the detail Build steps canvas, shares
-  the same bottom-left navigation cluster (`−`, percent, `+`, Fit). A view
-  supplies its renderer and data; it does not supply chrome. The Graph's Inspect
-  toggle lives in that header. The frame is implemented once in
-  `shared/ui/Viewport.tsx` as `ViewportFrame`, `ViewportAction`, `ViewportNav`
-  and `ViewportChip`; Graph, Workflow and the detail Build steps canvas compose
-  those names rather than restating the markup. A canvas hint is the same
-  26px `panel` surface as the navigation cluster: same 1px outline, 4px radius,
-  inset and type, so the two boxes sit on one line.
+- **One visualisation frame.** Graph and Workflow share a 25px area header with
+  the view name, its live extent and the view's own actions above a flat canvas.
+  Every graph surface shares one bottom-left zoom/Fit cluster. A view supplies
+  its renderer, not its chrome; the frame is `shared/ui/Viewport.tsx`.
 - **Selection is orange; active/accent is blue.** Do not use orange for ordinary
   buttons. Blue = focus/active/primary; orange = selected graph item.
-- The scale is compact but readable (14.5px root). The UI font is Inter
-  (Blender/BUI's UI font). Body type is 13.5–14px; panel titles are 14px
-  sentence case; micro labels are 11–12px; a document title is 16px. No
-  structural label is smaller than 11px.
+- The scale is compact (12.5px root). Micro type is 8.5–9.5px; body type is
+  10–11px; a document title is 13px.
 
 ## Workbench measurements
 
 | Region | Size |
 | --- | ---: |
 | side bar | 220–520px, default 300px |
-| tab strip | 32px |
 | region seam | 1px |
-| region / section radius | 4–5px |
+| region / section radius | 2–3px |
 | editor tab | 28px |
-| section band header | 31px |
-| compact row | 26px |
+| section band header | 25px |
+| compact row | 22px |
 
 The main editor always fills the remaining width. At 1600px there is no
 horizontal page overflow; the side bar and bottom panel are resizable and the
@@ -71,9 +55,8 @@ Topology is a **force-directed** graph: repulsion, spring links, gravity and a
 collision pass. Coordinates settle once; there is no mount animation and no
 rank wrapping. Pan/zoom and focus are the answers, not folding.
 
-- The canvas is a Blender node-editor surface: a 25px dot grid on a flat
-  graphite ground (`#1a1a1a` dots `#303030`). No vignette, no gradient, no major
-  rules behind the graph.
+- The canvas is a Blender node-editor surface: a 24px dot grid, a 120px major
+  grid and a flat graphite ground. No vignette, no gradient behind the graph.
 - A concrete node is a degree-sized disc tinted by its category; an abstract
   category is a dashed ring in the asset green. The selected node gets an orange
   ring, not an orange fill.
@@ -87,13 +70,11 @@ rank wrapping. Pan/zoom and focus are the answers, not folding.
 - Orange is the selected node outline and selected relationship only. A selected
   node's incident edges turn blue; every other edge dims. Hovering a node turns
   its incident edges blue.
-- Labels are 12.5px chips: a 24px dark backing, a 4px radius and the node label.
+- Labels are 9px chips: a dark backing, a 1px muted border and the node label.
   Hub labels only by default; **All** is a named control in the side bar.
 - No transitions, filters or drop shadows inside the SVG scene. Button motion
   is scoped to HTML controls so graph geometry never fades or translates.
-- Strokes use `vector-effect="non-scaling-stroke"`; link cores are 1.55px
-  ambient, 2.35px hover and 3.25px selected, with a canvas-coloured halo only
-  on hover and selection. A 200% zoom keeps the stroke width.
+- Strokes use `vector-effect="non-scaling-stroke"`; a 200% zoom keeps 1px lines.
 - Labels keep constant size, weight and position in every state. Cull
   overlapping labels deterministically with priority for selected, hovered,
   neighbours and high degree; the selected label is always visible.
@@ -118,25 +99,25 @@ rank wrapping. Pan/zoom and focus are the answers, not folding.
 ## Tokens (single source)
 
 ```text
-abyss       #1a1a1a   editor / node canvas
-panel       #303030   region background (Blender region_bg)
-panel-raised#3d3d3d   panel header and back
-panel-soft  #474747   raised control / hover
-inset       #181818   tab strip, inset field
-gutter      #101010   seam between regions
-line        #545454   panel / widget outline
-line-soft   #444444   row separator
-line-strong #606060   control outline
+abyss       #1d1d1d   editor canvas
+panel       #232323   region body
+panel-raised#2b2b2b   area header / section band
+panel-soft  #333333   raised control
+inset       #191919   inset field
+gutter      #111111   seam between regions
+line        #3a3a3a
+line-soft   #2c2c2c
+line-strong #4a4a4a
 edge        #8b96a3   graph connection, never a panel border
 text        #e6e6e6
-muted       #d0d0d0
-faint       #adadad
-accent      #4772b3   Blender blue: active/primary
-accent-strong #71a8ff
-accent-soft #2c4463
+muted       #b0b0b0
+faint       #808080
+accent      #5b8bd0   Blender blue: active/primary
+accent-strong #7aa7e6
+accent-soft #24364d
 accent-ink  #0b1620
-selection   #ed5700   Blender node-selected orange
-selection-strong #ff7a2a
+selection   #ff9f43   Blender orange: selected graph item
+selection-strong #e87d0d
 selection-soft   #4a2c12
 high     #df8a4f
 asset    #6aa84f
