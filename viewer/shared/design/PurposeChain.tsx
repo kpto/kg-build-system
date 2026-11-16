@@ -12,16 +12,17 @@ export interface PurposeChainProps {
   emptyText?: string;
 }
 
-/** The root is the broad premise; each narrower purpose steps in. */
+/** The root is the broad premise; each narrower purpose is 14% shorter. */
 const WIDTH_STEP = 14;
 
 /**
- * The record-axis purpose chain, drawn as a descent.
+ * The record-axis purpose chain: labels on the left, a tapering purpose box on
+ * the right.
  *
- * Each level steps in from the one above, and a single accent spine runs from
- * the graph root to the current declaration. The step and the spine state that
- * a local purpose is read under its parent and narrows it; every level keeps
- * its own text, so this is derivation, not copied meaning.
+ * The root is the widest box; each level narrows it and steps in at the right
+ * edge. A single accent spine marks the descent, and the current level is
+ * tinted. Each box shows only the purpose, clamped, so a long purpose hides the
+ * remainder. The scheme is derivation, not copied meaning.
  */
 export function PurposeChain({
   levels,
@@ -51,19 +52,22 @@ export function PurposeChain({
               key={`${level.kind}:${level.name}`}
             >
               {index > 0 ? (
-                <div className={styles.purposeConnector} aria-hidden>
-                  <span className={styles.purposeConnectorLine} />
-                  <ArrowDown size={13} strokeWidth={1.8} />
+                <div className={styles.purposeConnectorRow} aria-hidden>
+                  <span />
+                  <div
+                    className={styles.purposeConnectorCell}
+                    style={{ width: `${width}%` }}
+                  >
+                    <span className={styles.purposeConnectorLine} />
+                    <ArrowDown size={13} strokeWidth={1.8} />
+                  </div>
                 </div>
               ) : null}
               <div
-                className={styles.purposeNode}
-                style={{ width: `${width}%` }}
+                className={styles.purposeRow}
+                data-current={current || undefined}
               >
-                <div
-                  className={styles.purposeMeta}
-                  data-current={current || undefined}
-                >
+                <div className={styles.purposeMeta}>
                   <span className={styles.purposeKind}>{level.label}</span>
                   <span className={styles.purposeName}>{level.name}</span>
                   {current ? (
@@ -78,6 +82,7 @@ export function PurposeChain({
                   <button
                     type="button"
                     className={styles.purposeBox}
+                    style={{ width: `${width}%` }}
                     onClick={() => onOpen?.(level)}
                     title={`${text} — open ${level.name}`}
                   >
@@ -91,7 +96,11 @@ export function PurposeChain({
                     </span>
                   </button>
                 ) : (
-                  <div className={styles.purposeBox} title={text}>
+                  <div
+                    className={styles.purposeBox}
+                    style={{ width: `${width}%` }}
+                    title={text}
+                  >
                     <span
                       className={cx(
                         styles.purposeText,
