@@ -81,8 +81,8 @@ A kind includes or omits a section; it never renames one for itself.
 - **Overview** is one fact grid: kind, labels, identity, owner or endpoints,
   counts and licence.
 - **Meaning** is a compact purpose chain. On the record axis it reads the
-  graph purpose downward through category and component to property: the label
-  sits on the left, and the purpose box tapers 14% per level to the right, each
+  graph purpose downward through category and component to property: the labels
+  sit on the left, and the centred purpose boxes taper 14% per level, each
   joined by an accent arrow centred over the child box; each box shows only its
   purpose. The root is marked, the current level is tinted and accented,
   and the box is constrained so a long purpose clamps and the rest stays hidden.

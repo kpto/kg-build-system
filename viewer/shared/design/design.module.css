@@ -252,6 +252,7 @@
   min-width: 0;
   flex-direction: column;
   align-items: center;
+  justify-self: center;
   color: var(--color-selection);
 }
 
@@ -266,6 +267,7 @@
   display: block;
   overflow: hidden;
   min-width: 0;
+  margin-inline: auto;
   min-height: 46px;
   max-height: 68px;
   border: 1px solid var(--color-line-soft);
