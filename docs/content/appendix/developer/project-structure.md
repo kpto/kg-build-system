@@ -237,6 +237,12 @@ The test uses the import graph and the declaration values, not a text search. It
 - `__init__.py` is a facade: imports, `__all__` and re-export hooks, never a declaration or business logic.
 - A derived relation's `relation.py` publishes the contract; `_stage_*.py` stays private to the package.
 - A binding reads a published relation, never a stage.
+- A declaration carries its meaning inline and has no docstring; the meaning is
+  its documentation. A module docstring may state the file's role, not restate
+  the declaration's meaning.
+- A one-use expression is inline at the declaration or field that uses it. A
+  module-level alias or helper for one declaration is a second place to read;
+  name a value only when it is a declaration or several declarations share it.
 - `graph/` imports neither `relation/` nor `binding/`; `binding/` is the only declaration directory that imports both axes.
 - `modules/` extends the framework and does not import the project's declarations.
 - Do not split one declaration for a line count; split it when it makes more than one decision.
