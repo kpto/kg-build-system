@@ -72,7 +72,9 @@ export function DetailDocument({
           </div>
         ) : null}
       </header>
-      <div className={styles.body}>{children}</div>
+      <div className={styles.body}>
+        <div className={styles.bodyCard}>{children}</div>
+      </div>
     </div>
   );
 }
@@ -95,8 +97,8 @@ export interface DetailBandProps {
  * One section of a detail document.
  *
  * The header is structural and shared by every kind: a micro title, the
- * question the section answers, and one count. The body holds content only; a
- * section never wraps itself in a floating card.
+ * question the section answers, and one count. All sections share one card
+ * frame and divide inside it; the body holds content only.
  */
 export function DetailBand({
   title,

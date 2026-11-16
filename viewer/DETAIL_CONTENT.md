@@ -91,11 +91,13 @@ purpose, a grain or an identity.
 
 ## Layout
 
-- A document is a stack of full-width bands separated by 1px rules. No band is
-  a floating card and no band has a drop shadow.
-- The header is sticky; the bands scroll.
-- The band body is 8px above and 10px below its content; a flush body is used
-  for a canvas or a table that owns its own padding.
+- A document renders one card frame inset 12px from the document edge. Every
+  section lives inside that frame; the sections divide with 1px rules rather
+  than each becoming a separate card. The frame has a 1px outline, a 3px
+  radius and no drop shadow.
+- The header is sticky; the frame scrolls.
+- The section body is 8px above and 10px below its content; a flush body is
+  used for a canvas or a table that owns its own padding.
 - A table shares one `grid-template-columns` between its head and every row.
 - At narrow width the Sources groups stack and the full axis map becomes one
   column; nothing overflows horizontally.
