@@ -1,6 +1,6 @@
 "use client";
 
-import { Boxes, FolderOpen, PanelLeft, RotateCcw, Search, Settings } from "lucide-react";
+import { Boxes, Database, FolderOpen, PanelLeft, Search, Settings } from "lucide-react";
 
 import { useWorkbench } from "./store";
 
@@ -10,7 +10,6 @@ export interface TitleBarProps {
   onOpenWorkflowFile(): void;
   sidebarVisible: boolean;
   onToggleSidebar(): void;
-  onResetLayout(): void;
 }
 
 export function TitleBar({
@@ -19,10 +18,10 @@ export function TitleBar({
   onOpenWorkflowFile,
   sidebarVisible,
   onToggleSidebar,
-  onResetLayout,
 }: TitleBarProps) {
   const { state } = useWorkbench();
   const snapshot = state.snapshot;
+  const built = (snapshot.report?.published_artifacts.length ?? 0) > 0;
 
   return (
     <header className="wb-titlebar" aria-label="Workbench title bar">
@@ -33,10 +32,20 @@ export function TitleBar({
         <span className="wb-brand-name">KG Design</span>
       </div>
 
-      <div className="wb-snapshot" title={snapshot.title}>
+      <span className="wb-snapshot" title={snapshot.title}>
+        <Database aria-hidden className="size-3" />
         <span className="wb-snapshot-name">{snapshot.name}</span>
-        <span className="wb-snapshot-title">{snapshot.title}</span>
-      </div>
+        <span
+          className="wb-snapshot-mode"
+          title={
+            built
+              ? "Snapshot carries a build report"
+              : "Compile-only snapshot: it carries no execution report"
+          }
+        >
+          {built ? "built" : "compiled"}
+        </span>
+      </span>
 
       <button
         type="button"
@@ -71,15 +80,6 @@ export function TitleBar({
           title={sidebarVisible ? "Hide side bar (Ctrl/Cmd+B)" : "Show side bar (Ctrl/Cmd+B)"}
         >
           <PanelLeft aria-hidden className="size-4" />
-        </button>
-        <button
-          type="button"
-          className="wb-icon-button"
-          onClick={onResetLayout}
-          aria-label="Reset the workbench layout"
-          title="Reset the workbench layout"
-        >
-          <RotateCcw aria-hidden className="size-4" />
         </button>
         <button
           type="button"

@@ -18,7 +18,7 @@ import { Splitter } from "./Splitter";
 import { StatusBar } from "./StatusBar";
 import { WorkbenchProvider, useWorkbench } from "./store";
 import { TitleBar } from "./TitleBar";
-import { DEFAULT_LAYOUT, MAX_SIDEBAR, MIN_SIDEBAR } from "./types";
+import { MAX_SIDEBAR, MIN_SIDEBAR } from "./types";
 
 interface LoadedWorkbench {
   snapshot: ViewerSnapshot;
@@ -173,13 +173,6 @@ function WorkbenchShell({
     setSettingsOpen(true);
   }, []);
 
-  const resetLayout = useCallback(() => {
-    actions.setLayout({
-      sidebarWidth: DEFAULT_LAYOUT.sidebarWidth,
-      sidebarSplit: DEFAULT_LAYOUT.sidebarSplit,
-    });
-  }, [actions]);
-
   useEffect(() => {
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
@@ -289,7 +282,6 @@ function WorkbenchShell({
         onOpenWorkflowFile={openFilePicker}
         sidebarVisible={sidebarVisible}
         onToggleSidebar={() => setSidebarVisible((visible) => !visible)}
-        onResetLayout={resetLayout}
       />
 
       <div className="wb-body" style={bodyStyle}>

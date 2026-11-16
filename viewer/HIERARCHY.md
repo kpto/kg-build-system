@@ -22,10 +22,10 @@ A level may be absent. It is never reordered or nested inside the same kind.
 
 | Region | Contents | Owner |
 | --- | --- | --- |
-| Title bar | brand, snapshot, open-workflow-file, command trigger, side-bar toggle, layout reset, settings | `workbench/TitleBar` |
+| Title bar | brand, one snapshot chip (name and built/compiled mode), centred command trigger, open-workflow-file, side-bar toggle, settings | `workbench/TitleBar` |
 | Side bar | collapsible **Control** and **Explorer** sections | `workbench/SideBar` |
 | Editor | global document tabs + one mounted pane per document | `workbench/EditorArea` |
-| Status bar | snapshot, document view, selected subject, counts, compile-only, zoom | `workbench/StatusBar` |
+| Status bar | active document and selection, unresolved build failures, counts, zoom | `workbench/StatusBar` |
 
 The side bar is 220–520 px wide and is the only resizable panel. One
 `WorkbenchLayout` is persisted per snapshot: the side-bar width and the split

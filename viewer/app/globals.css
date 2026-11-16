@@ -279,34 +279,49 @@
 
   .wb-snapshot {
     display: flex;
+    height: 24px;
     min-width: 0;
-    max-width: 34vw;
-    align-items: baseline;
-    gap: 8px;
+    max-width: 36vw;
+    flex: none;
+    align-items: center;
+    gap: 6px;
     overflow: hidden;
+    padding: 0 8px;
+    border: 1px solid var(--color-line);
+    border-radius: 4px;
+    background-color: var(--color-panel);
     white-space: nowrap;
   }
 
-  .wb-snapshot-name {
-    color: var(--color-text);
-    font-family: var(--font-mono);
-    font-size: 13px;
-    font-variant-numeric: tabular-nums;
+  .wb-snapshot > svg {
+    flex: none;
+    color: var(--color-faint);
   }
 
-  .wb-snapshot-title {
+  .wb-snapshot-name {
     overflow: hidden;
-    color: var(--color-faint);
+    color: var(--color-text);
+    font-family: var(--font-mono);
     font-size: 12px;
+    font-variant-numeric: tabular-nums;
     text-overflow: ellipsis;
+  }
+
+  .wb-snapshot-mode {
+    flex: none;
+    padding-left: 6px;
+    border-left: 1px solid var(--color-line);
+    color: var(--color-faint);
+    font-size: 11px;
+    letter-spacing: 0.02em;
   }
 
   .wb-command {
     display: flex;
-    width: min(620px, 38vw);
+    width: min(460px, 34vw);
     height: 26px;
-    min-width: 160px;
-    flex: 1 1 auto;
+    min-width: 180px;
+    flex: 0 1 460px;
     align-items: center;
     gap: 7px;
     margin: 0 auto;
@@ -782,6 +797,10 @@
     overflow: hidden;
     color: var(--color-text);
     text-overflow: ellipsis;
+  }
+
+  .wb-status-failure {
+    color: var(--color-rejected);
   }
 
   .wb-status-divider {

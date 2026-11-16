@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleDot, Database, Minus, Plus } from "lucide-react";
+import { AlertTriangle, CircleDot, Minus, Plus } from "lucide-react";
 
 import { useWorkbench } from "./store";
 import { activeDocument, lensSelection } from "./types";
@@ -20,15 +20,14 @@ function displayIdentity(value: string): string {
 }
 
 function selectedSubject(selection: SubjectSelection | undefined): string {
-  if (!selection) return "No subject selected";
+  if (!selection) return "";
   if (selection.stepId) return selection.stepId.join(" / ");
   if (selection.component && selection.property) {
     return `${displayIdentity(selection.component)}.${selection.property}`;
   }
   if (selection.component) return displayIdentity(selection.component);
   if (selection.name) return selection.name;
-  if (selection.kind) return selection.kind;
-  return "No subject selected";
+  return "";
 }
 
 export function StatusBar({
@@ -53,37 +52,40 @@ export function StatusBar({
     document.kind === "workflow"
       ? `${state.index.workflow.steps.length} steps / ${state.index.workflow.connections.length} connections`
       : selectedSubject(selection);
+  const failures = state.snapshot.report?.unresolved_failures.length ?? 0;
 
   return (
     <footer className="wb-statusbar" aria-label="Workbench status">
       <div className="wb-status-cluster">
-        <span className="wb-status-item" title={state.snapshot.title}>
-          <Database aria-hidden className="size-3" />
-          <span className="wb-mono">{state.snapshot.name}</span>
-        </span>
-        <span className="wb-status-divider" aria-hidden />
         <span className="wb-status-item" title="Active document selection">
           <CircleDot aria-hidden className="size-3" />
-          <span className="wb-status-label">
-            {documentLabel}
-          </span>
-          <span className="wb-mono wb-status-subject">{subjectLabel}</span>
+          <span className="wb-status-label">{documentLabel}</span>
+          {subjectLabel ? (
+            <span className="wb-status-subject">{subjectLabel}</span>
+          ) : null}
         </span>
+        {failures ? (
+          <span
+            className="wb-status-item wb-status-failure"
+            title={`${failures} unresolved build ${
+              failures === 1 ? "failure" : "failures"
+            }`}
+          >
+            <AlertTriangle aria-hidden className="size-3" />
+            {failures} unresolved
+          </span>
+        ) : null}
       </div>
 
       <div className="wb-status-cluster wb-status-trailing">
-        <span className="wb-status-item wb-mono" title="Topology nodes">
+        <span className="wb-status-item" title="Topology nodes">
           {stats.topologyNodes} nodes
         </span>
-        <span className="wb-status-item wb-mono" title="Topology edges">
+        <span className="wb-status-item" title="Topology edges">
           {stats.topologyEdges} edges
         </span>
-        <span className="wb-status-item wb-mono" title="Bindings">
+        <span className="wb-status-item" title="Bindings">
           {stats.bindings} bindings
-        </span>
-        <span className="wb-status-divider" aria-hidden />
-        <span className="wb-status-item" title="Compile-only snapshot">
-          compile-only
         </span>
         <span className="wb-status-divider" aria-hidden />
         <span className="wb-zoom" role="group" aria-label="Interface zoom">
