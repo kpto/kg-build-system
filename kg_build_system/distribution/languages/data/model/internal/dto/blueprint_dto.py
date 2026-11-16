@@ -91,7 +91,6 @@ class ColumnDTO:
     name: str
     logical_type: LogicalTypeDTO
     ref: FieldRef
-    description: str | None = None
     annotations: tuple[AnnotationDTO, ...] = ()
     expression: ExpressionDTO | None = None
     meaning: MeaningDTO | None = None
@@ -104,7 +103,6 @@ class StructDTO:
 
     name: str
     columns: tuple[ColumnDTO, ...]
-    description: str | None = None
     annotations: tuple[AnnotationDTO, ...] = ()
     meaning: MeaningDTO | None = None
 
@@ -116,7 +114,6 @@ class SourceRelationDTO:
     name: str
     columns: tuple[ColumnDTO, ...]
     asset: AssetRef
-    description: str | None = None
     annotations: tuple[AnnotationDTO, ...] = ()
     meaning: MeaningDTO | None = None
     definition: DefinitionDTO | None = None
@@ -223,7 +220,6 @@ class DerivedRelationDTO:
     columns: tuple[ColumnDTO, ...]
     row_source: RowSourcePlanDTO
     definition: DefinitionDTO
-    description: str | None = None
     annotations: tuple[AnnotationDTO, ...] = ()
     visibility: Literal["public", "internal"] = "public"
     meaning: MeaningDTO | None = None

@@ -14,11 +14,10 @@ class GraphDeclarationDTO:
 
     ``name`` is the portable graph name and ``meaning`` is the project's
     meaning root: the same ``MeaningDTO`` value every other declaration uses,
-    carrying a required purpose. ``description`` is nullable prose.
+    carrying a required purpose.
     """
 
     name: str
-    description: str | None
     meaning: MeaningDTO
 
     def __post_init__(self) -> None:
@@ -31,12 +30,6 @@ class GraphDeclarationDTO:
         if self.meaning.purpose is None:
             raise ValueError(
                 "a graph declaration requires a Meaning with a purpose"
-            )
-        if self.description is not None and (
-            not isinstance(self.description, str) or not self.description
-        ):
-            raise ValueError(
-                "a graph declaration description must be null or a non-empty string"
             )
 
 

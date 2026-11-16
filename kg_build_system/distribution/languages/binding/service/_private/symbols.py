@@ -1,7 +1,8 @@
 """Project binding declarations into linked symbols.
 
-A binding's identity is its debug name when present, otherwise a content digest
-of its document. Its references are read from the authoring binding: the target
+A binding's identity is a content digest of its document. Its ``name`` is a
+display handle and is excluded from that digest, so renaming a binding does not
+change its identity. Its references are read from the authoring binding: the target
 component, the endpoint nodes, the row sources it reads and every expression
 leaf. A transcribed DTO is never the source of those references.
 """
@@ -59,13 +60,13 @@ def binding_identity(value: Any) -> str:
     """Return the stable identity string of one binding."""
     dto = _as_dto(value)
     document = binding_to_document(dto)
-    document.pop("debug_name", None)
+    document.pop("name", None)
     document.pop("python_ref", None)
     digest = sha256(json.dumps(
         document, sort_keys=True, separators=(",", ":"), default=str,
     ).encode("utf-8")).hexdigest()[:16]
-    if dto.debug_name:
-        return f"{dto.debug_name}:{digest}"
+    if dto.name:
+        return f"{dto.name}:{digest}"
     return digest
 
 

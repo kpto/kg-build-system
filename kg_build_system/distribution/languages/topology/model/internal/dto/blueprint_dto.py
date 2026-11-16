@@ -47,7 +47,6 @@ class PropertyDTO:
     name: str
     logical_type: LogicalTypeDTO
     ref: PropertyRef
-    description: str | None = None
     annotations: tuple[AnnotationDTO, ...] = ()
     meaning: MeaningDTO | None = None
 
@@ -82,7 +81,6 @@ class NodeDTO:
     annotations: tuple[AnnotationDTO, ...] = ()
     abstract: bool = False
     parent: NodeRef | None = None
-    description: str | None = None
     meaning: MeaningDTO | None = None
 
     def __post_init__(self) -> None:
@@ -93,7 +91,6 @@ class NodeDTO:
             self.labels,
             tuple(item.name for item in self.properties),
             None if self.parent is None else self.parent.name,
-            self.description,
         )
 
 
@@ -126,7 +123,6 @@ class EdgeDTO:
     annotations: tuple[AnnotationDTO, ...] = ()
     abstract: bool = False
     parent: EdgeRef | None = None
-    description: str | None = None
     meaning: MeaningDTO | None = None
 
     def __post_init__(self) -> None:
@@ -137,7 +133,6 @@ class EdgeDTO:
             self.labels,
             tuple(item.name for item in self.properties),
             None if self.parent is None else self.parent.name,
-            self.description,
         )
         if not self.source.name or not self.target.name:
             raise ValueError(

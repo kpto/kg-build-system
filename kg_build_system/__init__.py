@@ -48,6 +48,9 @@ if TYPE_CHECKING:
         EdgeTemplate, Endpoint, Node, NodeOptions, NodeOptionsTemplate,
         NodeTemplate, PropertySlot, endpoint, property,
     )
+    from .distribution.model.public.manifest import (
+        Blueprint, Workflow,
+    )
     from .distribution.model.public.runtime import BuildRuntime
     from .kernel.model.public.runtime import WorkflowReport
     from .kernel.model.public.types import (
@@ -131,6 +134,7 @@ _GROUPS: dict[str, tuple[str, ...]] = {'api': ('DEFAULT_TOOLCHAIN',
                                      'PropertySlot',
                                      'endpoint',
                                      'property'),
+ 'distribution.model.public.manifest': ('Blueprint', 'Workflow'),
  'distribution.model.public.runtime': ('BuildRuntime',),
  'kernel.model.public.runtime': ('WorkflowReport',),
  'kernel.model.public.types': ('Array',
@@ -159,6 +163,8 @@ __all__ = ['DEFAULT_TOOLCHAIN',
  'default_toolchain',
  'execute',
  'GraphBlueprint',
+ 'Blueprint',
+ 'Workflow',
  'Asset',
  'AssetAuthority',
  'AssetGovernance',

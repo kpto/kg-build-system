@@ -17,10 +17,6 @@ if TYPE_CHECKING:
     from ...model.public.row_sources import DerivedRowSource
 
 
-def _description(cls: type[Any], configured: str | None) -> str | None:
-    return configured if configured is not None else (vars(cls).get("__doc__") or None)
-
-
 def _final_kind(cls: type[Any]) -> str | None:
     spec = vars(cls).get("_kg_declaration_spec")
     return spec.kind if isinstance(spec, DeclarationSpec) and spec.final else None
@@ -47,7 +43,7 @@ def _record_template_annotations(cls: type[Any], options: Any) -> None:
     if isinstance(options, (SourceRelationOptions, StructOptions)):
         raise TypeError(
             f"{cls.__name__} is a data template: its options must be "
-            "StructOptionsTemplate, which carries no name or description — wrap it: "
+            "StructOptionsTemplate, which carries no name — wrap it: "
             "`options = StructOptionsTemplate(annotations=(...))`"
         )
     raise TypeError(
@@ -73,7 +69,6 @@ def _prepare_declaration(
     *,
     kind: str,
     name: str | None,
-    description: str | None,
     annotations: tuple[Annotation, ...],
     final: bool = True,
     row_source: Any = None,
@@ -87,7 +82,6 @@ def _prepare_declaration(
     spec = DeclarationSpec(
         kind=kind,
         name=name,
-        description=description,
         annotations=annotations,
         fields=fields,
         final=final,
@@ -101,7 +95,6 @@ def _prepare_declaration(
     cls._fields = {item.attribute: item.descriptor for item in fields}
     cls._data_name = name
     cls._data_annotations = annotations
-    cls._data_metadata = {"description": description} if description is not None else {}
     cls._data_declaration_kind = kind if final else None
     return spec
 
@@ -207,7 +200,6 @@ def prepare_source_relation_declaration(cls: type[Any]) -> None:
         cls,
         kind="source_relation",
         name=name,
-        description=_description(cls, options.description),
         annotations=(*_template_annotations(cls), *options.annotations),
         asset=asset,
         meaning=meaning,
@@ -228,7 +220,6 @@ def prepare_struct_declaration(cls: type[Any]) -> None:
         cls,
         kind="struct",
         name=name,
-        description=_description(cls, options.description),
         annotations=(*_template_annotations(cls), *options.annotations),
         meaning=options.meaning,
     )
@@ -247,7 +238,6 @@ def prepare_computed_struct_declaration(cls: type[Any]) -> None:
         cls,
         kind="computed_struct",
         name=name,
-        description=_description(cls, options.description),
         annotations=(*_template_annotations(cls), *options.annotations),
         meaning=options.meaning,
     )
@@ -348,7 +338,6 @@ def _prepare_computed_relation(
         cls,
         kind=kind,
         name=name,
-        description=_description(cls, options.description) if options else None,
         annotations=tuple(options.annotations) if options else (),
         final=not is_base,
         row_source=row_source,
@@ -443,7 +432,6 @@ def prepare_source_relation_group_declaration(cls: type[Any]) -> None:
         cls,
         kind="source_relation_group",
         name=name,
-        description=_description(cls, options.description),
         annotations=tuple(options.annotations),
         members=entries,
     )

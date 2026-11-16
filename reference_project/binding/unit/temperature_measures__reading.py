@@ -21,7 +21,7 @@ temperature_measures_binding = edge_binding(
             **relation_stamps,
         ),
     ),
-    debug_name="temperature_measure",
+    name="temperature_measure",
     options=BindingOptions(
         meaning=Meaning(
             purpose=Purpose(

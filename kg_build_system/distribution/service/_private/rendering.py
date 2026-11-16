@@ -81,13 +81,6 @@ def member_name(value: str) -> str:
     return candidate
 
 
-def render_docstring(text: str | None, indent: str = "    ") -> tuple[str, ...]:
-    """Render a description as a single docstring line, if present."""
-    if not text:
-        return ()
-    return (f"{indent}{text!r}",)
-
-
 def render_static_value(value: Any) -> str:
     """Render a JSON-compatible annotation argument as Python source."""
     if isinstance(value, FrozenObject):
@@ -194,6 +187,6 @@ def render_annotation(value: AnnotationDTO, imports: set[str]) -> str:
 
 __all__ = [
     "annotation_class", "class_name", "member_name", "pascal_case",
-    "render_annotation", "render_docstring", "render_logical_type",
+    "render_annotation", "render_logical_type",
     "render_static_value", "snake_case",
 ]

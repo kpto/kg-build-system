@@ -412,8 +412,8 @@ def _binding_source(
                 "    target_node=endpoint("
                 f"{class_name(binding.target_node.name, 'Node')}),"
             )
-    if binding.debug_name is not None:
-        lines.append(f"    debug_name={binding.debug_name!r},")
+    if binding.name is not None:
+        lines.append(f"    name={binding.name!r},")
     if annotations is not None:
         if binding.meaning is None:
             raise ValueError("a binding annotation requires a binding meaning")

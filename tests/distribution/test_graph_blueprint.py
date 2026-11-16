@@ -90,7 +90,6 @@ def _meaning() -> MeaningDTO:
 def _declaration() -> GraphDeclarationDTO:
     return GraphDeclarationDTO(
         name="open_targets",
-        description="The Open Targets graph.",
         meaning=_meaning(),
     )
 

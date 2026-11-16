@@ -29,6 +29,7 @@ from .implementations import (
 from .interpreter import GraphBlueprint, create_blueprint
 from .model.public import (
     AssetRef,
+    Blueprint,
     BuildRuntime,
     EdgeRef,
     FieldRef,
@@ -37,6 +38,7 @@ from .model.public import (
     PropertyRef,
     Ref,
     RelationRef,
+    Workflow,
     ref_from_document,
     ref_to_document,
 )
@@ -90,6 +92,7 @@ __all__ = [
     "AssetRef",
     "BindingLanguage",
     "BindingPlanner",
+    "Blueprint",
     "BlueprintLinker",
     "BuildRuntime",
     "ConflictReportExecutor",
@@ -131,6 +134,7 @@ __all__ = [
     "RelationRef",
     "RowSourcePlanner",
     "RuntimeResources",
+    "Workflow",
     "TopologyLanguage",
     "core_planners",
     "create_blueprint",

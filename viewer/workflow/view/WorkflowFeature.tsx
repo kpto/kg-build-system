@@ -423,7 +423,7 @@ function StepDetail({
                     {binding.component}
                   </span>
                   <span className="shrink-0 text-faint">
-                    {binding.binding.debug_name ?? binding.kind}
+                    {binding.binding.name ?? binding.kind}
                   </span>
                 </div>
               ))}

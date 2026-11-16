@@ -9,8 +9,6 @@ from ..types import field_annotation
 def render_field(field: GeneratedField) -> str:
     annotation = f"Field[{field_annotation(field.value_type)}]"
     arguments: list[str] = [f"name={field.external_name!r}"]
-    if field.description is not None:
-        arguments.append(f"description={field.description!r}")
     if field.annotations:
         arguments.append(
             "annotations=("
@@ -35,8 +33,6 @@ def render_class(declaration: GeneratedClass, *, options_class: str | None = Non
         base_name = f"{base_name}[{declaration.asset.qualname}]"
     base = f"({base_name})" if base_name else ""
     lines = [f"class {declaration.name}{base}:"]
-    if declaration.description:
-        lines.append(f"    {declaration.description!r}")
     if declaration.declaration_name is not None and options_class is not None:
         lines.append(f"    options = {options_class}(name={declaration.declaration_name!r})")
     lines.extend(render_field(field) for field in declaration.fields)
@@ -44,7 +40,6 @@ def render_class(declaration: GeneratedClass, *, options_class: str | None = Non
     if (
         not declaration.fields
         and not declaration.members
-        and not declaration.description
         and declaration.declaration_name is None
     ):
         lines.append("    pass")

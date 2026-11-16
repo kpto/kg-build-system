@@ -21,7 +21,7 @@ item_binding = node_binding(
         build_key=row.item_id.alter_rows().drop_null(),
         properties=ItemNode(label=row.item_label.default_to("Untitled item")),
     ),
-    debug_name="fixture_item",
+    name="fixture_item",
     options=BindingOptions(
         meaning=Meaning(
             purpose=Purpose(

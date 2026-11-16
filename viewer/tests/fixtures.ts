@@ -253,7 +253,7 @@ const contractDocument = {
         rows: { kind: "scan", relation: ["data", "relation", "surveys"] },
         annotations: [],
         mode: "merge",
-        debug_name: "defect.title",
+        name: "defect.title",
         python_ref: {
           module: "fixture.bindings.defect",
           qualname: "DefectTitle",

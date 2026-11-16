@@ -10,7 +10,7 @@ sources:
   - docs/content/book/intent.md
   - docs/content/appendix/developer/project-structure.md
   - AGENTS.md
-  - reference_project/build.py
+  - reference_project/manifest.py
 ---
 
 <div class="kb-section-head">

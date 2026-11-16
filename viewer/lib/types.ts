@@ -254,7 +254,7 @@ export interface BindingDTO {
   rows?: RowSource;
   annotations?: AnnotationDTO[];
   mode?: string;
-  debug_name?: string;
+  name?: string;
   python_ref?: {
     module?: string;
     qualname?: string;

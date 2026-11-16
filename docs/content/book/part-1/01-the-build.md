@@ -12,7 +12,7 @@ sources:
   - kg_build_system/api.py
   - kg_build_system/distribution/interpreter/model/public/graph_blueprint.py
   - kg_build_system/kernel/model/public/workflow.py
-  - reference_project/build.py
+  - reference_project/manifest.py
   - docs/content/book/part-3/01-linking-and-blueprint.md
 ---
 

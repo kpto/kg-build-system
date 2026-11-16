@@ -124,7 +124,6 @@ class AssetProfile:
     authority: AssetAuthority
     basis: str
     title: str | None = None
-    description: str | None = None
 
     def __post_init__(self) -> None:
         from ...service._private.options import optional_text, required_text
@@ -137,7 +136,6 @@ class AssetProfile:
                 "asset profile authority must be an AssetAuthority"
             )
         optional_text(self.title, "an asset profile title")
-        optional_text(self.description, "an asset profile description")
 
 
 @dataclass(frozen=True, slots=True)

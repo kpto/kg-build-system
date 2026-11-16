@@ -21,7 +21,7 @@ vibration_measures_binding = edge_binding(
             **relation_stamps,
         ),
     ),
-    debug_name="vibration_measure",
+    name="vibration_measure",
     options=BindingOptions(
         meaning=Meaning(
             purpose=Purpose(

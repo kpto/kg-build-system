@@ -177,7 +177,7 @@ def namespace_modules(path: str | Path) -> tuple[ModuleType, ...]:
         if current != root:
             names.add(".".join(parts))
         for file in files:
-            if not file.endswith(".py") or file == "__init__.py":
+            if not file.endswith(".py") or file in {"__init__.py", "manifest.py"}:
                 continue
             stem = file[:-3]
             if stem.isidentifier():

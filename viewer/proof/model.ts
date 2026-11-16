@@ -272,7 +272,7 @@ function buildTypeChain(
     id: "binding",
     stage: "binding",
     label: `binding ${branch.binding.index}`,
-    detail: branch.binding.binding.debug_name,
+    detail: branch.binding.binding.name,
     typeName: logicalTypeName(bindingType),
     presence: logicalTypePresence(bindingType),
     mismatch: mismatched(bindingType),

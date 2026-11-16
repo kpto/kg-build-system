@@ -28,7 +28,7 @@ temperature_reading_binding = node_binding(
             **provenance_stamps,
         ),
     ),
-    debug_name="temperature_logger",
+    name="temperature_logger",
     options=BindingOptions(
         meaning=Meaning(
             purpose=Purpose(

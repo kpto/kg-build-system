@@ -113,8 +113,6 @@ def _profile_lines(
     lines.append(f"{indent}    basis={value.basis!r},")
     if value.title is not None:
         lines.append(f"{indent}    title={value.title!r},")
-    if value.description is not None:
-        lines.append(f"{indent}    description={value.description!r},")
     lines.append(f"{indent}),")
     return lines
 

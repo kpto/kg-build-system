@@ -27,7 +27,6 @@ def graph_declaration_dto(value: type[Any]) -> GraphDeclarationDTO:
     options = value._graph_options
     return GraphDeclarationDTO(
         name=value._graph_name,
-        description=options.description,
         meaning=graph_meaning_dto(options.meaning),
     )
 

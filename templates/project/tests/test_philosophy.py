@@ -14,7 +14,18 @@ from pathlib import Path
 
 from kg_build_system.distribution.languages.data.model.internal import RowScanDTO
 
-from project.build import create_project_blueprint
+from project.manifest import blueprint as blueprint_declaration
+
+from kg_build_system import create_blueprint
+
+
+def create_project_blueprint():
+    """Build the blueprint the manifest declares."""
+    return create_blueprint(
+        namespace_path=blueprint_declaration.namespace_path,
+        bindings=blueprint_declaration.bindings,
+        languages=blueprint_declaration.languages,
+    )
 
 ROOT = Path(__file__).parent.parent / "project"
 PACKAGE = "project"

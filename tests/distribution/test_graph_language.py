@@ -53,13 +53,9 @@ def _meaning_dto() -> MeaningDTO:
     )
 
 
-def _options(
-    name: str | None = None,
-    description: str | None = "Curated target-disease evidence.",
-) -> GraphOptions:
+def _options(name: str | None = None) -> GraphOptions:
     return GraphOptions(
         name=name,
-        description=description,
         meaning=_meaning(),
     )
 
@@ -71,13 +67,9 @@ def _declaration(name: str | None = None) -> type[Graph]:
     return OpenTargets
 
 
-def _dto(
-    name: str = "open_targets",
-    description: str | None = "Curated target-disease evidence.",
-) -> GraphDeclarationDTO:
+def _dto(name: str = "open_targets") -> GraphDeclarationDTO:
     return GraphDeclarationDTO(
         name=name,
-        description=description,
         meaning=_meaning_dto(),
     )
 
@@ -97,15 +89,12 @@ class GraphOptionsTests(unittest.TestCase):
                 meaning=Meaning(claims=(Claim("A claim."),)),
             )
 
-    def test_name_and_description_are_optional_non_empty_text(self) -> None:
+    def test_the_name_is_optional_non_empty_text(self) -> None:
         options = GraphOptions(meaning=_meaning())
         self.assertIsNone(options.name)
-        self.assertIsNone(options.description)
 
         with self.assertRaises(ValueError):
             GraphOptions(name="", meaning=_meaning())
-        with self.assertRaises(ValueError):
-            GraphOptions(description="", meaning=_meaning())
 
     def test_options_are_frozen(self) -> None:
         options = _options()
@@ -217,7 +206,6 @@ class GraphLanguageTests(unittest.TestCase):
             symbol.value,
             GraphDeclarationDTO(
                 name="open_targets",
-                description="Curated target-disease evidence.",
                 meaning=_meaning_dto(),
             ),
         )
@@ -234,9 +222,7 @@ class GraphCodecTests(unittest.TestCase):
         document = graph_declaration_to_document(value)
 
         self.assertEqual(document["name"], "open_targets")
-        self.assertEqual(
-            document["description"], "Curated target-disease evidence.",
-        )
+        self.assertNotIn("description", document)
         self.assertEqual(
             document["meaning"]["claims"],
             [{"text": "associations are scored per datatype"}],
@@ -247,20 +233,9 @@ class GraphCodecTests(unittest.TestCase):
         )
         self.assertEqual(graph_declaration_from_document(document), value)
 
-    def test_an_absent_description_is_omitted_and_decodes_to_none(self) -> None:
-        value = _dto(description=None)
-
-        document = graph_declaration_to_document(value)
-
-        self.assertNotIn("description", document)
-        self.assertIsNone(
-            graph_declaration_from_document(document).description
-        )
-
     def test_an_empty_claim_list_is_omitted(self) -> None:
         value = GraphDeclarationDTO(
             name="open_targets",
-            description=None,
             meaning=MeaningDTO(
                 purpose=PurposeDTO(text="rank targets for a disease"),
             ),
@@ -298,7 +273,6 @@ class GraphCodecTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Meaning with a purpose"):
             GraphDeclarationDTO(
                 name="open_targets",
-                description=None,
                 meaning=MeaningDTO(claims=(ClaimDTO("A claim."),)),
             )
 
@@ -311,9 +285,7 @@ class GraphSourceTests(unittest.TestCase):
         self.assertIn("class OpenTargetsGraph(Graph):", fragment.body)
         self.assertIn("options = GraphOptions(", fragment.body)
         self.assertIn("name='open_targets'", fragment.body)
-        self.assertIn(
-            "description='Curated target-disease evidence.'", fragment.body,
-        )
+        self.assertNotIn("description=", fragment.body)
         self.assertIn("meaning=Meaning(", fragment.body)
         self.assertIn("purpose=Purpose(", fragment.body)
         self.assertIn("from kg_build_system import Graph", fragment.imports)
@@ -324,11 +296,6 @@ class GraphSourceTests(unittest.TestCase):
             any("Meaning" in item for item in fragment.imports)
         )
         self.assertTrue(any("Purpose" in item for item in fragment.imports))
-
-    def test_an_absent_description_is_not_rendered(self) -> None:
-        fragment = render_graph_declaration_source(_dto(description=None))
-
-        self.assertNotIn("description=", fragment.body)
 
     def test_the_language_renders_a_symbol_or_a_dto(self) -> None:
         value = _dto()

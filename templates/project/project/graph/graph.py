@@ -11,7 +11,6 @@ class FixtureGraph(Graph):
 
     options = GraphOptions(
         name="fixture",
-        description="A conformance fixture for the project template.",
         meaning=Meaning(
             purpose=Purpose(
                 "Exercise every authoring layer of the template so a new project "

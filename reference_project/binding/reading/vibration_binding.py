@@ -23,7 +23,7 @@ vibration_reading_binding = node_binding(
             **provenance_stamps,
         ),
     ),
-    debug_name="vibration_logger",
+    name="vibration_logger",
     options=BindingOptions(
         meaning=Meaning(
             purpose=Purpose(

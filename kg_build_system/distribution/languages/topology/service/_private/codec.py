@@ -94,8 +94,6 @@ def _property_to_document(value: PropertyDTO) -> dict[str, Any]:
         "ref": ref_to_document(value.ref),
         "annotations": [annotation_to_document(item) for item in value.annotations],
     }
-    if value.description is not None:
-        result["description"] = value.description
     if value.meaning is not None:
         result["meaning"] = meaning_to_document(value.meaning)
     return result
@@ -109,7 +107,6 @@ def _property_from_document(value: Mapping[str, Any]) -> PropertyDTO:
         name=_text(value, "name"),
         logical_type=type_from_document(_object(value.get("logical_type"), "logical_type")),
         ref=reference,
-        description=_optional_text(value, "description"),
         annotations=tuple(
             annotation_from_document(_object(item, "property annotation"))
             for item in _array(value.get("annotations", ()), "annotations")
@@ -131,8 +128,6 @@ def _common_to_document(value: NodeDTO | EdgeDTO) -> dict[str, Any]:
     }
     if value.parent is not None:
         result["parent"] = ref_to_document(value.parent)
-    if value.description is not None:
-        result["description"] = value.description
     if value.meaning is not None:
         result["meaning"] = meaning_to_document(value.meaning)
     return result
@@ -165,7 +160,6 @@ def _common_from_document(value: Mapping[str, Any]) -> dict[str, Any]:
             for item in _array(value.get("annotations", ()), "annotations")
         ),
         "abstract": abstract,
-        "description": _optional_text(value, "description"),
         "meaning": (
             None if value.get("meaning") is None
             else meaning_from_document(value.get("meaning"))

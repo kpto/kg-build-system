@@ -8,7 +8,7 @@ verified: 2026-11-15
 sources:
   - docs/content/appendix/philosophy/index.md
   - docs/content/book/intent.md
-  - reference_project/build.py
+  - reference_project/manifest.py
 ---
 
 > [!lede]

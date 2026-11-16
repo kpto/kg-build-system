@@ -7,7 +7,7 @@ status: normative
 verified: 2026-11-15
 sources:
   - AGENTS.md
-  - reference_project/build.py
+  - reference_project/manifest.py
   - docs/content/appendix/developer/project-structure.md
 ---
 

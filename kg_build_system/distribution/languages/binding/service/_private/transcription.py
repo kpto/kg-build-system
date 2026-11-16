@@ -124,7 +124,7 @@ def _node_dto(binding: NodeBinding[Any]) -> NodeBindingDTO:
         rows=_rows(binding),
         annotations=_annotation_dtos(binding.annotations),
         mode=binding.mode,
-        debug_name=binding.debug_name,
+        name=binding.name,
         python_ref=_python_ref(binding.python_ref),
         meaning=_meaning_dto(binding.meaning),
     )
@@ -140,7 +140,7 @@ def _edge_dto(binding: EdgeBinding[Any]) -> EdgeBindingDTO:
         rows=_rows(binding),
         annotations=_annotation_dtos(binding.annotations),
         mode=binding.mode,
-        debug_name=binding.debug_name,
+        name=binding.name,
         source_node=_node_ref(binding.source_node),
         target_node=_node_ref(binding.target_node),
         python_ref=_python_ref(binding.python_ref),
@@ -206,7 +206,7 @@ def transcribe_bindings(
         key=lambda item: (
             "node" if isinstance(item, NodeBindingDTO) else "edge",
             item.component,
-            item.debug_name or "",
+            item.name or "",
             json.dumps(binding_to_document(item), sort_keys=True, default=str),
         ),
     ))

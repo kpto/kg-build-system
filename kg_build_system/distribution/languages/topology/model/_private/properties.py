@@ -1,10 +1,7 @@
 """Property-slot mechanics used while a declaration class is created."""
 from __future__ import annotations
 
-import ast
-import inspect
 import re
-import textwrap
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Generic, TypeVar, get_args, get_type_hints
@@ -33,7 +30,6 @@ class _PropertyDeclaration(Generic[T]):
     """The descriptor an author assigns to a property slot."""
 
     name: str | None = None
-    description: str | None = None
     annotations: tuple[Annotation, ...] = ()
     meaning: Meaning | None = None
     attr: str = ""
@@ -42,14 +38,10 @@ class _PropertyDeclaration(Generic[T]):
         object.__setattr__(self, "attr", attr)
         if self.name is None:
             object.__setattr__(self, "name", member_name(attr))
-        if self.description is None:
-            object.__setattr__(
-                self, "description", attribute_docstring(owner, attr),
-            )
 
 
 def make_property(
-    *, name: str | None = None, description: str | None = None,
+    *, name: str | None = None,
     annotations: Sequence[Annotation] = (),
     meaning: Meaning | None = None,
 ) -> Any:
@@ -58,7 +50,6 @@ def make_property(
         raise ValueError("property names must be non-empty")
     return _PropertyDeclaration[Any](
         name=name,
-        description=description,
         annotations=annotation_tuple(list(annotations)),
         meaning=require_meaning(meaning, "property"),
     )
@@ -92,49 +83,6 @@ def declaration_name(class_name: str, *, suffixes: tuple[str, ...] = ()) -> str:
     return snake_case(stem)
 
 
-def _assigned_name(statement: ast.stmt) -> str | None:
-    if isinstance(statement, ast.AnnAssign) and isinstance(statement.target, ast.Name):
-        return statement.target.id
-    if isinstance(statement, ast.Assign) and len(statement.targets) == 1:
-        target = statement.targets[0]
-        if isinstance(target, ast.Name):
-            return target.id
-    return None
-
-
-def _attribute_documents(body: list[ast.stmt]) -> dict[str, str]:
-    documents: dict[str, str] = {}
-    for statement, following in zip(body, body[1:]):
-        name = _assigned_name(statement)
-        if name is None or not isinstance(following, ast.Expr):
-            continue
-        value = following.value
-        if not isinstance(value, ast.Constant) or not isinstance(value.value, str):
-            continue
-        text = inspect.cleandoc(value.value)
-        if text:
-            documents[name] = text
-    return documents
-
-
-def attribute_docstring(owner: type[Any], attribute: str) -> str | None:
-    """The documentation written directly below ``owner.attribute``, if any."""
-    try:
-        source = textwrap.dedent(inspect.getsource(owner))
-    except (OSError, TypeError, IndentationError):
-        return None
-    try:
-        tree = ast.parse(source)
-    except SyntaxError:
-        return None
-    declaration = next(
-        (node for node in tree.body if isinstance(node, ast.ClassDef)), None
-    )
-    if declaration is None:
-        return None
-    return _attribute_documents(declaration.body).get(attribute)
-
-
 def _resolve_properties(cls: type[Any]) -> tuple[PropertyDeclaration, ...]:
     """Resolve property declarations over the MRO, once, in declaration order."""
     declarations: dict[str, tuple[type[Any], _PropertyDeclaration[Any]]] = {}
@@ -161,9 +109,6 @@ def _resolve_properties(cls: type[Any]) -> tuple[PropertyDeclaration, ...]:
         name = declaration.name
         if name is None:
             name = member_name(attribute)
-        description = declaration.description
-        if description is None:
-            description = attribute_docstring(owner, attribute)
         if name in external:
             raise TypeError(
                 f"{cls.__name__} properties {external[name]!r} and {attribute!r} "
@@ -175,7 +120,6 @@ def _resolve_properties(cls: type[Any]) -> tuple[PropertyDeclaration, ...]:
             name=name,
             logical_type=logical_type,
             authoring_type=authoring_type,
-            description=description,
             annotations=tuple(declaration.annotations),
             meaning=declaration.meaning,
         ))
@@ -183,6 +127,6 @@ def _resolve_properties(cls: type[Any]) -> tuple[PropertyDeclaration, ...]:
 
 
 __all__ = [
-    "_PropertyDeclaration", "_resolve_properties", "attribute_docstring",
-    "declaration_name", "make_property", "member_name", "snake_case",
+    "_PropertyDeclaration", "_resolve_properties", "declaration_name",
+    "make_property", "member_name", "snake_case",
 ]

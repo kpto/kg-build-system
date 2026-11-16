@@ -9,7 +9,7 @@ order: 12
 status: normative
 verified: 2026-11-11
 sources:
-  - reference_project/build.py
+  - reference_project/manifest.py
   - reference_project/asset/estate.py
   - tests/test_reference_build.py
   - pyproject.toml

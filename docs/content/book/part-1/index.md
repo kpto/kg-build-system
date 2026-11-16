@@ -10,7 +10,7 @@ verified: 2026-11-15
 sources:
   - docs/content/index.md
   - docs/content/book/part-3/index.md
-  - reference_project/build.py
+  - reference_project/manifest.py
 ---
 
 ## In this part

@@ -163,6 +163,9 @@ class EdgeValues(Generic[E_co, K, SK, TK]):
 class NodeBinding(Generic[N_co]):
     """One row context mapped onto one concrete node component.
 
+    ``name`` is a display handle; it is excluded from the binding's identity, so
+    renaming a binding does not change what it declares.
+
     Example:
         ```python
         from kg_build_system import Meaning, Purpose
@@ -179,7 +182,7 @@ class NodeBinding(Generic[N_co]):
         ```
     """
 
-    debug_name: str | None
+    name: str | None
     target: type[N_co]
     build_key: Selection[Any]
     properties: PropertyValues
@@ -193,6 +196,9 @@ class NodeBinding(Generic[N_co]):
 @dataclass(frozen=True, slots=True)
 class EdgeBinding(Generic[E_co]):
     """One row context mapped onto one concrete edge component.
+
+    ``name`` is a display handle; it is excluded from the binding's identity, so
+    renaming a binding does not change what it declares.
 
     Example:
         ```python
@@ -212,7 +218,7 @@ class EdgeBinding(Generic[E_co]):
         ```
     """
 
-    debug_name: str | None
+    name: str | None
     target: type[E_co]
     build_key: Selection[Any]
     source_build_key: Selection[Any]

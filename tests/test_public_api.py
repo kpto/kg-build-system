@@ -6,8 +6,10 @@ import unittest
 
 import kg_build_system
 from kg_build_system import (
+    Blueprint,
     BuildRuntime,
     GraphBlueprint,
+    Workflow,
     WorkflowPlan,
     WorkflowReport,
     compile,
@@ -79,6 +81,14 @@ class PublicApiTests(unittest.TestCase):
             BuildRuntime.__module__,
             "kg_build_system.distribution.model.public.runtime",
         )
+        self.assertEqual(
+            Blueprint.__module__,
+            "kg_build_system.distribution.model.public.manifest",
+        )
+        self.assertEqual(
+            Workflow.__module__,
+            "kg_build_system.distribution.model.public.manifest",
+        )
         self.assertEqual(create_blueprint.__module__, "kg_build_system.api")
         self.assertEqual(compile.__module__, "kg_build_system.api")
         self.assertEqual(execute.__module__, "kg_build_system.api")
@@ -92,6 +102,8 @@ class PublicApiTests(unittest.TestCase):
             "WorkflowReport",
             "BuildRuntime",
             "GraphBlueprint",
+            "Blueprint",
+            "Workflow",
         ):
             with self.subTest(name=name):
                 self.assertIn(name, kg_build_system.__all__)

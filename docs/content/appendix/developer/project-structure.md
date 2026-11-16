@@ -8,7 +8,7 @@ status: normative
 verified: 2026-11-15
 sources:
   - AGENTS.md
-  - reference_project/build.py
+  - reference_project/manifest.py
   - reference_project/binding/site/has_unit__unit.py
   - docs/content/book/part-1/03-a-project.md
   - docs/content/appendix/developer/data-and-expressions.md

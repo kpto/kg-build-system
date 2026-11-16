@@ -4,12 +4,14 @@ from __future__ import annotations
 from typing import assert_type
 
 from kg_build_system import (
+    Blueprint,
     Claim,
     Graph,
     GraphOptions,
     Limitation,
-    Purpose,
     Meaning,
+    Purpose,
+    Workflow,
 )
 from kg_build_system.distribution.languages.asset.model.public import (
     Asset,
@@ -87,7 +89,6 @@ class FixtureAsset(Asset):
 class FixtureGraph(Graph):
     options = GraphOptions(
         name="fixture_graph",
-        description="A typecheck fixture graph.",
         meaning=Meaning(
             purpose=Purpose(
                 text="Exercise the authoring surface.",
@@ -264,3 +265,10 @@ binding = node_binding(
     ),
 )
 assert_type(binding, NodeBinding[SiteNode])
+
+
+# A manifest states composition values; building is a separate step.
+manifest_blueprint = Blueprint(namespace_path=".")
+manifest_workflow = Workflow(blueprint=manifest_blueprint)
+assert_type(manifest_blueprint, Blueprint)
+assert_type(manifest_workflow, Workflow)

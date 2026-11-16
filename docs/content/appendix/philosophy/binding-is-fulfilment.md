@@ -9,7 +9,7 @@ sources:
   - docs/content/book/intent.md
   - docs/content/appendix/philosophy/semantic-hierarchy.md
   - reference_project/binding/site/has_unit__unit.py
-  - reference_project/build.py
+  - reference_project/manifest.py
   - AGENTS.md
 ---
 

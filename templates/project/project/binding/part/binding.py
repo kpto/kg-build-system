@@ -21,7 +21,7 @@ part_binding = node_binding(
         build_key=row.item_id.append("::").append(row.part_id),
         properties=PartNode(value=row.part_value),
     ),
-    debug_name="fixture_part",
+    name="fixture_part",
     options=BindingOptions(
         meaning=Meaning(
             purpose=Purpose(

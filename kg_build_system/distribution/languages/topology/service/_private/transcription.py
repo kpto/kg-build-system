@@ -84,7 +84,6 @@ def _property_dto(component: str, value: Any) -> PropertyDTO:
         ref=PropertyRef(
             "topology", Key((f"{component}.{value.name}",)),
         ),
-        description=value.description,
         annotations=tuple(annotations),
         meaning=(
             None if value.meaning is None else meaning_to_dto(value.meaning)
@@ -170,7 +169,6 @@ def _edges_of(
             annotations=annotations,
             abstract=metadata.abstract,
             parent=parent,
-            description=metadata.description,
             meaning=(
                 None if metadata.meaning is None
                 else meaning_to_dto(metadata.meaning)
@@ -202,7 +200,6 @@ def _nodes_of(
             annotations=annotations,
             abstract=metadata.abstract,
             parent=parent,
-            description=metadata.description,
             meaning=(
                 None if metadata.meaning is None
                 else meaning_to_dto(metadata.meaning)

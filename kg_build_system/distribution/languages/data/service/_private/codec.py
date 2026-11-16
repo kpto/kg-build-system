@@ -277,8 +277,6 @@ def _encode_column(value: ColumnDTO) -> dict[str, Any]:
         "ref": ref_to_document(value.ref),
         "annotations": [annotation_to_document(item) for item in value.annotations],
     }
-    if value.description is not None:
-        result["description"] = value.description
     if value.expression is not None:
         result["expression"] = expression_to_document(value.expression)
     if value.meaning is not None:
@@ -299,7 +297,6 @@ def _decode_column(value: Mapping[str, Any]) -> ColumnDTO:
             _object(value.get("logical_type"), "logical_type")
         ),
         ref=reference,
-        description=_optional_text(value, "description"),
         annotations=_items(value, "annotations", annotation_from_document),
         expression=(
             None if expression is None
@@ -318,8 +315,6 @@ def _encode_declaration(
         "columns": [_encode_column(column) for column in value.columns],
         "annotations": [annotation_to_document(item) for item in value.annotations],
     }
-    if value.description is not None:
-        result["description"] = value.description
     if value.meaning is not None:
         result["meaning"] = _encode_meaning(value.meaning)
     if isinstance(value, SourceRelationDTO):
@@ -335,7 +330,6 @@ def _decode_struct(value: Mapping[str, Any]) -> StructDTO:
     return StructDTO(
         name=_text(value, "name"),
         columns=_items(value, "columns", _decode_column),
-        description=_optional_text(value, "description"),
         annotations=_items(value, "annotations", annotation_from_document),
         meaning=_optional_meaning(value),
     )
@@ -349,7 +343,6 @@ def _decode_relation(value: Mapping[str, Any]) -> SourceRelationDTO:
         name=_text(value, "name"),
         columns=_items(value, "columns", _decode_column),
         asset=asset,
-        description=_optional_text(value, "description"),
         annotations=_items(value, "annotations", annotation_from_document),
         meaning=_optional_meaning(value),
         definition=_optional_definition(value),
@@ -379,7 +372,6 @@ def _decode_derived_relation(value: Mapping[str, Any]) -> DerivedRelationDTO:
             _object(value.get("row_source"), "derived relation row_source")
         ),
         definition=definition,
-        description=_optional_text(value, "description"),
         annotations=_items(value, "annotations", annotation_from_document),
         visibility=cast(Any, visibility),
         meaning=_optional_meaning(value),

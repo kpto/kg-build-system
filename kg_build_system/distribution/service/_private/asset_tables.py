@@ -90,7 +90,6 @@ def _profile(value: AssetProfileDTO) -> AssetProfile:
         authority=value.authority,
         basis=value.basis,
         title=value.title,
-        description=value.description,
     )
 
 

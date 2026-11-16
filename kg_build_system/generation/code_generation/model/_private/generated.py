@@ -87,7 +87,6 @@ class GeneratedField:
     python_name: str
     external_name: str
     value_type: GeneratedType
-    description: str | None = None
     annotations: tuple[GeneratedAnnotation, ...] = ()
     nullability: Nullability = Nullability.DEFAULTED
     schema_path: str = ""
@@ -115,7 +114,6 @@ class GeneratedClass:
     name: str
     fields: tuple[GeneratedField, ...] = ()
     members: tuple[GeneratedMember, ...] = ()
-    description: str | None = None
     base: str | None = None
     declaration_name: str | None = None
     asset: GeneratedAsset | None = None

@@ -68,7 +68,7 @@ def node_binding[N: Node, S: Shape](
     *, target: type[N],
     rows: DerivedRowSource[S] | RelationRowSource[S],
     bind: Callable[[S], NodeValues[N, Any]],
-    debug_name: str | None = None, options: BindingOptions | None = None,
+    name: str | None = None, options: BindingOptions | None = None,
     meaning: Meaning | None = None,
 ) -> NodeBinding[N]: ...
 
@@ -76,7 +76,7 @@ def node_binding[N: Node, S: Shape](
 @overload
 def node_binding[N: Node, Key: NonNullableGraphValue](
     *, target: type[N], build_key: Selection[Key], properties: N,
-    debug_name: str | None = None, options: BindingOptions | None = None,
+    name: str | None = None, options: BindingOptions | None = None,
     meaning: Meaning | None = None,
 ) -> NodeBinding[N]: ...
 
@@ -84,7 +84,7 @@ def node_binding[N: Node, Key: NonNullableGraphValue](
 def node_binding[N: Node](
     *, target: type[N], build_key: Selection[Any] | None = None,
     properties: Any = None, rows: Any = None, bind: Any = None,
-    debug_name: str | None = None, options: BindingOptions | None = None,
+    name: str | None = None, options: BindingOptions | None = None,
     meaning: Meaning | None = None,
 ) -> NodeBinding[N]:
     """Validate one node binding and return its frozen value.
@@ -124,7 +124,7 @@ def node_binding[N: Node](
         properties=properties,
         rows=rows,
         bind=bind,
-        debug_name=debug_name,
+        name=name,
         options=options,
         meaning=meaning,
     )
@@ -135,7 +135,7 @@ def edge_binding[E: Edge[Any, Any], S: Shape](
     *, target: type[E],
     rows: DerivedRowSource[S] | RelationRowSource[S],
     bind: Callable[[S], EdgeValues[E, Any, Any, Any]],
-    debug_name: str | None = None, options: BindingOptions | None = None,
+    name: str | None = None, options: BindingOptions | None = None,
     meaning: Meaning | None = None,
     source_node: Endpoint[Any] | None = None,
     target_node: Endpoint[Any] | None = None,
@@ -150,7 +150,7 @@ def edge_binding[
     *, target: type[Edge[S, D]], build_key: Selection[Key],
     source_build_key: Selection[SourceKey],
     target_build_key: Selection[TargetKey], properties: E,
-    debug_name: str | None = None, options: BindingOptions | None = None,
+    name: str | None = None, options: BindingOptions | None = None,
     meaning: Meaning | None = None,
 ) -> EdgeBinding[E]: ...
 
@@ -163,7 +163,7 @@ def edge_binding[
     *, target: type[Edge[S, DC]], target_node: Endpoint[DC],
     build_key: Selection[Key], source_build_key: Selection[SourceKey],
     target_build_key: Selection[TargetKey], properties: E,
-    debug_name: str | None = None, options: BindingOptions | None = None,
+    name: str | None = None, options: BindingOptions | None = None,
     meaning: Meaning | None = None,
 ) -> EdgeBinding[E]: ...
 
@@ -176,7 +176,7 @@ def edge_binding[
     *, target: type[Edge[SC, D]], source_node: Endpoint[SC],
     build_key: Selection[Key], source_build_key: Selection[SourceKey],
     target_build_key: Selection[TargetKey], properties: E,
-    debug_name: str | None = None, options: BindingOptions | None = None,
+    name: str | None = None, options: BindingOptions | None = None,
     meaning: Meaning | None = None,
 ) -> EdgeBinding[E]: ...
 
@@ -191,7 +191,7 @@ def edge_binding[
     target_node: Endpoint[DC], build_key: Selection[Key],
     source_build_key: Selection[SourceKey],
     target_build_key: Selection[TargetKey], properties: E,
-    debug_name: str | None = None, options: BindingOptions | None = None,
+    name: str | None = None, options: BindingOptions | None = None,
     meaning: Meaning | None = None,
 ) -> EdgeBinding[E]: ...
 
@@ -201,7 +201,7 @@ def edge_binding(
     source_build_key: Selection[Any] | None = None,
     target_build_key: Selection[Any] | None = None, properties: Any = None,
     rows: Any = None, bind: Any = None,
-    debug_name: str | None = None, options: BindingOptions | None = None,
+    name: str | None = None, options: BindingOptions | None = None,
     meaning: Meaning | None = None,
     source_node: Endpoint[Any] | None = None,
     target_node: Endpoint[Any] | None = None,
@@ -256,7 +256,7 @@ def edge_binding(
         properties=properties,
         rows=rows,
         bind=bind,
-        debug_name=debug_name,
+        name=name,
         options=options,
         source_node=source_node,
         target_node=target_node,

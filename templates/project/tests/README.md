@@ -22,7 +22,7 @@ Own `test_philosophy.py` and the smoke test. Do not own declarations.
 
 ## Support
 
-Reads `project.build` and the framework DTOs. No network.
+Reads `project.manifest` and the framework DTOs. No network.
 
 ## Gate
 

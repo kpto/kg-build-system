@@ -13,7 +13,7 @@ sources:
   - docs/content/appendix/review/verification.md
   - docs/content/appendix/review/limits.md
   - tests/test_reference_build.py
-  - reference_project/build.py
+  - reference_project/manifest.py
 ---
 
 A build that exists on one machine is an experiment. A build that ships is a bundle another person can inspect, re-run and judge: the declarations at a known revision, the dependency lock, the plan, the artifacts, the report that lists them, the commands that were run, and a statement of what the build does not guarantee.

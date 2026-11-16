@@ -12,7 +12,7 @@ sources:
   - kg_build_system/distribution/interpreter/service/_private/discovery.py
   - kg_build_system/distribution/interpreter/service/_private/create.py
   - kg_build_system/generation/code_generation/service/_private/command.py
-  - reference_project/build.py
+  - reference_project/manifest.py
   - docs/content/book/part-2/09-generation.md
 ---
 

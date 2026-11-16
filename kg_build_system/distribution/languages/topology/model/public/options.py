@@ -3,7 +3,7 @@
 Options carry graph identity, portable annotations and a declaration meaning
 fragment. A concrete or abstract component uses ``NodeOptions`` or
 ``EdgeOptions``; an inert template uses the matching ``*OptionsTemplate``, which
-has no name or description.
+has no name.
 
 Example:
     ```python
@@ -51,13 +51,12 @@ class NodeOptions:
         from kg_build_system import Node, NodeOptions, PropertySlot, property
 
         class SiteNode(Node):
-            options = NodeOptions(name="site", description="A monitored site.")
+            options = NodeOptions(name="site")
             name: PropertySlot[str] = property()
         ```
     """
 
     name: str | None = None
-    description: str | None = None
     annotations: Sequence[Annotation] = ()
     meaning: Meaning | None = None
 
@@ -86,7 +85,6 @@ class EdgeOptions:
     """
 
     name: str | None = None
-    description: str | None = None
     annotations: Sequence[Annotation] = ()
     meaning: Meaning | None = None
 

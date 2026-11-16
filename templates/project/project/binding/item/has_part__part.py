@@ -23,7 +23,7 @@ has_part_binding = edge_binding(
         target_build_key=row.item_id.append("::").append(row.part_id),
         properties=HasPartEdge(),
     ),
-    debug_name="fixture_has_part",
+    name="fixture_has_part",
     options=BindingOptions(
         meaning=Meaning(
             purpose=Purpose(

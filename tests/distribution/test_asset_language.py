@@ -51,7 +51,6 @@ def _profile() -> AssetProfile:
         authority=AssetAuthority.PRIMARY,
         basis="Open Targets Platform release",
         title="Open Targets",
-        description="Curated target-disease evidence.",
     )
 
 
@@ -244,7 +243,6 @@ class AssetCodecTests(unittest.TestCase):
                 authority=profile.authority,
                 basis=profile.basis,
                 title=profile.title,
-                description=profile.description,
             )),
         ))
         document = assets_to_document(part)

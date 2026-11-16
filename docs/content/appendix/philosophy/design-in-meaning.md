@@ -10,7 +10,7 @@ sources:
   - docs/content/book/intent.md
   - AGENTS.md
   - reference_project/graph/common.py
-  - reference_project/build.py
+  - reference_project/manifest.py
 ---
 
 > [!lede]

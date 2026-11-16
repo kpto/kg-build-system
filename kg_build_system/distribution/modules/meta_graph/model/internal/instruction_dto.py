@@ -24,7 +24,7 @@ class MetaGraphBindingDTO(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    debug_name: str | None = None
+    name: str | None = None
     source_node: str | None = None
     target_node: str | None = None
 

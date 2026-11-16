@@ -16,7 +16,6 @@ from kg_build_system.kernel.model.public.types import (
 )
 from kg_build_system.kernel.service.internal.types import normalize_type
 
-from .docstrings import attribute_docstring
 from .naming import declaration_name, member_name
 from ...model.internal.model.fields import FieldSpec
 from ...model.public.fields import (
@@ -36,7 +35,6 @@ def make_field[T: DeclaredValue](  # pyright: ignore[reportInvalidTypeVarUse]
     *,
     definition: FieldDefinition | None = None,
     name: str | None = None,
-    description: str | None = None,
     annotations: Sequence[Annotation] = (),
     meaning: Meaning | None = None,
 ) -> Field[T]:  # pyright: ignore[reportInvalidTypeVarUse]
@@ -45,7 +43,6 @@ def make_field[T: DeclaredValue](  # pyright: ignore[reportInvalidTypeVarUse]
         raise ValueError("field names must be non-empty")
     return Field(metadata=FieldMetadata(
         name=name,
-        description=description,
         annotations=annotation_tuple(list(annotations)),
         meaning=meaning,
         definition=definition,
@@ -57,7 +54,6 @@ def make_computed_field[T: DeclaredValue](
     *,
     definition: FieldDefinition | None = None,
     name: str | None = None,
-    description: str | None = None,
     annotations: Sequence[Annotation] = (),
     meaning: Meaning | None = None,
 ) -> Field[T]:
@@ -68,7 +64,6 @@ def make_computed_field[T: DeclaredValue](
         as_expression(value),
         FieldMetadata(
             name=name,
-            description=description,
             annotations=annotation_tuple(list(annotations)),
             meaning=meaning,
             definition=definition,
@@ -234,7 +229,6 @@ def resolve_field_specs(owner: type[Any], kind: str | None) -> tuple[FieldSpec, 
             descriptor=field,
             logical_type=logical_type,
             access_type=access_type,
-            description=field.metadata.description,
             annotations=field.metadata.annotations,
             declaration=declaration,
             meaning=field.metadata.meaning,
@@ -268,10 +262,8 @@ def field_set_name(
         raise TypeError("one Field instance may not be assigned to multiple declarations")
     field._owner = owner
     name = field._metadata.name or member_name(attribute)
-    description = field._metadata.description or attribute_docstring(owner, attribute)
     field._metadata = FieldMetadata(
         name=name,
-        description=description,
         annotations=field._metadata.annotations,
         attribute=attribute,
         meaning=field._metadata.meaning,

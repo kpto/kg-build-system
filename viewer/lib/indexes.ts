@@ -592,7 +592,7 @@ function buildSemanticIndexes(
       kind: "binding",
       key: semanticSubjectKey("binding", binding.index),
       name:
-        binding.binding.debug_name ?? `${binding.component}[${binding.index}]`,
+        binding.binding.name ?? `${binding.component}[${binding.index}]`,
       ref: binding.componentRef,
       entityKind: binding.kind,
       bindingIndex: binding.index,

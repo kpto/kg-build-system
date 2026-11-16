@@ -130,8 +130,6 @@ def _field_source(
         )
     if attribute != column.name:
         metadata.append(f"        name={column.name!r},")
-    if column.description is not None:
-        metadata.append(f"        description={column.description!r},")
     metadata.extend(_annotations_source(column.annotations, imports, "        "))
     metadata.extend(_meaning_source(column.meaning, imports, "        "))
     if not metadata:
@@ -160,8 +158,6 @@ def _declaration_source(
     lines = [f"class {own_name}({base_source}):"]
     lines.append(f"    options = {option_class}(")
     lines.append(f"        name={value.name!r},")
-    if value.description is not None:
-        lines.append(f"        description={value.description!r},")
     annotations = _annotations_source(value.annotations, imports, "        ")
     lines.extend(annotations)
     definition = getattr(value, "definition", None)
@@ -254,8 +250,6 @@ def _derived_relation_source(
     lines = [f"class {own_name}({base}({source})):"]
     lines.append(f"    options = {option_class}(")
     lines.append(f"        name={value.name!r},")
-    if value.description is not None:
-        lines.append(f"        description={value.description!r},")
     lines.extend(_annotations_source(value.annotations, imports, "        "))
     if internal:
         lines.extend(_definition_source(value.definition, imports, "        "))
@@ -282,8 +276,6 @@ def _derived_relation_source(
                 ))
             if attribute != column.name:
                 lines.append(f"        name={column.name!r},")
-            if column.description is not None:
-                lines.append(f"        description={column.description!r},")
             lines.extend(_annotations_source(column.annotations, imports, "        "))
             lines.extend(_meaning_source(column.meaning, imports, "        "))
             lines.append("    )")

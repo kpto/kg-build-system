@@ -95,7 +95,7 @@ class NodeBindingDTO:
     rows: RowPlanDTO | None = None
     annotations: tuple[AnnotationDTO, ...] = ()
     mode: BindingMode = "declarative"
-    debug_name: str | None = None
+    name: str | None = None
     python_ref: PythonRefDTO | None = None
     meaning: MeaningDTO | None = None
 
@@ -116,8 +116,9 @@ class EdgeBindingDTO:
 
     ``edge`` is the target edge reference, ``identity`` the edge key and
     ``source_identity``/``target_identity`` the endpoint node keys. The fields
-    after ``mode`` retain the authoring debug handle, resolved endpoint
+    after ``mode`` retain the binding's display name, resolved endpoint
     references and the Python reference without exposing a component symbol.
+    The name is excluded from the binding's identity digest.
 
     Example:
         ```python
@@ -148,7 +149,7 @@ class EdgeBindingDTO:
     rows: RowPlanDTO | None = None
     annotations: tuple[AnnotationDTO, ...] = ()
     mode: BindingMode = "declarative"
-    debug_name: str | None = None
+    name: str | None = None
     source_node: NodeRef | None = None
     target_node: NodeRef | None = None
     python_ref: PythonRefDTO | None = None

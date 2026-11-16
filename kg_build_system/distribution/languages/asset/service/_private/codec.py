@@ -138,7 +138,6 @@ def _profile_to_document(value: AssetProfileDTO) -> dict[str, Any]:
         "authority": str(value.authority),
         "basis": value.basis,
         "title": value.title,
-        "description": value.description,
     }
 
 
@@ -155,7 +154,6 @@ def _profile_from_document(value: Mapping[str, Any]) -> AssetProfileDTO:
         authority=authority,
         basis=_text(value, "basis"),
         title=_optional_text(value, "title"),
-        description=_optional_text(value, "description"),
     )
 
 

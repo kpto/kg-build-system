@@ -1,6 +1,6 @@
 """Options an author assigns to the one graph declaration.
 
-The options carry the graph's portable name, an optional description and the
+The options carry the graph's portable name and the
 project's meaning root. The root is a ``Meaning`` value carrying exactly one
 purpose; a graph declaration cannot exist without one.
 """
@@ -29,7 +29,6 @@ class GraphOptions:
 
         options = GraphOptions(
             name="open_targets",
-            description="Curated target-disease evidence.",
             meaning=Meaning(
                 purpose=Purpose(
                     text="Target prioritisation.",
@@ -42,7 +41,6 @@ class GraphOptions:
     """
 
     name: str | None = None
-    description: str | None = None
     meaning: Meaning
 
     def __post_init__(self) -> None:
@@ -56,12 +54,6 @@ class GraphOptions:
             not isinstance(self.name, str) or not self.name
         ):
             raise ValueError("a graph name must be null or a non-empty string")
-        if self.description is not None and (
-            not isinstance(self.description, str) or not self.description
-        ):
-            raise ValueError(
-                "a graph description must be null or a non-empty string"
-            )
 
 
 __all__ = ["GraphOptions"]

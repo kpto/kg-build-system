@@ -9,7 +9,18 @@ from kg_build_system.kernel.model.internal.json import FrozenObject, thaw_json
 from kg_build_system.distribution.interpreter.model.public import GraphBlueprint
 from kg_build_system.distribution.languages.binding.model.internal.dto import EdgeBindingDTO
 from kg_build_system.distribution.languages.data.model.internal import StructDTO
-from kg_build_system.distribution.languages.topology.model.internal.dto import EdgeDTO, NodeDTO
+from kg_build_system.distribution.languages.data.model.internal.dto import (
+    ColumnDTO,
+    FieldDefinitionDTO,
+)
+from kg_build_system.distribution.languages.meaning.model.internal.dto import (
+    MeaningDTO,
+)
+from kg_build_system.distribution.languages.topology.model.internal.dto import (
+    EdgeDTO,
+    NodeDTO,
+    PropertyDTO,
+)
 from kg_build_system.kernel.service.internal.types import type_to_document
 from kg_build_system.kernel.model.internal.types.dto import ArrayTypeDTO, CustomTypeDTO, LogicalTypeDTO, NullableTypeDTO, StructTypeDTO, UnitTypeDTO
 from .instruction_dto import (
@@ -20,6 +31,26 @@ from .instruction_dto import (
 )
 
 ComponentDTO = NodeDTO | EdgeDTO
+
+
+def display_text(
+    meaning: MeaningDTO | None,
+    definition: FieldDefinitionDTO | None = None,
+) -> str | None:
+    """The declaration's own words for a display surface.
+
+    A purpose leads, then the first claim, then the field definition's value.
+    A declaration that states none has no display text; the surface does not
+    invent one.
+    """
+    if meaning is not None:
+        if meaning.purpose is not None:
+            return meaning.purpose.text
+        if meaning.claims:
+            return meaning.claims[0].text
+    if definition is not None:
+        return definition.value
+    return None
 
 
 def _kind(component: ComponentDTO) -> Literal["node", "edge"]:
@@ -93,30 +124,25 @@ def expand_type(
             return encoded
         encoded["declaration_name"] = struct.name
         encoded["members"] = [
-            _typed_member(
-                column.name, column.logical_type, column.description,
-                column.annotations, structs, visiting | {name},
-            )
+            _typed_member(column, structs, visiting | {name})
             for column in struct.columns
         ]
     return encoded
 
 
 def _typed_member(
-    name: str,
-    value: LogicalTypeDTO,
-    description: str | None,
-    annotations: tuple[Any, ...],
+    member: ColumnDTO | PropertyDTO,
     structs: Mapping[str, StructDTO],
     visiting: frozenset[str],
 ) -> dict[str, Any]:
+    definition = member.definition if isinstance(member, ColumnDTO) else None
     return {
-        "name": name,
-        "type": display_type(value),
-        "nullable": isinstance(value, NullableTypeDTO),
-        "logical_type": expand_type(value, structs, visiting),
-        "description": description,
-        "annotations": _annotations(annotations),
+        "name": member.name,
+        "type": display_type(member.logical_type),
+        "nullable": isinstance(member.logical_type, NullableTypeDTO),
+        "logical_type": expand_type(member.logical_type, structs, visiting),
+        "description": display_text(member.meaning, definition),
+        "annotations": _annotations(member.annotations),
     }
 
 
@@ -186,7 +212,7 @@ def component_entries(
                 resolved_source = resolved_source or declared.source.name
                 resolved_target = resolved_target or declared.target.name
         bindings.setdefault(binding.component, []).append(MetaGraphBindingDTO(
-            debug_name=binding.debug_name,
+            name=binding.name,
             source_node=resolved_source,
             target_node=resolved_target,
         ))
@@ -205,7 +231,7 @@ def component_entries(
             abstract=component.abstract,
             label=_component_label(component),
             labels=component.labels,
-            description=component.description,
+            description=display_text(component.meaning),
             parent=(
                 None if component.parent is None else component.parent.name
             ),
@@ -230,8 +256,7 @@ def component_entries(
             bindings=tuple(bindings.get(component.name, ())),
             properties=tuple(
                 MetaGraphPropertyDTO.model_validate(_typed_member(
-                    prop.name, prop.logical_type, prop.description,
-                    prop.annotations, structs, frozenset(),
+                    prop, structs, frozenset(),
                 ))
                 for prop in component.properties
             ),
@@ -242,6 +267,7 @@ def component_entries(
 
 __all__ = [
     "component_entries",
+    "display_text",
     "display_type",
     "effective_components",
     "expand_type",

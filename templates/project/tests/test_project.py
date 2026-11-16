@@ -6,9 +6,28 @@ import json
 
 import pytest
 
-from kg_build_system import execute
+from kg_build_system import compile, create_blueprint, execute
 
-from project.build import compile_project, create_project_blueprint
+from project.manifest import blueprint as blueprint_declaration
+from project.manifest import workflow as workflow_declaration
+
+
+def create_project_blueprint():
+    """Build the blueprint the manifest declares; the CLI does this by default."""
+    return create_blueprint(
+        namespace_path=blueprint_declaration.namespace_path,
+        bindings=blueprint_declaration.bindings,
+        languages=blueprint_declaration.languages,
+    )
+
+
+def compile_project():
+    """Compile the workflow the manifest declares."""
+    return compile(
+        blueprint=create_project_blueprint(),
+        planners=workflow_declaration.planners,
+        toolchain=workflow_declaration.toolchain,
+    )
 
 
 def _fixture_present() -> bool:

@@ -11,7 +11,6 @@ from .._private.rendering import (
     member_name,
     pascal_case,
     render_annotation,
-    render_docstring,
     render_logical_type,
     render_static_value,
     snake_case,
@@ -19,6 +18,6 @@ from .._private.rendering import (
 
 __all__ = [
     "annotation_class", "class_name", "member_name", "pascal_case",
-    "render_annotation", "render_docstring", "render_logical_type",
+    "render_annotation", "render_logical_type",
     "render_static_value", "snake_case",
 ]

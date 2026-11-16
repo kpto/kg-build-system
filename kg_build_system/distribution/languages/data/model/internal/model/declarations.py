@@ -20,7 +20,6 @@ class DeclarationSpec:
 
     kind: str
     name: str | None
-    description: str | None
     annotations: tuple[Annotation, ...]
     fields: tuple[FieldSpec, ...] = ()
     final: bool = True

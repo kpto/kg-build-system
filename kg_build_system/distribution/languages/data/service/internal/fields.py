@@ -21,7 +21,6 @@ def field[T: DeclaredValue](  # pyright: ignore[reportInvalidTypeVarUse]
     *,
     definition: FieldDefinition | None = None,
     name: str | None = None,
-    description: str | None = None,
     annotations: Sequence[Annotation] = (),
     meaning: Meaning | None = None,
 ) -> "Field[T]":  # pyright: ignore[reportInvalidTypeVarUse]
@@ -29,7 +28,7 @@ def field[T: DeclaredValue](  # pyright: ignore[reportInvalidTypeVarUse]
     from .._private.descriptors import make_field
 
     return make_field(
-        definition=definition, name=name, description=description,
+        definition=definition, name=name,
         annotations=annotations, meaning=meaning,
     )
 
@@ -39,7 +38,6 @@ def computed_field[T: DeclaredValue](
     *,
     definition: FieldDefinition | None = None,
     name: str | None = None,
-    description: str | None = None,
     annotations: Sequence[Annotation] = (),
     meaning: Meaning | None = None,
 ) -> "Field[T]":
@@ -47,7 +45,7 @@ def computed_field[T: DeclaredValue](
     from .._private.descriptors import make_computed_field
 
     return make_computed_field(
-        value, definition=definition, name=name, description=description,
+        value, definition=definition, name=name,
         annotations=annotations, meaning=meaning,
     )
 

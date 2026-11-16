@@ -123,7 +123,6 @@ def _column(
         name=item.name,
         logical_type=type_to_dto(item.logical_type),
         ref=FieldRef("data", Key((f"{owner}.{item.name}",))),
-        description=item.description,
         annotations=_data_annotations(item.annotations),
         expression=(
             expression_dto(item.descriptor.expression.model)
@@ -140,7 +139,6 @@ def _struct(item: type[Any], spec: DeclarationSpec) -> StructDTO:
     return StructDTO(
         name=name,
         columns=tuple(_column(name, field) for field in spec.fields),
-        description=spec.description,
         annotations=_data_annotations(spec.annotations),
         meaning=_meaning_dto(spec.meaning),
     )
@@ -154,7 +152,6 @@ def _source_relation(item: type[Any], spec: DeclarationSpec) -> SourceRelationDT
         name=name,
         columns=tuple(_column(name, field) for field in spec.fields),
         asset=asset_reference(spec.asset),
-        description=spec.description,
         annotations=_data_annotations(spec.annotations),
         meaning=_meaning_dto(spec.meaning),
         definition=_definition_dto(spec.definition),
@@ -189,7 +186,6 @@ def _derived_relation(item: type[Any], spec: DeclarationSpec) -> DerivedRelation
         columns=tuple(columns),
         row_source=cast(RowSourcePlanDTO, plan),
         definition=definition,
-        description=spec.description,
         annotations=_data_annotations(spec.annotations),
         visibility="internal" if spec.kind == "stage" else "public",
         meaning=_meaning_dto(spec.meaning),

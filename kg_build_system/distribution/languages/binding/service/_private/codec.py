@@ -295,8 +295,8 @@ def binding_to_document(binding: BindingDTO) -> dict[str, Any]:
         ],
         "mode": binding.mode,
     }
-    if binding.debug_name is not None:
-        common["debug_name"] = binding.debug_name
+    if binding.name is not None:
+        common["name"] = binding.name
     if binding.python_ref is not None:
         common["python_ref"] = _python_ref_to_document(binding.python_ref)
     if binding.meaning is not None:
@@ -359,7 +359,7 @@ def binding_from_document(document: Mapping[str, Any]) -> BindingDTO:
             for item in _array(value.get("annotations", ()), "annotations")
         ),
         "mode": _text(value, "mode"),
-        "debug_name": _optional_text(value, "debug_name"),
+        "name": _optional_text(value, "name"),
         "python_ref": (
             None
             if value.get("python_ref") is None

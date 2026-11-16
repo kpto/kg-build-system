@@ -944,11 +944,11 @@ def drift_block() -> str:
 REFERENCE_SCRIPT = r"""
 import json, tempfile
 from pathlib import Path
-from kg_build_system import compile, execute
-from reference_project.build import create_reference_blueprint, compile_reference_build
+from kg_build_system import compile, create_blueprint, execute
+from reference_project.manifest import ROOT, blueprint, workflow
 
-blueprint = create_reference_blueprint()
-plan = compile_reference_build()
+prepared = create_blueprint(namespace_path=ROOT)
+plan = compile(blueprint=prepared, planners=workflow.planners)
 with tempfile.TemporaryDirectory() as directory:
     report = execute(plan, output_directory=Path(directory))
     graph = Path(directory) / "graph.jsonl"

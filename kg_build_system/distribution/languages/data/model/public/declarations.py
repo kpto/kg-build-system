@@ -61,7 +61,6 @@ if TYPE_CHECKING:
 @dataclass(frozen=True, slots=True)
 class SourceRelationOptions:
     name: str | None = None
-    description: str | None = None
     annotations: tuple[Annotation, ...] | list[Annotation] = ()
     contract: Contract | None = None
 
@@ -88,7 +87,6 @@ class StructOptionsTemplate:
 @dataclass(frozen=True, slots=True)
 class StructOptions:
     name: str | None = None
-    description: str | None = None
     annotations: tuple[Annotation, ...] | list[Annotation] = ()
     meaning: Meaning | None = None
 
@@ -103,7 +101,6 @@ class StructOptions:
 class DerivedRelationOptions:
     contract: Contract
     name: str | None = None
-    description: str | None = None
     annotations: tuple[Annotation, ...] | list[Annotation] = ()
 
     def __post_init__(self) -> None:
@@ -121,7 +118,6 @@ class DerivedRelationOptions:
 class StageOptions:
     definition: Definition
     name: str | None = None
-    description: str | None = None
     annotations: tuple[Annotation, ...] | list[Annotation] = ()
 
     def __post_init__(self) -> None:
@@ -136,7 +132,6 @@ class StageOptions:
 class SourceRelationGroupOptions:
     members: tuple[type, ...] = ()
     name: str | None = None
-    description: str | None = None
     annotations: tuple[Annotation, ...] | list[Annotation] = ()
 
     def __post_init__(self) -> None:
@@ -211,7 +206,7 @@ class StructTemplate:
     """The template tier for ``SourceRelation``, ``Struct`` and ``ComputedStruct`` hosts.
 
     A template shares field slots and annotation flow with its hosts and never
-    enters the blueprint DTO. It carries annotations only, no name or description.
+    enters the blueprint DTO. It carries annotations only, no name.
     """
 
     options: ClassVar[Any] = StructOptionsTemplate()

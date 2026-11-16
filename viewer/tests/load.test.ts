@@ -62,7 +62,7 @@ describe("snapshot loading", () => {
     expect(binding.semantics?.claims?.[0].text).toBe(
       "The binding projects the survey title.",
     );
-    expect(binding.debug_name).toBe("defect.title");
+    expect(binding.name).toBe("defect.title");
     expect(binding.mode).toBe("merge");
     expect(binding.python_ref?.qualname).toBe("DefectTitle");
   });

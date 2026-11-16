@@ -52,7 +52,6 @@ def _profile_dto(value: AssetProfile) -> AssetProfileDTO:
         authority=value.authority,
         basis=value.basis,
         title=value.title,
-        description=value.description,
     )
 
 

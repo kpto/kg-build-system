@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 
 def make_property(
-    *, name: str | None = None, description: str | None = None,
+    *, name: str | None = None,
     annotations: Sequence[Annotation] = (),
     meaning: Meaning | None = None,
 ) -> Any:
@@ -23,8 +23,7 @@ def make_property(
     from ...model._private.properties import make_property as build
 
     return build(
-        name=name, description=description, annotations=annotations,
-        meaning=meaning,
+        name=name, annotations=annotations, meaning=meaning,
     )
 
 

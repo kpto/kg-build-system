@@ -55,7 +55,6 @@ class AssetProfileDTO:
     authority: AssetAuthority
     basis: str
     title: str | None = None
-    description: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

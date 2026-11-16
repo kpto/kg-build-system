@@ -16,8 +16,6 @@ def _options_lines(
     imports.add("from kg_build_system import GraphOptions")
     indent = "        "
     lines = ["    options = GraphOptions(", f"{indent}name={value.name!r},"]
-    if value.description is not None:
-        lines.append(f"{indent}description={value.description!r},")
     meaning: SourceFragment = render_meaning(value.meaning)
     imports.update(meaning.imports)
     meaning_lines = meaning.body.splitlines()

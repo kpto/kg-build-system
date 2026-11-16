@@ -22,7 +22,6 @@ class Graph:
         class OpenTargetsGraph(Graph):
             options = GraphOptions(
                 name="open_targets",
-                description="Curated target-disease evidence.",
                 meaning=Meaning(
                     purpose=Purpose(
                         text="Target prioritisation.",

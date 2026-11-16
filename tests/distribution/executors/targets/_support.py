@@ -49,7 +49,7 @@ def bound_blueprint(*components: NodeDTO) -> Any:
     bindings = tuple(
         SimpleNamespace(
             component=component.name,
-            debug_name=component.name.lower(),
+            name=component.name.lower(),
             source_node=None,
             target_node=None,
         )

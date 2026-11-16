@@ -263,11 +263,6 @@ def prepare_topology_declaration(cls: type[Any]) -> None:
     own_meaning = None if own_options is None else own_options.meaning
     meaning = own_meaning if own_meaning is not None else template_meaning
 
-    description = (
-        own_options.description
-        if own_options is not None and own_options.description is not None
-        else (vars(cls).get("__doc__") or None)
-    )
     name = (
         (own_options.name if own_options is not None else None)
         or _inferred_component_name(cls, kind, tier)
@@ -282,7 +277,6 @@ def prepare_topology_declaration(cls: type[Any]) -> None:
         kind=kind,
         name=name,
         properties=resolved_properties,
-        description=description,
         source=source,
         target=target,
         annotations=effective_annotations,
@@ -298,7 +292,6 @@ def prepare_topology_declaration(cls: type[Any]) -> None:
     cls._metadata = {
         key: value
         for key, value in (
-            ("description", description),
             ("source", source),
             ("target", target),
         )

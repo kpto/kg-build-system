@@ -9,7 +9,7 @@ sources:
   - docs/content/appendix/philosophy/index.md
   - docs/content/book/intent.md
   - AGENTS.md
-  - reference_project/build.py
+  - reference_project/manifest.py
 ---
 
 > [!lede]

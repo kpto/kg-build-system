@@ -59,7 +59,6 @@ class PropertyDeclaration:
     name: str
     logical_type: LogicalType
     authoring_type: Any = None
-    description: str | None = None
     annotations: tuple[Annotation, ...] = ()
     meaning: Meaning | None = None
 
@@ -86,7 +85,6 @@ class ComponentMetadata:
     kind: Literal["node", "edge"]
     name: str
     properties: tuple[PropertyDeclaration, ...] = ()
-    description: str | None = None
     source: type[Any] | None = None
     target: type[Any] | None = None
     annotations: tuple[Annotation, ...] = ()

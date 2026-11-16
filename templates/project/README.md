@@ -9,7 +9,7 @@ write your first real declaration.
 ```console
 uv sync
 uv run pytest
-uv run python -m project.build
+uv run kbs run --project project
 ```
 
 The fixture writes `build/graph.jsonl`, `build/meta_graph.json`,
@@ -25,7 +25,7 @@ project/                 the package; the declaration tree
   relation/derived/      published computed relations and private stages
   binding/               the fulfilment between a relation and a record
   data/                  the fixture source
-  build.py               the composition root
+  manifest.py            the blueprint and workflow declarations
 tests/                   the philosophy gate and the smoke test
 ```
 

@@ -10,7 +10,7 @@ from kg_build_system.distribution.languages.annotations.model.public import (
     EdgeLabel, NodeLabel,
 )
 from kg_build_system.kernel import SourceFragment
-from kg_build_system.distribution.service.internal.rendering import class_name, member_name, render_annotation, render_docstring, render_logical_type
+from kg_build_system.distribution.service.internal.rendering import class_name, member_name, render_annotation, render_logical_type
 
 from ...model.internal.dto.blueprint_dto import (
     EdgeDTO, GraphPartDTO, NodeDTO, PropertyDTO,
@@ -81,7 +81,6 @@ def _property_source(value: PropertyDTO, imports: set[str]) -> list[str]:
                 render_meaning_lines(value.meaning, imports, "        ")
             )
         lines.append("    )")
-    lines.extend(render_docstring(value.description))
     return lines
 
 
@@ -126,9 +125,6 @@ def _class_source(
         bases.append(tier_base)
 
     lines = [f"class {own_name}({', '.join(bases)}):"]
-    lines.extend(render_docstring(value.description))
-    if value.description:
-        lines.append("")
     lines.extend(_options_source(
         kind, value.name, value.labels, value.annotations, value.meaning,
         imports,

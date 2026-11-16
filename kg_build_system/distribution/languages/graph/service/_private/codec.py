@@ -37,8 +37,6 @@ def graph_declaration_to_document(
 ) -> dict[str, Any]:
     """Encode the graph declaration as a JSON-compatible object."""
     document: dict[str, Any] = {"name": value.name}
-    if value.description is not None:
-        document["description"] = value.description
     document["meaning"] = meaning_to_document(value.meaning)
     return document
 
@@ -55,7 +53,6 @@ def graph_declaration_from_document(value: Any) -> GraphDeclarationDTO:
         )
     return GraphDeclarationDTO(
         name=_text(document, "name"),
-        description=_optional_text(document, "description"),
         meaning=meaning,
     )
 

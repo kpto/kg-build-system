@@ -23,7 +23,6 @@ class FieldSpec:
     descriptor: Any
     logical_type: LogicalType
     access_type: LogicalType
-    description: str | None = None
     annotations: tuple[Annotation, ...] = ()
     declaration: type[Any] | None = None
     meaning: Meaning | None = None

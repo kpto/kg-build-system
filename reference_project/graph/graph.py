@@ -12,7 +12,6 @@ class EstateGraph(Graph):
 
     options = GraphOptions(
         name="estate",
-        description="The monitored estate: sites, equipment, surveys and readings.",
         meaning=Meaning(
             purpose=Purpose(
                 "Estate condition review: for one site or unit, read the equipment "

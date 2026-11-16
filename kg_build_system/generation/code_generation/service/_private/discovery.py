@@ -292,6 +292,8 @@ class _Visitor(cst.CSTVisitor):
 def discover_file(project_root: str | Path, source_path: str | Path) -> tuple[DiscoveredGeneration, ...]:
     """Discover the asset generation requests declared by one source file."""
     root, path = Path(project_root).resolve(), Path(source_path).resolve()
+    if path.name == "manifest.py":
+        return ()
     try:
         path.relative_to(root)
     except ValueError as error:
@@ -323,7 +325,7 @@ def discover(project_root: str | Path) -> tuple[DiscoveredGeneration, ...]:
             if not name.startswith(".") and name != "__pycache__"
         )
         for name in sorted(file_names):
-            if not name.endswith(".py"):
+            if not name.endswith(".py") or name == "manifest.py":
                 continue
             path = directory / name
             if "asset_generation" in path.read_text(encoding="utf-8", errors="ignore"):

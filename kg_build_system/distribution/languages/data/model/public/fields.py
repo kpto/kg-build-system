@@ -102,10 +102,9 @@ type DeclaredValue = (
 
 @dataclass(frozen=True, slots=True)
 class FieldMetadata:
-    """The name, description, annotations and meaning declared on one field."""
+    """The name, annotations and meaning declared on one field."""
 
     name: str | None = None
-    description: str | None = None
     annotations: tuple[Annotation, ...] = ()
     attribute: str = ""
     meaning: Meaning | None = None
@@ -154,7 +153,7 @@ class Field[T: DeclaredValue]:
 
     @property
     def metadata(self) -> FieldMetadata:
-        """The name, description and annotations declared on this field."""
+        """The name and annotations declared on this field."""
         return self._metadata
 
     def __set_name__(self, owner: type[Any], attribute: str) -> None:
