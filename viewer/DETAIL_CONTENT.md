@@ -16,7 +16,7 @@ includes by their immediate importance to a reader; it never renames one. A
 | Order | Section | Question it answers | Content |
 | --- | --- | --- | --- |
 | 1 | **Overview** | What is this, in one screen? | One fact grid: kind, labels, identity, owner or endpoints, counts and licence. |
-| 2 | **Meaning** | What is this for, and what does it exclude? | One renderer: purpose, the limitations it owns, then contextless claims. Attached units follow under one "Attached meaning" sub-label. |
+| 2 | **Meaning** | What is each level for? | One confined purpose box per level: graph → category → component → property, joined by a downward arrow. Each box shows only the purpose, clamped to three lines; a longer purpose hides its remainder. No claims or limitations appear in this band. |
 | 3 | **Fulfilment** | How do the record and relation axes meet? | The axis map: graph records, the binding, the domain relations. Compact by default; one control reveals the full three-column map. |
 | 4 | **Sources** | Where does this value come from? | Assets, source relations and derived relations, as navigable references with counts. |
 | 5 | **Build steps** | How is this built? | The narrowed workflow graph of the steps that produce the subject. |

@@ -6,8 +6,28 @@ import {
   meaningCount,
   meaningLimitations,
   propertyMeaning,
+  purposeLevels,
 } from "../shared/design/meaning";
-import { contractIndex } from "./fixtures";
+import { buildViewerIndex } from "../lib/indexes";
+import { loadSnapshotFromObject } from "../lib/load";
+import { contractIndex, contractSnapshot } from "./fixtures";
+
+const hierarchyIndex = buildViewerIndex(
+  loadSnapshotFromObject({
+    ...contractSnapshot,
+    blueprint: {
+      ...contractSnapshot.blueprint,
+      graph: {
+        ...contractSnapshot.blueprint.graph,
+        nodes: contractSnapshot.blueprint.graph.nodes.map((node) =>
+          node.name === "defect"
+            ? { ...node, parent: ["topology", "node", "documented"] }
+            : node,
+        ),
+      },
+    },
+  }),
+);
 
 describe("design meaning", () => {
   it("reads the graph purpose, limitations and claims", () => {
@@ -43,5 +63,51 @@ describe("design meaning", () => {
     expect(componentMeaning(contractIndex, "node", "missing").limitations).toEqual(
       [],
     );
+  });
+});
+
+
+describe("purpose hierarchy", () => {
+  it("reads the graph, the category and the component downward", () => {
+    const levels = purposeLevels(hierarchyIndex, {
+      level: "node",
+      component: "defect",
+    });
+    expect(levels.map((entry) => entry.label)).toEqual([
+      "Graph",
+      "Category",
+      "Node",
+    ]);
+    expect(levels[0].purpose).toContain(
+      "Exercise the viewer data contract",
+    );
+    expect(levels[1].purpose).toContain("abstract category");
+    expect(levels[2].current).toBe(true);
+    expect(levels[2].purpose).toBeUndefined();
+  });
+
+  it("closes the chain with a property", () => {
+    const levels = purposeLevels(hierarchyIndex, {
+      level: "property",
+      kind: "node",
+      component: "defect",
+      property: "title",
+    });
+    expect(levels.map((entry) => entry.kind)).toEqual([
+      "graph",
+      "abstract",
+      "node",
+      "property",
+    ]);
+    expect(levels.at(-1)?.current).toBe(true);
+  });
+
+  it("keeps a relation purpose off the record hierarchy", () => {
+    expect(
+      purposeLevels(contractIndex, {
+        level: "relation",
+        component: "surveys",
+      }),
+    ).toEqual([]);
   });
 });

@@ -89,3 +89,160 @@ export function meaningLimitations(
 ): SemanticText[] {
   return meaning.limitations;
 }
+
+// ---------------------------------------------------------------------------
+// The purpose hierarchy
+// ---------------------------------------------------------------------------
+
+export type PurposeLevelKind =
+  | "graph"
+  | "abstract"
+  | "node"
+  | "edge"
+  | "property"
+  | "asset"
+  | "relation"
+  | "projection"
+  | "binding"
+  | "step";
+
+/** One level of the record-axis purpose chain: the purpose, and nothing else. */
+export interface PurposeLevel {
+  kind: PurposeLevelKind;
+  name: string;
+  label: string;
+  purpose?: string;
+  current?: boolean;
+}
+
+export interface PurposeSubjectLike {
+  level: string;
+  kind?: string;
+  component: string;
+  property?: string;
+}
+
+const PURPOSE_LABELS: Record<PurposeLevelKind, string> = {
+  graph: "Graph",
+  abstract: "Category",
+  node: "Node",
+  edge: "Edge",
+  property: "Property",
+  asset: "Asset",
+  relation: "Source relation",
+  projection: "Derived relation",
+  binding: "Binding",
+  step: "Step",
+};
+
+interface PurposeEntry {
+  name: string;
+  parent?: string[];
+  abstract?: boolean;
+}
+
+function appendPurposeComponent(
+  index: ViewerIndex,
+  kind: "node" | "edge",
+  name: string,
+  levels: PurposeLevel[],
+  current = true,
+): void {
+  const entries: ReadonlyMap<string, PurposeEntry> =
+    kind === "edge" ? index.topologyEdgesByName : index.topologyNodesByName;
+  const ancestors: PurposeEntry[] = [];
+  const seen = new Set<string>();
+  let entry = entries.get(name);
+  while (entry && !seen.has(entry.name)) {
+    seen.add(entry.name);
+    const parentName = entry.parent?.[2];
+    const parent = parentName ? entries.get(parentName) : undefined;
+    if (!parent) break;
+    ancestors.unshift(parent);
+    entry = parent;
+  }
+  for (const ancestor of ancestors) {
+    const abstract = Boolean(ancestor.abstract);
+    levels.push({
+      kind: kind === "node" && abstract ? "abstract" : kind,
+      name: ancestor.name,
+      label: PURPOSE_LABELS[
+        kind === "node" && abstract ? "abstract" : kind
+      ],
+      purpose: componentMeaning(index, kind, ancestor.name).purpose,
+    });
+  }
+  const entity = entries.get(name);
+  const abstract = Boolean(entity?.abstract);
+  levels.push({
+    kind: kind === "node" && abstract ? "abstract" : kind,
+    name,
+    label: PURPOSE_LABELS[kind === "node" && abstract ? "abstract" : kind],
+    purpose: componentMeaning(index, kind, name).purpose,
+    current,
+  });
+}
+
+/** The graph purpose, its categories, the component and the property. */
+export function purposeLevels(
+  index: ViewerIndex,
+  subject: PurposeSubjectLike,
+): PurposeLevel[] {
+  if (
+    subject.level !== "node" &&
+    subject.level !== "edge" &&
+    subject.level !== "abstract" &&
+    subject.level !== "property"
+  ) {
+    return [];
+  }
+  const levels: PurposeLevel[] = [];
+  const root = graphMeaning(index);
+  if (root.purpose) {
+    levels.push({
+      kind: "graph",
+      name: index.graphDeclaration?.name ?? "graph",
+      label: PURPOSE_LABELS.graph,
+      purpose: root.purpose,
+    });
+  }
+  if (subject.level === "property") {
+    const kind = subject.kind === "edge" ? "edge" : "node";
+    appendPurposeComponent(index, kind, subject.component, levels, false);
+    levels.push({
+      kind: "property",
+      name: subject.property ?? subject.component,
+      label: PURPOSE_LABELS.property,
+      purpose: propertyMeaning(
+        index,
+        kind,
+        subject.component,
+        subject.property ?? "",
+      ).purpose,
+      current: true,
+    });
+    return levels;
+  }
+  appendPurposeComponent(
+    index,
+    subject.level === "edge" ? "edge" : "node",
+    subject.component,
+    levels,
+  );
+  return levels;
+}
+
+/** One purpose level for a subject that sits outside the record-axis chain. */
+export function singlePurposeLevel(
+  kind: PurposeLevelKind,
+  name: string,
+  purpose?: string,
+): PurposeLevel {
+  return {
+    kind,
+    name,
+    label: PURPOSE_LABELS[kind],
+    purpose,
+    current: true,
+  };
+}

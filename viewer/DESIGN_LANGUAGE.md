@@ -80,8 +80,11 @@ A kind includes or omits a section; it never renames one for itself.
 
 - **Overview** is one fact grid: kind, labels, identity, owner or endpoints,
   counts and licence.
-- **Meaning** is one renderer for the subject and for attached units. The label
-  is always Meaning.
+- **Meaning** is a compact purpose chain. On the record axis it reads the
+  graph purpose downward through category and component to property: one box
+  per level, joined by an arrow, each showing only its purpose. The box is
+  constrained and clamps a long purpose; the rest stays hidden. The label is
+  always Meaning.
 - **Fulfilment** is the axis map: graph records, the binding and the domain
   relations. It is compact by default; one control reveals the full map.
 - **Sources**, **Build steps** and **Expression** are three visualisations of

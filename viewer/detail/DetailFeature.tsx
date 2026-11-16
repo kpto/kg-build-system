@@ -58,7 +58,6 @@ import { selectionForConceptTarget } from "@/workbench/conceptTarget";
 import { activeDocument, documentSelection } from "@/workbench/types";
 import type {
   LineageLane,
-  SemanticSubjectKind,
   ViewerIndex,
 } from "@/lib/types";
 import { LINEAGE_LANES } from "@/lib/types";
@@ -92,17 +91,19 @@ import {
   type ProofModel,
   type ProofNode,
   type ProofPropertySummary,
-  type ProofSemantics,
   type ProofSubject,
   type ProofTrace,
   type ProofTypeChain,
 } from "@/proof/model";
-import { DesignMeaning } from "@/shared/design/DesignMeaning";
+import { PurposeChain } from "@/shared/design/PurposeChain";
 import {
   attachedMeaning,
   componentMeaning,
   propertyMeaning,
+  purposeLevels,
+  singlePurposeLevel,
   type DesignMeaningValue,
+  type PurposeLevel,
 } from "@/shared/design/meaning";
 import styles from "./detail.module.css";
 import { profileSummary, recordSummary } from "@/lib/summary";
@@ -292,49 +293,6 @@ function Badge({
 
 function EmptyState({ children }: { children: ReactNode }) {
   return <p className={styles.empty}>{children}</p>;
-}
-
-function attachmentLabel(kind: SemanticSubjectKind): string {
-  switch (kind) {
-    case "graph":
-      return "graph declaration";
-    case "binding":
-      return "binding";
-    case "field":
-      return "source field";
-    default:
-      return kind;
-  }
-}
-
-function SemanticCards({ attachments }: { attachments: ProofSemantics[] }) {
-  if (!attachments.length) {
-    return <DetailEmptyState>No attached meaning on this subject.</DetailEmptyState>;
-  }
-  return (
-    <div className={styles.meaningGrid}>
-      {attachments.map((attachment) => (
-        <article key={attachment.key} className={styles.meaningCard}>
-          <header className={styles.meaningCardHead}>
-            <strong>
-              {attachment.ownerName
-                ? `${attachment.ownerName}.${attachment.name}`
-                : attachment.name}
-            </strong>
-            <span>{attachmentLabel(attachment.kind)}</span>
-          </header>
-          <DesignMeaning
-            claims={attachment.claims}
-            limitations={attachment.limitations}
-            purpose={attachment.purpose?.text}
-            frames={attachment.frames}
-            compact
-            emptyText="Meaning omitted."
-          />
-        </article>
-      ))}
-    </div>
-  );
 }
 
 function TypeChainView({ chain }: { chain: ProofTypeChain }) {
@@ -2170,12 +2128,17 @@ function SubjectDetailEditor(props: WorkspaceProps) {
   const model = useProofModel(props);
   const selection = documentSelection(activeDocument(props.state));
   const meaning = subjectMeaning(index, model);
-  const meaningLimitationCount =
-    meaning.limitations.length +
-    (meaning.frames ?? []).reduce(
-      (total, frame) => total + (frame.limitations?.length ?? 0),
-      0,
-    );
+  const purposes = useMemo<PurposeLevel[]>(() => {
+    const chain = purposeLevels(index, model.subject);
+    if (chain.length) return chain;
+    return [
+      singlePurposeLevel(
+        model.level,
+        model.subject.component,
+        meaning.purpose,
+      ),
+    ];
+  }, [index, model, meaning.purpose]);
   const provenance = useMemo(
     () => provenanceReferences(index, model),
     [model, index],
@@ -2239,6 +2202,26 @@ function SubjectDetailEditor(props: WorkspaceProps) {
     };
     props.actions.openTab({ selection: selectionFor(), preview: true });
   };
+  const openPurpose = (level: PurposeLevel) => {
+    if (level.current || level.kind === "graph") return;
+    const selection: SubjectSelection | null =
+      level.kind === "abstract"
+        ? {
+            kind: "node",
+            level: "abstract",
+            name: level.name,
+            component: level.name,
+          }
+        : level.kind === "node" || level.kind === "edge"
+          ? {
+              kind: level.kind,
+              level: level.kind,
+              name: level.name,
+              component: level.name,
+            }
+          : null;
+    if (selection) props.actions.openTab({ selection, preview: true });
+  };
   const endpoint = (name?: string): ConceptReference | undefined =>
     name
       ? {
@@ -2274,11 +2257,6 @@ function SubjectDetailEditor(props: WorkspaceProps) {
       </div>
     ) : undefined;
 
-  const subjectSemantics = model.subjectSemantics.filter(
-    (attachment) =>
-      attachment.name !== model.subject.component &&
-      attachment.ownerName !== model.subject.component,
-  );
   const propertyBindings =
     model.level === "property"
       ? findComponentPropertyBindings(
@@ -2320,32 +2298,22 @@ function SubjectDetailEditor(props: WorkspaceProps) {
       </DetailBand>
   );
   const meaningSection = (
-      <DetailBand
-        concept="semantics"
-        priority="primary"
-        title="Meaning"
-        question="What is this for, and what does it exclude?"
-        meta={`${meaning.claims.length} ${
-          meaning.claims.length === 1 ? "claim" : "claims"
-        } · ${meaningLimitationCount} ${
-          meaningLimitationCount === 1 ? "limitation" : "limitations"
-        }`}
-        testId="detail-meaning"
-      >
-        <DesignMeaning
-          claims={meaning.claims}
-          limitations={meaning.limitations}
-          purpose={meaning.purpose}
-          frames={meaning.frames}
-          emptyText="Meaning omitted for this subject."
-        />
-        {subjectSemantics.length ? (
-          <div className={styles.meaningAttached}>
-            <p className={styles.bandNote}>Attached meaning</p>
-            <SemanticCards attachments={subjectSemantics} />
-          </div>
-        ) : null}
-      </DetailBand>
+    <DetailBand
+      concept="semantics"
+      priority="primary"
+      title="Meaning"
+      question="What is each level for?"
+      meta={`${purposes.length} ${
+        purposes.length === 1 ? "level" : "levels"
+      }`}
+      testId="detail-meaning"
+    >
+      <PurposeChain
+        levels={purposes}
+        onOpen={openPurpose}
+        emptyText="Meaning omitted for this subject."
+      />
+    </DetailBand>
   );
   const fulfilmentSection = (
       <DetailBand

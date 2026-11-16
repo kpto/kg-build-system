@@ -16,8 +16,8 @@ import type {
 } from "@/lib/types";
 import { effectiveLicense } from "@/proof/license";
 import type { ProvenanceReferences } from "@/proof/references";
-import { DesignMeaning } from "@/shared/design/DesignMeaning";
-import { attachedMeaning } from "@/shared/design/meaning";
+import { PurposeChain } from "@/shared/design/PurposeChain";
+import { attachedMeaning, singlePurposeLevel } from "@/shared/design/meaning";
 import { ConceptGlyph } from "@/shared/ui/ConceptMark";
 import { ConceptReferenceChip } from "@/shared/ui/ConceptReference";
 import { activeDocument, documentSelection, type WorkspaceProps } from "@/workbench/types";
@@ -295,12 +295,6 @@ export function DataItemEditor(props: WorkspaceProps) {
     }));
 
   const meaning = attachedMeaning(model.semantics);
-  const meaningLimitationCount =
-    meaning.limitations.length +
-    (meaning.frames ?? []).reduce(
-      (total, frame) => total + (frame.limitations?.length ?? 0),
-      0,
-    );
   const overviewSection = (
       <DetailBand
         concept={concept}
@@ -321,15 +315,17 @@ export function DataItemEditor(props: WorkspaceProps) {
         concept="semantics"
         priority="primary"
         title="Meaning"
-        question="What is this relation for, and what does it exclude?"
-        meta={`${meaning.claims.length} ${
-          meaning.claims.length === 1 ? "claim" : "claims"
-        } · ${meaningLimitationCount} ${
-          meaningLimitationCount === 1 ? "limitation" : "limitations"
-        }`}
+        question="What is this relation for?"
+        meta={meaning.purpose ? "purpose" : "no purpose"}
       >
-        <DesignMeaning
-          {...meaning}
+        <PurposeChain
+          levels={[
+            singlePurposeLevel(
+              kind === "relation" ? "relation" : "projection",
+              model.name,
+              meaning.purpose,
+            ),
+          ]}
           emptyText="Meaning omitted for this declaration."
         />
       </DetailBand>
