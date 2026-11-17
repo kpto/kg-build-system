@@ -90,8 +90,8 @@ A kind includes or omits a section; it never renames one for itself.
 
 - **Overview** is the tab banner: identity and one fact row. It is not a band.
 - **Constitution** is one DAG on the shared graph canvas: the subject's purpose
-  and the fulfilment that answers it are the two top nodes, the graph ancestry
-  hangs below the purpose and the relation provenance below the fulfilment.
+  and one fulfilment per binding are the top consumers, the graph ancestry
+  hangs below the purpose and the relation provenance below the bindings.
   Every edge points from the supply to the consumer; a source relation or asset
   shared by several consumers is one node with one edge per consumer, never a
   copy or a count. The fulfilment answers the purpose and the relation roots
@@ -110,7 +110,7 @@ A kind includes or omits a section; it never renames one for itself.
 - **Expression** and **Build steps** belong to the binding document, not to the
   record detail. Expression shows the identity and property chains the binding
   writes; Build steps shows the plan around that binding. The record reaches
-  them through its Bindings table and the Constitution's fulfilment box. The
+  them through its Bindings table and the Constitution's binding node. The
   binding banner states the rows read, so Sources is not a separate card.
 - **Members** is one table grammar for properties, columns, fields,
   descendants and openings. The instance pill opens its document when one exists.

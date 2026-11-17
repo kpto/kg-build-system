@@ -34,11 +34,6 @@ interface HoveredBox {
   rect: DOMRect;
 }
 
-function plural(count: number, noun: string): string {
-  if (count === 1) return `${count} ${noun}`;
-  return `${count} ${noun.endsWith("y") ? `${noun.slice(0, -1)}ies` : `${noun}s`}`;
-}
-
 function boxKey(node: ConstitutionNode): string {
   return sceneNodeId(node);
 }
@@ -338,45 +333,7 @@ export function Constitution({ model }: ConstitutionProps) {
 
   const hoveredKey = hovered ? boxKey(hovered.node) : undefined;
 
-  const binding = model.binding;
-  const bindingText = binding
-    ? binding.count === 1
-      ? (binding.purpose ?? "No purpose is stated.")
-      : `${plural(binding.count, "binding")}${
-          binding.identity.length
-            ? ` · identity ${binding.identity.join(", ")}`
-            : ""
-        }`
-    : "No binding meets these two axes.";
-  const bindingHoverable = Boolean(
-    binding &&
-      binding.count === 1 &&
-      (binding.meaning.purpose ||
-        binding.meaning.claims.length ||
-        binding.meaning.limitations.length ||
-        (binding.meaning.frames?.length ?? 0)),
-  );
-
-  const scene = useMemo(() => {
-    const node: ConstitutionNode = binding
-      ? {
-          kind: "binding",
-          name: plural(binding.count, "binding"),
-          label: "Fulfilment",
-          meaning: binding.meaning,
-        }
-      : {
-          kind: "binding",
-          name: "no binding",
-          label: "Fulfilment",
-          meaning: { claims: [], limitations: [], frames: [] },
-        };
-    return buildConstitutionScene(model, {
-      node,
-      text: bindingText,
-      hoverable: bindingHoverable,
-    });
-  }, [model, binding, bindingText, bindingHoverable]);
+  const scene = useMemo(() => buildConstitutionScene(model), [model]);
 
   const hoveredLeft = hovered
     ? Math.min(

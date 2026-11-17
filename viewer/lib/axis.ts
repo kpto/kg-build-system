@@ -189,7 +189,7 @@ function bindingModel(
     identityFields: [...new Set(identityFields)].filter(Boolean),
     propertyCount: Object.keys(binding.binding.properties ?? {}).length,
     rowSourceKind: binding.binding.rows?.kind,
-    debugName: binding.binding.name,
+    debugName: binding.binding.name ?? binding.binding.debug_name,
     purpose:
       binding.binding.semantics?.purpose?.text ??
       binding.binding.semantics?.frames?.[0]?.text,

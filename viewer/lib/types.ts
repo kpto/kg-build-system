@@ -309,6 +309,7 @@ export interface BindingDTO {
   annotations?: AnnotationDTO[];
   mode?: string;
   name?: string;
+  debug_name?: string;
   source_node?: Ref | null;
   target_node?: Ref | null;
   python_ref?: {

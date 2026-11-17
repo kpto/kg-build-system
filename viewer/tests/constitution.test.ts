@@ -50,9 +50,9 @@ describe("constitution", () => {
     expect(model.relation[0].children.map((child) => child.node.name)).toEqual([
       "estate",
     ]);
-    expect(model.binding?.count).toBe(1);
-    expect(model.binding?.identity).toContain("surveys.survey_id");
-    expect(model.binding?.meaning.claims[0]?.text).toContain(
+    expect(model.bindings).toHaveLength(1);
+    expect(model.bindings[0].identity).toContain("surveys.survey_id");
+    expect(model.bindings[0].meaning.claims[0]?.text).toContain(
       "projects the survey title",
     );
   });
@@ -99,7 +99,7 @@ describe("constitution", () => {
       "estate survey table",
     );
     expect(model.relation[0].children[0].node.name).toBe("estate");
-    expect(model.binding?.count).toBe(1);
+    expect(model.bindings).toHaveLength(1);
   });
 
   it("keeps the whole provenance chain of a derived relation", () => {

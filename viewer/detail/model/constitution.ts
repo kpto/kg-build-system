@@ -7,10 +7,10 @@
  * relation branch holds every relation the bindings read, each derived relation
  * with all its scanned relations and each source relation with its asset, as one
  * DAG: a declaration shared by several consumers is one node. The scene places
- * the fulfilment one row lower on the right, linked to the purpose; the graph
- * ancestry hangs from the purpose and the relation provenance from the
- * fulfilment. A level keeps its own meaning, so the two branches show derivation
- * and supply, never inherited text.
+ * one fulfilment per binding to the right of the purpose, each linked to it;
+ * the graph ancestry hangs from the purpose and the relation provenance from
+ * the bindings. A level keeps its own meaning, so the two branches show
+ * derivation and supply, never inherited text.
  */
 
 import {
@@ -61,11 +61,15 @@ export interface ConstitutionRelation {
   children: ConstitutionRelation[];
 }
 
-/** The fulfilment box: what meets the two axes, summarised. */
+/** One binding: the fulfilment between one relation and one record. */
 export interface ConstitutionBinding {
-  count: number;
+  index: number;
+  /** The binding's display handle; a binding name is not its identity. */
+  name: string;
   identity: string[];
   properties: number;
+  /** The relations this binding's row source reads. */
+  relations: string[];
   purpose?: string;
   meaning: DesignMeaningValue;
 }
@@ -77,7 +81,8 @@ export interface ConstitutionModel {
   graph: ConstitutionNode[];
   /** Every relation a binding reads, each with its full provenance. */
   relation: ConstitutionRelation[];
-  binding?: ConstitutionBinding;
+  /** One fulfilment per binding; a record may be written by several bindings. */
+  bindings: ConstitutionBinding[];
 }
 
 export interface ConstitutionSubjectLike {
@@ -348,33 +353,20 @@ function relationTrees(
   return roots.map((relation) => relationTree(index, relation, subject, new Set()));
 }
 
-function bindingSummary(
+function bindingSummaries(
   index: ViewerIndex,
   map: AxisMap | undefined,
-): ConstitutionBinding | undefined {
+): ConstitutionBinding[] {
   const bindings = map?.bindings ?? [];
-  if (!bindings.length) return undefined;
-  const identity = [
-    ...new Set(bindings.flatMap((binding) => binding.identityFields)),
-  ].slice(0, 3);
-  const properties = bindings.reduce(
-    (total, binding) => total + binding.propertyCount,
-    0,
-  );
-  const only = bindings.length === 1 ? bindings[0] : undefined;
-  return {
-    count: bindings.length,
-    identity,
-    properties,
-    ...(only?.purpose ? { purpose: only.purpose } : {}),
-    meaning: only
-      ? bindingMeaning(index, only)
-      : {
-          limitations: [],
-          claims: [],
-          frames: [],
-        },
-  };
+  return bindings.map((binding) => ({
+    index: binding.index,
+    name: binding.debugName ?? `binding #${binding.index}`,
+    identity: [...new Set(binding.identityFields)],
+    properties: binding.propertyCount,
+    relations: binding.relations,
+    purpose: binding.purpose,
+    meaning: bindingMeaning(index, binding),
+  }));
 }
 
 /**
@@ -414,11 +406,6 @@ export function constitutionModel(
         .map(purposeNode)
     : [...recordLevels(index, subject, map), graphPurposeNode(index)];
   const relation = relationTrees(index, subject, map);
-  const binding = bindingSummary(index, map);
-  return {
-    purpose,
-    graph,
-    relation,
-    ...(binding ? { binding } : {}),
-  };
+  const bindings = bindingSummaries(index, map);
+  return { purpose, graph, relation, bindings };
 }
