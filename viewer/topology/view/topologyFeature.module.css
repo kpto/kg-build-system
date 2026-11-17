@@ -1,0 +1,16 @@
+@layer components {
+  .inspector {
+    animation: wb-slide-in-right var(--motion-slow) var(--ease-instrument);
+  }
+}
+
+@keyframes wb-slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}

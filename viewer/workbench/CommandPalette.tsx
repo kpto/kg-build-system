@@ -6,8 +6,10 @@ import { CircleDot, FileText, Search, X } from "lucide-react";
 import { searchIndex } from "@/lib/search";
 import { subjectKindLabel } from "@/lib/summary";
 import type { SearchKind, SearchRecord } from "@/lib/types";
+import { cx } from "@/shared/ui/theme";
 import { useWorkbench } from "./store";
 import type { SubjectSelection } from "./types";
+import styles from "./commandPalette.module.css";
 
 export interface CommandPaletteProps {
   onClose(): void;
@@ -217,19 +219,19 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
         type="button"
         role="option"
         aria-selected={isActive}
-        className="wb-palette-result"
+        className={styles.paletteResult}
         data-active={isActive ? "true" : undefined}
         onMouseEnter={() => setActive(index)}
         onClick={() => choose(item)}
       >
-        <span className="wb-palette-result-icon">
+        <span className={styles.paletteResultIcon}>
           <Icon aria-hidden className="size-4" />
         </span>
-        <span className="wb-palette-result-copy">
-          <span className="wb-palette-result-label">{item.label}</span>
-          <span className="wb-palette-result-detail">{item.detail}</span>
+        <span className={styles.paletteResultCopy}>
+          <span className={styles.paletteResultLabel}>{item.label}</span>
+          <span className={styles.paletteResultDetail}>{item.detail}</span>
         </span>
-        <span className="wb-palette-result-kind">
+        <span className={styles.paletteResultKind}>
           {subjectKindLabel(item.selection.kind)}
         </span>
       </button>
@@ -238,20 +240,20 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
 
   return (
     <div
-      className="wb-overlay"
+      className={styles.overlay}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
     >
       <div
-        className="wb-palette"
+        className={styles.palette}
         role="dialog"
         aria-modal="true"
         aria-label="Command palette"
         onKeyDown={onKeyDown}
         data-testid="command-palette"
       >
-        <div className="wb-palette-search">
+        <div className={styles.paletteSearch}>
           <Search aria-hidden className="size-4" />
           <input
             ref={inputRef}
@@ -267,7 +269,7 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
           />
           <button
             type="button"
-            className="wb-icon-button"
+            className={styles.iconButton}
             aria-label="Close command palette"
             title="Close command palette"
             onClick={onClose}
@@ -276,15 +278,15 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
           </button>
         </div>
 
-        <div className="wb-palette-results thin-scrollbar" role="listbox" aria-label="Results">
+        <div className={cx(styles.paletteResults, "thin-scrollbar")} role="listbox" aria-label="Results">
           {subjectItems.length > 0 ? (
-            <div className="wb-palette-group">
-              <p className="wb-palette-group-label">Subjects</p>
+            <div className={styles.paletteGroup}>
+              <p className={styles.paletteGroupLabel}>Subjects</p>
               {subjectItems.map((item, index) => renderItem(item, index))}
             </div>
           ) : null}
           {items.length === 0 ? (
-            <div className="wb-palette-empty">
+            <div className={styles.paletteEmpty}>
               <FileText aria-hidden className="size-5" />
               <p>
                 {query.trim()
@@ -295,18 +297,18 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
           ) : null}
         </div>
 
-        <footer className="wb-palette-footer">
+        <footer className={styles.paletteFooter}>
           <span>
-            <kbd className="wb-kbd">↑</kbd>
-            <kbd className="wb-kbd">↓</kbd> navigate
+            <kbd className={styles.kbd}>↑</kbd>
+            <kbd className={styles.kbd}>↓</kbd> navigate
           </span>
           <span>
-            <kbd className="wb-kbd">Enter</kbd> open
+            <kbd className={styles.kbd}>Enter</kbd> open
           </span>
           <span>
-            <kbd className="wb-kbd">Esc</kbd> close
+            <kbd className={styles.kbd}>Esc</kbd> close
           </span>
-          <span className="wb-palette-count">{items.length} results</span>
+          <span className={styles.paletteCount}>{items.length} results</span>
         </footer>
       </div>
     </div>

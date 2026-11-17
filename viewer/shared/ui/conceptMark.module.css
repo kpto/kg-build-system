@@ -1,0 +1,32 @@
+/* Concept marks: one grammar for every layer. The caller sets the box size;
+   the active element fills at 24% so selection does not change the silhouette. */
+
+@layer components {
+  .mark {
+    display: block;
+    flex: none;
+    overflow: visible;
+  }
+
+  .mark .fill {
+    fill: none;
+    stroke: currentColor;
+    transition:
+      fill var(--motion-fast) var(--ease-instrument),
+      fill-opacity var(--motion-fast) var(--ease-instrument);
+  }
+
+  .mark .plain {
+    fill: none;
+    stroke: none;
+    transition:
+      fill var(--motion-fast) var(--ease-instrument),
+      fill-opacity var(--motion-fast) var(--ease-instrument);
+  }
+
+  .mark[data-active] .fill,
+  .mark[data-active] .plain {
+    fill: currentColor;
+    fill-opacity: 0.24;
+  }
+}

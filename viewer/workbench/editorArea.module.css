@@ -1,0 +1,56 @@
+/* Editor area: the document surface below the tab strip. Every open document is
+   one pane; only the active pane is displayed. */
+
+@layer components {
+  .editor {
+    display: flex;
+    min-height: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+    overflow: hidden;
+    background-color: var(--color-abyss);
+  }
+
+  .editorBody {
+    position: relative;
+    min-height: 0;
+    flex: 1;
+    overflow: hidden;
+    background-color: var(--color-abyss);
+    background-image:
+      linear-gradient(var(--color-grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--color-grid) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  .editorPane {
+    position: absolute;
+    inset: 0;
+    overflow: auto;
+  }
+
+  .editorPane[data-active="true"] {
+    display: block;
+  }
+
+  .editorPane:not([data-active="true"]) {
+    display: none;
+  }
+
+  .editorPane[data-full-bleed="true"] {
+    overflow: hidden;
+  }
+
+  .editorBody[data-full-bleed="true"] {
+    background-image: none;
+  }
+
+  /* SVG node editors draw their own selection state; the browser focus box is
+     visual noise around a selected node, edge or component. */
+  .editor svg [role="button"]:focus,
+  .editor svg [role="button"]:focus-visible,
+  .editor svg [tabindex]:focus,
+  .editor svg [tabindex]:focus-visible {
+    outline: none;
+  }
+}

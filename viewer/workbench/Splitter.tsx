@@ -2,6 +2,8 @@
 
 import { useRef, type KeyboardEvent, type PointerEvent } from "react";
 
+import styles from "./splitter.module.css";
+
 export interface SplitterProps {
   orientation: "vertical" | "horizontal";
   value: number;
@@ -87,7 +89,7 @@ export function Splitter({
       aria-valuenow={Math.round(value)}
       aria-valuetext={`${Math.round(value)} pixels`}
       tabIndex={0}
-      className="wb-splitter"
+      className={styles.splitter}
       data-orientation={orientation}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -95,7 +97,7 @@ export function Splitter({
       onPointerCancel={endDrag}
       onKeyDown={onKeyDown}
     >
-      <span className="wb-splitter-grip" aria-hidden />
+      <span className={styles.splitterGrip} aria-hidden />
     </div>
   );
 }

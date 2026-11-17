@@ -2,6 +2,8 @@ import type { CSSProperties } from "react";
 
 import type { ConceptKind } from "@/lib/concepts";
 import { concepts, LayerMark } from "./concepts";
+import { cx } from "./theme";
+import styles from "./conceptMark.module.css";
 
 /**
  * A small concept glyph; the mark and colour come from the concept catalogue.
@@ -43,7 +45,7 @@ export function ConceptMark({
   const definition = concepts[concept];
   return (
     <span
-      className={className}
+      className={cx(styles.mark, className)}
       data-concept={concept}
       role="img"
       aria-label={`${definition.label} document`}

@@ -14,6 +14,7 @@ import { ExplorerSidebar } from "@/detail/DetailFeature";
 import { TopologySidebar } from "@/topology/TopologyFeature";
 import { WorkflowControls } from "@/workflow/WorkflowFeature";
 import { cx } from "@/shared/ui/theme";
+import styles from "./sideBar.module.css";
 import { useWorkbench } from "./store";
 import {
   MAX_SIDEBAR_SPLIT,
@@ -88,7 +89,7 @@ function SideBarSplitter({
       aria-valuenow={Math.round(ratio * 100)}
       aria-valuetext={`Control ${Math.round(ratio * 100)} percent`}
       tabIndex={0}
-      className="wb-splitter"
+      className={styles.sectionSplitter}
       data-orientation="horizontal"
       data-testid="sidebar-splitter"
       onPointerDown={onPointerDown}
@@ -97,7 +98,7 @@ function SideBarSplitter({
       onPointerCancel={endDrag}
       onKeyDown={onKeyDown}
     >
-      <span className="wb-splitter-grip" aria-hidden />
+      <span className={styles.sectionSplitterGrip} aria-hidden />
     </div>
   );
 }
@@ -169,14 +170,14 @@ export function SideBar() {
     const expanded = open[id];
     return (
       <section
-        className="wb-side-section"
+        className={styles.sideSection}
         data-open={expanded ? "true" : undefined}
         data-testid={`sidebar-section-body-${id}`}
         style={expanded ? { flexGrow: growth(id) } : undefined}
       >
         <button
           type="button"
-          className="wb-side-section-header"
+          className={styles.sideSectionHeader}
           aria-expanded={expanded}
           onClick={() => toggle(id)}
           data-testid={`sidebar-section-${id}`}
@@ -185,11 +186,11 @@ export function SideBar() {
             aria-hidden
             className={cx("size-3 transition-transform", expanded && "rotate-90")}
           />
-          <span className="wb-side-section-title">{label}</span>
-          <span className="wb-side-section-meta">{meta}</span>
+          <span className={styles.sideSectionTitle}>{label}</span>
+          <span className={styles.sideSectionMeta}>{meta}</span>
         </button>
         {expanded ? (
-          <div className="wb-side-section-body thin-scrollbar">{body}</div>
+          <div className={cx(styles.sideSectionBody, "thin-scrollbar")}>{body}</div>
         ) : null}
       </section>
     );
@@ -198,14 +199,14 @@ export function SideBar() {
   return (
     <aside
       ref={container}
-      className="wb-sidebar"
+      className={styles.sidebar}
       style={{ width: state.layout.sidebarWidth }}
       aria-label="Workbench side bar"
       data-testid="sidebar"
     >
 
-      <div className="wb-side-search">
-        <span className="wb-side-search-name" title={state.snapshot.title}>
+      <div className={styles.sideSearch}>
+        <span className={styles.sideSearchName} title={state.snapshot.title}>
           {state.snapshot.name}
         </span>
       </div>

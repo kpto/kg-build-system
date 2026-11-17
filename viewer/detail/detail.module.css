@@ -2317,3 +2317,12 @@ button.memberRow:focus-visible {
   letter-spacing: var(--tracking-widest);
   text-transform: uppercase;
 }
+
+@keyframes wb-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from "react";
 
 import type { ConceptKind } from "@/lib/concepts";
 import { cx, theme } from "./theme";
+import styles from "./conceptMark.module.css";
 
 export interface ConceptDefinition {
   label: string;
@@ -24,7 +25,7 @@ export const concepts: Record<ConceptKind, ConceptDefinition> = {
     color: theme.conceptGraph,
     mark: (
       <>
-        <g className="layer-mark-fill">
+        <g className={styles.fill}>
           <circle cx="12" cy="5" r="2.1" />
           <circle cx="5" cy="18" r="2.1" />
           <circle cx="19" cy="18" r="2.1" />
@@ -40,7 +41,7 @@ export const concepts: Record<ConceptKind, ConceptDefinition> = {
       <>
         <rect x="4" y="4" width="16" height="16" rx="3" />
         <rect
-          className="layer-mark-fill"
+          className={styles.fill}
           x="8.5"
           y="8.5"
           width="7"
@@ -56,7 +57,7 @@ export const concepts: Record<ConceptKind, ConceptDefinition> = {
     mark: (
       <>
         <circle cx="12" cy="12" r="7" />
-        <circle className="layer-mark-fill" cx="12" cy="12" r="2.4" />
+        <circle className={styles.fill} cx="12" cy="12" r="2.4" />
       </>
     ),
   },
@@ -65,8 +66,8 @@ export const concepts: Record<ConceptKind, ConceptDefinition> = {
     color: theme.conceptEdge,
     mark: (
       <>
-        <circle className="layer-mark-fill" cx="5" cy="17" r="2.1" />
-        <circle className="layer-mark-fill" cx="19" cy="7" r="2.1" />
+        <circle className={styles.fill} cx="5" cy="17" r="2.1" />
+        <circle className={styles.fill} cx="19" cy="7" r="2.1" />
         <path d="M6.7 15.7C9.5 10.5 14 7.3 17.4 7.1" />
       </>
     ),
@@ -76,7 +77,7 @@ export const concepts: Record<ConceptKind, ConceptDefinition> = {
     color: theme.conceptProperty,
     mark: (
       <>
-        <circle className="layer-mark-fill" cx="12" cy="8" r="3" />
+        <circle className={styles.fill} cx="12" cy="8" r="3" />
         <path d="M12 11v8M9.5 16.5h5" />
       </>
     ),
@@ -87,7 +88,7 @@ export const concepts: Record<ConceptKind, ConceptDefinition> = {
     mark: (
       <>
         <ellipse
-          className="layer-mark-fill"
+          className={styles.fill}
           cx="12"
           cy="6.5"
           rx="6.5"
@@ -106,7 +107,7 @@ export const concepts: Record<ConceptKind, ConceptDefinition> = {
         <rect x="4.5" y="5.5" width="15" height="10" rx="1.5" />
         <path d="M9.5 5.5v10M14.5 5.5v10M4.5 10.5h15" />
         <path d="M12 22v-6M9.5 18.5 12 16l2.5 2.5" />
-        <path className="layer-mark-plain" d="M4.5 5.5h15v5h-15z" />
+        <path className={styles.plain} d="M4.5 5.5h15v5h-15z" />
       </>
     ),
   },
@@ -122,7 +123,7 @@ export const concepts: Record<ConceptKind, ConceptDefinition> = {
         <rect x="15" y="16" width="7" height="5" rx="1.2" />
         <path d="M15 18.5h7" />
         <path d="M5.5 16C5.5 12 8 10.5 10 10M18.5 16C18.5 12 16 10.5 14 10" />
-        <path className="layer-mark-plain" d="M7 3h10v3.5H7z" />
+        <path className={styles.plain} d="M7 3h10v3.5H7z" />
       </>
     ),
   },
@@ -132,7 +133,7 @@ export const concepts: Record<ConceptKind, ConceptDefinition> = {
     mark: (
       <>
         <path d="M9 4 7 20M17 4l-2 16M4.5 9h15M4 15h15" />
-        <circle className="layer-mark-fill" cx="19" cy="19" r="1.6" />
+        <circle className={styles.fill} cx="19" cy="19" r="1.6" />
       </>
     ),
   },
@@ -141,7 +142,7 @@ export const concepts: Record<ConceptKind, ConceptDefinition> = {
     color: theme.conceptBinding,
     mark: (
       <>
-        <circle className="layer-mark-fill" cx="12" cy="12" r="4" />
+        <circle className={styles.fill} cx="12" cy="12" r="4" />
         <path d="M2 12h6M16 12h6" />
       </>
     ),
@@ -154,7 +155,7 @@ export const concepts: Record<ConceptKind, ConceptDefinition> = {
         <rect x="3" y="3" width="7" height="6" rx="1.5" />
         <rect x="14" y="3" width="7" height="6" rx="1.5" />
         <rect
-          className="layer-mark-fill"
+          className={styles.fill}
           x="8.5"
           y="15"
           width="7"
@@ -172,7 +173,7 @@ export const concepts: Record<ConceptKind, ConceptDefinition> = {
       <>
         <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
         <path d="M7.5 9.5 11 12l-3.5 2.5M12.5 15h4" />
-        <circle className="layer-mark-fill" cx="17.5" cy="7.5" r="1.2" />
+        <circle className={styles.fill} cx="17.5" cy="7.5" r="1.2" />
       </>
     ),
   },
@@ -181,7 +182,7 @@ export const concepts: Record<ConceptKind, ConceptDefinition> = {
     color: theme.conceptMeaning,
     mark: (
       <>
-        <circle className="layer-mark-fill" cx="12" cy="10" r="6" />
+        <circle className={styles.fill} cx="12" cy="10" r="6" />
         <path d="M9.5 15.5 8 22l4-2 4 2-1.5-6.5" />
         <path d="M9.3 10l1.8 1.8 3.6-3.6" />
       </>
@@ -208,7 +209,7 @@ export function LayerMark({
   return (
     <svg
       aria-hidden
-      className={cx("layer-mark", className)}
+      className={cx(styles.mark, className)}
       style={style}
       viewBox="0 0 24 24"
       fill="none"

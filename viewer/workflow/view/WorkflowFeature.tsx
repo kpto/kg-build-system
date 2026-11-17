@@ -28,6 +28,7 @@ import { cx, groupPalette, theme } from "@/shared/ui/theme";
 import {
   ViewportAction,
   ViewportFrame,
+  ViewportHint,
   ViewportNav,
 } from "@/shared/ui/Viewport";
 import { activeDocument, type WorkspaceProps } from "@/workbench/types";
@@ -918,11 +919,11 @@ export function WorkflowEditor(props: WorkspaceProps) {
           </div>
         ) : null}
 
-        <div className="wb-viewport-hint pointer-events-none">
+        <ViewportHint className="pointer-events-none">
           {inStepGroup
             ? "drag to pan · wheel to zoom · click a step to select · double-click to open"
             : "drag to pan · wheel to zoom · right-click a component for actions · node = component · link = aggregated step connections"}
-        </div>
+        </ViewportHint>
 
       {menu ? (
         <ContextMenu

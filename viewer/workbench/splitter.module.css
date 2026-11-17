@@ -1,0 +1,66 @@
+/* A draggable separator; the grip is revealed on hover and focus. */
+
+@layer components {
+  .splitter {
+    position: relative;
+    z-index: var(--z-sticky);
+    flex: none;
+    border: 0;
+    background-color: var(--color-gutter);
+    touch-action: none;
+    outline: none;
+  }
+
+  .splitter[data-orientation="vertical"] {
+    width: 3px;
+    cursor: col-resize;
+  }
+
+  .splitter[data-orientation="horizontal"] {
+    height: 3px;
+    cursor: row-resize;
+  }
+
+  .splitter:hover,
+  .splitter:focus-visible {
+    background-color: var(--color-selection);
+  }
+
+  .splitterGrip {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 11px;
+    height: 11px;
+    border-radius: var(--radius-sm);
+    opacity: 0;
+    transform: translate(-50%, -50%);
+  }
+
+  .splitter[data-orientation="vertical"] .splitterGrip {
+    width: 3px;
+    height: 22px;
+    background:
+      repeating-linear-gradient(
+        180deg,
+        var(--color-line-strong) 0 2px,
+        transparent 2px 4px
+      );
+  }
+
+  .splitter[data-orientation="horizontal"] .splitterGrip {
+    width: 22px;
+    height: 3px;
+    background:
+      repeating-linear-gradient(
+        90deg,
+        var(--color-line-strong) 0 2px,
+        transparent 2px 4px
+      );
+  }
+
+  .splitter:hover .splitterGrip,
+  .splitter:focus-visible .splitterGrip {
+    opacity: 1;
+  }
+}

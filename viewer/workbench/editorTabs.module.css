@@ -1,0 +1,141 @@
+/* Editor tab strip: the workbench's one tab bar, its history controls and its
+   per-document tabs. Colours, type and motion come from the theme roles. */
+
+@layer components {
+  .tabbar {
+    display: flex;
+    height: 28px;
+    flex: none;
+    align-items: stretch;
+    overflow: hidden;
+    border-bottom: var(--border-hairline) solid var(--color-line-deep);
+    background-color: var(--color-panel);
+  }
+
+  .tabnav {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: var(--space-hairline);
+    border-right: var(--border-hairline) solid var(--color-line-soft);
+    padding: 0 var(--space-inline);
+  }
+
+  .tabnavButton {
+    display: inline-flex;
+    width: 22px;
+    height: 22px;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--color-muted);
+  }
+
+  .tabnavButton:hover:not(:disabled) {
+    background-color: var(--color-panel-soft);
+    color: var(--color-text);
+  }
+
+  .tabnavButton:disabled {
+    color: var(--color-line-strong);
+  }
+
+  .tabs {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    align-items: stretch;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+  }
+
+  .tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tab {
+    display: flex;
+    height: 100%;
+    flex: none;
+    align-items: stretch;
+    border-right: var(--border-hairline) solid var(--color-line-soft);
+    background-color: var(--color-panel);
+    transition:
+      background-color var(--motion-base) var(--ease-instrument),
+      box-shadow var(--motion-base) var(--ease-instrument);
+  }
+
+  .tab:hover {
+    background-color: var(--color-panel-soft);
+  }
+
+  .tab[data-active="true"] {
+    background-color: var(--color-panel-raised);
+    box-shadow: inset 0 -2px 0 var(--color-accent);
+  }
+
+  .tabLabel {
+    display: flex;
+    min-width: 0;
+    max-width: 230px;
+    align-items: center;
+    gap: var(--space-stack);
+    overflow: hidden;
+    padding: 0 var(--space-stack) 0 var(--space-section);
+    border: 0;
+    background: transparent;
+    color: var(--color-faint);
+    font-size: var(--text-label);
+    font-weight: var(--weight-medium);
+    text-align: left;
+  }
+
+  .tabTitle {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .tab[data-preview="true"] .tabTitle {
+    font-style: italic;
+  }
+
+  .tab[data-pinned="true"] .tabLabel {
+    padding-right: var(--space-section);
+  }
+
+  .tab[data-active="true"] .tabLabel {
+    color: var(--color-text);
+  }
+
+  .tabClose {
+    display: inline-flex;
+    width: 22px;
+    height: 22px;
+    align-self: center;
+    align-items: center;
+    justify-content: center;
+    margin-right: var(--space-inline);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--color-faint);
+  }
+
+  .tabClose:hover {
+    background-color: var(--color-panel-soft);
+    color: var(--color-text);
+  }
+
+  .tabbarActions {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: var(--space-hairline);
+    padding: 0 var(--space-inline);
+    border-left: var(--border-hairline) solid var(--color-line-soft);
+  }
+}

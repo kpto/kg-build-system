@@ -163,6 +163,26 @@ build. Spacing has no numbered tokens: a gap states its role in the
 composition, not a pixel step. `app/globals.css` is the only file allowed to declare raw values, and it
 may do so only in an `@theme` token line.
 
+### Style ownership
+
+Styles flow down; a child never styles its parent or sibling.
+
+| Level | Owns | Examples |
+| --- | --- | --- |
+| Global | theme roles, base elements, global utilities | `@theme`, `html`, focus ring, scrollbar |
+| Shared primitive | one reusable visual unit | viewport frame, concept mark, pill |
+| Parent component | a region's composition | workbench shell, side bar, editor area |
+| Current component | its own layout, rows, controls and states | palette, tabs, tree, detail band |
+| Local geometry | dimensions true only here | grid templates, canvas sizes, breakpoints |
+
+A selector belongs to the component that renders it. A parent passes context
+with props or a scoped CSS variable; it does not reach into the child with a
+global descendant selector. A component-specific block in the global file is a
+boundary violation.
+A CSS module declares the keyframes it animates with. CSS Modules scopes the
+animation name, so a reference to a global keyframe would silently lose its
+animation.
+
 ## Interaction motion
 
 - Motion is feedback, not decoration. Hover, selection and press changes use

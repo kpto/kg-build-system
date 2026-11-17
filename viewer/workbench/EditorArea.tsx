@@ -1,12 +1,14 @@
 "use client";
 
 import { DetailEditor } from "@/detail/DetailFeature";
+import { cx } from "@/shared/ui/theme";
 import { TopologyEditor } from "@/topology/TopologyFeature";
 import {
   WorkflowEditor,
   WorkflowStepEditor,
 } from "@/workflow/WorkflowFeature";
 import { EditorTabs } from "./EditorTabs";
+import styles from "./editorArea.module.css";
 import { useWorkbench } from "./store";
 import { documentSignature, type WorkbenchState, type WorkbenchTab } from "./types";
 
@@ -24,12 +26,15 @@ export function EditorArea({
   const { state, actions } = useWorkbench();
 
   return (
-    <section className="wb-editor" aria-label="Design editor">
+    <section className={styles.editor} aria-label="Design editor">
       <EditorTabs
         sidebarVisible={sidebarVisible}
         onToggleSidebar={onToggleSidebar}
       />
-      <div className="wb-editor-body thin-scrollbar" data-testid="editor-body">
+      <div
+        className={cx(styles.editorBody, "thin-scrollbar")}
+        data-testid="editor-body"
+      >
         {state.tabs.map((tab) => {
           const active = tab.id === state.activeTabId;
           const fullBleed =
@@ -49,7 +54,7 @@ export function EditorArea({
           return (
             <div
               key={`${tab.id}:${documentSignature(tab.document)}`}
-              className="wb-editor-pane"
+              className={styles.editorPane}
               data-active={active ? "true" : undefined}
               data-full-bleed={fullBleed ? "true" : undefined}
               data-testid="editor-pane"

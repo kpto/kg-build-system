@@ -8,6 +8,7 @@ import { buildViewerIndex } from "@/lib/indexes";
 import { loadSnapshot } from "@/lib/load";
 import type { ViewerIndex, ViewerSnapshot } from "@/lib/types";
 import { ConceptNavigationProvider } from "@/shared/ui/ConceptNavigation";
+import { cx } from "@/shared/ui/theme";
 import { CommandPalette } from "./CommandPalette";
 import { EditorArea } from "./EditorArea";
 import { SideBar } from "./SideBar";
@@ -24,6 +25,7 @@ import {
 import { destinationForConceptTarget } from "./conceptTarget";
 import { WorkbenchProvider, useWorkbench } from "./store";
 import { MAX_SIDEBAR, MIN_SIDEBAR, lensSelection } from "./types";
+import styles from "./workbench.module.css";
 
 interface LoadedWorkbench {
   snapshot: ViewerSnapshot;
@@ -45,17 +47,17 @@ function LoadingGate({
   }, []);
 
   return (
-    <div className="wb-gate ui-grain" data-testid="loading">
-      <div className="wb-gate-body">
-        <div className="wb-gate-side" aria-hidden>
-          <span className="wb-gate-block w-24" />
-          <span className="wb-gate-block w-full" />
-          <span className="wb-gate-block w-4/5" />
-          <span className="wb-gate-block w-full" />
-          <span className="wb-gate-block w-2/3" />
+    <div className={cx(styles.gate, "ui-grain")} data-testid="loading">
+      <div className={styles.gateBody}>
+        <div className={styles.gateSide} aria-hidden>
+          <span className={cx(styles.gateBlock, "w-24")} />
+          <span className={cx(styles.gateBlock, "w-full")} />
+          <span className={cx(styles.gateBlock, "w-4/5")} />
+          <span className={cx(styles.gateBlock, "w-full")} />
+          <span className={cx(styles.gateBlock, "w-2/3")} />
         </div>
-        <main className="wb-gate-main" role="status" aria-live="polite">
-          <div className="wb-gate-card">
+        <main className={styles.gateMain} role="status" aria-live="polite">
+          <div className={styles.gateCard}>
             <LoaderCircle aria-hidden className="size-5 animate-spin text-selection" />
             <h1>{waiting ? "Waiting for a snapshot" : "Loading snapshot"}</h1>
             <p>
@@ -63,20 +65,20 @@ function LoadingGate({
                 ? "The embedding host will send a snapshot over the message bridge."
                 : "Reading the compile-only graph and building indexes."}
             </p>
-            <p className="wb-gate-hint">
+            <p className={styles.gateHint}>
               {waiting
                 ? "This viewer does not fetch project data when embedded."
                 : "The snapshot is read from the configured source; the first paint follows the transfer and index build."}
             </p>
             {slow ? (
-              <p className="wb-gate-slow">
+              <p className={styles.gateSlow}>
                 {waiting
                   ? "Still waiting for the host to send a snapshot."
                   : "This is taking longer than usual. The page is still working; you can retry the request."}
               </p>
             ) : null}
             {waiting ? null : (
-              <button type="button" className="wb-button" onClick={onRetry}>
+              <button type="button" className={styles.button} onClick={onRetry}>
                 <RefreshCw aria-hidden className="size-3" />
                 Retry now
               </button>
@@ -84,7 +86,7 @@ function LoadingGate({
           </div>
         </main>
       </div>
-      <footer className="wb-gate-status">
+      <footer className={styles.gateStatus}>
         <span>snapshot loading</span>
         <span>compile-only</span>
       </footer>
@@ -100,31 +102,31 @@ function LoadErrorGate({
   onRetry(): void;
 }) {
   return (
-    <div className="wb-gate ui-grain" data-testid="load-error">
-      <header className="wb-gate-title">
-        <span className="wb-brand-mark" aria-hidden>
-          <span className="wb-brand-initial">K</span>
+    <div className={cx(styles.gate, "ui-grain")} data-testid="load-error">
+      <header className={styles.gateTitle}>
+        <span className={styles.brandMark} aria-hidden>
+          <span className={styles.brandInitial}>K</span>
         </span>
-        <span className="wb-brand-name">KG Design</span>
-        <span className="wb-gate-title-note">viewer</span>
+        <span className={styles.brandName}>KG Design</span>
+        <span className={styles.gateTitleNote}>viewer</span>
       </header>
-      <main className="wb-gate-main">
-        <div className="wb-gate-card wb-gate-error">
+      <main className={styles.gateMain}>
+        <div className={cx(styles.gateCard, styles.gateError)}>
           <CircleExclamationPoint aria-hidden className="size-6 text-rejected" />
           <h1>Could not load the workbench</h1>
           <p>{message}</p>
-          <p className="wb-gate-hint">
+          <p className={styles.gateHint}>
             The viewer reads the configured <code>/snapshot</code> source, or a
             URL passed as <code>?snapshot=&lt;url&gt;</code>. Check that source
             and retry.
           </p>
-          <button type="button" className="wb-button wb-button-primary" onClick={onRetry}>
+          <button type="button" className={cx(styles.button, styles.buttonPrimary)} onClick={onRetry}>
             <RefreshCw aria-hidden className="size-3" />
             Retry snapshot
           </button>
         </div>
       </main>
-      <footer className="wb-gate-status">
+      <footer className={styles.gateStatus}>
         <span>snapshot unavailable</span>
         <span>no graph loaded</span>
       </footer>
@@ -234,8 +236,8 @@ function WorkbenchShell() {
 
   return (
     <ConceptNavigationProvider navigation={conceptNavigation}>
-      <div className="wb-shell ui-grain" data-testid="workbench">
-        <div className="wb-body">
+      <div className={cx(styles.shell, "ui-grain")} data-testid="workbench">
+        <div className={styles.body}>
           {sidebarVisible ? (
             <>
               <SideBar />
@@ -250,7 +252,7 @@ function WorkbenchShell() {
             </>
           ) : null}
 
-          <div className="wb-main">
+          <div className={styles.main}>
             <EditorArea
               sidebarVisible={sidebarVisible}
               onToggleSidebar={() => setSidebarVisible((visible) => !visible)}

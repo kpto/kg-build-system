@@ -10,6 +10,7 @@ import {
 
 import { ConceptGlyph } from "@/shared/ui/ConceptMark";
 import { conceptForSelection } from "@/shared/ui/concepts";
+import styles from "./editorTabs.module.css";
 import { useWorkbench } from "./store";
 import { documentTitle, type WorkbenchTab } from "./types";
 
@@ -34,11 +35,11 @@ export function EditorTabs({
   const canForward = state.historyIndex < state.history.length - 1;
 
   return (
-    <div className="wb-tabbar" data-testid="editor-tabs">
-      <div className="wb-tabnav" role="group" aria-label="Tab history">
+    <div className={styles.tabbar} data-testid="editor-tabs">
+      <div className={styles.tabnav} role="group" aria-label="Tab history">
         <button
           type="button"
-          className="wb-tabnav-button"
+          className={styles.tabnavButton}
           onClick={actions.back}
           disabled={!canBack}
           aria-label="Back"
@@ -49,7 +50,7 @@ export function EditorTabs({
         </button>
         <button
           type="button"
-          className="wb-tabnav-button"
+          className={styles.tabnavButton}
           onClick={actions.forward}
           disabled={!canForward}
           aria-label="Forward"
@@ -60,7 +61,7 @@ export function EditorTabs({
         </button>
       </div>
 
-      <div className="wb-tabs" role="tablist" aria-label="Open editors">
+      <div className={styles.tabs} role="tablist" aria-label="Open editors">
         {state.tabs.map((tab) => {
           const active = tab.id === state.activeTabId;
           const title = documentTitle(tab.document);
@@ -68,7 +69,7 @@ export function EditorTabs({
           return (
             <div
               key={tab.id}
-              className="wb-tab"
+              className={styles.tab}
               data-active={active ? "true" : undefined}
               data-pinned={tab.pinned ? "true" : undefined}
               data-preview={tab.preview ? "true" : undefined}
@@ -86,7 +87,7 @@ export function EditorTabs({
                 type="button"
                 role="tab"
                 aria-selected={active}
-                className="wb-tab-label"
+                className={styles.tabLabel}
                 title={`${title} · ${tab.document.kind}${tab.preview ? " · preview" : ""}`}
                 onClick={() => actions.activateTab(tab.id)}
                 onDoubleClick={() => actions.pinTab(tab.id)}
@@ -94,12 +95,12 @@ export function EditorTabs({
                 data-concept={concept}
               >
                 <ConceptGlyph concept={concept} className="size-3" />
-                <span className="wb-tab-title">{title}</span>
+                <span className={styles.tabTitle}>{title}</span>
               </button>
               {tab.pinned ? null : (
                 <button
                   type="button"
-                  className="wb-tab-close"
+                  className={styles.tabClose}
                   aria-label={`Close ${title}`}
                   title={`Close ${title}`}
                   onClick={() => actions.closeTab(tab.id)}
@@ -112,10 +113,10 @@ export function EditorTabs({
         })}
       </div>
 
-      <div className="wb-tabbar-actions">
+      <div className={styles.tabbarActions}>
         <button
           type="button"
-          className="wb-tabnav-button"
+          className={styles.tabnavButton}
           onClick={onToggleSidebar}
           aria-label={sidebarVisible ? "Hide side bar" : "Show side bar"}
           aria-pressed={sidebarVisible}

@@ -2,6 +2,9 @@
 
 import { useEffect, useRef } from "react";
 
+import { cx } from "@/shared/ui/theme";
+import styles from "./ContextMenu.module.css";
+
 export interface ContextMenuItem {
   label: string;
   hint?: string;
@@ -51,7 +54,10 @@ export function ContextMenu({ x, y, label, items, onClose }: ContextMenuProps) {
       ref={ref}
       role="menu"
       aria-label={label}
-      className="context-menu-pop fixed z-[100] w-[212px] overflow-hidden rounded border border-line-strong bg-panel shadow-2xl"
+      className={cx(
+        styles.pop,
+        "fixed z-[100] w-[212px] overflow-hidden rounded border border-line-strong bg-panel shadow-2xl",
+      )}
       style={{ left, top }}
       data-testid="context-menu"
       onContextMenu={(event) => event.preventDefault()}

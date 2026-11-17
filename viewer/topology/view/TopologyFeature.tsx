@@ -27,6 +27,7 @@ import {
   FulfilmentMap,
 } from "@/detail/view/FulfilmentMap";
 import { cx, groupPalette, theme } from "@/shared/ui/theme";
+import styles from "./topologyFeature.module.css";
 import {
   ViewportAction,
   ViewportChip,
@@ -2065,7 +2066,10 @@ export function TopologyInspector({
 
   return (
     <aside
-      className="inspector-panel absolute top-0 right-0 bottom-0 z-20 flex w-[336px] flex-col overflow-hidden border-l border-line bg-panel"
+      className={cx(
+        styles.inspector,
+        "absolute top-0 right-0 bottom-0 z-20 flex w-[336px] flex-col overflow-hidden border-l border-line bg-panel",
+      )}
       aria-label="Graph selection inspector"
       data-testid="topology-inspector"
     >

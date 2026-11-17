@@ -1,0 +1,255 @@
+/* The workbench shell: the side bar and editor split, its brand, the shared
+   buttons, and the loading and error gates. */
+
+@layer components {
+  .shell {
+    position: relative;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr);
+    height: 100vh;
+    min-width: 0;
+    overflow: hidden;
+    background-color: var(--color-abyss);
+    isolation: isolate;
+  }
+
+  .body {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    background-color: var(--color-gutter);
+  }
+
+  .main {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    flex: 1 1 auto;
+    flex-direction: column;
+    overflow: hidden;
+    background-color: var(--color-abyss);
+  }
+
+  .brand {
+    display: flex;
+    min-width: 0;
+    flex: none;
+    align-items: center;
+    gap: var(--space-group);
+  }
+
+  .brandMark {
+    display: inline-flex;
+    width: 21px;
+    height: 21px;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    border: var(--border-hairline) solid var(--color-selection);
+    border-radius: var(--radius-sm);
+    background-color: var(--color-selection-strong);
+    color: var(--color-accent-ink);
+  }
+
+  .brandInitial {
+    font-size: var(--text-heading);
+    font-weight: var(--weight-bold);
+    line-height: var(--leading-none);
+  }
+
+  .brandName {
+    color: var(--color-text);
+    font-size: var(--text-title);
+    font-weight: var(--weight-bold);
+    letter-spacing: var(--tracking-tight);
+    white-space: nowrap;
+  }
+
+  .button {
+    display: inline-flex;
+    min-height: 22px;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-stack);
+    padding: var(--space-hairline) var(--space-group);
+    border: var(--border-hairline) solid var(--color-line-strong);
+    border-radius: var(--radius-sm);
+    background-color: var(--color-panel-raised);
+    color: var(--color-muted);
+    font-size: var(--text-body);
+    font-weight: var(--weight-medium);
+    line-height: var(--leading-none);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .button:hover:not(:disabled) {
+    border-color: var(--color-line-strong);
+    background-color: var(--color-panel-soft);
+    color: var(--color-text);
+  }
+
+  .buttonPrimary {
+    border-color: var(--color-accent);
+    background-color: var(--color-accent);
+    color: var(--color-on-accent);
+  }
+
+  .buttonPrimary:hover:not(:disabled) {
+    border-color: var(--color-accent-strong);
+    background-color: var(--color-accent-strong);
+    color: var(--color-accent-ink);
+  }
+
+  .buttonDanger {
+    border-color: color-mix(in srgb, var(--color-critical) 55%, transparent);
+    color: var(--color-rejected);
+  }
+
+  .buttonDanger:hover:not(:disabled) {
+    border-color: var(--color-rejected);
+    background-color: color-mix(in srgb, var(--color-critical) 14%, transparent);
+    color: var(--color-critical);
+  }
+
+  .gate {
+    position: relative;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr);
+    height: 100vh;
+    overflow: hidden;
+    background-color: var(--color-abyss);
+    isolation: isolate;
+  }
+
+  .gateTitle {
+    display: flex;
+    align-items: center;
+    gap: var(--space-group);
+    padding: 0 var(--space-section);
+    border-bottom: var(--border-hairline) solid var(--color-line);
+    background-color: var(--color-abyss);
+  }
+
+  .gateTitleNote {
+    padding-left: var(--space-group);
+    border-left: var(--border-hairline) solid var(--color-line);
+    color: var(--color-faint);
+    font-size: var(--text-body);
+  }
+
+  .gateBody {
+    display: flex;
+    min-height: 0;
+    overflow: hidden;
+    background-color: var(--color-gutter);
+  }
+
+  .gateSide {
+    display: flex;
+    width: 300px;
+    flex: none;
+    flex-direction: column;
+    gap: var(--space-group);
+    padding: var(--space-section) var(--space-section);
+    border-right: var(--border-heavy) solid var(--color-gutter);
+    background-color: var(--color-panel);
+  }
+
+  .gateBlock {
+    display: block;
+    height: 19px;
+    border-radius: var(--radius-sm);
+    background: linear-gradient(
+      90deg,
+      var(--color-panel-raised),
+      var(--color-panel-soft) 45%,
+      var(--color-panel-raised)
+    );
+    background-size: 220% 100%;
+    animation: wb-pulse var(--motion-pulse) var(--ease-in-out) infinite;
+  }
+
+  .gateMain {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-page);
+    background-color: var(--color-abyss);
+    background-image:
+      linear-gradient(var(--color-grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--color-grid) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  .gateCard {
+    display: flex;
+    width: min(460px, 100%);
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-group);
+    padding: var(--space-region);
+    border: var(--border-hairline) solid var(--color-line);
+    border-top: var(--border-heavy) solid var(--color-selection);
+    border-radius: var(--radius-md);
+    background-color: var(--color-panel);
+    box-shadow: var(--shadow-panel);
+    color: var(--color-muted);
+  }
+
+  .gateCard h1 {
+    color: var(--color-text);
+    font-size: var(--text-display);
+    font-weight: var(--weight-bold);
+  }
+
+  .gateCard p {
+    color: var(--color-muted);
+    font-size: var(--text-label);
+    line-height: var(--leading-relaxed);
+  }
+
+  .gateHint {
+    color: var(--color-faint) !important;
+    font-family: var(--font-mono);
+    font-size: var(--text-caption) !important;
+  }
+
+  .gateSlow {
+    padding: var(--space-stack) var(--space-group);
+    border: var(--border-hairline) solid color-mix(in srgb, var(--color-medium) 35%, transparent);
+    border-radius: var(--radius-md);
+    background-color: color-mix(in srgb, var(--color-medium) 8%, transparent);
+    color: var(--color-open) !important;
+    font-size: var(--text-body) !important;
+  }
+
+  .gateError {
+    border-top-color: var(--color-rejected);
+  }
+
+  .gateStatus {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--space-group);
+    border-top: var(--border-hairline) solid var(--color-line);
+    background-color: var(--color-abyss);
+    color: var(--color-faint);
+    font-family: var(--font-mono);
+    font-size: var(--text-caption);
+  }
+
+  @keyframes wb-pulse {
+    0%,
+    100% {
+      background-position: 100% 0;
+    }
+    50% {
+      background-position: 0 0;
+    }
+  }
+}

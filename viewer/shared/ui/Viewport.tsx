@@ -12,6 +12,7 @@ import type {
 import type { ConceptKind } from "@/lib/concepts";
 import { ConceptGlyph } from "./ConceptMark";
 import { cx } from "./theme";
+import styles from "./viewport.module.css";
 
 /**
  * One Blender-style frame for every visualisation surface.
@@ -54,24 +55,24 @@ export function ViewportFrame({
   children: ReactNode;
 }) {
   return (
-    <div className="wb-viewport" data-testid={testId} aria-label={ariaLabel}>
-      <header className="wb-viewport-head">
-        <span className="wb-viewport-title">
+    <div className={styles.viewport} data-testid={testId} aria-label={ariaLabel}>
+      <header className={styles.head}>
+        <span className={styles.title}>
           <ConceptGlyph concept={concept} className="size-3.5" />
-          <span className="wb-viewport-title-text">{title}</span>
+          <span className={styles.titleText}>{title}</span>
         </span>
-        <span className="wb-viewport-meta" data-testid={metaTestId}>
+        <span className={styles.meta} data-testid={metaTestId}>
           {meta}
         </span>
-        <span className="wb-viewport-head-spacer" />
-        <div className="wb-viewport-actions" data-testid={actionsTestId}>
+        <span className={styles.headSpacer} />
+        <div className={styles.actions} data-testid={actionsTestId}>
           {actions}
         </div>
       </header>
 
       <div
         ref={bodyRef}
-        className={cx("wb-viewport-body", bodyClassName)}
+        className={cx(styles.body, bodyClassName)}
         data-testid={bodyTestId}
         onPointerDown={onPointerDown}
         onContextMenu={onContextMenu}
@@ -98,7 +99,7 @@ export function ViewportAction({
       type="button"
       {...props}
       className={cx(
-        "wb-viewport-action",
+        styles.action,
         emphasis &&
           "border-accent/60 bg-accent/10 text-accent-strong hover:border-accent hover:text-text",
         className,
@@ -126,7 +127,7 @@ export function ViewportNav({
 }) {
   return (
     <div
-      className="wb-viewport-nav"
+      className={styles.nav}
       onPointerDown={(event) => event.stopPropagation()}
       onPointerMove={(event) => event.stopPropagation()}
       onPointerUp={(event) => event.stopPropagation()}
@@ -140,7 +141,7 @@ export function ViewportNav({
       >
         −
       </button>
-      <span className="wb-viewport-nav-output" data-testid={testIds?.value}>
+      <span className={styles.navOutput} data-testid={testIds?.value}>
         {Math.round(zoom * 100)}%
       </span>
       <button
@@ -170,5 +171,16 @@ export function ViewportChip({
   className,
   ...props
 }: HTMLAttributes<HTMLSpanElement>) {
-  return <span className={cx("wb-viewport-chip", className)} {...props} />;
+  return <span className={cx(styles.chip, className)} {...props} />;
+}
+
+/** A quiet one-line hint on a viewport canvas, anchored bottom right. */
+export function ViewportHint({
+  className,
+  children,
+}: {
+  className?: string;
+  children: ReactNode;
+}) {
+  return <div className={cx(styles.hint, className)}>{children}</div>;
 }

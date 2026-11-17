@@ -1,0 +1,145 @@
+/* The side bar: one snapshot row over collapsible Control and Explorer sections. */
+
+@layer components {
+  .sidebar {
+    display: flex;
+    min-height: 0;
+    flex: none;
+    flex-direction: column;
+    overflow: hidden;
+    background-color: var(--color-panel);
+  }
+
+  .sideSection {
+    display: flex;
+    min-height: 0;
+    flex: none;
+    flex-direction: column;
+    border-bottom: var(--border-hairline) solid var(--color-line-soft);
+  }
+
+  .sideSection[data-open="true"] {
+    flex: 1;
+  }
+
+  .sideSectionHeader {
+    display: flex;
+    height: 25px;
+    flex: none;
+    align-items: center;
+    gap: var(--space-stack);
+    border: 0;
+    border-bottom: var(--border-hairline) solid var(--color-line-soft);
+    background-color: var(--color-panel-raised);
+    padding: 0 var(--space-group);
+    color: var(--color-text);
+    text-align: left;
+  }
+
+  .sideSectionBody {
+    min-height: 0;
+    flex: 1;
+    overflow: hidden;
+    animation: wb-fade-in var(--motion-base) var(--ease-instrument);
+  }
+
+  /* The body fades in when its section opens. The keyframes live in the module
+     so CSS Modules can scope the animation name with the class. */
+  @keyframes wb-fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .sideSectionHeader:hover {
+    background-color: var(--color-panel-soft);
+  }
+
+  .sideSectionTitle {
+    font-size: var(--text-caption);
+    font-weight: var(--weight-bold);
+    letter-spacing: var(--tracking-widest);
+    text-transform: uppercase;
+  }
+
+  .sideSectionMeta {
+    margin-left: auto;
+    color: var(--color-faint);
+    font-family: var(--font-mono);
+    font-size: var(--text-caption);
+  }
+
+  /* The framed variant the section also carries from the feature-placeholder
+     block; it applies to every side-bar section. */
+  .sideSection {
+    margin-bottom: var(--space-group);
+    overflow: hidden;
+    border: var(--border-hairline) solid var(--color-line-soft);
+    border-radius: var(--radius-md);
+    background-color: var(--color-panel);
+  }
+
+  .sideSearch {
+    display: flex;
+    height: 28px;
+    flex: none;
+    align-items: center;
+    padding: 0 var(--space-section);
+    border-bottom: var(--border-hairline) solid var(--color-line-soft);
+    background-color: var(--color-panel);
+  }
+
+  .sideSearchName {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--color-text);
+    font-family: var(--font-mono);
+    font-size: var(--text-body);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@layer components {
+  .sectionSplitter {
+    position: relative;
+    z-index: var(--z-sticky);
+    flex: none;
+    height: 3px;
+    border: 0;
+    background-color: var(--color-gutter);
+    cursor: row-resize;
+    touch-action: none;
+    outline: none;
+  }
+
+  .sectionSplitter:hover,
+  .sectionSplitter:focus-visible {
+    background-color: var(--color-selection);
+  }
+
+  .sectionSplitterGrip {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 22px;
+    height: 3px;
+    border-radius: var(--radius-sm);
+    background:
+      repeating-linear-gradient(
+        90deg,
+        var(--color-line-strong) 0 2px,
+        transparent 2px 4px
+      );
+    opacity: 0;
+    transform: translate(-50%, -50%);
+  }
+
+  .sectionSplitter:hover .sectionSplitterGrip,
+  .sectionSplitter:focus-visible .sectionSplitterGrip {
+    opacity: 1;
+  }
+}
