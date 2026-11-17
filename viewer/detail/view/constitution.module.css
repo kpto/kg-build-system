@@ -48,9 +48,12 @@
 /* ------------------------------------------------------------ constitution */
 
 .constitution {
-  /* The lane gutter: shared by the top stair and the branch grid. */
+  /* The lane gutter shared by every row. */
   --constitution-gutter: 46px;
+  display: flex;
   min-width: 0;
+  flex-direction: column;
+  gap: var(--space-stack);
 }
 
 .constitutionRoot {
@@ -134,6 +137,7 @@
   display: flex;
   min-width: 0;
   flex-direction: column;
+  gap: var(--space-stack);
 }
 
 .constitutionBoxCurrent {
@@ -247,112 +251,30 @@ button.constitutionName:focus-visible {
   font-style: italic;
 }
 
-.constitutionTop {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--constitution-gutter) minmax(0, 1fr);
-  grid-template-rows: auto auto;
-  column-gap: var(--space-region);
-}
-
 /*
- * The stair: purpose occupies the first row on the left; fulfilment occupies
- * the second row on the right. The empty top-right cell holds the elbow that
- * joins them, and the empty bottom-left cell holds the long arrow that reaches
- * from purpose down to the graph lane.
+ * Three sub-views, read top to bottom: purpose, fulfilment, then the graph and
+ * relation axes side by side. The arrows point up and the stack gap gives each
+ * one clearance from the boxes it joins.
  */
-.constitutionPurpose {
+.constitutionPurpose,
+.constitutionFulfilment {
   display: flex;
-  grid-area: 1 / 1 / 2 / 2;
   min-width: 0;
   flex-direction: column;
 }
 
 .constitutionPurpose .constitutionBox,
-.constitutionFulfilmentTop .constitutionBox {
+.constitutionFulfilment .constitutionBox {
   width: 100%;
-  height: 100%;
 }
 
-.constitutionSpan {
+.constitutionLink {
   display: flex;
-  min-height: 48px;
-  grid-area: 2 / 1 / 3 / 2;
-  flex-direction: column;
-  align-items: center;
+  justify-content: center;
   color: var(--color-selection);
 }
 
-.constitutionSpanHead {
-  width: 14px;
-  height: 8px;
-  flex: none;
-  overflow: visible;
-}
-
-.constitutionSpanHead path {
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1;
-}
-
-/* The shaft continues below the fixed-size head, so a long arrow keeps its
-   head proportions instead of stretching it. */
-.constitutionSpan::after {
-  width: 0;
-  flex: 1 1 auto;
-  margin-top: calc(-1 * var(--border-hairline));
-  border-left: var(--border-hairline) solid currentColor;
-  content: "";
-}
-
-.constitutionFulfilmentTop {
-  display: flex;
-  grid-area: 2 / 3 / 3 / 4;
-  min-width: 0;
-}
-
-/* The elbow lives in the empty cell above fulfilment: it rises from that
-   cell's bottom edge (fulfilment's top) and turns left into purpose's right
-   edge at purpose's mid line. */
-.constitutionCurveCell {
-  position: relative;
-  display: block;
-  grid-area: 1 / 3 / 2 / 4;
-  min-width: 0;
-  pointer-events: none;
-}
-
-.constitutionCurve {
-  position: absolute;
-  top: 50%;
-  right: calc(100% - var(--space-panel));
-  bottom: 0;
-  width: calc(
-    var(--constitution-gutter) + var(--space-region) * 2 + var(--space-panel)
-  );
-  border-top: var(--border-hairline) solid var(--color-selection);
-  border-right: var(--border-hairline) solid var(--color-selection);
-  border-top-right-radius: var(--radius-lg);
-}
-
-.constitutionCurveHead {
-  position: absolute;
-  top: -6px;
-  left: -2px;
-  width: 12px;
-  height: 12px;
-  overflow: visible;
-  color: var(--color-selection);
-}
-
-.constitutionCurveHead path {
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1;
-}
-
-.constitutionBranches {
+.constitutionAxes {
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) var(--constitution-gutter) minmax(0, 1fr);
@@ -393,6 +315,7 @@ button.constitutionName:focus-visible {
   display: flex;
   min-width: 0;
   flex-direction: column;
+  gap: var(--space-stack);
 }
 
 .constitutionArrow {
@@ -425,40 +348,22 @@ button.constitutionName:focus-visible {
 }
 
 @media (max-width: 900px) {
-  /* One column: purpose over fulfilment, the stair connectors removed. */
-  .constitutionTop {
+  /* One column: the axes stack under fulfilment. */
+  .constitutionAxes {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto;
     row-gap: var(--space-page);
-  }
-
-  .constitutionPurpose,
-  .constitutionSpan,
-  .constitutionFulfilmentTop,
-  .constitutionCurveCell {
-    grid-area: auto;
-  }
-
-  .constitutionSpan,
-  .constitutionCurveCell {
-    display: none;
-  }
-
-  .constitutionTop .constitutionBox {
-    height: auto;
   }
 
   .constitutionSeam {
     display: none;
   }
 
-  .constitutionBranches {
-    grid-template-columns: minmax(0, 1fr);
-    row-gap: var(--space-page);
-    margin-top: var(--space-page);
-  }
-
-  .constitutionStack > .constitutionArrow:first-child {
+  /* The graph lane still climbs to fulfilment; the relation lane follows the
+     graph tree in the stacked order, so its leading arrow would point at the
+     wrong level. */
+  .constitutionBranch[data-side="relation"]
+    .constitutionStack
+    > .constitutionArrow:first-child {
     display: none;
   }
 

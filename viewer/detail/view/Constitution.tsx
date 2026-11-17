@@ -136,11 +136,10 @@ function Arrow({ height = 36 }: { height?: number }) {
       preserveAspectRatio="none"
       aria-hidden
     >
-      <path d={`M7 ${height} L7 1 M2 7 L7 1 L12 7`} />
+      <path d={`M7 ${height} L7 0 M2 7 L7 1 L12 7`} />
     </svg>
   );
 }
-
 function Branch({
   side,
   label,
@@ -164,9 +163,9 @@ function Branch({
     <div className={styles.constitutionBranch} data-side={side}>
       <div className={styles.constitutionStack}>
         {nodes.length ? (
-          nodes.map((node, index) => (
+          nodes.map((node) => (
             <Fragment key={boxKey(node)}>
-              {index ? <Arrow /> : null}
+              <Arrow />
               <Box
                 node={node}
                 hovered={hoveredKey === boxKey(node)}
@@ -186,11 +185,10 @@ function Branch({
 }
 
 /**
- * The subject as a constitution: purpose sits at the top left and fulfilment one
- * row below on the right, joined by an elbow that rises from fulfilment's top
- * edge into purpose's right edge. The graph and relation axes sit below, and
- * the separator begins below fulfilment. Hovering or focusing a box reveals its
- * full meaning in a portal, because the band clips overflow.
+ * The subject as a constitution, read top to bottom: the subject's purpose,
+ * the fulfilment that answers it, then the graph and relation axes side by
+ * side. Every arrow points up to the level it supports. Hovering or focusing a
+ * box reveals its full meaning in a portal, because the band clips overflow.
  */
 export function Constitution({ model }: ConstitutionProps) {
   const [hovered, setHovered] = useState<HoveredBox | null>(null);
@@ -283,54 +281,42 @@ export function Constitution({ model }: ConstitutionProps) {
 
   return (
     <div className={styles.constitution} aria-label="Constitution">
-      <div className={styles.constitutionTop}>
-        <div className={styles.constitutionPurpose}>
-          <Box
-            node={model.purpose}
-            root
-            hovered={hoveredKey === boxKey(model.purpose)}
-            hoverCardId={hoverCardId}
-            onHover={openHover}
-            onLeave={scheduleClose}
-          />
-        </div>
-
-        <span className={styles.constitutionSpan} aria-hidden>
-          <svg className={styles.constitutionSpanHead} viewBox="0 0 14 8">
-            <path d="M2 7 L7 1 L12 7" />
-          </svg>
-        </span>
-
-        <div className={styles.constitutionFulfilmentTop}>
-          <Box
-            node={
-              bindingNode ?? {
-                kind: "binding",
-                name: "no binding",
-                label: "Fulfilment",
-                meaning: { claims: [], limitations: [], frames: [] },
-              }
-            }
-            fulfilment
-            hoverable={bindingHoverable}
-            text={bindingText}
-            hovered={hoveredKey === bindingKey}
-            hoverCardId={hoverCardId}
-            onHover={openHover}
-            onLeave={scheduleClose}
-          />
-        </div>
-
-        <span className={styles.constitutionCurveCell} aria-hidden>
-          <span className={styles.constitutionCurve}>
-            <svg className={styles.constitutionCurveHead} viewBox="0 0 12 12">
-              <path d="M10 2 L2 6 L10 10" />
-            </svg>
-          </span>
-        </span>
+      <div className={styles.constitutionPurpose}>
+        <Box
+          node={model.purpose}
+          root
+          hovered={hoveredKey === boxKey(model.purpose)}
+          hoverCardId={hoverCardId}
+          onHover={openHover}
+          onLeave={scheduleClose}
+        />
       </div>
 
-      <div className={styles.constitutionBranches}>
+      <span className={styles.constitutionLink}>
+        <Arrow />
+      </span>
+
+      <div className={styles.constitutionFulfilment}>
+        <Box
+          node={
+            bindingNode ?? {
+              kind: "binding",
+              name: "no binding",
+              label: "Fulfilment",
+              meaning: { claims: [], limitations: [], frames: [] },
+            }
+          }
+          fulfilment
+          hoverable={bindingHoverable}
+          text={bindingText}
+          hovered={hoveredKey === bindingKey}
+          hoverCardId={hoverCardId}
+          onHover={openHover}
+          onLeave={scheduleClose}
+        />
+      </div>
+
+      <div className={styles.constitutionAxes}>
         <Branch
           side="graph"
           label="Graph"

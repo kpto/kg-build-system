@@ -17,7 +17,7 @@ the index rail is the only navigation between cards.
 | Order | Section | Question it answers | Content |
 | --- | --- | --- | --- |
 | 1 | **Meaning** | What is this for, and what does it exclude? | Purpose as the lead, then two labelled readings: contextless claims and the limitations that bound the purpose. Each group states its own count; the groups stack when the card is narrow. Legacy readings follow under **Earlier reading**. |
-| 2 | **Constitution** | What does this subject assert, and how is it fulfilled? | Purpose is the top-left box and Fulfilment sits one row below on the right; a curved elbow rises from Fulfilment's top edge into Purpose's right edge. The Graph chain is below Purpose and ends at the graph purpose; the Relation chain is below Fulfilment. The separator begins below Fulfilment and divides the two axes. The axis legend sits below each lane's content, centred, and follows that lane even when the other lane is longer. Arrows point up to the purpose each box supports; the relation's provenance branches sit below it. Each box clamps its purpose to two lines; hovering or focusing it reveals the full meaning, and a box label opens its document. The Fulfilment box states the binding count and its purpose; identity fields and coverage stay in the relation and binding detail. A grouped branch shows the first item and `+N`. |
+| 2 | **Constitution** | What does this subject assert, and how is it fulfilled? | Purpose is the top sub-view and Fulfilment sits full width below it, with an arrow pointing up to Purpose. The Graph and Relation trees form two aligned lanes below Fulfilment, each with a leading arrow up to Fulfilment; the separator begins below Fulfilment. The Graph chain ends at the graph purpose; the Relation chain carries its provenance branches. The axis legend sits below each lane's content, centred, and follows that lane even when the other lane is longer. Arrows point up to the purpose each box supports; the relation's provenance branches sit below it. Each box clamps its purpose to two lines; hovering or focusing it reveals the full meaning, and a box label opens its document. The Fulfilment box states the binding count and its purpose; identity fields and coverage stay in the relation and binding detail. A grouped branch shows the first item and `+N`. |
 | 3 | **Members** | Which units belong to this subject? | One table grammar: name, type, meaning, source, count; the instance pill opens its document when one exists. |
 | 4 | **Connections** | Which records does this subject touch? | Endpoints of an edge, incident relations of a node, ports of a step. |
 | 5 | **Bindings** | Which binding fulfils this subject? | One row per binding: name, writes, identity, rows read. The binding pill opens the binding document. |
@@ -77,32 +77,32 @@ The section titles state the question.
 
 ## The constitution
 
-The Constitution card reads one subject as two axes under one purpose. It is a
-tree, not a Cartesian plot: the purpose is the root, the graph and relation
-branches descend from it, and each box points up to the purpose it supports.
-The two columns form a stair: Purpose opens at the top left and Fulfilment one
-row below on the right, so each lane starts at its own height.
+The Constitution card reads one subject in three sub-views, top to bottom:
+Purpose, Fulfilment, then the graph and relation trees side by side. It is a
+tree, not a Cartesian plot: every box points up to the level it supports, and
+the two axes meet at Fulfilment.
 
-- **Purpose** is the top-left root: the current subject's purpose. A record subject
-  lists its ancestry below it; a relation or asset subject lists the records it
-  fulfils. The graph purpose sits at the bottom of the Graph branch, not at the
-  top, so the current item leads the reading.
-- **Graph** is the record axis, read from the current subject's immediate
-  parent down to the graph purpose: for a property, node → category → graph.
-  Each box states its own purpose; the root purpose is marked current.
-- **Relation** is the relation axis below Fulfilment. The relation's
-  provenance branches sit under it. A derived relation splits into its scanned
-  source relation and its asset; a source relation shows its asset. The current
-  declaration is marked when the subject is a relation or asset.
-- **Fulfilment** is the box one row below Purpose, on the right. It is not part
-  of the relation axis; the relation tree sits below it. A curved elbow rises
-  from Fulfilment's top edge, crosses the empty top-right space and enters
-  Purpose's right edge at its mid line. The dashed separator begins below
-  Fulfilment, at the top of the two branches, so it separates the axes and never
-  the stair. Every stacked item uses the same vertical gap. Fulfilment states the
-  binding count; identity fields and coverage appear when the box has room. The
-  graph asserts, the relation supplies, and the Fulfilment box states their
-  meeting.
+- **Purpose** is the top sub-view: the current subject's purpose, the statement
+  Fulfilment answers. It spans the card width. The graph purpose sits at the
+  bottom of the Graph tree, not at the top, so the current item leads the
+  reading.
+- **Graph** is the record axis in the third sub-view, read from the current
+  subject's immediate parent down to the graph purpose: for a property, node →
+  category → graph. Its leading arrow climbs to Fulfilment. Each box states its
+  own purpose; the root purpose is marked current.
+- **Relation** is the relation axis beside the graph tree in the third sub-view.
+  Its leading arrow climbs to Fulfilment. The relation's provenance branches sit
+  under it. A derived relation splits into its scanned source relation and its
+  asset; a source relation shows its asset. The current declaration is marked
+  when the subject is a relation or asset.
+- **Fulfilment** is the second sub-view, full width below Purpose, and an arrow
+  points up from it to Purpose. It is not part of either axis; the axes sit
+  below it and their leading arrows point up to it. The dashed separator begins
+  below Fulfilment, between the two axes. Every stacked item uses the same
+  vertical gap, and each arrow keeps that gap from the boxes it joins.
+  Fulfilment states the binding count; identity fields and coverage appear when
+  the box has room. The graph asserts, the relation supplies, and the Fulfilment
+  box states their meeting.
 - A branch with many records, relations or assets shows the first item and
   `+N`, so the card stays compact.
 
@@ -139,5 +139,6 @@ label opens that level's document. The box itself is inspection only.
   content line. A flush body is used for a canvas or a table that owns its own
   padding.
 - A table shares one `grid-template-columns` between its head and every row.
-- At narrow width the Meaning readings stack into one column, the index rail
-  hides, and nothing overflows horizontally.
+- At narrow width the Meaning readings stack into one column, the Constitution's
+  axis lanes stack with the relation lane following the graph lane, the index
+  rail hides, and nothing overflows horizontally.

@@ -89,20 +89,21 @@ Meaning → Expression → Build steps
 A kind includes or omits a section; it never renames one for itself.
 
 - **Overview** is the tab banner: identity and one fact row. It is not a band.
-- **Constitution** places the current subject's purpose at the top left and
-  Fulfilment one row below on the right, so the two columns form a stair. A
-  curved elbow rises from Fulfilment's top edge into Purpose's right edge, and
-  the dashed separator begins below Fulfilment, at the top of the two branches.
-  The Graph branch below Purpose is the record axis, ordered from the subject's
-  immediate parent down to the graph purpose; its long leading arrow spans the
-  stair's empty row to reach Purpose. The Relation branch below Fulfilment is
-  the relation axis; it carries its provenance branches below its relation.
-  Fulfilment is the relation side's box, not a relation declaration. Every
-  stacked item uses the same vertical gap. Each box states only its own purpose and clamps; arrows point up to the
-  purpose it supports. Hovering or focusing a box reveals its full meaning in a
-  portal card; a box label opens that level's document. A grouped branch shows
-  the first item and `+N`. The axis legend sits below its own lane's content, centred; proximity
-  keeps it with that lane even when the other lane is longer.
+- **Constitution** reads in three sub-views, top to bottom: the current
+  subject's purpose, the Fulfilment that answers it, then the graph and relation
+  trees side by side. An arrow points up from Fulfilment to Purpose; each tree's
+  leading arrow points up to Fulfilment, and the dashed separator begins below
+  Fulfilment, between the two trees. The Graph tree is the record axis, ordered
+  from the subject's immediate parent down to the graph purpose; the Relation
+  tree is the relation axis, carrying its provenance branches below its
+  relation. Fulfilment is not a relation declaration. Every stacked item uses
+  the same vertical gap, and each arrow keeps that gap from the boxes it joins.
+  Each box states only its own purpose and clamps; arrows point up to the level
+  it supports. Hovering or focusing a box reveals its full meaning in a portal
+  card; a box label opens that level's document. A grouped branch shows the
+  first item and `+N`. The axis legend sits below its own lane's content,
+  centred; proximity keeps it with that lane even when the other lane is
+  longer.
 - **Meaning** leads with the subject's purpose, then sets the contextless
   claims and the limitations that bound that purpose as two labelled readings.
   Each group carries its own count, and the groups stack when the card is
