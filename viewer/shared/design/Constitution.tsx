@@ -141,30 +141,6 @@ function Arrow({ height = 36 }: { height?: number }) {
   );
 }
 
-function CurvedArrow({ from, to }: { from: number; to: number }) {
-  return (
-    <div className={styles.constitutionCurve} aria-hidden>
-      <svg
-        className={styles.constitutionCurveLine}
-        viewBox="0 0 100 36"
-        preserveAspectRatio="none"
-      >
-        <path d={`M ${from} 36 C ${from} 18, ${to} 18, ${to} 0`} />
-      </svg>
-      <svg
-        className={styles.constitutionCurveHead}
-        style={{ left: `${to}%` }}
-        viewBox="0 0 14 10"
-        width="14"
-        height="10"
-        aria-hidden
-      >
-        <path d="M2 9 L7 0 L12 9" />
-      </svg>
-    </div>
-  );
-}
-
 function Branch({
   side,
   label,
@@ -175,7 +151,6 @@ function Branch({
   onHover,
   onLeave,
   onOpen,
-  noFirstArrow = false,
 }: {
   side: "graph" | "relation";
   label: string;
@@ -186,21 +161,15 @@ function Branch({
   onHover(node: ConstitutionNode, element: HTMLElement): void;
   onLeave(): void;
   onOpen?(target: ConstitutionTarget): void;
-  noFirstArrow?: boolean;
 }) {
   return (
     <div className={styles.constitutionBranch} data-side={side}>
-      {side === "graph" ? (
-        <span className={styles.constitutionRise}>
-          <Arrow height={138} />
-        </span>
-      ) : null}
       <span className={styles.constitutionBranchLabel}>{label}</span>
       <div className={styles.constitutionStack}>
         {nodes.length ? (
-          nodes.map((node, index) => (
+          nodes.map((node) => (
             <Fragment key={boxKey(node)}>
-              {noFirstArrow && index === 0 ? null : <Arrow />}
+              <Arrow />
               <Box
                 node={node}
                 hovered={hoveredKey === boxKey(node)}
@@ -220,14 +189,11 @@ function Branch({
 }
 
 /**
- * The subject as a constitution: one purpose across the top, the graph and
- * relation axes below it, and the binding as the relation side's fulfilment.
- *
- * The fulfilment box sits on the right side above the separator; the separator
- * starts below it so the graph and relation axes lie below. The arrow from
- * fulfilment to purpose and the arrow from the relation to fulfilment both
- * bend left. Hovering or focusing a box reveals its full meaning in a
- * portal, because the band clips overflow.
+ * The subject as a constitution: purpose and fulfilment are the two top boxes,
+ * on opposite sides of the separator, with a horizontal link from fulfilment to
+ * purpose. The graph and relation axes sit below; the graph purpose closes the
+ * graph chain at the bottom. Hovering or focusing a box reveals its full
+ * meaning in a portal, because the band clips overflow.
  */
 export function Constitution({
   model,
@@ -340,7 +306,7 @@ export function Constitution({
 
   return (
     <div className={styles.constitution} aria-label="Constitution">
-      <div className={styles.constitutionRoot}>
+      <div className={styles.constitutionTop}>
         <Box
           node={model.purpose}
           root
@@ -350,40 +316,37 @@ export function Constitution({
           onLeave={scheduleClose}
           onOpen={onOpen}
         />
-      </div>
-
-      <div className={styles.constitutionFulfilmentRow}>
-        <div className={styles.constitutionRowSpacer} />
-        <div className={styles.constitutionRowSpacer} />
-        <div className={styles.constitutionFulfilmentCell}>
-          <CurvedArrow from={18} to={-3} />
-          <div className={styles.constitutionFulfilmentBox}>
-            <Box
-              node={
-                bindingNode ?? {
-                  kind: "binding",
-                  name: "no binding",
-                  label: "Fulfilment",
-                  meaning: { claims: [], limitations: [], frames: [] },
-                }
+        <div className={styles.constitutionSeam} aria-hidden>
+          <span className={styles.constitutionSeamLine} />
+        </div>
+        <div className={styles.constitutionFulfilmentTop}>
+          <Box
+            node={
+              bindingNode ?? {
+                kind: "binding",
+                name: "no binding",
+                label: "Fulfilment",
+                meaning: { claims: [], limitations: [], frames: [] },
               }
-              fulfilment
-              hoverable={bindingHoverable}
-              text={bindingText}
-              hovered={hoveredKey === bindingKey}
-              hoverCardId={hoverCardId}
-              onHover={openHover}
-              onLeave={scheduleClose}
-              onOpen={onOpen}
-            />
-          </div>
+            }
+            fulfilment
+            hoverable={bindingHoverable}
+            text={bindingText}
+            hovered={hoveredKey === bindingKey}
+            hoverCardId={hoverCardId}
+            onHover={openHover}
+            onLeave={scheduleClose}
+            onOpen={onOpen}
+          />
+        </div>
+        <div className={styles.constitutionExchange} aria-hidden>
+          <svg viewBox="0 0 82 20" preserveAspectRatio="none">
+            <path d="M80 10 H4 M4 10 L14 4 M4 10 L14 16" />
+          </svg>
         </div>
       </div>
 
-      <div
-        className={styles.constitutionBranches}
-        data-count="2"
-      >
+      <div className={styles.constitutionBranches}>
         <Branch
           side="graph"
           label="Graph"
@@ -394,26 +357,16 @@ export function Constitution({
           onHover={openHover}
           onLeave={scheduleClose}
           onOpen={onOpen}
-          noFirstArrow
         />
+
         <div className={styles.constitutionSeam} aria-hidden>
           <span className={styles.constitutionSeamLine} />
         </div>
 
         <div className={styles.constitutionBranch} data-side="relation">
-          <div className={styles.constitutionRelationRise} aria-hidden>
-            <CurvedArrow from={50} to={18} />
-          </div>
           <span className={styles.constitutionBranchLabel}>Relation</span>
-          <span
-            className={cx(
-              styles.constitutionBranchLabel,
-              styles.constitutionMobileBranchLabel,
-            )}
-          >
-            Relation
-          </span>
           <div className={styles.constitutionStack}>
+            <Arrow />
             {primaryRelation ? (
               <Box
                 node={primaryRelation}

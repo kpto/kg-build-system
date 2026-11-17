@@ -16,7 +16,7 @@ includes by their immediate importance to a reader; it never renames one. A
 | Order | Section | Question it answers | Content |
 | --- | --- | --- | --- |
 | 1 | **Overview** | What is this, in one screen? | One fact grid: kind, labels, identity, owner or endpoints, counts and licence. |
-| 2 | **Constitution** | What does this subject assert, and how is it fulfilled? | The current subject's purpose is the wide root at the top; the Fulfilment box is on the right side, slightly inset above the relation axis; the Graph chain on the left and the Relation chain on the right. The separator starts below Fulfilment, so the axes lie below it and Fulfilment above it. The arrow from Fulfilment to the purpose and the arrow from the relation to Fulfilment both curve left. Arrows point up to the level each box is accountable to; the relation's provenance branches sit below it. Each box clamps its purpose to two lines; hovering or focusing it reveals the full meaning, and a box label opens its document. The Fulfilment box states the binding count; identity fields and coverage appear when the box has room and always in the full axis map. A grouped branch shows the first item and `+N`; one control expands the full axis map. |
+| 2 | **Constitution** | What does this subject assert, and how is it fulfilled? | Purpose and Fulfilment are the two top boxes, on opposite sides of the separator; a horizontal arrow runs from Fulfilment to Purpose. The Graph chain is below Purpose and ends at the graph purpose; the Relation chain is below Fulfilment. The separator divides the two axes. Arrows point up to the purpose each box supports; the relation's provenance branches sit below it. Each box clamps its purpose to two lines; hovering or focusing it reveals the full meaning, and a box label opens its document. The Fulfilment box states the binding count; identity fields and coverage appear when the box has room and always in the full axis map. A grouped branch shows the first item and `+N`; one control expands the full axis map. |
 | 3 | **Meaning** | What is this for, and what does it exclude? | The full meaning of the current subject: purpose, the limitations it owns, then contextless claims; compact counts in the header. |
 | 4 | **Sources** | Where does this value come from? | Assets, source relations and derived relations, as navigable references with counts. |
 | 5 | **Build steps** | How is this built? | The narrowed workflow graph of the steps that produce the subject. |
@@ -78,20 +78,17 @@ branches descend from it, and each box points up to the purpose it supports.
 - **Graph** is the record axis, read from the current subject's immediate
   parent down to the graph purpose: for a property, node → category → graph.
   Each box states its own purpose; the root purpose is marked current.
-- **Relation** is the relation axis. The relation sits below the Fulfilment
-  box; the relation's provenance branches sit under it. A derived relation
-  splits into its scanned source relation and its asset; a source relation
-  shows its asset. The current declaration is marked when the subject is a
-  relation or asset.
-- **Fulfilment** is the box on the right side, above the relation axis and
-  slightly inset from it. It is not part of either axis. The separator starts
-  below it, so the axes lie below the separator and Fulfilment above it. Its
-  arrow to the purpose and the relation's arrow to it both bend left. Every
-  stacked item uses the same vertical gap; the Fulfilment box is one gap below
-  the purpose and one gap above the axes. It states the binding count; identity
-  fields and coverage appear when the box has room and always in the full axis
-  map. The graph asserts, the relation supplies, and the Fulfilment box states
-  their meeting.
+- **Relation** is the relation axis below Fulfilment. The relation's
+  provenance branches sit under it. A derived relation splits into its scanned
+  source relation and its asset; a source relation shows its asset. The current
+  declaration is marked when the subject is a relation or asset.
+- **Fulfilment** is the top box on the right, opposite Purpose and separated
+  from it by the dashed divider. It is not part of the relation axis; the
+  relation tree sits below it. A horizontal arrow runs from Fulfilment to
+  Purpose. Every stacked item uses the same vertical gap. Fulfilment states the
+  binding count; identity fields and coverage appear when the box has room and
+  always in the full axis map. The graph asserts, the relation supplies, and
+  the Fulfilment box states their meeting.
 - A branch with many records, relations or assets shows the first item and
   `+N`, so the card stays compact. **Full axis map** expands the same data into
   the three-column records / fulfilment / relations view.

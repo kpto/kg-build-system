@@ -80,17 +80,15 @@ A kind includes or omits a section; it never renames one for itself.
 
 - **Overview** is one fact grid: kind, labels, identity, owner or endpoints,
   counts and licence.
-- **Constitution** is the two-axis tree. The current subject's purpose is the
-  wide root; the Graph branch is the record axis, ordered from the subject's
-  immediate parent down to the graph purpose; the Relation branch is the
-  relation axis. The Fulfilment box sits
-  on the right side above the separator; the separator starts below it so the
-  axes lie below the separator. Fulfilment is slightly inset above the relation
-  axis; its arrow to the purpose and the relation's arrow to it both bend left.
-  Every stacked item uses the same vertical gap, including the gap below the
-  Fulfilment box and the gap to the axes. The relation axis carries its
-  provenance branches below its relation. Each box states only
-  its own purpose and clamps; arrows point up to the purpose it supports. Hovering or focusing a box reveals its full meaning in a
+- **Constitution** puts the current subject's purpose and Fulfilment as the
+  two top boxes, on opposite sides of a dashed divider; a horizontal arrow runs
+  from Fulfilment to Purpose. The Graph branch below Purpose is the record axis,
+  ordered from the subject's immediate parent down to the graph purpose. The
+  Relation branch below Fulfilment is the relation axis; it carries its
+  provenance branches below its relation. Fulfilment is the relation side's top
+  box, not a relation declaration. Every stacked item uses the same vertical
+  gap. Each box states only its own purpose and clamps; arrows point up to the
+  purpose it supports. Hovering or focusing a box reveals its full meaning in a
   portal card; a box label opens that level's document. A grouped branch shows
   the first item and `+N`; **Full axis map** expands the same data into the
   three-column records, fulfilment and relations view.
