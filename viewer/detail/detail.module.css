@@ -1734,7 +1734,7 @@ button.expressionToggle:hover {
 }
 
 .bandBody {
-  padding: var(--space-group) var(--space-section) var(--space-section);
+  padding: var(--space-section);
 }
 
 .bandBodyFlush {

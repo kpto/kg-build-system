@@ -201,8 +201,8 @@ Spacing is one 4px grid; 2px is the optical hairline.
 | `--space-hairline` | 2px | optical edge, dense icon alignment |
 | `--space-inline` | 4px | icon and inline relationships |
 | `--space-stack` | 8px | tightly related lines |
-| `--space-group` | 12px | related groups, card body |
-| `--space-section` | 16px | card padding, section internal |
+| `--space-group` | 12px | related groups and the gap between cards |
+| `--space-section` | 16px | card padding and section internal |
 | `--space-panel` | 24px | panel and field separation |
 | `--space-region` | 32px | document body and large block separation |
 | `--space-page` | 48px | page-level layout |
