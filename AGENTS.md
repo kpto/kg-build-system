@@ -237,8 +237,10 @@ missing, not the code.
   component with one consumer also belongs to that feature.
 - A concept's mark carries its type; do not repeat the type as visible text
   beside it. A count appears once, in the region that owns the list.
-- A section header states its title. Its question is the accessible
-  description, and its count appears only while the section is collapsed.
+- A detail card is static and its header states the title and concept mark.
+  The question is the accessible description, and the body, not a header
+  count, shows what the card holds. The detail index is the only card
+  navigation and marks the current card.
 - Every tab uses one banner for identity, overview and view actions. A detail
   body starts at its first section, not an Overview band.
 - Motion is feedback, not decoration: short ease-out transitions on transform and
