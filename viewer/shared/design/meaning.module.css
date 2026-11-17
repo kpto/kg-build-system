@@ -1,41 +1,74 @@
+/* Meaning view: purpose as the lead, then claims and limitations as two
+   labelled readings. Local geometry only; the roles come from the theme. */
 
 .meaning {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-stack);
   min-width: 0;
+  flex-direction: column;
+  gap: var(--space-panel);
 }
 
-.meaningCompact {
-  gap: var(--space-stack);
-}
-
-.meaningCounts {
+.meaningPurposeLead {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-group);
+  max-width: 78ch;
+  flex-direction: column;
+  gap: var(--space-inline);
+}
+
+.meaningLabel {
+  margin: 0;
   color: var(--color-faint);
-  font-family: var(--font-mono);
   font-size: var(--text-caption);
-  letter-spacing: var(--tracking-wide);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-widest);
+  line-height: var(--leading-tight);
   text-transform: uppercase;
 }
 
-.meaningCompact .meaningCounts {
-  font-size: var(--text-caption);
-}
-
 .meaningPurpose {
+  max-width: 72ch;
   margin: 0;
   color: var(--color-text);
   font-size: var(--text-title);
   line-height: var(--leading-relaxed);
 }
 
+.meaningEvidence {
+  display: grid;
+  padding-top: var(--space-group);
+  border-top: var(--border-hairline) solid var(--color-line-soft);
+  gap: var(--space-panel);
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(100%, 260px), 1fr)
+  );
+}
+
+.meaningGroup {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--space-stack);
+}
+
+.meaningGroupHead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-inline);
+}
+
+.meaningCount {
+  color: var(--color-faint);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+}
+
 .meaningClaims {
   display: flex;
+  max-width: 72ch;
   flex-direction: column;
-  gap: var(--space-inline);
+  gap: var(--space-stack);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -52,103 +85,49 @@
 .meaningClaims li::before {
   position: absolute;
   left: 0;
-  color: var(--color-selection);
+  color: var(--color-line-strong);
   content: "·";
 }
 
-.meaningCompact .meaningClaims li {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  font-size: var(--text-body);
+/* The amber edge is the boundary of the purpose, not another card. */
+.meaningLimits {
+  display: flex;
+  max-width: 72ch;
+  flex-direction: column;
+  gap: var(--space-stack);
+  margin: 0;
+  padding: 0 0 0 var(--space-section);
+  border-left: var(--border-heavy) solid
+    color-mix(in srgb, var(--color-open) 55%, var(--color-line));
+  list-style: none;
 }
 
-.meaningMore {
-  color: var(--color-faint) !important;
-  font-family: var(--font-mono);
-  font-size: var(--text-caption) !important;
+.meaningLimits li {
+  color: var(--color-muted);
+  font-size: var(--text-label);
+  line-height: var(--leading-relaxed);
 }
 
 .meaningFrames {
   display: flex;
   flex-direction: column;
-  gap: var(--space-inline);
-}
-
-.meaningFrame {
+  gap: var(--space-group);
+  padding-top: var(--space-group);
   border-top: var(--border-hairline) solid var(--color-line-soft);
 }
 
-.meaningFrameHead {
-  display: flex;
-  width: 100%;
-  min-height: 24px;
-  align-items: baseline;
-  gap: var(--space-stack);
-  border: 0;
-  background: transparent;
-  padding: var(--space-inline) 0;
-  color: var(--color-muted);
-  font-size: var(--text-label);
-  line-height: var(--leading-normal);
-  text-align: left;
-}
-
-.meaningFrameHead:disabled {
-  cursor: default;
-}
-
-.meaningFrameHead:hover:not(:disabled) {
-  color: var(--color-text);
-}
-
-.meaningChevron {
-  width: 10px;
-  height: 10px;
-  flex: none;
-  align-self: center;
-  color: var(--color-faint);
-  transition: transform var(--motion-fast) var(--ease-standard);
-}
-
-.meaningChevronOpen {
-  transform: rotate(90deg);
-}
-
-.meaningFrameHead > span:nth-child(2) {
-  min-width: 0;
-  flex: 1;
-}
-
-.meaningFrameCount {
-  flex: none;
-  color: var(--color-faint);
-  font-family: var(--font-mono);
-  font-size: var(--text-caption);
-}
-
-.meaningLimits {
+.meaningFrame {
   display: flex;
   flex-direction: column;
   gap: var(--space-inline);
+}
+
+.meaningFrameText {
+  max-width: 72ch;
   margin: 0;
-  padding: 0 0 var(--space-stack) var(--space-panel);
-  list-style: none;
-}
-
-.meaningLimits li {
-  position: relative;
-  color: var(--color-faint);
-  font-size: var(--text-body);
-  line-height: var(--leading-normal);
-}
-
-.meaningLimits li::before {
-  position: absolute;
-  left: -9px;
-  content: "—";
-  color: var(--color-open);
+  color: var(--color-muted);
+  font-size: var(--text-label);
+  line-height: var(--leading-relaxed);
 }
 
 .meaningEmpty {
@@ -157,6 +136,3 @@
   font-size: var(--text-body);
   line-height: var(--leading-relaxed);
 }
-
-/* --------------------------------------------------------- meaning hover card */
-

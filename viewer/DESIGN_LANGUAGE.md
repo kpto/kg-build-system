@@ -92,10 +92,11 @@ A kind includes or omits a section; it never renames one for itself.
   portal card; a box label opens that level's document. A grouped branch shows
   the first item and `+N`. The axis legend sits at the bottom centre of each
   lane.
-- **Meaning** is the full meaning of the current subject: purpose, the
-  limitations it owns, then contextless claims. It is a separate card from the
-  Constitution, so a reader can see the two axes and the subject's complete
-  meaning in turn.
+- **Meaning** leads with the subject's purpose, then sets the contextless
+  claims and the limitations that bound that purpose as two labelled readings.
+  Each group carries its own count, and the groups stack when the card is
+  narrow. It is a separate card from the Constitution, so a reader can see the
+  two axes and the subject's complete meaning in turn.
 - **Sources**, **Build steps** and **Expression** are three visualisations of
   one traversal. Sources names the release data; Build steps shows the plan;
   Expression shows the field and operator chain. The UI never uses the labels
