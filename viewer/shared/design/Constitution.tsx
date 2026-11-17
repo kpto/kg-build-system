@@ -128,19 +128,25 @@ function Box({
   );
 }
 
-function Arrow() {
+function Arrow({ height = 36 }: { height?: number }) {
   return (
-    <span className={styles.constitutionArrow} aria-hidden>
-      <ArrowUp size={13} strokeWidth={1.8} />
-    </span>
+    <svg
+      className={styles.constitutionArrow}
+      style={{ height }}
+      viewBox={`0 0 14 ${height}`}
+      preserveAspectRatio="none"
+      aria-hidden
+    >
+      <path d={`M7 ${height} L7 1 M2 7 L7 1 L12 7`} />
+    </svg>
   );
 }
 
 function CurvedArrow({ from, to }: { from: number; to: number }) {
   return (
     <div className={styles.constitutionCurve} aria-hidden>
-      <svg viewBox="0 0 100 30" preserveAspectRatio="none">
-        <path d={`M ${from} 30 C ${from} 16, ${to} 14, ${to} 2`} />
+      <svg viewBox="0 0 100 36" preserveAspectRatio="none">
+        <path d={`M ${from} 36 C ${from} 18, ${to} 18, ${to} 0`} />
       </svg>
       <span
         className={styles.constitutionCurveHead}
@@ -178,8 +184,8 @@ function Branch({
   return (
     <div className={styles.constitutionBranch} data-side={side}>
       {side === "graph" ? (
-        <span className={styles.constitutionRise} aria-hidden>
-          <ArrowUp size={13} strokeWidth={1.8} />
+        <span className={styles.constitutionRise}>
+          <Arrow height={138} />
         </span>
       ) : null}
       <span className={styles.constitutionBranchLabel}>{label}</span>
