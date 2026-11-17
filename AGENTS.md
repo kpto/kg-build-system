@@ -166,6 +166,9 @@ missing, not the code.
   fulfilment), the layout computes the ranks, ordering and edge routes, and the
   renderer draws them. The view keeps only the document anchors, labels and the
   seam.
+- A graph surface opens fitted: it fits its scene on first display and whenever
+  its document changes; a previous document's pan and zoom do not carry over.
+  Within one document the view is the tab's state.
 - A repeated item renders its units compactly. A heading is structural, not per
   unit: a table cell or list row does not repeat the section chrome.
 - A card uses one vertical gap between stacked items. A connector sits in that
