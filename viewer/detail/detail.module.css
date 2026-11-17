@@ -1715,8 +1715,8 @@ button.expressionToggle:hover {
  * content, never a floating card, and the index rail navigates between cards.
  */
 
-/* The one card frame. Every section renders through DetailBand; the card is
-   borderless, fills the deck height and leaves the next card peeking. */
+/* The one card frame. Every section renders through DetailBand; the card is flat,
+   fills the deck height and leaves the next card peeking. */
 .band {
   display: flex;
   min-width: 0;

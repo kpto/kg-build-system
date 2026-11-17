@@ -64,9 +64,10 @@ The first paint states the design, not every annotation.
 - **No raw JSON in the default surface.** A design reader shows named values,
   not serialised models.
 - **The body states its own extent.** A card header carries no count; the list,
-  table or graph inside the card shows what it holds. A card header sits inside
-  the card at its top-left, not in a banner bar. A section header is larger and
-  bolder than its content; a caption is a label, not a header.
+  table or graph inside the card shows what it holds. A card title sits above
+  the card body at the top-left, not in a banner bar or card surface. A section
+  header is larger and bolder than its content; a caption is a label, not a
+  header.
 
 ## Detail content
 
