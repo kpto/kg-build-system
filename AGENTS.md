@@ -229,6 +229,9 @@ missing, not the code.
 - A CSS module declares the keyframes it animates with: CSS Modules scopes the
   animation name, so a reference to a global keyframe silently loses its
   animation.
+- A feature composes the shared primitive layer for panels, headers, rows,
+  fields, controls, inputs and small type roles before declaring a local
+  equivalent.
 - Motion is feedback, not decoration: short ease-out transitions on transform and
   opacity, origin-aware entrances, and reduced motion removes movement.
 - End every change report with the rule-promotion result: none, refined or
