@@ -23,7 +23,7 @@ sources:
 </div>
 
 <!-- BEGIN GENERATED:status-strip -->
-<div class="kb-stats"><span><b>393</b> tests</span><span><b>1972</b> subtests</span><span><b>0 errors</b> pyright</span><span><b>5ad1fd3</b> source</span><span><b>2026-11-15</b> checked</span></div>
+<div class="kb-stats"><span><b>455</b> tests</span><span><b>2065</b> subtests</span><span><b>0 errors</b> pyright</span><span><b>65778ec</b> source</span><span><b>2026-11-17</b> checked</span></div>
 <!-- END GENERATED:status-strip -->
 
 ## The mentality comes first
@@ -45,6 +45,20 @@ happens to write files.
 Read [Preface: how to describe a graph](/book/intent) before the build
 chapters. It names no framework type; it states the mentality the rest of the
 book assumes.
+
+## Extension is expected
+
+The supplied graph system is one composition of the kernel, not the framework's
+boundary. A project is expected to extend it:
+
+- a **value operation** in `expression/` for one value per row;
+- a **relation operation** in `modules/` for a different row count or shape;
+- a **source adapter** for a physical input format;
+- a **planner and executor module** for a new pass over records.
+
+The six kernel protocols are for a different composition. Read the
+[Extension reference](/appendix/reference/extension) for the exact surfaces and
+the current limits.
 
 ## The vocabulary
 

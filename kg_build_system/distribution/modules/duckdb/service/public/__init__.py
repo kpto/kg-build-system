@@ -19,6 +19,9 @@ from ..internal import (
     EmissionContext,
     ExpressionEmitter,
     Operand,
+    RowSourceEmissionContext,
+    RowSourceEmitter,
+    SqlNode,
 )
 from .functions import expression_sql, relation_sql, row_source_sql
 from .planner import DuckDbSourcePlanner
@@ -36,6 +39,9 @@ __all__ = [
     "RelationQueryResult",
     "RelationRef",
     "RelationService",
+    "RowSourceEmissionContext",
+    "RowSourceEmitter",
+    "SqlNode",
     "expression_sql",
     "relation_sql",
     "row_source_sql",

@@ -28,6 +28,7 @@ sources:
 | [Types](/appendix/reference/types) | Canonical types, nullability, property shape and DuckDB dispositions. |
 | [Expressions](/appendix/reference/expressions) | The Selection surface, row effects, operations and errors. |
 | [Row sources](/appendix/reference/row-sources) | row_source, where, join, group_by, union, distinct, order_by and unnest. |
+| [Extension](/appendix/reference/extension) | Project-local value operations, relation operations, source adapters and the kernel protocols. |
 | [Derived relations](/appendix/reference/derived-relations) | Contracts, pinned sources, computed fields, stages and outputs. |
 | [Topology](/appendix/reference/topology) | Node, Edge, properties, templates, categories and endpoints. |
 | [Bindings](/appendix/reference/bindings) | node_binding, edge_binding, fulfilment, keys, properties and endpoints. |

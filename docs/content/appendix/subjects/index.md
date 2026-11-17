@@ -6,7 +6,7 @@ section: subjects
 perspective: meta
 order: 0
 status: normative
-verified: '2026-11-15'
+verified: '2026-11-17'
 sources:
 - README.md
 generated: true

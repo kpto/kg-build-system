@@ -65,20 +65,20 @@ The kernel owns reusable mechanics; the distribution owns what a graph author na
 
 | Import edge | Files |
 | --- | ---: |
-| `distribution/languages/expressions` → `kernel` | 49 |
+| `distribution/languages/expressions` → `kernel` | 55 |
+| `distribution/languages/data` → `kernel` | 37 |
 | `distribution/modules/duckdb` → `distribution/languages/expressions` | 34 |
-| `distribution/languages/data` → `distribution/languages/expressions` | 25 |
-| `distribution/languages/data` → `kernel` | 25 |
+| `distribution/languages/data` → `distribution/languages/expressions` | 33 |
+| `distribution/languages/binding` → `distribution/languages/data` | 19 |
+| `distribution/languages/data` → `distribution/languages/meaning` | 17 |
 | `distribution/modules/duckdb` → `distribution/languages/data` | 17 |
+| `distribution/languages/binding` → `kernel` | 16 |
+| `distribution/languages/topology` → `distribution/languages/meaning` | 16 |
 | `distribution/modules/duckdb` → `kernel` | 16 |
 | `distribution/languages/data` → `distribution/languages/annotations` | 15 |
-| `distribution/languages/data` → `distribution/languages/meaning` | 15 |
 | `distribution/languages/topology` → `distribution/languages/annotations` | 15 |
-| `distribution/languages/topology` → `distribution/languages/meaning` | 14 |
+| `distribution/languages/binding` → `distribution/languages/expressions` | 14 |
 | `distribution/modules/core` → `distribution/service` | 14 |
-| `distribution/modules/core` → `kernel` | 13 |
-| `distribution/languages/binding` → `distribution/languages/data` | 12 |
-| `distribution/languages/binding` → `distribution/languages/expressions` | 12 |
 
 Kernel boundary violations: none.
 <!-- END GENERATED:code-map -->

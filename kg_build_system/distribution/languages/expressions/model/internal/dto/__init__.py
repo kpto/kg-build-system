@@ -6,9 +6,13 @@ from .blueprint_dto import (
     LookupExpressionDTO, OperationExpressionDTO, OperationParameterDTO,
     VariableExpressionDTO,
 )
+from .operation_dto import (
+    ArgumentDTO, ExpressionsPartDTO, OperationDTO, ParameterDTO, RowEffectKind,
+)
 
 __all__ = [
-    "ExpressionDTO", "ExpressionDTOBase", "FieldReferenceDTO",
-    "LiteralExpressionDTO", "LookupExpressionDTO", "OperationExpressionDTO",
-    "OperationParameterDTO", "VariableExpressionDTO",
+    "ArgumentDTO", "ExpressionDTO", "ExpressionDTOBase", "ExpressionsPartDTO",
+    "FieldReferenceDTO", "LiteralExpressionDTO", "LookupExpressionDTO",
+    "OperationDTO", "OperationExpressionDTO", "OperationParameterDTO",
+    "ParameterDTO", "RowEffectKind", "VariableExpressionDTO",
 ]

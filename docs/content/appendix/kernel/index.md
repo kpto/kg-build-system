@@ -25,6 +25,8 @@ The kernel is a domain-agnostic toolchain with three verbs: it links language de
 
 The default graph distribution — the blueprint, the graph languages, the interpreter, the core planners, the source planner and the file, meta-graph and Neo4j modules — is one composition of the kernel protocols. It is replaceable. A new source, declaration syntax, derivation, storage engine or lifecycle resource is another composition, not a framework change.
 
+Project-local extension is expected before a kernel change. A project adds a value operation in `expression/`; a relation operation, source adapter or planner/executor module in `modules/`; and composes the objects in `manifest.py`. The [Extension reference](/appendix/reference/extension) states those surfaces. The six protocols below are for a different toolchain or distribution, or for a capability no project object can carry.
+
 > **"Not in the default distribution" is not "not in the framework."**
 > The default distribution is one composition of the kernel protocols.
 > A new source, syntax, derivation, engine or lifecycle resource is another

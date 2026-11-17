@@ -67,7 +67,7 @@ from kg_build_system.generation.code_generation.builtins import (
     DataContractInferenceConfig,
     InferDataContractProvider,
 )
-from kg_build_system.kernel import Array, Nullable
+from kg_build_system.kernel import Array, Nullable, Shape
 
 
 @asset_generation(AssetGenerationOptions(
@@ -147,6 +147,16 @@ class Region(SourceRelation[FixtureAsset]):
     options = SourceRelationOptions(name="region", contract=Omitted)
     region_id: Field[str] = field(name="region_id", meaning=Omitted)
     name: Field[str] = field(name="name", meaning=Omitted)
+
+
+class UnnestedSite(Shape):
+    site_id: Selection[Nullable[str]]
+    region_id: Selection[Nullable[str]]
+    count: Selection[Nullable[int]]
+    detail: Selection[Nullable[Detail]]
+    addresses: Selection[Nullable[Array[Address]]]
+    tags: Selection[str]
+    labels: Selection[Nullable[Array[Nullable[str]]]]
 
 
 class Summary(ComputedStruct):
@@ -247,8 +257,8 @@ assert_type(
     Selection[str],
 )
 assert_type(
-    Site.row_source().unnest(lambda site: site.tags),
-    DerivedRowSource[Site],
+    Site.row_source().unnest(lambda site: site.tags, out=UnnestedSite),
+    DerivedRowSource[UnnestedSite],
 )
 
 

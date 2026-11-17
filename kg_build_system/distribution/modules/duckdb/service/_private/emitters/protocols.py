@@ -67,15 +67,47 @@ class ExpressionEmitter(Protocol[NodeT]):
 class RowSourceEmissionContext(Protocol[NodeT_co]):
     """What one row-source emitter may ask of its surroundings."""
 
-    def relation_for(self, plan: Any) -> str: ...
+    def relation_for(self, plan: Any) -> str:
+        """The materialised relation name for one input plan.
 
-    def shape_for(self, plan: Any) -> tuple[Any, ...]: ...
+        Example:
+            ```python
+            relation = context.relation_for(plan.input)
+            ```
+        """
+        ...
 
-    def source_key(self, plan: Any) -> str: ...
+    def shape_for(self, plan: Any) -> tuple[Any, ...]:
+        """The declared shape members of one input plan.
+
+        Example:
+            ```python
+            members = context.shape_for(plan.input)
+            ```
+        """
+        ...
+
+    def source_key(self, plan: Any) -> str:
+        """The stable source key one input plan is read through.
+
+        Example:
+            ```python
+            key = context.source_key(plan.input)
+            ```
+        """
+        ...
 
     def emit_expression(
         self, expression: ExpressionDTO, aliases: Mapping[str, str],
-    ) -> NodeT_co: ...
+    ) -> NodeT_co:
+        """Emit one expression against the given relation aliases.
+
+        Example:
+            ```python
+            node = context.emit_expression(expression, {"row": "t0"})
+            ```
+        """
+        ...
 
 
 class RowSourceEmitter(Protocol[NodeT_contra]):
@@ -84,7 +116,15 @@ class RowSourceEmitter(Protocol[NodeT_contra]):
     @property
     def node_type(self) -> type[Any]: ...
 
-    def emit(self, plan: Any, context: RowSourceEmissionContext[NodeT_contra]) -> str: ...
+    def emit(self, plan: Any, context: RowSourceEmissionContext[NodeT_contra]) -> str:
+        """Render one row-source plan as SQL text.
+
+        Example:
+            ```python
+            sql = emitter.emit(plan, context)
+            ```
+        """
+        ...
 
 
 __all__ = [

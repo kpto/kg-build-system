@@ -76,17 +76,47 @@ DEFAULT_EXECUTORS = (
 )
 
 
+def default_languages(
+    *, expressions: ExpressionsLanguage | Language | None = None,
+) -> tuple[Language, ...]:
+    """Return the default language set, optionally replacing expressions.
+
+    A project that declares its own operations supplies an
+    ``ExpressionsLanguage`` with that operation set. Every other default
+    language is unchanged.
+
+    Example:
+    ```python
+    from kg_build_system import default_languages
+    from kg_build_system.distribution import ExpressionsLanguage
+
+    language = ExpressionsLanguage(operations=(custom_spec,))
+    languages = default_languages(expressions=language)
+    ```
+    """
+    if expressions is None:
+        return DEFAULT_LANGUAGES
+    if any(language.name == "expressions" for language in DEFAULT_LANGUAGES):
+        return tuple(
+            expressions if language.name == "expressions" else language
+            for language in DEFAULT_LANGUAGES
+        )
+    return (*DEFAULT_LANGUAGES, expressions)
+
+
 def default_toolchain(
     *,
     planners: Sequence[Planner[GraphBlueprint]] = (),
     executors: Sequence[StepExecutor] | None = None,
     engine: DuckDbSqlEmitter | None = None,
+    languages: Sequence[Language] | None = None,
 ) -> Toolchain[GraphBlueprint]:
     """Return a graph toolchain with the supplied planners and executors added.
 
     The generic DuckDB source planner is added before the core planners, and a
     caller-supplied core planner is not duplicated: the four default core
     planners are added only when no planner reports ``component_id == "core"``.
+    ``languages`` replaces the default language set; it never merges with it.
 
     Example:
     ```python
@@ -102,6 +132,9 @@ def default_toolchain(
     """
     configured: tuple[Planner[GraphBlueprint], ...] = tuple(planners)
     selected_engine = engine if engine is not None else DuckDbSqlEmitter()
+    selected_languages = (
+        DEFAULT_LANGUAGES if languages is None else tuple(languages)
+    )
     sources: tuple[Planner[GraphBlueprint], ...] = (
         ()
         if any(planner.component_id == "duckdb" for planner in configured)
@@ -114,7 +147,7 @@ def default_toolchain(
     elif sources:
         configured = (*sources, *configured)
     return Toolchain(
-        languages=DEFAULT_LANGUAGES,
+        languages=selected_languages,
         linker=BlueprintLinker(),
         planners=configured,
         executors=tuple(executors or DEFAULT_EXECUTORS),
@@ -303,6 +336,7 @@ __all__ = [
     "GraphBlueprint",
     "compile",
     "create_blueprint",
+    "default_languages",
     "default_toolchain",
     "execute",
 ]

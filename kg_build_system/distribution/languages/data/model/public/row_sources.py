@@ -21,15 +21,22 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Generic, Literal, TypeVar, overload
+from typing import TYPE_CHECKING, Generic, Literal, Self, TypeVar, cast, overload
 
 from kg_build_system.distribution.languages.expressions.model.public import (
     Selection,
 )
+from kg_build_system.kernel import JsonValue
 from kg_build_system.kernel.model.public.types import Array, Nullable, Shape
 from ..internal.dto.blueprint_dto import RowScanDTO, RowSourcePlanDTO
 from .fields import ScalarValue
-from .shapes import ShapeField
+from .shapes import (
+    FullJoinedShape, GroupedShape, InnerJoinedShape, LeftJoinedShape,
+    RightJoinedShape, ShapeField,
+)
+
+if TYPE_CHECKING:
+    from .row_operations import RelationOperation
 
 S = TypeVar("S", bound=Shape, covariant=True)
 JoinHow = Literal["inner", "left", "right", "full"]
@@ -42,11 +49,11 @@ type GroupByKeys = (
 type OrderByKey[S: Shape] = str | Selection[object] | Callable[[S], Selection[object]]
 
 
-class RowSourceProvider:
+class RowSourceProvider(Shape):
     """A declaration that provides a row source through ``row_source()``."""
 
     @classmethod
-    def row_source(cls) -> "RowSource[Shape]":
+    def row_source(cls) -> "RowSource[Self]":
         """Return the relation row source for this declaration.
 
         Example:
@@ -85,20 +92,14 @@ class RowSource(Generic[S]):
 
         return derive_where(self, predicate)
 
-    @overload
-    def unnest[I](
-        self, selector: Callable[[S], Selection[Array[I]]],
-    ) -> "DerivedRowSource[S]": ...
-    @overload
-    def unnest[I](
-        self, selector: Callable[[S], Selection[Nullable[Array[I]]]],
-    ) -> "DerivedRowSource[S]": ...
-    def unnest[I](
+    def unnest[I, Out: Shape](
         self,
         selector: Callable[
             [S], Selection[Array[I]] | Selection[Nullable[Array[I]]],
         ],
-    ) -> "DerivedRowSource[S]":
+        *,
+        out: type[Out],
+    ) -> "DerivedRowSource[Out]":
         """Expand one array member into rows, one row per item.
 
         The selected array must be a direct field read. The result keeps the
@@ -106,25 +107,35 @@ class RowSource(Generic[S]):
         or empty array produces no rows. This is the row-source spelling of
         expansion; ``Selection.expand`` stays a selection row effect.
 
+        ``out`` names the shape the expanded row has: every preserved member
+        with its unchanged type and the selected member with the array's item
+        type. The runtime shape must match it.
+
         Example:
             ```python
-            from kg_build_system import Array, Field, SourceRelation, field
+            from kg_build_system import (
+                Array, Field, Nullable, Selection, Shape, SourceRelation, field,
+            )
 
             class Site(SourceRelation):
                 site_id: Field[str] = field(name="site_id")
                 tags: Field[Array[str]] = field(name="tags")
 
+            class TaggedSite(Shape):
+                site_id: Selection[Nullable[str]]
+                tags: Selection[str]
+
             one_tag_per_row = Site.row_source().unnest(
-                lambda site: site.tags
+                lambda site: site.tags, out=TaggedSite,
             )
             ```
         """
         from ...service.public.rows import derive_unnest
 
-        return derive_unnest(self, selector)
+        return derive_unnest(self, selector, out=out)
 
-    def union[S2: Shape](
-        self, other: "RowSource[S2]", *, all: bool = True,
+    def union(
+        self, other: "RowSource[S]", *, all: bool = True,
     ) -> "DerivedRowSource[S]":
         """Stack two same-shaped sources; ``all=False`` removes duplicates.
 
@@ -139,17 +150,42 @@ class RowSource(Generic[S]):
 
         return derive_union(self, other, all=all)
 
-    def join[
-        S2: Shape, K1: Nullable[ScalarValue], K2: Nullable[ScalarValue],
-    ](
+    @overload
+    def join[S2: Shape, K](
         self, other: "RowSource[S2]", *,
-        on: Callable[[S, S2], tuple[Selection[K1], Selection[K2]]],
+        on: Callable[[S, S2], tuple[Selection[K], Selection[K]]],
+        how: Literal["inner"] = "inner",
+    ) -> "DerivedRowSource[InnerJoinedShape[S, S2, K]]": ...
+    @overload
+    def join[S2: Shape, K](
+        self, other: "RowSource[S2]", *,
+        on: Callable[[S, S2], tuple[Selection[K], Selection[K]]],
+        how: Literal["left"],
+    ) -> "DerivedRowSource[LeftJoinedShape[S, S2, K]]": ...
+    @overload
+    def join[S2: Shape, K](
+        self, other: "RowSource[S2]", *,
+        on: Callable[[S, S2], tuple[Selection[K], Selection[K]]],
+        how: Literal["right"],
+    ) -> "DerivedRowSource[RightJoinedShape[S, S2, K]]": ...
+    @overload
+    def join[S2: Shape, K](
+        self, other: "RowSource[S2]", *,
+        on: Callable[[S, S2], tuple[Selection[K], Selection[K]]],
+        how: Literal["full"],
+    ) -> "DerivedRowSource[FullJoinedShape[S, S2, K]]": ...
+    def join[S2: Shape, K](
+        self, other: "RowSource[S2]", *,
+        on: Callable[
+            [S, S2], tuple[Selection[K], Selection[K]] | Selection[bool],
+        ],
         how: JoinHow = "inner",
     ) -> "DerivedRowSource[Shape]":
         """Equi-join two sources on one expression from each side.
 
         ``on`` receives one shape instance per side and returns the two key
-        selections. A null key never matches in any join mode.
+        selections. A null key never matches in any join mode. The result's
+        shape names the key and both rows, with the absent side nullable.
 
         Example:
             ```python
@@ -162,21 +198,37 @@ class RowSource(Generic[S]):
         """
         from ...service.public.rows import derive_join
 
-        return derive_join(self, other, on=on, how=how)
+        # The implementation accepts the broad key-or-predicate form; the
+        # overloads publish only the precise tuple form.
+        join = cast(
+            "Callable[..., DerivedRowSource[Shape]]", derive_join,
+        )
+        return join(self, other, on=on, how=how)
 
-    def group_by(self, *, by: Callable[[S], GroupByKeys]) -> "DerivedRowSource[Shape]":
+    def group_by[K: Shape](
+        self, *, keys: type[K], by: Callable[[S], GroupByKeys],
+    ) -> "DerivedRowSource[GroupedShape[S, K]]":
         """Group rows by named key expressions; null keys are dropped.
+
+        ``keys`` names the shape of the grouped key record; ``by`` returns the
+        key expressions whose names and types must match that shape.
 
         Example:
             ```python
+            from kg_build_system import Nullable, Selection, Shape
+
+            class RegionKey(Shape):
+                region_id: Selection[Nullable[str]]
+
             by_region = SiteTable.row_source().group_by(
-                by=lambda site: {"region": site.region},
+                keys=RegionKey,
+                by=lambda site: {"region_id": site.region_id},
             )
             ```
         """
         from ...service.public.rows import derive_group_by
 
-        return derive_group_by(self, by=by)
+        return derive_group_by(self, keys=keys, by=by)
 
     def distinct(self) -> "DerivedRowSource[S]":
         """Drop duplicate rows without changing the shape.
@@ -203,6 +255,25 @@ class RowSource(Generic[S]):
         from ...service.public.rows import derive_order_by
 
         return derive_order_by(self, *keys, ascending=ascending)
+
+    def custom_op[Out: Shape](
+        self,
+        operation: "RelationOperation[S, Out]",
+        **parameters: JsonValue,
+    ) -> "DerivedRowSource[Out]":
+        """Compose one project relation operation over this row source.
+
+        The operation names its exact output shape and grain; ``parameters``
+        are JSON values the project emitter receives with the plan.
+
+        Example:
+            ```python
+            rows = Row.row_source().custom_op(count_rows)
+            ```
+        """
+        from ...service.public.rows import derive_relation_operation
+
+        return derive_relation_operation(self, operation, **parameters)
 
 
 @dataclass(frozen=True, slots=True)

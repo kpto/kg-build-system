@@ -47,6 +47,8 @@ The default distribution is one composition of the kernel protocols, not the fra
 
 Every row is a replaceable default. [Limits](/appendix/review/limits) classifies the composition's boundaries and names the object that replaces each one.
 
+Project-local extension is the expected first move: a value operation in `expression/`, a relation operation, source adapter or planner/executor module in `modules/`, composed in `manifest.py`. The [Extension reference](/appendix/reference/extension) states the surfaces and the kernel protocols that remain for a different composition.
+
 ## Next
 
 [Start](/book/part-1/index) — install the package and run the estate build.

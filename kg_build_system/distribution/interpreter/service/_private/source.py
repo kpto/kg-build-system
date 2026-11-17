@@ -70,8 +70,12 @@ def blueprint_to_source(blueprint: GraphBlueprint, context: Any) -> str:
         TopologyLanguage().render(blueprint.graph, context),
         DataLanguage().render(
             blueprint.data, context, class_names=asset_class_names,
+            operations=blueprint.operations.operations,
         ),
-        BindingLanguage().render(blueprint.bindings, context),
+        BindingLanguage().render(
+            blueprint.bindings, context, data=blueprint.data,
+            operations=blueprint.operations,
+        ),
     ))
     return _assemble(tuple(fragments))
 

@@ -67,7 +67,7 @@ document is the one place for the computation and the plan:
 
 | Section | Strict meaning | Visualisation |
 | --- | --- | --- |
-| **Expression** | the field and operator chain the binding writes | the indented expression outline: identity, source and target identity, then each property expression |
+| **Expression** | the field and operator chain the binding writes | the indented expression outline: identity, source and target identity, then each property expression; an operator node states its published signature when the blueprint carries an operation declaration, otherwise the instance's actual logical type |
 | **Build steps** | the plan that executes the binding | the binding step and the workflow neighbours it reads from and writes to |
 
 Sources is not a record card. The binding banner states the rows read; the

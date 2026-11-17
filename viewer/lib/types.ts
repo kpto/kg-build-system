@@ -118,6 +118,47 @@ export interface OperationExpression {
   [key: string]: unknown;
 }
 
+// ---------------------------------------------------------------------------
+// Operation declarations
+// ---------------------------------------------------------------------------
+
+/** One positional argument of an operation declaration. */
+export interface ArgumentDTO {
+  /** The declared logical type, or null when the call resolves it. */
+  expected: LogicalType | null;
+  /** The declaration's name for the argument. */
+  description: string;
+  [key: string]: unknown;
+}
+
+/** One named parameter of an operation declaration. */
+export interface ParameterDTO {
+  name: string;
+  required: boolean;
+  /** The declared default, or null when the parameter is required. */
+  default: unknown;
+  [key: string]: unknown;
+}
+
+/** One value operation declaration. */
+export interface OperationDTO {
+  name: string;
+  /** An exact count, or `[minimum, maximum]` with null for unbounded. */
+  arity: number | [number, number | null];
+  arguments: ArgumentDTO[];
+  parameters: ParameterDTO[];
+  /** Null when the operation resolves its result from the call. */
+  result_type: LogicalType | null;
+  row_effect: "preserve" | "filter" | "expand";
+  [key: string]: unknown;
+}
+
+/** The expressions language part of a blueprint. */
+export interface ExpressionsPartDTO {
+  operations: OperationDTO[];
+  [key: string]: unknown;
+}
+
 export type Expression = FieldExpression | LiteralExpression | OperationExpression;
 
 export interface FieldDefinitionDTO {
@@ -328,6 +369,8 @@ export interface BlueprintDTO {
   data: BlueprintData;
   assets: AssetDTO[];
   bindings: BindingDTO[];
+  /** The expression operation declarations; absent in older snapshots. */
+  operations?: ExpressionsPartDTO;
 }
 
 export interface WorkflowComponent {
@@ -585,6 +628,7 @@ export interface ViewerIndex extends SearchSource {
   relationByName: Map<string, RelationDTO>;
   projectionByName: Map<string, ProjectionDTO>;
   structByName: Map<string, StructDTO>;
+  operationsByName: Map<string, OperationDTO>;
   dataEntityByName: Map<string, RelationDTO | ProjectionDTO | StructDTO>;
   fieldsByKey: Map<string, FieldLocation>;
   assetsByName: Map<string, AssetDTO>;

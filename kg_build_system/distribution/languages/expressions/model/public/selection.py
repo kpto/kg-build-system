@@ -8,7 +8,7 @@ current value shape. The compiler expression tree stays private.
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING, cast, overload
+from typing import TYPE_CHECKING, Protocol, cast, overload
 
 from kg_build_system.distribution.model.public.refs import RelationRef
 from kg_build_system.kernel.model.public.types import (
@@ -24,11 +24,19 @@ from kg_build_system.kernel.model.public.types import (
 from .pair import Pair
 
 if TYPE_CHECKING:
+    from typing import Concatenate
+
     from ..internal.model import ExpressionNode, SelectedMember
     from .selections.effects import (
         ArrayRowEffects, NullableArrayRowEffects, NullableRowEffects,
         RowEffects,
     )
+
+
+class OperationHandle[**P, R](Protocol):
+    """A typed project operation handle: one callable returning a selection."""
+
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> "Selection[R]": ...
 
 
 class Selection[T]:
@@ -118,19 +126,19 @@ class Selection[T]:
     # -------------------------------------------------------- struct navigation
 
     @overload
-    def extract[S: Struct, U](
+    def extract[S: Shape, U](
         self: Selection[S], selector: Callable[[S], Selection[U]],
     ) -> Selection[U]: ...
     @overload
-    def extract[S: Struct, D](
+    def extract[S: Shape, D](
         self: Selection[Nullable[S]],
         selector: Callable[[S], Selection[Nullable[D]]],
     ) -> Selection[Nullable[D]]: ...
     @overload
-    def extract[S: Struct, U](
+    def extract[S: Shape, U](
         self: Selection[Nullable[S]], selector: Callable[[S], Selection[U]],
     ) -> Selection[Nullable[U]]: ...
-    def extract[S: Struct, U](
+    def extract[S: Shape, U](
         self: Selection[Nullable[S]], selector: Callable[[S], Selection[U]],
     ) -> Selection[Nullable[U]]:
         """Select one declared member, composing presence and owner kind.
@@ -153,6 +161,54 @@ class Selection[T]:
         return cast(
             "Selection[Nullable[U]]", extract_member(self, selector),
         )
+
+    # ------------------------------------------------- project operations
+
+    def apply[From, R, **P](
+        self: Selection[From],
+        operation: "OperationHandle[Concatenate[Selection[From], P], R]",
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> Selection[R]:
+        """Apply a typed project operation to this selection.
+
+        The operation handle states the result type, so the result is as precise
+        as the handle call itself.
+
+        Example:
+            ```python
+            from kg_build_system import Field, SourceRelation, field
+
+            class Row(SourceRelation):
+                severity: Field[str] = field(name="severity")
+
+            selected = Row.severity.apply(severity_rank)
+            ```
+        """
+        return operation(self, *args, **kwargs)
+
+    def custom_op[From, R, **P](
+        self: Selection[From],
+        operation: "OperationHandle[Concatenate[Selection[From], P], R]",
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> Selection[R]:
+        """Apply a typed project operation with an explicit operation handle.
+
+        ``custom_op`` is the named spelling of :meth:`apply`; both forms call
+        the same handle and produce the same result type.
+
+        Example:
+            ```python
+            from kg_build_system import Field, SourceRelation, field
+
+            class Row(SourceRelation):
+                severity: Field[str] = field(name="severity")
+
+            selected = Row.severity.custom_op(severity_rank)
+            ```
+        """
+        return operation(self, *args, **kwargs)
 
     # ------------------------------------------------- ungated array operations
 

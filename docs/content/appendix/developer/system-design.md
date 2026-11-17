@@ -210,6 +210,7 @@ GraphBlueprint(
     data=DataPartDTO(structs=..., source_relations=..., derived_relations=...),
     assets=AssetPartDTO(assets=...),
     bindings=...,
+    operations=ExpressionsPartDTO(operations=...),
     graph_declaration=... | None,
 )
 ```

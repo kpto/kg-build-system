@@ -35,3 +35,11 @@ class ItemNode(Node):
             claims=(Claim("The item's label as the fixture source writes it."),),
         ),
     )
+
+    greeting: PropertySlot[str] = property(
+        meaning=Meaning(
+            claims=(
+                Claim("The item label rendered by the project's hello operation."),
+            ),
+        ),
+    )

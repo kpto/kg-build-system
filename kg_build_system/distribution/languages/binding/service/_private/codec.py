@@ -9,7 +9,7 @@ from kg_build_system.distribution.languages.annotations.service.internal import 
     annotation_to_document,
 )
 from kg_build_system.distribution.languages.expressions.model.internal.dto import (
-    ExpressionDTO,
+    ExpressionDTO, OperationParameterDTO,
 )
 from kg_build_system.distribution.languages.expressions.service.internal import (
     expression_from_document,
@@ -31,11 +31,18 @@ from kg_build_system.distribution.languages.data.model.internal.dto.blueprint_dt
     RowFilterDTO,
     RowGroupByDTO,
     RowJoinDTO,
+    RowOperationDTO,
     RowOrderByDTO,
     RowScanDTO,
     RowSourcePlanDTO,
     RowUnionDTO,
     RowUnnestDTO,
+)
+
+from kg_build_system.distribution.languages.data.model.public import ShapeField
+from kg_build_system.kernel.model.internal.json import freeze_json, thaw_json
+from kg_build_system.kernel.service.internal.types import (
+    type_from_document, type_from_dto, type_to_document, type_to_dto,
 )
 
 from ...model.internal.dto.blueprint_dto import (
@@ -98,6 +105,27 @@ def _python_ref_from_document(value: Mapping[str, Any]) -> PythonRefDTO:
     )
 
 
+def _encode_shape_field(field: ShapeField) -> dict[str, Any]:
+    return {
+        "attribute": field.attribute,
+        "name": field.name,
+        "logical_type": type_to_document(type_to_dto(field.logical_type)),
+    }
+
+
+def _decode_shape_field(value: Any) -> ShapeField:
+    document = _object(value, "shape field")
+    return ShapeField(
+        attribute=_text(document, "attribute"),
+        name=_text(document, "name"),
+        logical_type=type_from_dto(
+            type_from_document(
+                _object(document.get("logical_type"), "logical_type")
+            )
+        ),
+    )
+
+
 # ---------------------------------------------------------------------------
 # Row plans
 
@@ -156,6 +184,18 @@ def _plan_to_document(plan: RowSourcePlanDTO) -> dict[str, Any]:
             "input": _plan_to_document(plan.input),
             "field": plan.field,
             "expression": expression_to_document(plan.expression),
+        }
+    if isinstance(plan, RowOperationDTO):
+        return {
+            "kind": "operation",
+            "operation": plan.operation,
+            "input": _plan_to_document(plan.input),
+            "parameters": [
+                {"name": parameter.name, "value": thaw_json(parameter.value)}
+                for parameter in plan.parameters
+            ],
+            "output": [_encode_shape_field(field) for field in plan.output],
+            "grain": plan.grain,
         }
     raise TypeError(f"unsupported row plan {plan!r}")
 
@@ -241,6 +281,24 @@ def _plan_from_document(value: Mapping[str, Any]) -> RowSourcePlanDTO:
             expression_from_document(
                 _object(value.get("expression"), "unnest expression")
             ),
+        )
+    if kind == "operation":
+        grain = value.get("grain")
+        if grain not in {"one_per_input_row", "one_per_group", "one_total"}:
+            raise ValueError(f"unknown relation-operation grain {grain!r}")
+        parameters: list[OperationParameterDTO] = []
+        for item in _array(value.get("parameters", ()), "operation parameters"):
+            document = _object(item, "operation parameter")
+            parameters.append(OperationParameterDTO(
+                _text(document, "name"), freeze_json(document.get("value")),
+            ))
+        output = value.get("output")
+        return RowOperationDTO(
+            operation=_text(value, "operation"),
+            input=_plan_from_document(_object(value.get("input"), "row plan input")),
+            parameters=tuple(parameters),
+            output=tuple(_decode_shape_field(item) for item in _array(output, "output")),
+            grain=cast(Any, grain),
         )
     raise ValueError(f"unknown row plan kind {kind!r}")
 

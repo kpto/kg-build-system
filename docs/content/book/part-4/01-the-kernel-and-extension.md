@@ -74,6 +74,8 @@ Explicitness also makes replacement local. A project that wants another source p
 
 The kernel does not promise that every composition is a graph build. A custom language, linker, planner, executor and runtime can compile and execute without the graph distribution. A graph build, by contrast, cannot run on the kernel alone: nodes, edges, bindings and the blueprint are distribution concepts. Both statements are true because the kernel and the distribution answer different questions.
 
+Project-local extension is expected before a kernel change. A project adds a value operation in `expression/`, a relation operation, source adapter or planner/executor module in `modules/`, and composes them in `manifest.py`. The kernel protocols are for a different toolchain or a different distribution. The exact project surfaces, the blueprint operation declarations and the current limits are in the [Extension reference](/appendix/reference/extension).
+
 ## The extension ladder
 
 The ladder turns a capability question into an object question. Each rung names the smallest object that can carry the new behaviour and the cost of adding it.

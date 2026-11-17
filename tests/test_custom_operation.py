@@ -21,6 +21,7 @@ from kg_build_system import (
     SourceRelation,
     SourceRelationOptions,
     compile,
+    default_languages,
     field,
     node_binding,
     property,
@@ -34,8 +35,12 @@ from kg_build_system.distribution.modules.file import (
     FilePlanner,
 )
 from kg_build_system.distribution.interpreter import create_blueprint
+from kg_build_system.distribution.languages.expressions import (
+    DEFAULT_OPERATIONS,
+)
 from kg_build_system.distribution.languages.expressions.service.internal import (
     ArgumentSpec,
+    ExpressionsLanguage,
     OperationSpec,
     expression_dto,
     is_unit,
@@ -113,7 +118,14 @@ class CustomOperationTests(unittest.TestCase):
                 ),
                 meaning=Meaning(purpose=Purpose("Fulfil the fixture record from its rows.")),
             )
-            blueprint = create_blueprint(bindings=(binding,))
+            blueprint = create_blueprint(
+                bindings=(binding,),
+                languages=default_languages(
+                    expressions=ExpressionsLanguage(
+                        (*DEFAULT_OPERATIONS, DOUBLE),
+                    ),
+                ),
+            )
             emitter = DuckDbSqlEmitter(
                 instruction_emitter=(
                     DuckDbInstructionEmitter().with_operators(DoubleEmitter())

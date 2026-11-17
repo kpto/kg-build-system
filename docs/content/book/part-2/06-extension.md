@@ -39,7 +39,7 @@ from collections.abc import Sequence
 
 from kg_build_system.distribution.interpreter.model.public import GraphBlueprint
 from kg_build_system.distribution.model.public.artifacts import CoreArtifactTypes
-from kg_build_system.distribution.service.internal import source_relations
+from kg_build_system.distribution.service.internal import asset_tables
 from kg_build_system.kernel import (
     Instruction, InstructionKind, Output, PlanContext, Step,
 )
@@ -64,7 +64,7 @@ class SemicolonSourcePlanner:
                 name=f"source.{relation.relation_name}",
                 inputs=(),
                 outputs=(
-                    Output(CoreArtifactTypes.relation(relation.relation_name)),
+                    Output(CoreArtifactTypes.table(relation.relation_name)),
                 ),
                 instruction=Instruction(
                     SEMICOLON_SOURCE,
@@ -74,7 +74,7 @@ class SemicolonSourcePlanner:
                     },
                 ),
             )
-            for relation in source_relations(model)
+            for relation in asset_tables(model)
             if (location := semicolon_location(relation.asset.layout)) is not None
         )
 ```
@@ -82,6 +82,8 @@ class SemicolonSourcePlanner:
 `semicolon_location` is a local helper over the same `members`, `selector` and `locator` order the generic planner uses; it is not part of the extension's contract.
 
 The executor claims the same exact kind, opens the location, reads the header, splits each record on `;`, casts the fields to the declared logical types and publishes the relation `sites(site_id, site_name, unit_refs)`. Then it stops.
+
+It also preserves the source's schema and null assumptions. It decodes and casts to the declared types; it fails rather than inventing a column, filling a missing value or dropping an unreadable row. Those would be transformations, and a transformation changes what the relation means.
 
 The stopping point is the argument. The adapter does not split `unit_refs` into units. It does not decide that `U-1` in this file denotes the same equipment as `unit_ref` in `equipment.json`. It does not join surveys to sites, aggregate readings, resolve duplicate evidence, vote on conflicting sources, translate a local identifier into a registry identifier, or infer that one source is authoritative over another. Those are domain decisions, not decoding.
 
@@ -94,9 +96,8 @@ Splitting a delimited value into an array is a value operation, and expanding th
 The severity rank reads one text value and returns one integer for the row it receives. That is a value operation. The expression language owns it, and the object that declares it is an `OperationSpec`: a name, an arity, one `ArgumentSpec` per positional argument, optional named parameters, a result type and a row-effect declaration.
 
 ```python
-from kg_build_system import INT, STR
-from kg_build_system.distribution.languages.expressions.service.internal.operations import (
-    ArgumentSpec, OperationSpec,
+from kg_build_system import (
+    INT, STR, ArgumentSpec, Operation, OperationSpec, Selection,
 )
 
 SEVERITY_RANK = OperationSpec(
@@ -107,38 +108,50 @@ SEVERITY_RANK = OperationSpec(
     ),
     result_type=INT,
 )
+
+severity_rank: Operation[
+    [Selection[str]], int,
+] = Operation(SEVERITY_RANK)
 ```
 
-The authoring function beside it calls the spec:
+The handle is the typed authoring form. Both calls are the same expression:
 
 ```python
-from typing import cast
-
-from kg_build_system import Selection
-from kg_build_system.distribution.languages.expressions.service._private.selections import (
-    selection_from_node,
-)
-
-
-def severity_rank(value: Selection[str]) -> Selection[int]:
-    """Rank a recorded survey condition as a severity value."""
-    return cast(
-        Selection[int],
-        selection_from_node(SEVERITY_RANK.apply(value).model),
-    )
+severity_rank(Defects.condition_rating.alter_rows().drop_null())
+Defects.condition_rating.alter_rows().drop_null().custom_op(severity_rank)
 ```
 
-The spec validates at the moment the expression is written. Wrong arity, an argument of another logical type, a missing required parameter or an unknown parameter is refused before a row exists. The authoring method is thin; the declaration is the spec. An expression DTO records the operator name, its arguments, its parameters and its result type, so the plan carries the calculation without carrying the Python function.
+The spec validates at the moment the expression is written. Wrong arity, an argument of another logical type, a missing required parameter or an unknown parameter is refused before a row exists. The handle is thin; the declaration is the spec. An expression DTO records the operator name, its arguments, its parameters and its result type, so the plan carries the calculation without carrying the Python function.
 
 The default row effect preserves the row count and computes one value for the row it receives. That is the right constraint for a domain calculation. A severity rank does not remove a defect because its rating is absent; the relation decides that with `drop_null`. If an operation declares `expand` or `filter`, it has become a row decision dressed as a calculation. Row effects are declared, reached through `alter_rows()` and visible to the planner. Keep them separate: the operation computes a value, the row effect decides what the row becomes.
 
-The shipped registry is a baseline. It composes `add`, `sub`, `concat`, `append`, `equals`, `replace`, `to_string`, the separator helpers, the array operations, boolean combinators, `zip` and the row-effect operations. It is a useful set, not a domain language. It has no conditional, no ordering comparison, no date arithmetic and no vocabulary for conditions, quantities or identifiers. The built-in set is where a project starts.
+The shipped operation set is a baseline. It composes `add`, `sub`, `concat`, `append`, `equals`, `replace`, `to_string`, the separator helpers, the array operations, boolean combinators, `zip` and the row-effect operations. It is a useful set, not a domain language. It has no conditional, no ordering comparison, no date arithmetic and no vocabulary for conditions, quantities or identifiers. The built-in set is where a project starts.
 
 Burying the calculation elsewhere does not remove the need for that floor. A `CASE` expression inside a source reader, a SQL string inside a planner, or an inline lambda that one binding can use hides the operation from the vocabulary and from review. The result may be correct for one pipeline and unavailable to the next consumer. If the value belongs in the language, declare it as an operation.
 
-Adding an operation is an expression-language extension, not a runtime registration. There is no public `register_operation` function, and inventing one would misdescribe the model: an operation is part of a language's vocabulary, not a switch on a running build. The operation set belongs to the expressions language; the SQL operator set belongs to the engine that executes it. The exact internal interface, including the `OperationSpec`, `ArgumentSpec` and `OperationRegistry` values, is stated in [Data and expressions](/appendix/developer/data-and-expressions).
+Adding an operation is an expression-language extension, not a runtime registration. There is no `register_operation`; the operation set is part of the language composition:
 
-Every operation also needs an emitter in the engine that runs it. The severity operation renders as a SQL `CASE`; this is the same internal sketch, not a public extension API:
+```python
+from kg_build_system import (
+    DEFAULT_OPERATIONS, default_languages, default_toolchain,
+)
+from kg_build_system.distribution import (
+    DuckDbInstructionEmitter, DuckDbSqlEmitter, ExpressionsLanguage,
+)
+from project.expression.severity import SEVERITY_RANK
+from project.modules.severity_emitter import SeverityRank
+
+expressions = ExpressionsLanguage((*DEFAULT_OPERATIONS, SEVERITY_RANK))
+languages = default_languages(expressions=expressions)
+engine = DuckDbSqlEmitter(
+    instruction_emitter=DuckDbInstructionEmitter().with_operators(SeverityRank()),
+)
+toolchain = default_toolchain(languages=languages, engine=engine)
+```
+
+The language publishes the operation as a declaration; the engine supplies the emitter. The same composition is used for the source round trip: generated source normalises the call to `operation('severity_rank', ...)`, and the same language composition discovers the spec again. There is still no registry; adding an operation is a composition change.
+
+Every operation also needs an emitter in the engine that runs it. The emitter is a module, not a framework registration. The project template's `project/modules/hello_emitter.py` is the minimal pair; the severity operation renders as a SQL `CASE`:
 
 ```python
 from sqlglot import exp
@@ -169,7 +182,23 @@ class SeverityRank:
         )
 ```
 
-A spec without an emitter type-checks and fails at emission. An operation that no engine can express is not an expression operation; it is a step with its own executor, and it belongs to the workflow model in Part IV. Portability is a property of the spec and emitter pair, not of the name. This is also why a value operation is a poor hiding place for aggregation: a count or a vote needs the whole relation, not one row, and the grouped-row algebra already says that aggregation belongs to a later module rather than to a value method.
+A spec without an emitter type-checks and fails at emission. An operation that no engine can express is not an expression operation; it is a step with its own executor, and it belongs to the workflow model in Part IV. Portability is a property of the spec and emitter pair, not of the name. This is also why a value operation is a poor hiding place for aggregation: a count or a vote needs the whole relation, not one row.
+
+A **relation operation** is the row-source counterpart for a calculation that changes the row count or shape. It names one input row source, one declared output shape and one grain, and the project supplies a `RowSourceEmitter` for its plan node:
+
+```python
+class CountRow(Shape):
+    count: Selection[int]
+
+COUNT_ROWS = RelationOperationSpec(
+    name="count_rows",
+    output=CountRow,
+    grain="one_total",
+)
+counts = EventSourceRelation.row_source().custom_op(count_rows)
+```
+
+The plan carries a `RowOperationDTO`; the output is plan-local until a `Stage` or `DerivedRelation` publishes it with a matching grain. A per-group count can also be a value operation over the grouped `members`; a global count, a window or another grain-changing rule is a relation operation. It is not a method on `Selection`, because a value operation cannot change the row count.
 
 The operation is a declaration, so the blueprint can name it through an `OperationRef`. Its application is an inline fragment, so the expression `severity_rank(condition_rating)` has no identity of its own. That is the hinge of the chapter: a calculation can be part of the vocabulary and still not be part of any published meaning until something names the relation it produces.
 

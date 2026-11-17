@@ -32,6 +32,9 @@ from ....languages.binding.model.internal.dto.blueprint_dto import (
 from ....languages.data.model.internal.dto.blueprint_dto import (
     DataPartDTO, DerivedRelationDTO, SourceRelationDTO, StructDTO,
 )
+from ....languages.expressions.service.internal import (
+    OperationSpec, expressions_part,
+)
 from ....languages.graph.model.internal.dto import GraphDeclarationDTO
 from ....languages.topology.model.internal.dto.blueprint_dto import (
     EdgeDTO, GraphPartDTO, NodeDTO,
@@ -149,8 +152,12 @@ def _assemble(symbols: dict[SymbolRef, Symbol]) -> GraphBlueprint:
             "the blueprint carries more than one graph declaration"
         )
     graph_declaration = graph_declarations[0] if graph_declarations else None
+    operations = expressions_part(tuple(
+        symbol.value for symbol in resolved
+        if isinstance(symbol.value, OperationSpec)
+    ))
     blueprint = assemble_blueprint(
-        graph, data, assets, bindings, graph_declaration,
+        graph, data, assets, bindings, graph_declaration, operations,
     )
     validate_blueprint(blueprint)
     return blueprint

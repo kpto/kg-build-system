@@ -16,6 +16,9 @@ from kg_build_system.kernel import (
     SymbolRef,
 )
 
+from kg_build_system.distribution.languages.expressions.model.internal.dto.operation_dto import (
+    OperationDTO,
+)
 from ....model.internal.dto.blueprint_dto import (
     DataPartDTO,
     DerivedRelationDTO,
@@ -167,6 +170,7 @@ class DataLanguage(Language):
 
     def render(
         self, symbol: Any, context: RenderContext, *, class_names: Any = None,
+        operations: Iterable[OperationDTO] = (),
     ) -> SourceFragment:
         """Render a data symbol, fragment or whole data part to source.
 
@@ -184,7 +188,9 @@ class DataLanguage(Language):
             value = DataPartDTO((), (), (value,))
         if not isinstance(value, DataPartDTO):
             raise TypeError("a data render requires a symbol or data part")
-        return render_data(value, context, class_names=class_names)
+        return render_data(
+            value, context, class_names=class_names, operations=operations,
+        )
 
 
 __all__ = ["DataLanguage"]

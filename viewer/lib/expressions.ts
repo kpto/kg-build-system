@@ -1,4 +1,10 @@
-import type { Expression, LogicalType, Ref, WorkflowStep } from "./types";
+import type {
+  Expression,
+  LogicalType,
+  OperationDTO,
+  Ref,
+  WorkflowStep,
+} from "./types";
 
 /** Stable string key for a reference tuple. Exported for tests and indexing. */
 export function refKey(parts: readonly string[] | undefined | null): string {
@@ -122,6 +128,67 @@ export function logicalTypeBase(type: LogicalType | undefined): string {
   if (!type) return "unknown";
   if (type.kind === "nullable") return logicalTypeBase(type.value);
   return logicalTypeName(type);
+}
+
+/**
+ * Render one operation declaration's signature.
+ *
+ * A positional argument with a declared type shows that type; one resolved from
+ * the call shows the declaration's description. Optional parameters carry `?`.
+ * A result resolved from the call is `?`, because the declaration states none.
+ */
+export function operationSignature(operation: OperationDTO): string {
+  const arguments_ = operation.arguments.map((argument) =>
+    argument.expected ? logicalTypeName(argument.expected) : argument.description,
+  );
+  const parameters = operation.parameters.map((parameter) =>
+    parameter.required ? parameter.name : `${parameter.name}?`,
+  );
+  const result = operation.result_type
+    ? logicalTypeName(operation.result_type)
+    : "?";
+  return `${operation.name}(${[...arguments_, ...parameters].join(", ")}) → ${result}`;
+}
+
+/**
+ * The argument descriptions that add meaning beyond the generic `expression`.
+ */
+export function operationDescription(operation: OperationDTO): string | undefined {
+  const descriptions = [
+    ...new Set(
+      operation.arguments
+        .map((argument) => argument.description.trim())
+        .filter((description) => description && description !== "expression"),
+    ),
+  ];
+  return descriptions.length ? descriptions.join("; ") : undefined;
+}
+
+/** One operation declaration as a signature, with its descriptions. */
+export function operationDetail(operation: OperationDTO): string {
+  const signature = operationSignature(operation);
+  const description = operationDescription(operation);
+  return description ? `${signature} · ${description}` : signature;
+}
+
+/**
+ * Resolve one operation node's detail from its declaration.
+ *
+ * The expression instance always carries the actual result type; that remains
+ * the detail when no declaration is published.
+ */
+export function operationDetailFor(
+  operationsByName: ReadonlyMap<string, OperationDTO>,
+  expression: Expression,
+): string {
+  if (expression.kind !== "operation") {
+    return logicalTypeName(expression.logical_type);
+  }
+  const name = operationName(expression);
+  const declaration = name ? operationsByName.get(name) : undefined;
+  return declaration
+    ? operationDetail(declaration)
+    : logicalTypeName(expression.logical_type);
 }
 
 /**

@@ -17,8 +17,10 @@ from kg_build_system.kernel import (
 )
 
 from ....model.internal.dto.blueprint_dto import ExpressionDTO
+from ....model.internal.dto.operation_dto import RowEffectKind
 from ....model.internal.model import ExpressionNode
-from ..operations import DEFAULT_OPERATIONS, OperationSpec
+from ..blueprint_part import operation_dto
+from ..operations import DEFAULT_OPERATIONS, OperationRegistry, OperationSpec
 from ..source import render_expression_source
 from ..._private.dto import expression_dto
 from ..._private.symbols import (
@@ -49,10 +51,17 @@ class ExpressionsLanguage(Language):
 
     name = "expressions"
 
+    def __init__(
+        self, operations: Iterable[OperationSpec] = DEFAULT_OPERATIONS,
+    ) -> None:
+        registry = OperationRegistry(tuple(operations))
+        self._operations: tuple[OperationSpec, ...] = registry.specs
+        self._names: frozenset[str] = frozenset(registry.names())
+
     def discover_declarations(
         self, namespace: Namespace,
     ) -> Iterable[Declaration]:
-        """Return one declaration per built-in operation specification.
+        """Return one declaration per operation specification.
 
         Example:
             ```python
@@ -60,7 +69,7 @@ class ExpressionsLanguage(Language):
             ```
         """
         del namespace
-        return tuple(Declaration(spec) for spec in DEFAULT_OPERATIONS)
+        return tuple(Declaration(spec) for spec in self._operations)
 
     def compute_key(self, declaration: Declaration) -> Key:
         """Return the operation name as the symbol key.
@@ -95,7 +104,7 @@ class ExpressionsLanguage(Language):
         """
         if isinstance(value, OperationSpec):
             return operation_reference(value.name).symbol
-        if isinstance(value, str) and value in DEFAULT_OPERATIONS:
+        if isinstance(value, str) and value in self._names:
             return operation_reference(value).symbol
         return None
 
@@ -161,7 +170,11 @@ class ExpressionsLanguage(Language):
         del context
         value = symbol.value if isinstance(symbol, Symbol) else symbol
         if isinstance(value, ExpressionDTO):
-            return render_expression_source(value)
+            row_effects: dict[str, RowEffectKind] = {
+                item.name: operation_dto(item).row_effect
+                for item in self._operations
+            }
+            return render_expression_source(value, row_effects)
         return SourceFragment("inline", "")
 
 

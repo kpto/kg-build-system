@@ -15,8 +15,10 @@ from __future__ import annotations
 
 from .model.public import (
     ComputedStruct, Contract, DeclaredValue, Definition, DerivedRowSource,
-    Field, FieldDefinition, GroupByKeys, JoinHow, NullableComputedField,
-    OrderByKey, ScalarValue,
+    Field, FieldDefinition, FullJoinedShape, GroupedShape, GroupByKeys,
+    Grain, InnerJoinedShape, JoinHow, LeftJoinedShape,
+    NullableComputedField, OrderByKey, RelationOperation,
+    RelationOperationSpec, RightJoinedShape, ScalarValue,
     DerivedRelation, DerivedRelationMeta,
     DerivedRelationOptions, RelationRowSource, RowSource, RowSourceProvider,
     ShapeField, Stage, StageMeta, StageOptions, StageRowSource, Struct,
@@ -28,8 +30,11 @@ from .service.public import computed_field, field, derived_relation_row_source
 
 __all__ = [
     "ComputedStruct", "Contract", "DeclaredValue", "Definition",
-    "DerivedRowSource", "Field", "FieldDefinition", "GroupByKeys", "JoinHow",
-    "OrderByKey", "NullableComputedField", "ScalarValue", "DerivedRelation",
+    "DerivedRowSource", "Field", "FieldDefinition", "FullJoinedShape",
+    "GroupedShape", "GroupByKeys", "Grain", "InnerJoinedShape", "JoinHow",
+    "LeftJoinedShape", "OrderByKey", "NullableComputedField",
+    "RelationOperation", "RelationOperationSpec",
+    "RightJoinedShape", "ScalarValue", "DerivedRelation",
     "DerivedRelationMeta",
     "DerivedRelationOptions", "RelationRowSource", "RowSource",
     "RowSourceProvider", "ShapeField", "Stage", "StageMeta", "StageOptions",

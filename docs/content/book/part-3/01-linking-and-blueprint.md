@@ -116,7 +116,7 @@ The project-level declaration is the one case where "at most one" is a model rul
 
 ## The blueprint is the semantic model
 
-The symbol table is working state. The delivered value is `GraphBlueprint`, a frozen handle with exactly five fields.
+The symbol table is working state. The delivered value is `GraphBlueprint`, a frozen handle with exactly six fields.
 
 | Field | Holds |
 | --- | --- |
@@ -124,6 +124,7 @@ The symbol table is working state. The delivered value is `GraphBlueprint`, a fr
 | `data` | `DataPartDTO`: structs, source relations and derived relations |
 | `assets` | `AssetPartDTO`: the logical source-data units relations name |
 | `bindings` | the node and edge bindings that populate the graph |
+| `operations` | `ExpressionsPartDTO`: the operation declarations, including project operations |
 | `graph_declaration` | the project-level graph declaration, or `None` |
 
 The distinction between the symbol graph and the blueprint is the distinction between how the build was assembled and what it means. A symbol is keyed by a language and carries a DTO fragment. A blueprint node is a component with a graph name, labels, properties and a parent. The blueprint does not contain `Symbol` values, `SymbolRef` values as its public vocabulary, or the order in which transcription happened. It contains the semantic roles a consumer can use.
@@ -152,7 +153,7 @@ Every cross-symbol field follows the typed-reference rule. There is no bare cros
 
 The blueprint is semantic, not executable. It has no components, steps, connections or runtime fields. Those appear only after planning. It also has no source text, class names, module layout or callable bodies. A round trip from blueprint to rendered source to a newly linked blueprint is judged by canonical document equality, not by byte equality; names, whitespace and omitted optional members may change. The contract is that the meaning survives, not that the original file is reproduced.
 
-The codec makes the document shape explicit. `graph` and `data` are objects, `assets` and `bindings` are arrays, and `graph_declaration` is omitted when the project has none. `blueprint_to_document` and `blueprint_from_document` are the two directions. `blueprint_to_source` renders the graph declaration first, then assets, topology, data and bindings; that render order is not the linker's order.
+The codec makes the document shape explicit. `graph`, `data` and `operations` are objects, `assets` and `bindings` are arrays, and `graph_declaration` is omitted when the project has none. `blueprint_to_document` and `blueprint_from_document` are the two directions. `blueprint_to_source` renders the graph declaration first, then assets, topology, data and bindings; that render order is not the linker's order.
 
 Decoding does not validate. A hand-edited document can produce a blueprint that `create_blueprint` would have refused, because decoding reconstructs what the document states rather than re-linking it. Assembly is the place where the model is checked. If a consumer needs a trustworthy blueprint, it links one or validates the decoded one; it does not assume that a successful decode means a coherent graph.
 

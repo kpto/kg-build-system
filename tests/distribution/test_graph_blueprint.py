@@ -155,6 +155,16 @@ class GraphBlueprintCodecTests(unittest.TestCase):
         self.assertNotIn("graph_declaration", document)
         self.assertEqual(blueprint_from_document(document), blueprint)
 
+    def test_a_blueprint_without_operations_decodes_to_the_empty_part(self) -> None:
+        blueprint = _empty_blueprint()
+        document = blueprint_to_document(blueprint)
+
+        self.assertIn("operations", document)
+        self.assertEqual(document["operations"], {"operations": []})
+        document.pop("operations")
+
+        self.assertEqual(blueprint_from_document(document), blueprint)
+
     def test_a_graph_declaration_round_trips_through_assembly(self) -> None:
         declaration = _declaration()
         blueprint = assemble_blueprint(

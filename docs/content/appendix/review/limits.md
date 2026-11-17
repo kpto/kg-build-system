@@ -38,7 +38,11 @@ A limit is a product boundary stated where a consumer meets it: the code refuses
 | Composition | `Toolchain` only; no registry | model rule | Compose another `Toolchain`; a language, planner or executor is a value, not a registry entry; a provider is added to the runtime. |
 | SQL engine | DuckDB default emitter | replaceable default | Implement `SqlEmitter` and compose the executor. |
 | Source formats | parquet, json, csv | replaceable default | Another ordinary planner; no adapter registry. |
-| Row algebra | `group_by` collects; no aggregation or majority vote | current algorithm | A module: `Planner` + `StepExecutor`. |
+| Row algebra | `group_by` collects; no aggregation or majority vote | current algorithm | A module: `Planner` + `StepExecutor`, or a relation operation. |
+| Project value operations | Row-preserving only; no row effect, grain change or aggregate | model rule | A relation operation, `Stage`/`DerivedRelation`, or planner/executor module. |
+| Relation operations | One input row source and JSON parameters | interface limit | Current `RelationOperationSpec`; multi-input and expression arguments need a plan-model change. |
+| Operation declarations | Static expected/result types only; callable validators, resolvers, dynamic row effects and custom expand scope remain live-only | interface limit | `OperationDTO`; the expression node's actual `logical_type` remains authoritative. |
+| Project operation source round trip | Generated source depends on the same `ExpressionsLanguage(operations=...)` composition | interface limit | The blueprint document carries the declaration; source normalises to the operation name. |
 | Source decoding | No semicolon-list decoder | not implemented | Source planner/executor or a language operation. |
 | Python instruction payload | `{module, qualname}` reference | model rule | A new executor kind or external service. |
 | Python execution | No isolation, timeout or retry | not implemented | A new executor or runtime. |

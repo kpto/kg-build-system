@@ -379,11 +379,13 @@ missing, not the code.
 - The graph's meaning is part of the delivered contract, not a comment or an
   implementation detail.
 - A node or edge type states its meaning, direction, identity, absence and limits.
-- A source adapter bridges a physical source to a relation and the SQL boundary;
-  it does not carry domain joins, identity translation, aggregation or graph
-  meaning. A data operation belongs in an expression operation and becomes graph
-  meaning only as a named, referenceable projection with semantics; a
-  pipeline-local relation is not a projection.
+- A source adapter bridges a physical source to a relation and the SQL boundary.
+  It preserves the source's schema, null assumptions, grain and identity; it
+  decodes and casts only, and does not carry domain joins, filters, identifier
+  translation, deduplication, aggregation, array expansion or graph meaning. A
+  data operation belongs in an expression operation and becomes graph meaning
+  only as a named, referenceable projection with semantics; a pipeline-local
+  relation is not a projection.
 - The build preserves those statements and publishes them for consumers.
 - A meaning that cannot be stated is recorded as a limit; it is not invented.
 - A unit answers one question: a purpose says what the subject is for, a claim
@@ -572,6 +574,9 @@ missing, not the code.
   not expose the model under an internal name.
 - A feature that cannot be expressed cleanly through it is probably wrong.
 - Typecheck fixtures exercise the public surface and guard it.
+- A project-local value operation is one operation spec plus a typed handle in the expressions language; its engine emitter is a module and the operation set is an explicit language composition, not a registry. A row effect, grain change or aggregate is not a value operation.
+- A relation operation is one input row source, one declared output shape and one grain; its engine emitter is a module, and its output is plan-local until a `Stage`/`DerivedRelation` publishes it with a matching grain.
+- A public row-source result names a concrete shape; `Shape` is a bound and a runtime marker, never a result type. Derive the generated shape or require it explicitly, and validate the runtime member names and logical types against it.
 
 ### Names state the role
 

@@ -6,7 +6,7 @@ import { ChevronRight, Sigma } from "lucide-react";
 import type { ConceptKind } from "@/lib/concepts";
 import {
   fieldRefKey,
-  logicalTypeName,
+  operationDetailFor,
   operationName,
 } from "@/lib/expressions";
 import {
@@ -189,7 +189,7 @@ function buildExpressionGraph(
       entry(
         "expression",
         operationName(expression) ?? "operation",
-        logicalTypeName(expression.logical_type),
+        operationDetailFor(index.operationsByName, expression),
         `op:${chainKey}:${path}`,
       ),
     );

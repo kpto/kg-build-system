@@ -20,6 +20,7 @@ from kg_build_system import (
     PropertySlot,
     SourceRelation,
     SourceRelationOptions,
+    default_languages,
     field,
     node_binding,
     property,
@@ -29,8 +30,12 @@ from kg_build_system.distribution.modules.duckdb import (
     DuckDbSqlEmitter,
 )
 from kg_build_system.distribution.interpreter import create_blueprint
+from kg_build_system.distribution.languages.expressions import (
+    DEFAULT_OPERATIONS,
+)
 from kg_build_system.distribution.languages.expressions.service.internal import (
     ArgumentSpec,
+    ExpressionsLanguage,
     OperationSpec,
     is_unit,
 )
@@ -104,7 +109,14 @@ class CoreCustomEmitterTests(unittest.TestCase):
                 ),
                 meaning=Meaning(purpose=Purpose("Fulfil the fixture record from its rows.")),
             )
-            blueprint = create_blueprint(bindings=(binding,))
+            blueprint = create_blueprint(
+                bindings=(binding,),
+                languages=default_languages(
+                    expressions=ExpressionsLanguage(
+                        (*DEFAULT_OPERATIONS, DOUBLE),
+                    ),
+                ),
+            )
             emitter = DuckDbSqlEmitter(
                 instruction_emitter=(
                     DuckDbInstructionEmitter().with_operators(DoubleEmitter())

@@ -4,6 +4,9 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
+from kg_build_system.distribution.languages.data.model.internal.dto import (
+    DataPartDTO,
+)
 from kg_build_system.kernel import SourceFragment
 
 from ...model.internal.dto.blueprint_dto import BindingDTO
@@ -39,14 +42,20 @@ def bind_reference(
 
 
 def render_binding_source(
-    bindings: Sequence[BindingDTO], context: Any = None,
+    bindings: Sequence[BindingDTO],
+    context: Any = None,
+    *,
+    data: DataPartDTO | None = None,
+    operations: Any = None,
 ) -> SourceFragment:
     """Render binding DTOs as authoring source.
 
     Direct bindings render as ``node_binding(build_key=..., properties=...)``;
     Python bindings render with their row plan and a ``bind`` lambda that
     returns ``NodeValues`` or ``EdgeValues``. The target is always named by its
-    logical graph name, never by a Python symbol.
+    logical graph name, never by a Python symbol. ``data`` supplies the row
+    members an unnested plan keeps when the binding fragment declares its
+    generated output shape.
 
     Example:
         ```python
@@ -60,7 +69,7 @@ def render_binding_source(
     """
     from .._private.source import render_binding_source as render
 
-    return render(bindings, context)
+    return render(bindings, context, data=data)
 
 
 __all__ = ["bind_reference", "render_binding_source"]

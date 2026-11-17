@@ -265,7 +265,7 @@ This is why a binding's meaning describes the fulfilment, not the record and not
 
 The blueprint is the semantic model of the graph, not a snapshot of the Python declarations. It carries the graph declaration, the topology, the data declarations, the assets and the bindings, together with the meaning attached to each. A relation publishes its two parts together as one `Contract` of a `Definition` and a `Meaning`.
 
-The graph declaration is the optional fifth field, `graph_declaration`. It carries the graph's `Meaning` value, including the root purpose. When a project declares no `Graph`, the field is `None`. A declaration fragment is published on the DTO of the declaration it was attached to — its `MeaningDTO`, its relation contract or its field definition — not copied into a separate meaning index.
+The graph declaration is the optional top-level field `graph_declaration`. It carries the graph's `Meaning` value, including the root purpose. When a project declares no `Graph`, the field is `None`. A declaration fragment is published on the DTO of the declaration it was attached to — its `MeaningDTO`, its relation contract or its field definition — not copied into a separate meaning index.
 
 Publication is not interpretation. The blueprint does not evaluate truth, resolve claims against each other, revise them, or check cross-unit consistency. It publishes authored units so a consumer can compose them: a documentation renderer can print the purpose tree, a review tool can list limitations, a downstream service can refuse to answer a question outside a purpose. The framework's job ends at carrying the values faithfully.
 

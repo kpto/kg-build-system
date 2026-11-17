@@ -12,15 +12,21 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal, TypeAlias
 
 from kg_build_system.distribution.languages.annotations.model.internal import AnnotationDTO
-from kg_build_system.distribution.languages.expressions.model.internal.dto.blueprint_dto import ExpressionDTO
+from kg_build_system.distribution.languages.expressions.model.internal.dto.blueprint_dto import ExpressionDTO, OperationParameterDTO
 from kg_build_system.distribution.model.public.refs import (
     AssetRef, FieldRef, RelationRef,
 )
 from kg_build_system.kernel.model.internal.types.dto import LogicalTypeDTO
 
 if TYPE_CHECKING:
+    from kg_build_system.distribution.languages.data.model.public.row_operations import (
+        Grain,
+    )
     from kg_build_system.distribution.languages.meaning.model.internal import (
         MeaningDTO,
+    )
+    from kg_build_system.distribution.languages.data.model.public.shapes import (
+        ShapeField,
     )
 
 
@@ -203,9 +209,39 @@ class RowUnnestDTO:
     expression: ExpressionDTO
 
 
+@dataclass(frozen=True, slots=True, kw_only=True)
+class RowOperationDTO:
+    """One project relation operation over one input plan.
+
+    ``operation`` names the project operation, ``output`` states the exact
+    output members and ``grain`` states how many output rows one input
+    produces. The project supplies the SQL emitter keyed by this node type.
+    """
+
+    operation: str
+    input: "RowSourcePlanDTO"
+    parameters: tuple[OperationParameterDTO, ...] = ()
+    output: tuple["ShapeField", ...]
+    grain: "Grain"
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.operation, str) or not self.operation.strip():
+            raise ValueError("row operation names must be non-empty text")
+        if not self.output:
+            raise ValueError("a row operation requires at least one output field")
+        if self.grain not in {
+            "one_per_input_row", "one_per_group", "one_total",
+        }:
+            raise ValueError(
+                "row operation grain must be one_per_input_row, one_per_group "
+                "or one_total"
+            )
+
+
 RowSourcePlanDTO: TypeAlias = (
     RowScanDTO | RowFilterDTO | RowUnionDTO | RowJoinDTO
     | RowGroupByDTO | RowDistinctDTO | RowOrderByDTO | RowUnnestDTO
+    | RowOperationDTO
 )
 
 
@@ -247,6 +283,6 @@ __all__ = [
     "ColumnDTO", "DataPartDTO", "DefinitionDTO", "DerivedRelationDTO",
     "FieldDefinitionDTO", "SourceRelationDTO",
     "RowDistinctDTO", "RowFilterDTO", "RowGroupByDTO", "RowJoinDTO",
-    "RowOrderByDTO", "RowScanDTO", "RowSourcePlanDTO", "RowUnionDTO",
-    "RowUnnestDTO", "StructDTO",
+    "RowOperationDTO", "RowOrderByDTO", "RowScanDTO", "RowSourcePlanDTO",
+    "RowUnionDTO", "RowUnnestDTO", "StructDTO",
 ]

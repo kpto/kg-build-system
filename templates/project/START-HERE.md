@@ -27,6 +27,12 @@ answers them for a conformance example; replace those answers with yours.
   guarantee?
 - Which relation is reused by several records?
 - Which computation is private and should be a stage rather than a relation?
+- Which source format needs an adapter, and what schema, null assumptions, grain
+  and identity must that adapter preserve without transforming?
+- Which value calculation is missing from the shipped operation set, and what
+  are its argument and result types?
+- Which calculation changes the row count or grain, and therefore needs a
+  relation operation and a matching `Definition` grain?
 
 > The fixture's answer: an `items` source relation and an `item_parts` derived
 > relation with a private `part_rows` stage. Replace this.

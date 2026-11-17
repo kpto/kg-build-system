@@ -28,10 +28,13 @@ blueprint without the authoring classes. The normative views are
 | --- | --- | --- |
 | Authoring selection | `Selection[T]`, `NullableSelection[T]` | `distribution/languages/expressions/model/public/selection.py` |
 | Expression fragment | `ExpressionDTO`, `LiteralExpressionDTO`, `VariableExpressionDTO`, `FieldReferenceDTO`, `LookupExpressionDTO`, `OperationExpressionDTO`, `OperationParameterDTO` | `distribution/languages/expressions/model/internal/dto/blueprint_dto.py` |
+| Project operation | `OperationSpec`, `ArgumentSpec`, `ParameterSpec`, `Operation`, `DEFAULT_OPERATIONS` | `distribution/languages/expressions/service/public/operations.py` |
+| Relation operation | `RelationOperationSpec`, `RelationOperation`, `RowOperationDTO` | `distribution/languages/data/model/public/row_operations.py`, `distribution/languages/data/model/internal/dto/blueprint_dto.py` |
+| Operation declaration | `OperationDTO`, `ArgumentDTO`, `ParameterDTO`, `ExpressionsPartDTO` | `distribution/languages/expressions/model/internal/dto/operation_dto.py` |
 | Data DTO | `DataPartDTO`, `StructDTO`, `SourceRelationDTO`, `DerivedRelationDTO`, `DefinitionDTO`, `FieldDefinitionDTO`, `ColumnDTO`, `RowSourcePlanDTO` | `distribution/languages/data/model/internal/dto/blueprint_dto.py` |
 | Row plan nodes | `RowScanDTO`, `RowFilterDTO`, `RowUnionDTO`, `RowJoinDTO`, `RowGroupByDTO`, `RowDistinctDTO`, `RowOrderByDTO`, `RowUnnestDTO` | `distribution/languages/data/model/internal/dto/blueprint_dto.py` |
 | Typed reference | `NodeRef`, `EdgeRef`, `RelationRef`, `FieldRef`, `PropertyRef`, `AssetRef`, `OperationRef` | `distribution/model/public/refs.py` |
-| Blueprint | `GraphBlueprint(graph, data, assets, bindings, graph_declaration=None)` | `distribution/interpreter/model/public/graph_blueprint.py` |
+| Blueprint | `GraphBlueprint(graph, data, assets, bindings, operations, graph_declaration=None)` | `distribution/interpreter/model/public/graph_blueprint.py` |
 | Neutral plan | `RelationPlan`, `Scan`, `Expand`, `Filter`, `RelationSqlEmitter`, `SqlEmitter`, `SqlType`, `ArraySqlType`, `StructSqlType`, `canonical_sql_type` | `distribution/service/internal/emission.py` |
 | Core planning | `CorePlan`, `CorePlanning`, `RowSourcePlanner`, `DerivedRelationPlanner`, `BindingPlanner`, `RecordsPlanner` | `distribution/modules/core` |
 | DuckDB emission | `DuckDbSourcePlanner`, `DuckDbSqlEmitter`, `DuckDbInstructionEmitter` | `distribution/modules/duckdb` |
@@ -52,6 +55,20 @@ a `target_field` name. `OperationExpressionDTO` carries an `OperationRef`,
 argument expressions and named `OperationParameterDTO` values. The operation
 specification lives beside the expressions service; the engine emitter lives
 beside the DuckDB executor.
+
+A project operation is one `OperationSpec` plus a typed `Operation` handle. The
+language publishes the spec; the engine supplies the emitter; the operation set
+is an explicit `ExpressionsLanguage(operations=...)` composition. There is no
+operation registry, and an operation not in the language set is an unknown
+reference at link time. The authoring forms are `handle(selection)` and
+`selection.custom_op(handle)`; both carry the same argument and result types.
+
+A relation operation is a `RelationOperationSpec` over one input row source,
+with a declared output shape and grain. `RowSource.custom_op` returns a
+`DerivedRowSource[Out]`; the plan carries a `RowOperationDTO` and the engine
+supplies a `RowSourceEmitter` registered by the node type. The output is
+plan-local until a `Stage` or `DerivedRelation` publishes it with a matching
+grain.
 
 The data DTO states the semantic model. `ColumnDTO` carries a `FieldRef`;
 `SourceRelationDTO` carries an `AssetRef`; `DerivedRelationDTO` pins a named

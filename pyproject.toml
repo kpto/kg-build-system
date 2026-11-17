@@ -38,9 +38,18 @@ include = [
     "kg_build_system",
     "tests/typecheck/authoring.py",
     "tests/typecheck/authoring_negative.py",
+    "tests/typecheck/operations.py",
+    "tests/typecheck/relation_operations.py",
+    "tests/typecheck/shapes.py",
 ]
 typeCheckingMode = "basic"
-strict = ["tests/typecheck/authoring.py", "tests/typecheck/authoring_negative.py"]
+strict = [
+    "tests/typecheck/authoring.py",
+    "tests/typecheck/authoring_negative.py",
+    "tests/typecheck/operations.py",
+    "tests/typecheck/relation_operations.py",
+    "tests/typecheck/shapes.py",
+]
 reportMissingTypeStubs = false
 
 [tool.hatch.build.targets.wheel]

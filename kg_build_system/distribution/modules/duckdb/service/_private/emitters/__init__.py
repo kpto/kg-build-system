@@ -7,7 +7,13 @@ wrapper is :class:`DuckDbSqlEmitter`; the registry-backed implementation is
 """
 from __future__ import annotations
 
-from .protocols import EmissionContext, ExpressionEmitter, Operand
+from .protocols import (
+    EmissionContext,
+    ExpressionEmitter,
+    Operand,
+    RowSourceEmissionContext,
+    RowSourceEmitter,
+)
 from .emitter import (
     DEFAULT_EMITTER,
     DuckDbInstructionEmitter,
@@ -18,6 +24,7 @@ from .emitter import (
     row_source_sql,
 )
 from .instruction import DuckDbSqlEmitter
+from .sql import SqlNode
 
 __all__ = [
     "DEFAULT_EMITTER",
@@ -26,6 +33,9 @@ __all__ = [
     "EmissionContext",
     "ExpressionEmitter",
     "Operand",
+    "RowSourceEmissionContext",
+    "RowSourceEmitter",
+    "SqlNode",
     "emit_expression",
     "emit_row_source",
     "expression_sql",

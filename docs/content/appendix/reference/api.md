@@ -33,13 +33,13 @@ This table is the **default facade**. The kernel protocols are exported from `kg
 <!-- BEGIN GENERATED:api -->
 | Defining module | Public names |
 | --- | --- |
-| `kg_build_system.api` | `DEFAULT_TOOLCHAIN`, `compile`, `create_blueprint`, `default_toolchain`, `execute` |
+| `kg_build_system.api` | `DEFAULT_TOOLCHAIN`, `compile`, `create_blueprint`, `default_languages`, `default_toolchain`, `execute` |
 | `kg_build_system.distribution.interpreter` | `GraphBlueprint` |
 | `kg_build_system.distribution.languages.annotations` | `Annotation`, `EdgeLabel`, `NodeLabel` |
 | `kg_build_system.distribution.languages.asset` | `Asset`, `AssetAuthority`, `AssetGovernance`, `AssetLayout`, `AssetLicense`, `AssetOptions`, `AssetProfile` |
 | `kg_build_system.distribution.languages.binding` | `BindingOptions`, `EdgeBinding`, `EdgeValues`, `NodeBinding`, `NodeValues`, `edge_binding`, `node_binding` |
-| `kg_build_system.distribution.languages.data` | `ComputedStruct`, `Contract`, `Definition`, `DerivedRowSource`, `DeclaredValue`, `Field`, `FieldDefinition`, `GroupByKeys`, `NullableComputedField`, `OrderByKey`, `ScalarValue`, `JoinHow`, `DerivedRelation`, `DerivedRelationOptions`, `RelationRowSource`, `RowSource`, `Stage`, `StageOptions`, `StageRowSource`, `Struct`, `StructOptions`, `StructOptionsTemplate`, `StructTemplate`, `SourceRelation`, `SourceRelationGroup`, `SourceRelationGroupOptions`, `SourceRelationOptions`, `computed_field`, `field` |
-| `kg_build_system.distribution.languages.expressions` | `ArrayRowEffects`, `NullableArrayRowEffects`, `NullableRowEffects`, `NullableSelection`, `Pair`, `RowEffects`, `Selection`, `LiteralValue`, `all_of`, `any_of`, `value_expression` |
+| `kg_build_system.distribution.languages.data` | `ComputedStruct`, `Contract`, `Definition`, `DerivedRowSource`, `DeclaredValue`, `Field`, `FieldDefinition`, `GroupByKeys`, `Grain`, `NullableComputedField`, `OrderByKey`, `RelationOperation`, `RelationOperationSpec`, `ScalarValue`, `JoinHow`, `DerivedRelation`, `DerivedRelationOptions`, `RelationRowSource`, `RowSource`, `Stage`, `StageOptions`, `StageRowSource`, `Struct`, `StructOptions`, `StructOptionsTemplate`, `StructTemplate`, `SourceRelation`, `SourceRelationGroup`, `SourceRelationGroupOptions`, `SourceRelationOptions`, `computed_field`, `field` |
+| `kg_build_system.distribution.languages.expressions` | `ArrayRowEffects`, `NullableArrayRowEffects`, `NullableRowEffects`, `NullableSelection`, `Pair`, `RowEffects`, `Selection`, `LiteralValue`, `DEFAULT_OPERATIONS`, `ArgumentSpec`, `Operation`, `OperationHandle`, `OperationRegistry`, `OperationSpec`, `ParameterSpec`, `RowEffectSpec`, `all_of`, `any_of`, `value_expression` |
 | `kg_build_system.distribution.languages.graph` | `Graph`, `GraphOptions` |
 | `kg_build_system.distribution.languages.meaning` | `Claim`, `Limitation`, `Meaning`, `Omitted`, `Purpose`, `is_omitted` |
 | `kg_build_system.distribution.languages.topology` | `AbstractEdge`, `AbstractNode`, `Edge`, `EdgeOptions`, `EdgeOptionsTemplate`, `EdgeRoot`, `EdgeTemplate`, `Endpoint`, `Node`, `NodeOptions`, `NodeOptionsTemplate`, `NodeTemplate`, `PropertySlot`, `endpoint`, `property` |
@@ -61,6 +61,6 @@ The lazy loader is small and literal:
 
 Importing `kg_build_system` therefore does not create `DEFAULT_TOOLCHAIN`; that value is built when the `api` group is first loaded. Importing a submodule directly, such as `kg_build_system.api`, does import that module and its composition root.
 
-A public signature names language DTOs. `GraphBlueprint` is the public handle, but its `graph`, `data`, `assets`, `bindings` and `graph_declaration` fields are `GraphPartDTO`, `DataPartDTO`, `AssetPartDTO`, `BindingDTO` and `GraphDeclarationDTO`. Those DTO types are not exported by the facade. This is a known limit of the signature: treat the fields as read-only and pass the blueprint back to `compile` rather than rebuilding it from the DTO classes.
+A public signature names language DTOs. `GraphBlueprint` is the public handle, but its `graph`, `data`, `assets`, `bindings`, `operations` and `graph_declaration` fields are `GraphPartDTO`, `DataPartDTO`, `AssetPartDTO`, `BindingDTO`, `ExpressionsPartDTO` and `GraphDeclarationDTO`. Those DTO types are not exported by the facade. This is a known limit of the signature: treat the fields as read-only and pass the blueprint back to `compile` rather than rebuilding it from the DTO classes.
 
 For the vocabulary around these names, use [Glossary](/appendix/reference/glossary). For the step from a blueprint to a plan, use [Blueprint](/book/part-3/01-linking-and-blueprint).

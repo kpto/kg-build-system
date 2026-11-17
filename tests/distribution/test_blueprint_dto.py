@@ -31,6 +31,12 @@ from kg_build_system.distribution.languages.data.model.internal import (
     RowUnionDTO,
     StructDTO,
 )
+from kg_build_system.distribution.languages.expressions.model.internal import (
+    ArgumentDTO,
+    ExpressionsPartDTO,
+    OperationDTO,
+    ParameterDTO,
+)
 from kg_build_system.distribution.languages.topology.model.internal import (
     EdgeDTO,
     GraphPartDTO,
@@ -66,6 +72,10 @@ DTO_TYPES = (
     EdgeBindingDTO,
     NodeBindingDTO,
     PythonRefDTO,
+    ArgumentDTO,
+    ExpressionsPartDTO,
+    OperationDTO,
+    ParameterDTO,
 )
 
 
@@ -165,6 +175,27 @@ class BlueprintDTOTests(unittest.TestCase):
             {"structs", "source_relations", "derived_relations"},
         )
 
+    def test_the_operations_part_records_declarations_only(self) -> None:
+        self.assertEqual(
+            {field.name for field in fields(ExpressionsPartDTO)},
+            {"operations"},
+        )
+        self.assertEqual(
+            {field.name for field in fields(OperationDTO)},
+            {
+                "name", "arity", "arguments", "parameters", "result_type",
+                "row_effect",
+            },
+        )
+        self.assertEqual(
+            {field.name for field in fields(ArgumentDTO)},
+            {"expected", "description"},
+        )
+        self.assertEqual(
+            {field.name for field in fields(ParameterDTO)},
+            {"name", "required", "default"},
+        )
+
     def test_the_public_blueprint_references_layer_dtos(self) -> None:
         hints = get_type_hints(GraphBlueprint)
 
@@ -173,6 +204,7 @@ class BlueprintDTOTests(unittest.TestCase):
         self.assertIs(hints["assets"], AssetPartDTO)
         self.assertEqual(get_origin(hints["bindings"]), tuple)
         self.assertEqual(get_args(hints["bindings"])[0], BindingDTO)
+        self.assertIs(hints["operations"], ExpressionsPartDTO)
         self.assertNotIn("sources", hints)
 
     def test_an_empty_blueprint_has_the_layer_shapes(self) -> None:

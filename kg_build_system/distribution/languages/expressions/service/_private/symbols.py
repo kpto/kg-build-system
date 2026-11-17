@@ -11,7 +11,7 @@ from ...model.internal.model import (
     ExpressionNode, FieldReferenceExpression, LookupExpression,
     OperationExpression,
 )
-from ..internal.operations import DEFAULT_OPERATIONS, OperationSpec
+from ..internal.operations import OperationSpec
 from .visitors import walk_expression
 
 
@@ -67,10 +67,7 @@ def authoring_references(value: ExpressionNode) -> tuple[SymbolRef, ...]:
                 )
         elif isinstance(node, LookupExpression):
             references.append(node.relation.symbol)
-        elif (
-            isinstance(node, OperationExpression)
-            and node.operator in DEFAULT_OPERATIONS
-        ):
+        elif isinstance(node, OperationExpression):
             references.append(operation_reference(node.operator).symbol)
     return tuple(dict.fromkeys(references))
 
