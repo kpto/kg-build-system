@@ -164,9 +164,9 @@ function Branch({
     <div className={styles.constitutionBranch} data-side={side}>
       <div className={styles.constitutionStack}>
         {nodes.length ? (
-          nodes.map((node) => (
+          nodes.map((node, index) => (
             <Fragment key={boxKey(node)}>
-              <Arrow />
+              {index ? <Arrow /> : null}
               <Box
                 node={node}
                 hovered={hoveredKey === boxKey(node)}
@@ -186,11 +186,11 @@ function Branch({
 }
 
 /**
- * The subject as a constitution: purpose and fulfilment are the two top boxes,
- * on opposite sides of the separator, with a horizontal link from fulfilment to
- * purpose. The graph and relation axes sit below; the graph purpose closes the
- * graph chain at the bottom. Hovering or focusing a box reveals its full
- * meaning in a portal, because the band clips overflow.
+ * The subject as a constitution: purpose sits at the top left and fulfilment one
+ * row below on the right, joined by an elbow that rises from fulfilment's top
+ * edge into purpose's right edge. The graph and relation axes sit below, and
+ * the separator begins below fulfilment. Hovering or focusing a box reveals its
+ * full meaning in a portal, because the band clips overflow.
  */
 export function Constitution({ model }: ConstitutionProps) {
   const [hovered, setHovered] = useState<HoveredBox | null>(null);
@@ -284,17 +284,23 @@ export function Constitution({ model }: ConstitutionProps) {
   return (
     <div className={styles.constitution} aria-label="Constitution">
       <div className={styles.constitutionTop}>
-        <Box
-          node={model.purpose}
-          root
-          hovered={hoveredKey === boxKey(model.purpose)}
-          hoverCardId={hoverCardId}
-          onHover={openHover}
-          onLeave={scheduleClose}
-        />
-        <div className={styles.constitutionSeam} aria-hidden>
-          <span className={styles.constitutionSeamLine} />
+        <div className={styles.constitutionPurpose}>
+          <Box
+            node={model.purpose}
+            root
+            hovered={hoveredKey === boxKey(model.purpose)}
+            hoverCardId={hoverCardId}
+            onHover={openHover}
+            onLeave={scheduleClose}
+          />
         </div>
+
+        <span className={styles.constitutionSpan} aria-hidden>
+          <svg className={styles.constitutionSpanHead} viewBox="0 0 14 8">
+            <path d="M2 7 L7 1 L12 7" />
+          </svg>
+        </span>
+
         <div className={styles.constitutionFulfilmentTop}>
           <Box
             node={
@@ -312,13 +318,16 @@ export function Constitution({ model }: ConstitutionProps) {
             hoverCardId={hoverCardId}
             onHover={openHover}
             onLeave={scheduleClose}
-            />
+          />
         </div>
-        <div className={styles.constitutionExchange} aria-hidden>
-          <svg viewBox="0 0 82 20" preserveAspectRatio="none">
-            <path d="M80 10 H4 M4 10 L14 4 M4 10 L14 16" />
-          </svg>
-        </div>
+
+        <span className={styles.constitutionCurveCell} aria-hidden>
+          <span className={styles.constitutionCurve}>
+            <svg className={styles.constitutionCurveHead} viewBox="0 0 12 12">
+              <path d="M10 2 L2 6 L10 10" />
+            </svg>
+          </span>
+        </span>
       </div>
 
       <div className={styles.constitutionBranches}>

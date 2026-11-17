@@ -48,6 +48,8 @@
 /* ------------------------------------------------------------ constitution */
 
 .constitution {
+  /* The lane gutter: shared by the top stair and the branch grid. */
+  --constitution-gutter: 46px;
   min-width: 0;
 }
 
@@ -248,46 +250,103 @@ button.constitutionName:focus-visible {
 .constitutionTop {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 46px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) var(--constitution-gutter) minmax(0, 1fr);
+  grid-template-rows: auto auto;
   column-gap: var(--space-region);
 }
 
-.constitutionTop .constitutionBox {
+/*
+ * The stair: purpose occupies the first row on the left; fulfilment occupies
+ * the second row on the right. The empty top-right cell holds the elbow that
+ * joins them, and the empty bottom-left cell holds the long arrow that reaches
+ * from purpose down to the graph lane.
+ */
+.constitutionPurpose {
+  display: flex;
+  grid-area: 1 / 1 / 2 / 2;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.constitutionPurpose .constitutionBox,
+.constitutionFulfilmentTop .constitutionBox {
+  width: 100%;
   height: 100%;
+}
+
+.constitutionSpan {
+  display: flex;
+  min-height: 48px;
+  grid-area: 2 / 1 / 3 / 2;
+  flex-direction: column;
+  align-items: center;
+  color: var(--color-selection);
+}
+
+.constitutionSpanHead {
+  width: 14px;
+  height: 8px;
+  flex: none;
+  overflow: visible;
+}
+
+.constitutionSpanHead path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1;
+}
+
+/* The shaft continues below the fixed-size head, so a long arrow keeps its
+   head proportions instead of stretching it. */
+.constitutionSpan::after {
+  width: 0;
+  flex: 1 1 auto;
+  margin-top: calc(-1 * var(--border-hairline));
+  border-left: var(--border-hairline) solid currentColor;
+  content: "";
 }
 
 .constitutionFulfilmentTop {
   display: flex;
+  grid-area: 2 / 3 / 3 / 4;
   min-width: 0;
 }
 
-.constitutionFulfilmentTop .constitutionBox {
-  width: 100%;
+/* The elbow lives in the empty cell above fulfilment: it rises from that
+   cell's bottom edge (fulfilment's top) and turns left into purpose's right
+   edge at purpose's mid line. */
+.constitutionCurveCell {
+  position: relative;
+  display: block;
+  grid-area: 1 / 3 / 2 / 4;
+  min-width: 0;
+  pointer-events: none;
 }
 
-.constitutionExchange {
+.constitutionCurve {
   position: absolute;
   top: 50%;
-  left: 50%;
-  z-index: var(--z-raised);
-  display: flex;
-  width: 82px;
-  height: 20px;
-  align-items: center;
-  justify-content: center;
-  background: var(--color-panel);
-  color: var(--color-selection);
-  transform: translate(-50%, -50%);
+  right: calc(100% - var(--space-panel));
+  bottom: 0;
+  width: calc(
+    var(--constitution-gutter) + var(--space-region) * 2 + var(--space-panel)
+  );
+  border-top: var(--border-hairline) solid var(--color-selection);
+  border-right: var(--border-hairline) solid var(--color-selection);
+  border-top-right-radius: var(--radius-lg);
 }
 
-.constitutionExchange svg {
-  display: block;
+.constitutionCurveHead {
+  position: absolute;
+  top: -6px;
+  left: -2px;
+  width: 12px;
+  height: 12px;
   overflow: visible;
-  width: 82px;
-  height: 20px;
+  color: var(--color-selection);
 }
 
-.constitutionExchange path {
+.constitutionCurveHead path {
   fill: none;
   stroke: currentColor;
   stroke-width: 1;
@@ -296,7 +355,7 @@ button.constitutionName:focus-visible {
 .constitutionBranches {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 46px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) var(--constitution-gutter) minmax(0, 1fr);
   column-gap: var(--space-region);
 }
 
@@ -366,16 +425,29 @@ button.constitutionName:focus-visible {
 }
 
 @media (max-width: 900px) {
+  /* One column: purpose over fulfilment, the stair connectors removed. */
   .constitutionTop {
     grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
     row-gap: var(--space-page);
+  }
+
+  .constitutionPurpose,
+  .constitutionSpan,
+  .constitutionFulfilmentTop,
+  .constitutionCurveCell {
+    grid-area: auto;
+  }
+
+  .constitutionSpan,
+  .constitutionCurveCell {
+    display: none;
   }
 
   .constitutionTop .constitutionBox {
     height: auto;
   }
 
-  .constitutionExchange,
   .constitutionSeam {
     display: none;
   }

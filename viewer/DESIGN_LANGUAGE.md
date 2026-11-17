@@ -89,14 +89,16 @@ Meaning → Expression → Build steps
 A kind includes or omits a section; it never renames one for itself.
 
 - **Overview** is the tab banner: identity and one fact row. It is not a band.
-- **Constitution** puts the current subject's purpose and Fulfilment as the
-  two top boxes, on opposite sides of a dashed divider; a horizontal arrow runs
-  from Fulfilment to Purpose. The Graph branch below Purpose is the record axis,
-  ordered from the subject's immediate parent down to the graph purpose. The
-  Relation branch below Fulfilment is the relation axis; it carries its
-  provenance branches below its relation. Fulfilment is the relation side's top
-  box, not a relation declaration. Every stacked item uses the same vertical
-  gap. Each box states only its own purpose and clamps; arrows point up to the
+- **Constitution** places the current subject's purpose at the top left and
+  Fulfilment one row below on the right, so the two columns form a stair. A
+  curved elbow rises from Fulfilment's top edge into Purpose's right edge, and
+  the dashed separator begins below Fulfilment, at the top of the two branches.
+  The Graph branch below Purpose is the record axis, ordered from the subject's
+  immediate parent down to the graph purpose; its long leading arrow spans the
+  stair's empty row to reach Purpose. The Relation branch below Fulfilment is
+  the relation axis; it carries its provenance branches below its relation.
+  Fulfilment is the relation side's box, not a relation declaration. Every
+  stacked item uses the same vertical gap. Each box states only its own purpose and clamps; arrows point up to the
   purpose it supports. Hovering or focusing a box reveals its full meaning in a
   portal card; a box label opens that level's document. A grouped branch shows
   the first item and `+N`. The axis legend sits below its own lane's content, centred; proximity
