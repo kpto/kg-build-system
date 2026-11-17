@@ -240,8 +240,8 @@ missing, not the code.
 - A detail card is static and its header states the title and concept mark.
   The question is the accessible description, and the body, not a header
   count, shows what the card holds. The detail index is a static pane beside
-  the scrolling card column; it is the only card navigation and marks the
-  current card.
+  the scrolling card column; it is the only card navigation and does not
+  follow the scroll position.
 - Every tab uses one banner for identity, overview and view actions. A detail
   body starts at its first section, not an Overview band.
 - Motion is feedback, not decoration: short ease-out transitions on transform and
