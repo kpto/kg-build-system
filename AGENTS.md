@@ -245,11 +245,12 @@ missing, not the code.
   component with one consumer also belongs to that feature.
 - A concept's mark carries its type; do not repeat the type as visible text
   beside it. A count appears once, in the region that owns the list.
-- A detail document is a horizontal deck of borderless cards. Each card fills
-  the body height, states its title at the top-left inside the card, and leaves
-  the next card peeking as the cue for more. The card body owns vertical scroll
-  and the deck owns horizontal scroll. The index is the only card navigation
-  and does not follow the scroll position.
+- A detail document is a horizontal deck of flat cards. Each card fills the
+  body height, states its title above the body at the top-left in the heading
+  role, and leaves the next card peeking as the cue for more. The card has no
+  border, background or radius; the body owns vertical scroll, the deck owns
+  horizontal scroll. The index is the only card navigation and does not follow
+  the scroll position.
 - Every tab uses one banner for identity, overview and view actions. A detail
   body starts at its first section, not an Overview band.
 - A record detail leads with meaning and then states its constitution, members,
