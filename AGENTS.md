@@ -156,19 +156,20 @@ missing, not the code.
   not a default surface.
 - A constitution is the subject's production account: its own purpose at the
   top, the declarations that bring it into being below, and every edge from the
-  supply to the consumer. A record adds one fulfilment per binding and its graph
-  ancestry; a source relation shows only its asset; a derived relation only its
-  scanned source relations and their assets; a binding shows the target record's
-  purpose and identity and the relations it reads; an asset is the origin and
-  has no card. A shared declaration is one node with one edge per consumer; a
-  binding is never the parent of either side, fulfilment is neither axis, each
-  box carries its own concept mark and concept-tinted background, and each axis
-  is enclosed by a labelled frame.
+  supply to the consumer. A record is one DAG with its graph ancestry on the
+  left, its relation provenance on the right, and one binding box per binding
+  between them; the bindings together are the fulfilment, enclosed by one
+  labelled frame, and no separator or axis frame divides the graph. A source
+  relation shows only its asset; a derived relation only its scanned source
+  relations and their assets; a binding shows the target record's purpose and
+  identity and the relations it reads; an asset is the origin and has no card.
+  A shared declaration is one node with one edge per consumer; a binding is
+  never the parent of either side, and each box carries its own concept mark
+  and concept-tinted background.
 - A DAG scene is laid out by a layered layout, not by fixed columns: the scene
-  supplies nodes, edges and any rank constraint (such as one rank for every
-  fulfilment), the layout computes the ranks, ordering and edge routes, and the
-  renderer draws them. The view keeps only the document anchors, labels and the
-  seam.
+  supplies nodes, edges and any rank constraint the document requires, the
+  layout computes the ranks, ordering and edge routes, and the renderer draws
+  them. The view keeps only the document anchors, labels and frames.
 - A graph surface opens fitted: it fits its scene on first display and whenever
   its document changes; a previous document's pan and zoom do not carry over.
   Within one document the view is the tab's state.
