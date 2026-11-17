@@ -97,8 +97,6 @@
   flex-direction: column;
   gap: var(--space-inline);
   border: var(--border-hairline) solid var(--color-line-soft);
-  border-left: var(--border-heavy) solid
-    color-mix(in srgb, var(--color-selection) 38%, var(--color-line-strong));
   border-radius: var(--radius-md);
   background: var(--color-panel-raised);
   padding: var(--space-group) var(--space-section);
@@ -112,7 +110,6 @@
   width: 100%;
   min-height: 56px;
   max-height: 96px;
-  border-left-color: var(--color-selection);
   background: color-mix(
     in srgb,
     var(--color-selection) 5%,
@@ -122,7 +119,6 @@
 
 .constitutionBox:hover {
   border-color: var(--color-line-strong);
-  border-left-color: var(--color-selection);
 }
 
 .constitutionBox:focus-visible {
@@ -131,7 +127,6 @@
 }
 
 .constitutionBoxFulfilment {
-  border-left-color: var(--color-selection);
   background: color-mix(
     in srgb,
     var(--color-selection) 7%,
@@ -140,8 +135,6 @@
 }
 
 .constitutionBoxCurrent {
-  border-left-width: var(--border-heavy);
-  border-left-color: var(--color-selection);
   background: color-mix(
     in srgb,
     var(--color-selection) 8%,
