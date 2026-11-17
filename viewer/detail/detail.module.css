@@ -35,16 +35,15 @@
   flex: none;
 }
 
-/* The index is the only detail navigation: the cards themselves do not fold. */
+/* The index is the only detail navigation: the cards themselves do not fold.
+   It shares the detail surface; only the card column draws a scroll edge. */
 .index {
   display: flex;
   min-width: 0;
   min-height: 0;
   flex-direction: column;
   overflow-y: auto;
-  padding: var(--space-section) 0;
-  border-right: var(--border-hairline) solid var(--color-line-soft);
-  background-color: var(--color-panel);
+  padding: var(--space-section) var(--space-group);
 }
 
 .indexList {
@@ -70,20 +69,6 @@
   text-decoration: none;
 }
 
-/* The active segment sits on the pane divider, not on the card. */
-.indexLink::before {
-  position: absolute;
-  top: var(--space-inline);
-  bottom: var(--space-inline);
-  right: 0;
-  width: var(--border-heavy);
-  border-radius: var(--radius-pill);
-  background-color: var(--color-accent-strong);
-  content: "";
-  opacity: 0;
-  transition: opacity var(--motion-base) var(--ease-instrument);
-}
-
 .indexLink:hover {
   background-color: var(--color-panel-soft);
   color: var(--color-text);
@@ -92,10 +77,6 @@
 .indexLink[aria-current="location"] {
   background-color: color-mix(in srgb, var(--color-accent) 9%, transparent);
   color: var(--color-text);
-}
-
-.indexLink[aria-current="location"]::before {
-  opacity: 1;
 }
 
 .indexMark {
