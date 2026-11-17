@@ -128,12 +128,9 @@ function Box({
   );
 }
 
-function Arrow({ tall = false }: { tall?: boolean }) {
+function Arrow() {
   return (
-    <span
-      className={cx(styles.constitutionArrow, tall && styles.constitutionArrowTall)}
-      aria-hidden
-    >
+    <span className={styles.constitutionArrow} aria-hidden>
       <ArrowUp size={13} strokeWidth={1.8} />
     </span>
   );
@@ -165,7 +162,7 @@ function Branch({
   onHover,
   onLeave,
   onOpen,
-  tallFirst = false,
+  noFirstArrow = false,
 }: {
   side: "graph" | "relation";
   label: string;
@@ -176,16 +173,21 @@ function Branch({
   onHover(node: ConstitutionNode, element: HTMLElement): void;
   onLeave(): void;
   onOpen?(target: ConstitutionTarget): void;
-  tallFirst?: boolean;
+  noFirstArrow?: boolean;
 }) {
   return (
     <div className={styles.constitutionBranch} data-side={side}>
+      {side === "graph" ? (
+        <span className={styles.constitutionRise} aria-hidden>
+          <ArrowUp size={13} strokeWidth={1.8} />
+        </span>
+      ) : null}
       <span className={styles.constitutionBranchLabel}>{label}</span>
       <div className={styles.constitutionStack}>
         {nodes.length ? (
           nodes.map((node, index) => (
             <Fragment key={boxKey(node)}>
-              <Arrow tall={tallFirst && index === 0} />
+              {noFirstArrow && index === 0 ? null : <Arrow />}
               <Box
                 node={node}
                 hovered={hoveredKey === boxKey(node)}
@@ -208,9 +210,9 @@ function Branch({
  * The subject as a constitution: one purpose across the top, the graph and
  * relation axes below it, and the binding as the relation side's fulfilment.
  *
- * The graph and relation chains read upward toward the purpose. The fulfilment
- * box sits on the right side above the relation axis, inset from it; the arrow
- * from fulfilment to purpose and the arrow from the relation to fulfilment
+ * The fulfilment box sits on the right side above the separator; the separator
+ * starts below it so the graph and relation axes lie below. The arrow from
+ * fulfilment to purpose and the long arrow from the relation to fulfilment
  * both bend left. Hovering or focusing a box reveals its full meaning in a
  * portal, because the band clips overflow.
  */
@@ -337,25 +339,10 @@ export function Constitution({
         />
       </div>
 
-      <div
-        className={styles.constitutionBranches}
-        data-count="2"
-      >
-        <Branch
-          side="graph"
-          label="Graph"
-          nodes={model.graph}
-          empty="No record is bound."
-          hoveredKey={hoveredKey}
-          hoverCardId={hoverCardId}
-          onHover={openHover}
-          onLeave={scheduleClose}
-          onOpen={onOpen}
-          tallFirst
-        />
-
-        <div className={styles.constitutionBranch} data-side="relation">
-          <span className={styles.constitutionBranchLabel}>Relation</span>
+      <div className={styles.constitutionFulfilmentRow}>
+        <div className={styles.constitutionRowSpacer} />
+        <div className={styles.constitutionRowSpacer} />
+        <div className={styles.constitutionFulfilmentCell}>
           <CurvedArrow from={18} to={-3} />
           <div className={styles.constitutionFulfilmentBox}>
             <Box
@@ -377,7 +364,34 @@ export function Constitution({
               onOpen={onOpen}
             />
           </div>
-          <CurvedArrow from={50} to={18} />
+        </div>
+      </div>
+
+      <div
+        className={styles.constitutionBranches}
+        data-count="2"
+      >
+        <Branch
+          side="graph"
+          label="Graph"
+          nodes={model.graph}
+          empty="No record is bound."
+          hoveredKey={hoveredKey}
+          hoverCardId={hoverCardId}
+          onHover={openHover}
+          onLeave={scheduleClose}
+          onOpen={onOpen}
+          noFirstArrow
+        />
+        <div className={styles.constitutionSeam} aria-hidden>
+          <span className={styles.constitutionSeamLine} />
+        </div>
+
+        <div className={styles.constitutionBranch} data-side="relation">
+          <div className={styles.constitutionRelationRise} aria-hidden>
+            <CurvedArrow from={50} to={18} />
+          </div>
+          <span className={styles.constitutionBranchLabel}>Relation</span>
           <span
             className={cx(
               styles.constitutionBranchLabel,

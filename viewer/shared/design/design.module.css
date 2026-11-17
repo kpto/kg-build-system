@@ -403,13 +403,80 @@ button.constitutionName:focus-visible {
 .constitutionBranches {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  column-gap: 80px;
+  grid-template-columns: minmax(0, 1fr) 46px minmax(0, 1fr);
+  column-gap: 18px;
+}
+
+.constitutionSeam {
+  display: flex;
+  justify-content: center;
+}
+
+.constitutionSeamLine {
+  width: 0;
+  border-left: 1px dashed var(--color-line-strong);
+  opacity: 0.7;
+}
+
+.constitutionFulfilmentRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 46px minmax(0, 1fr);
+  column-gap: 18px;
+  height: 170px;
+}
+
+.constitutionFulfilmentCell {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
 }
 
 .constitutionFulfilmentBox {
   width: 60%;
   margin-left: -12%;
+}
+
+.constitutionFulfilmentBox .constitutionBox {
+  height: 66px;
+  max-height: 66px;
+}
+
+.constitutionRise {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  display: flex;
+  height: 170px;
+  flex-direction: column;
+  align-items: center;
+  color: var(--color-selection);
+  transform: translateX(-50%);
+}
+
+.constitutionRise::before {
+  width: 1px;
+  flex: 1;
+  background: currentColor;
+  content: "";
+  opacity: 0.5;
+}
+
+.constitutionRise svg {
+  flex: none;
+  order: -1;
+  margin-bottom: -1px;
+}
+
+.constitutionRelationRise {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  width: 100%;
+  height: 74px;
+}
+
+.constitutionRelationRise .constitutionCurve {
+  height: 100%;
 }
 
 .constitutionCurve {
@@ -500,9 +567,6 @@ button.constitutionName:focus-visible {
   margin-bottom: -1px;
 }
 
-.constitutionArrowTall {
-  height: 58px;
-}
 
 .constitutionEmpty {
   margin: 0;
@@ -554,16 +618,42 @@ button.constitutionName:focus-visible {
 }
 
 @media (max-width: 900px) {
+  .constitutionFulfilmentRow {
+    display: block;
+    height: auto;
+  }
+
+  .constitutionRowSpacer {
+    display: none;
+  }
+
+  .constitutionFulfilmentCell {
+    display: block;
+  }
+
+  .constitutionFulfilmentBox {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .constitutionFulfilmentBox .constitutionBox {
+    height: auto;
+    max-height: 84px;
+  }
+
   .constitutionBranches {
     grid-template-columns: minmax(0, 1fr);
     row-gap: 12px;
   }
 
-  .constitutionCurve {
+  .constitutionRise,
+  .constitutionRelationRise,
+  .constitutionCurve,
+  .constitutionSeam {
     display: none;
   }
 
-  .constitutionBranch[data-side="relation"] > .constitutionBranchLabel:first-child {
+  .constitutionBranch[data-side="relation"] > .constitutionBranchLabel:not(.constitutionMobileBranchLabel) {
     display: none;
   }
 
@@ -572,15 +662,6 @@ button.constitutionName:focus-visible {
     position: static;
     align-self: flex-start;
     margin: 2px 0;
-  }
-
-  .constitutionFulfilmentBox {
-    width: 100%;
-    margin-left: 0;
-  }
-
-  .constitutionArrowTall {
-    height: 20px;
   }
 
   .constitutionChildren {
