@@ -10,7 +10,7 @@
     "build": "next build",
     "build:static": "KBS_VIEWER_STATIC=1 next build",
     "start": "next start",
-    "test": "node scripts/check-architecture.mjs && vitest run",
+    "test": "node scripts/check-theme.mjs && node scripts/check-architecture.mjs && vitest run",
     "test:watch": "vitest",
     "check:architecture": "node scripts/check-architecture.mjs"
   },

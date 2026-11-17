@@ -145,7 +145,7 @@ function PropertyRows({
 }) {
   const properties = entityProperties(props, entity);
   if (!properties.length) {
-    return <p className="text-[10px] text-faint">No properties are declared.</p>;
+    return <p className="text-[length:var(--text-base)] text-faint">No properties are declared.</p>;
   }
   return (
     <div className="grid gap-0.5" data-testid="topology-properties">
@@ -166,10 +166,10 @@ function PropertyRows({
           }
           title={`Inspect ${entityComponentName(entity)}.${property.name}`}
         >
-          <span className="truncate font-mono text-[10px] text-text">
+          <span className="truncate font-mono text-[length:var(--text-base)] text-text">
             {property.name}
           </span>
-          <span className="shrink-0 font-mono text-[9px] text-faint">
+          <span className="shrink-0 font-mono text-[length:var(--text-sm)] text-faint">
             {logicalTypeName(property.logical_type)}
           </span>
         </button>
@@ -284,7 +284,7 @@ function FilterButton({
       onClick={onClick}
       title={title}
       className={cx(
-        "inline-flex min-h-6 items-center gap-1 border px-1.5 py-0.5 font-mono text-[10px] transition-colors",
+        "inline-flex min-h-6 items-center gap-1 border px-1.5 py-0.5 font-mono text-[length:var(--text-base)] transition-colors",
         pressed
           ? "border-accent/70 bg-accent/15 text-accent-strong"
           : "border-line-soft bg-panel-soft/40 text-muted hover:border-line-strong hover:text-text",
@@ -292,7 +292,7 @@ function FilterButton({
     >
       <span>{children}</span>
       {count !== undefined ? (
-        <span className="text-[9px] text-faint tabular-nums">{count}</span>
+        <span className="text-[length:var(--text-sm)] text-faint tabular-nums">{count}</span>
       ) : null}
     </button>
   );
@@ -307,7 +307,7 @@ function FilterGroup({
 }) {
   return (
     <div className="space-y-1">
-      <p className="text-[9px] tracking-[0.08em] text-faint uppercase">{label}</p>
+      <p className="text-[length:var(--text-sm)] tracking-[0.08em] text-faint uppercase">{label}</p>
       <div className="flex flex-wrap gap-1">{children}</div>
     </div>
   );
@@ -334,11 +334,11 @@ function LegendRow({
         )}
         style={dashed ? { borderColor: color } : { backgroundColor: color }}
       />
-      <span className="min-w-0 flex-1 truncate text-[10px] text-muted">
+      <span className="min-w-0 flex-1 truncate text-[length:var(--text-base)] text-muted">
         {label}
       </span>
       {count !== undefined ? (
-        <span className="font-mono text-[9px] text-faint tabular-nums">{count}</span>
+        <span className="font-mono text-[length:var(--text-sm)] text-faint tabular-nums">{count}</span>
       ) : null}
     </div>
   );
@@ -383,11 +383,11 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
   return (
     <div className="flex h-full min-h-0 flex-col bg-panel">
       <header className="border-b border-line-soft px-3 py-2">
-        <p className="text-[10px] text-muted">
+        <p className="text-[length:var(--text-base)] text-muted">
           {visible.nodes.length} visible · {relationLinks} relations
           {containmentLinks ? ` · ${containmentLinks} containment` : ""}
         </p>
-        <p className="mt-0.5 font-mono text-[9px] text-faint tabular-nums">
+        <p className="mt-0.5 font-mono text-[length:var(--text-sm)] text-faint tabular-nums">
           {model.stats.nodes} nodes · {model.stats.edgeLinks} edges ·{" "}
           {model.stats.semantics} with meaning
         </p>
@@ -551,7 +551,7 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
           className="space-y-1.5 border-t border-line-soft pt-2"
           aria-label="Topology legend"
         >
-          <p className="text-[9px] tracking-[0.08em] text-faint uppercase">Legend</p>
+          <p className="text-[length:var(--text-sm)] tracking-[0.08em] text-faint uppercase">Legend</p>
           <LegendRow
             color={theme.source}
             label="Concrete node"
@@ -587,12 +587,12 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
           className="space-y-1.5 border-t border-line-soft pt-2"
           aria-label="Topology layout"
         >
-          <p className="text-[9px] tracking-[0.08em] text-faint uppercase">Layout</p>
+          <p className="text-[length:var(--text-sm)] tracking-[0.08em] text-faint uppercase">Layout</p>
           <div className="flex flex-wrap gap-1">
             <button
               type="button"
               onClick={() => store.requestFit()}
-              className="inline-flex min-h-6 items-center border border-line-soft bg-panel-soft/40 px-2 font-mono text-[10px] text-muted hover:border-line-strong hover:text-text"
+              className="inline-flex min-h-6 items-center border border-line-soft bg-panel-soft/40 px-2 font-mono text-[length:var(--text-base)] text-muted hover:border-line-strong hover:text-text"
               title="Fit every visible node and link in the editor"
             >
               Fit
@@ -600,7 +600,7 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
             <button
               type="button"
               onClick={() => store.requestZoom(1 / 1.25)}
-              className="inline-flex min-h-6 items-center border border-line-soft bg-panel-soft/40 px-2 font-mono text-[10px] text-muted hover:border-line-strong hover:text-text"
+              className="inline-flex min-h-6 items-center border border-line-soft bg-panel-soft/40 px-2 font-mono text-[length:var(--text-base)] text-muted hover:border-line-strong hover:text-text"
               title="Zoom out"
               aria-label="Zoom out"
             >
@@ -609,7 +609,7 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
             <button
               type="button"
               onClick={() => store.requestZoom(1.25)}
-              className="inline-flex min-h-6 items-center border border-line-soft bg-panel-soft/40 px-2 font-mono text-[10px] text-muted hover:border-line-strong hover:text-text"
+              className="inline-flex min-h-6 items-center border border-line-soft bg-panel-soft/40 px-2 font-mono text-[length:var(--text-base)] text-muted hover:border-line-strong hover:text-text"
               title="Zoom in"
               aria-label="Zoom in"
             >
@@ -620,7 +620,7 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
               aria-pressed={ui.pinned}
               onClick={() => store.setPinned(!ui.pinned)}
               className={cx(
-                "inline-flex min-h-6 items-center border px-2 font-mono text-[10px]",
+                "inline-flex min-h-6 items-center border px-2 font-mono text-[length:var(--text-base)]",
                 ui.pinned
                   ? "border-selection/70 bg-selection/10 text-selection-strong"
                   : "border-line-soft bg-panel-soft/40 text-muted hover:border-line-strong hover:text-text",
@@ -632,13 +632,13 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
             <button
               type="button"
               onClick={() => store.requestReset()}
-              className="inline-flex min-h-6 items-center border border-line-soft bg-panel-soft/40 px-2 font-mono text-[10px] text-muted hover:border-line-strong hover:text-text"
+              className="inline-flex min-h-6 items-center border border-line-soft bg-panel-soft/40 px-2 font-mono text-[length:var(--text-base)] text-muted hover:border-line-strong hover:text-text"
               title="Clear filters, detail and pinned positions, then fit the graph"
             >
               Reset
             </button>
           </div>
-          <p className="text-[9px] leading-relaxed text-faint">
+          <p className="text-[length:var(--text-sm)] leading-relaxed text-faint">
             Drag a node to move it; drag empty space to pan; wheel to zoom;
             double-click a node to focus.
           </p>
@@ -1888,7 +1888,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
 
       {visibleCount === 0 ? (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <p className="border border-line-soft bg-panel/95 px-3 py-2 font-mono text-[11px] text-muted">
+          <p className="border border-line-soft bg-panel/95 px-3 py-2 font-mono text-[length:var(--text-xl)] text-muted">
             No topology entities match these filters.
           </p>
         </div>
@@ -1920,13 +1920,13 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
           className="pointer-events-none absolute z-30 w-[270px] overflow-hidden border border-line-soft bg-panel/98 shadow-lg"
           style={{ left: hover.x + 14, top: hover.y + 14 }}
         >
-          <p className="border-b border-line-soft px-2 py-1 font-mono text-[10px] break-words text-accent-strong">
+          <p className="border-b border-line-soft px-2 py-1 font-mono text-[length:var(--text-base)] break-words text-accent-strong">
             {hoverEntity.label}
             {hoverEntity.label !== hoverEntity.name ? (
               <span className="text-faint"> · {hoverEntity.name}</span>
             ) : null}
           </p>
-          <div className="space-y-0.5 px-2 py-1 font-mono text-[9px] text-muted">
+          <div className="space-y-0.5 px-2 py-1 font-mono text-[length:var(--text-sm)] text-muted">
             {hoverEntity.kind === "node" ? (
               <>
                 <p>
@@ -1970,11 +1970,11 @@ function SummaryField({
 }) {
   return (
     <div className="flex items-baseline gap-2">
-      <span className="w-20 shrink-0 text-[9px] tracking-[0.06em] text-faint uppercase">
+      <span className="w-20 shrink-0 text-[length:var(--text-sm)] tracking-[0.06em] text-faint uppercase">
         {label}
       </span>
       <span
-        className="min-w-0 flex-1 truncate font-mono text-[10px] text-text"
+        className="min-w-0 flex-1 truncate font-mono text-[length:var(--text-base)] text-text"
         title={String(value)}
       >
         {value}
@@ -2070,12 +2070,12 @@ export function TopologyInspector({
       data-testid="topology-inspector"
     >
       <header className="flex flex-none items-center justify-between gap-2 border-b border-line-soft bg-panel-raised px-2.5 py-1.5">
-        <span className="text-[10px] font-semibold tracking-[0.08em] text-text uppercase">
+        <span className="text-[length:var(--text-base)] font-semibold tracking-[0.08em] text-text uppercase">
           Inspect
         </span>
         <button
           type="button"
-          className="text-[10px] text-faint hover:text-text"
+          className="text-[length:var(--text-base)] text-faint hover:text-text"
           onClick={onClose}
           aria-label="Close inspector"
           title="Close inspector"
@@ -2086,7 +2086,7 @@ export function TopologyInspector({
 
       {!entity ? (
         <div className="thin-scrollbar min-h-0 flex-1 overflow-y-auto px-3 py-2">
-          <p className="mb-1 text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
+          <p className="mb-1 text-[length:var(--text-sm)] font-semibold tracking-[0.08em] text-faint uppercase">
             Graph overview
           </p>
           <div className="mb-2 grid grid-cols-2 gap-x-3 gap-y-1">
@@ -2110,10 +2110,10 @@ export function TopologyInspector({
         <div className="thin-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-2">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <p className="truncate font-mono text-[11px] text-accent-strong">
+              <p className="truncate font-mono text-[length:var(--text-xl)] text-accent-strong">
                 {activeProperty ? `${entity.name}.${activeProperty}` : entity.name}
               </p>
-              <p className="truncate text-[9px] text-faint">
+              <p className="truncate text-[length:var(--text-sm)] text-faint">
                 {activeProperty
                   ? "property"
                   : isTopologyNode(entity)
@@ -2126,7 +2126,7 @@ export function TopologyInspector({
               <button
                 type="button"
                 onClick={() => openInDetail(props)}
-                className="border border-accent/60 bg-accent/10 px-1.5 py-0.5 font-mono text-[9px] text-accent-strong hover:border-accent hover:text-text"
+                className="border border-accent/60 bg-accent/10 px-1.5 py-0.5 font-mono text-[length:var(--text-sm)] text-accent-strong hover:border-accent hover:text-text"
                 data-testid="topology-open-detail"
               >
                 Detail
@@ -2134,7 +2134,7 @@ export function TopologyInspector({
               <button
                 type="button"
                 onClick={() => clearSelection(props)}
-                className="border border-line-soft px-1.5 py-0.5 font-mono text-[9px] text-muted hover:border-line-strong hover:text-text"
+                className="border border-line-soft px-1.5 py-0.5 font-mono text-[length:var(--text-sm)] text-muted hover:border-line-strong hover:text-text"
               >
                 Clear
               </button>
@@ -2142,7 +2142,7 @@ export function TopologyInspector({
           </div>
 
           <section>
-            <p className="mb-1 text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
+            <p className="mb-1 text-[length:var(--text-sm)] font-semibold tracking-[0.08em] text-faint uppercase">
               Identity
             </p>
             <div className="grid gap-1">
@@ -2169,14 +2169,14 @@ export function TopologyInspector({
               />
             </div>
             {entity.description ? (
-              <p className="mt-1.5 text-[10px] leading-relaxed text-muted">
+              <p className="mt-1.5 text-[length:var(--text-base)] leading-relaxed text-muted">
                 {entity.description}
               </p>
             ) : null}
           </section>
 
           <section>
-            <p className="mb-1 text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
+            <p className="mb-1 text-[length:var(--text-sm)] font-semibold tracking-[0.08em] text-faint uppercase">
               Properties · {entityProperties(props, entity).length}
             </p>
             <PropertyRows
@@ -2196,7 +2196,7 @@ export function TopologyInspector({
           </section>
 
           <section>
-            <p className="mb-1 text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
+            <p className="mb-1 text-[length:var(--text-sm)] font-semibold tracking-[0.08em] text-faint uppercase">
               Meaning
             </p>
             <DesignMeaning
@@ -2213,7 +2213,7 @@ export function TopologyInspector({
           </section>
 
           <section>
-            <p className="mb-1 text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
+            <p className="mb-1 text-[length:var(--text-sm)] font-semibold tracking-[0.08em] text-faint uppercase">
               Fulfilment
             </p>
             <FulfilmentMap

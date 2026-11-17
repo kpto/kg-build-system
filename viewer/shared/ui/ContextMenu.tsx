@@ -56,7 +56,7 @@ export function ContextMenu({ x, y, label, items, onClose }: ContextMenuProps) {
       data-testid="context-menu"
       onContextMenu={(event) => event.preventDefault()}
     >
-      <p className="truncate border-b border-line-soft px-2 py-1 font-mono text-[9px] text-faint">
+      <p className="truncate border-b border-line-soft px-2 py-1 font-mono text-[length:var(--text-sm)] text-faint">
         {label}
       </p>
       {items.map((item) => (
@@ -64,7 +64,7 @@ export function ContextMenu({ x, y, label, items, onClose }: ContextMenuProps) {
           key={item.label}
           type="button"
           role="menuitem"
-          className="flex w-full items-center justify-between gap-3 px-2 py-1.5 text-left text-[10.5px] text-muted hover:bg-panel-soft hover:text-text"
+          className="flex w-full items-center justify-between gap-3 px-2 py-1.5 text-left text-[length:var(--text-lg)] text-muted hover:bg-panel-soft hover:text-text"
           onClick={() => {
             item.onSelect();
             onClose();
@@ -73,7 +73,7 @@ export function ContextMenu({ x, y, label, items, onClose }: ContextMenuProps) {
         >
           <span>{item.label}</span>
           {item.hint ? (
-            <span className="font-mono text-[9px] text-faint">{item.hint}</span>
+            <span className="font-mono text-[length:var(--text-sm)] text-faint">{item.hint}</span>
           ) : null}
         </button>
       ))}

@@ -131,6 +131,37 @@ a field in an expression tree and a card in the fulfilment map. A pill resolves
 and opens the instance's document itself, so a caller supplies identity, never
 a click handler. A long name truncates in the pill; it never wraps.
 
+## Theme tokens
+
+`app/globals.css` owns every design value; `shared/ui/theme.ts` mirrors the same
+tokens for React inline styling. A component reads a token instead of declaring
+a local colour, type size, spacing step, radius, border width, shadow, weight,
+tracking, layer or motion duration. Local geometry — widths, heights, grid
+templates, media-query breakpoints and one-off positioning — stays with the
+component because it describes that component's composition, not the system.
+
+| Group | Tokens | What it governs |
+| --- | --- | --- |
+| Surface | `--color-abyss`, `--color-panel*`, `--color-inset`, `--color-gutter` | window, panel, raised body, inset well |
+| Line | `--color-line*`, `--color-line-deep`, `--color-line-mid` | seams, borders, dividers |
+| Text | `--color-text`, `--color-muted`, `--color-faint`, `--color-ink*` | reading hierarchy |
+| Action | `--color-selection*`, `--color-accent*`, `--color-on-accent` | selected, focused, linked, pressed |
+| State | `--color-critical*`, `--color-high`, `--color-medium`, `--color-low`, `--color-accepted`, `--color-open`, `--color-rejected` | verdicts and severity |
+| Layer | `--color-asset`, `--color-source`, `--color-transform`, `--color-binding`, `--color-post`, `--color-target`, `--color-group-*` | data lanes |
+| Concept | `--color-concept-*` | the 13 concept marks and reference pills |
+| Type | `--text-*`, `--leading-*`, `--tracking-*`, `--weight-*` | size, line height, tracking, weight |
+| Space | `--space-*` | gap, padding and margin |
+| Shape | `--border-*`, `--radius-*` | hairline and heavy strokes, corner radii |
+| Depth | `--shadow-*` | popover, panel, modal, inset and selection rails |
+| Motion | `--motion-*`, `--ease-*` | durations and easing |
+| Layer order | `--z-*` | raised, sticky, header, overlay, modal, tooltip |
+
+Every component stylesheet is checked by `scripts/check-theme.mjs`; `npm test`
+runs that check before the unit tests. A raw colour, type size, radius, spacing
+value, weight, tracking, layer or motion duration in a component fails the
+build. `app/globals.css` is the only file allowed to declare raw values, and it
+may do so only in an `@theme` token line.
+
 ## Interaction motion
 
 - Motion is feedback, not decoration. Hover, selection and press changes use

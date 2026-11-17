@@ -1,4 +1,6 @@
 import type { Metadata, Viewport } from "next";
+
+import { themeColor } from "@/shared/ui/theme";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -9,7 +11,7 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   colorScheme: "dark",
-  themeColor: "#1d1d1d",
+  themeColor,
 };
 
 export default function RootLayout({

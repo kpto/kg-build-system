@@ -116,7 +116,7 @@ function ControlBody({ state, actions }: WorkspaceProps) {
   }
   if (document.kind === "subject") {
     return (
-      <p className="p-3 text-[10px] leading-relaxed text-faint">
+      <p className="p-3 text-[length:var(--text-base)] leading-relaxed text-faint">
         This document has no view controls. Control applies to the Graph and
         Workflow documents.
       </p>

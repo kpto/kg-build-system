@@ -100,7 +100,10 @@ rank wrapping. Pan/zoom and focus are the answers, not folding.
 - A selected entity is highlighted and mirrored in the inspector's identity and
   fulfilment sections.
 
-## Tokens (single source)
+## Palette tokens
+
+The values are declared once in `app/globals.css`; this is the naming map, not a
+second palette. A component reads `var(--color-*)`, never the hex.
 
 ```text
 abyss       #1d1d1d   editor canvas
