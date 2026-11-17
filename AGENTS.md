@@ -254,7 +254,9 @@ missing, not the code.
   domain component with one consumer belongs to that feature; a generic
   component with one consumer also belongs to that feature.
 - A concept's mark carries its type; do not repeat the type as visible text
-  beside it. A count appears once, in the region that owns the list.
+  beside it. A mark's viewBox is tight to its visual bounds and its stroke is
+  scaled to the shared grid, so every layer logo reads at one size and one
+  stroke. A count appears once, in the region that owns the list.
 - A detail document is a horizontal deck of flat cards. Each card fills the
   body height, states its title above the body at the top-left in the heading
   role, and leaves the next card peeking as the cue for more. The body is set
