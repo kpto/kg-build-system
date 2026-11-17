@@ -43,7 +43,7 @@
   min-height: 0;
   flex-direction: column;
   overflow-y: auto;
-  padding: var(--space-section) var(--space-group);
+  padding: var(--space-section) var(--space-inline);
 }
 
 .indexList {
@@ -61,7 +61,7 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  right: calc(-1 * var(--space-group));
+  right: calc(-1 * var(--space-inline));
   width: var(--border-hairline);
   background-color: var(--color-line);
   content: "";
@@ -1330,7 +1330,7 @@ button.expressionToggle:hover {
   margin: var(--space-stack);
   padding: 0 var(--space-group);
   border: var(--border-hairline) solid var(--color-line);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   background-color: var(--color-inset);
 }
 

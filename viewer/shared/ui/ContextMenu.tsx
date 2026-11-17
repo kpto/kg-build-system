@@ -56,7 +56,7 @@ export function ContextMenu({ x, y, label, items, onClose }: ContextMenuProps) {
       aria-label={label}
       className={cx(
         styles.pop,
-        "fixed z-[100] w-[212px] overflow-hidden rounded border border-line-strong bg-panel shadow-2xl",
+        "fixed z-[100] w-[212px] overflow-hidden rounded-[var(--radius-lg)] border border-line-strong bg-panel shadow-2xl",
       )}
       style={{ left, top }}
       data-testid="context-menu"

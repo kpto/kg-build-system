@@ -79,6 +79,7 @@ export const type = {
   body: "var(--text-body)",
   label: "var(--text-label)",
   title: "var(--text-title)",
+  section: "var(--text-section)",
   heading: "var(--text-heading)",
   display: "var(--text-display)",
 } as const;
@@ -103,6 +104,7 @@ export const border = {
 export const radius = {
   sm: "var(--radius-sm)",
   md: "var(--radius-md)",
+  lg: "var(--radius-lg)",
   pill: "var(--radius-pill)",
 } as const;
 

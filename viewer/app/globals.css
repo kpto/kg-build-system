@@ -99,21 +99,25 @@
   --weight-medium: 550;
   --weight-bold: 650;
 
-  /* Spacing roles: where a value sits in a composition, not a measurement. */
+  /* Spacing roles: one 4px grid; 2px is the optical hairline. */
   --space-hairline: 2px;
   --space-inline: 4px;
-  --space-stack: 6px;
-  --space-group: 8px;
-  --space-section: 12px;
-  --space-panel: 16px;
-  --space-region: 24px;
-  --space-page: 36px;
+  --space-stack: 8px;
+  --space-group: 12px;
+  --space-section: 16px;
+  --space-panel: 24px;
+  --space-region: 32px;
+  --space-page: 48px;
+
+  /* Tailwind numeric spacing uses the same 4px base as the roles. */
+  --spacing: 4px;
 
   --border-hairline: 1px;
   --border-heavy: 2px;
 
-  --radius-sm: 2px;
-  --radius-md: 4px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
   --radius-pill: 999px;
 
   --shadow-popover: 0 12px 30px rgb(0 0 0 / 35%);

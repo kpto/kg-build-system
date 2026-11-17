@@ -186,7 +186,7 @@ function PayloadFacts({ step }: { step: WorkflowStep }) {
             ? "object"
             : String(value);
         return (
-          <details key={key} className="group rounded border border-line-soft">
+          <details key={key} className="group rounded-[var(--radius-md)] border border-line-soft">
             <summary className="flex cursor-pointer list-none items-baseline gap-2 px-1.5 py-1 hover:bg-panel-soft/50">
               <span className="w-40 shrink-0 truncate font-mono text-[length:var(--text-sm)] text-faint">
                 {key}

@@ -60,7 +60,7 @@ const weight = /font-weight:\s*[0-9]+/;
 const leading = /line-height:\s*[0-9.]+/;
 const layer = /z-index:\s*-?[0-9]+/;
 const duration = /(?:transition|animation)[a-z-]*\s*:[^;]*\b[0-9]+(?:\.[0-9]+)?m?s\b/;
-const borderWidth = /(?:border(?:-(?:top|right|bottom|left))?|outline):\s*[0-9]+px/;
+const borderWidth = /(?:border(?:-(?:top|right|bottom|left))?(?:-width)?|outline(?:-width)?):\s*[0-9]+px/;
 const fontFamily = /font-family:\s*(?!\s*var\()/;
 
 for (const file of css) {

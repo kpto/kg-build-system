@@ -1881,7 +1881,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
 
       {hover && hoverEntity ? (
         <div
-          className="pointer-events-none absolute z-30 w-[270px] overflow-hidden border border-line-soft bg-panel/98 shadow-lg"
+          className="pointer-events-none absolute z-30 w-[270px] overflow-hidden rounded-[var(--radius-lg)] border border-line-soft bg-panel/98 shadow-lg"
           style={{ left: hover.x + 14, top: hover.y + 14 }}
         >
           <p className="border-b border-line-soft px-2 py-1 font-mono text-[length:var(--text-base)] break-words text-accent-strong">

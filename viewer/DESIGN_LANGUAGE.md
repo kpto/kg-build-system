@@ -162,6 +162,11 @@ component because it describes that component's composition, not the system.
 | Layer | `--color-asset`, `--color-source`, `--color-transform`, `--color-binding`, `--color-post`, `--color-target`, `--color-group-*` | data lanes |
 | Concept | `--color-concept-*` | the 13 concept marks and reference pills |
 | Type | `--text-micro` … `--text-display`, `--leading-*`, `--tracking-*`, `--weight-regular/medium/bold` | role, line height, tracking, weight |
+| Space | `--space-hairline`, `--space-inline`, `--space-stack`, `--space-group`, `--space-section`, `--space-panel`, `--space-region`, `--space-page` | gap, padding and margin by role |
+| Shape | `--border-*`, `--radius-*` | hairline and heavy strokes, corner radii |
+| Depth | `--shadow-*` | popover, panel, modal, inset and selection rails |
+| Motion | `--motion-fast/base/slow/pulse`, `--ease-*` | durations and easing |
+| Layer order | `--z-*` | raised, sticky, header, overlay, modal, tooltip |
 
 ### Type roles
 
@@ -186,11 +191,42 @@ navigation header is `--text-title`, also sentence case. An uppercase
 it does not invent a size. A missing size is a missing role, added here rather
 than at the call site. `--color-faint` is the lightest reading tint and clears 4.5:1 on
 every surface.
-| Space | `--space-hairline`, `--space-inline`, `--space-stack`, `--space-group`, `--space-section`, `--space-panel`, `--space-region`, `--space-page` | gap, padding and margin by role |
-| Shape | `--border-*`, `--radius-*` | hairline and heavy strokes, corner radii |
-| Depth | `--shadow-*` | popover, panel, modal, inset and selection rails |
-| Motion | `--motion-fast/base/slow/pulse`, `--ease-*` | durations and easing |
-| Layer order | `--z-*` | raised, sticky, header, overlay, modal, tooltip |
+
+### Spacing roles
+
+Spacing is one 4px grid; 2px is the optical hairline.
+
+| Role | Value | Use |
+| --- | --- | --- |
+| `--space-hairline` | 2px | optical edge, dense icon alignment |
+| `--space-inline` | 4px | icon and inline relationships |
+| `--space-stack` | 8px | tightly related lines |
+| `--space-group` | 12px | related groups, card body |
+| `--space-section` | 16px | card padding, section internal |
+| `--space-panel` | 24px | panel and field separation |
+| `--space-region` | 32px | document body and large block separation |
+| `--space-page` | 48px | page-level layout |
+
+A smaller role binds, a larger role separates. Tailwind’s numeric space
+utilities use the same `--spacing: 4px` base, so `gap-1` is 4, `gap-2` is 8,
+`gap-3` is 12, `gap-4` is 16, `gap-6` is 24 and `gap-8` is 32. Numeric
+utilities and role tokens cannot disagree about the grid.
+
+### Borders and radii
+
+| Role | Value | Use |
+| --- | --- | --- |
+| `--border-hairline` | 1px | default containment and dividers |
+| `--border-heavy` | 2px | selected, focused or emphasized boundary |
+| `--radius-sm` | 4px | controls, rows and inline surfaces |
+| `--radius-md` | 8px | panels and cards |
+| `--radius-lg` | 12px | overlays, popovers and dialogs |
+| `--radius-pill` | 999px | pills and status chips |
+
+Use the smallest border that separates; a border is never the only signal for
+selection, focus or error. Borders are hairline or heavy; the focus outline
+uses the heavy width. Radius is a role, not a decoration: a nested surface uses
+the step below its container.
 
 Every component stylesheet is checked by `scripts/check-theme.mjs`; `npm test`
 runs that check before the unit tests. A raw colour, type size, radius, spacing

@@ -5,7 +5,7 @@
   overflow: auto;
   border: var(--border-hairline) solid var(--color-line-strong);
   border-left: var(--border-heavy) solid var(--color-selection);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   background: var(--color-panel-raised);
   box-shadow: var(--shadow-popover);
   padding: var(--space-group) var(--space-section) var(--space-section);
@@ -135,7 +135,7 @@
 }
 
 .constitutionBoxCurrent {
-  border-left-width: 3px;
+  border-left-width: var(--border-heavy);
   border-left-color: var(--color-selection);
   background: color-mix(
     in srgb,

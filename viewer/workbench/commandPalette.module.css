@@ -20,7 +20,7 @@
     overflow: hidden;
     border: var(--border-hairline) solid var(--color-line-strong);
     border-top: var(--border-heavy) solid var(--color-selection);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-lg);
     background-color: var(--color-panel);
     box-shadow: var(--shadow-modal);
     color: var(--color-text);
@@ -79,7 +79,7 @@
     gap: var(--space-section);
     padding: var(--space-stack) var(--space-group);
     border: 0;
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-sm);
     background: transparent;
     color: var(--color-muted);
     text-align: left;
@@ -99,7 +99,7 @@
     align-items: center;
     justify-content: center;
     border: var(--border-hairline) solid var(--color-line);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-sm);
     background-color: var(--color-panel-soft);
     color: var(--color-selection);
   }

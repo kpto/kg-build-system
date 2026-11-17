@@ -68,7 +68,7 @@
 
   .button {
     display: inline-flex;
-    min-height: 30px;
+    min-height: 32px;
     align-items: center;
     justify-content: center;
     gap: var(--space-stack);
@@ -194,7 +194,7 @@
     padding: var(--space-region);
     border: var(--border-hairline) solid var(--color-line);
     border-top: var(--border-heavy) solid var(--color-selection);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-lg);
     background-color: var(--color-panel);
     box-shadow: var(--shadow-panel);
     color: var(--color-muted);
@@ -221,7 +221,7 @@
   .gateSlow {
     padding: var(--space-stack) var(--space-group);
     border: var(--border-hairline) solid color-mix(in srgb, var(--color-medium) 35%, transparent);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-sm);
     background-color: color-mix(in srgb, var(--color-medium) 8%, transparent);
     color: var(--color-open) !important;
     font-size: var(--text-body) !important;
