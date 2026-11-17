@@ -2,18 +2,15 @@ import type { ConceptReference } from "@/lib/concepts";
 import { ConceptPill } from "./ConceptPill";
 
 /**
- * One navigable concept reference, drawn as the layer's inline pill. The same
- * component renders an asset, table or projection wherever a reference
- * appears; the mark and colour come from the concept catalogue.
+ * One navigable concept reference, drawn as the layer's inline pill. The pill
+ * resolves its own document; a caller supplies the reference and nothing else.
  */
 export function ConceptReferenceChip({
   reference,
-  onOpen,
   className,
   size = "sm",
 }: {
   reference: ConceptReference;
-  onOpen?(): void;
   className?: string;
   size?: "sm" | "md";
 }) {
@@ -21,7 +18,10 @@ export function ConceptReferenceChip({
     <ConceptPill
       concept={reference.concept}
       name={reference.name}
-      onOpen={onOpen}
+      component={reference.target?.component}
+      property={reference.target?.property}
+      ownerConcept={reference.target?.ownerConcept}
+      stepId={reference.target?.stepId}
       className={className}
       size={size}
     />

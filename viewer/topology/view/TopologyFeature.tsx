@@ -25,7 +25,6 @@ import { buildProof } from "@/proof/model";
 import { ContextMenu } from "@/shared/ui/ContextMenu";
 import {
   FulfilmentMap,
-  type AxisOpenTarget,
 } from "@/detail/view/FulfilmentMap";
 import { cx, groupPalette, theme } from "@/shared/ui/theme";
 import {
@@ -2063,27 +2062,6 @@ export function TopologyInspector({
     | undefined
   >(undefined);
 
-  const openAxis = (target: AxisOpenTarget) => {
-    const selection: SubjectSelection =
-      target.kind === "table"
-        ? { kind: "relation", name: target.name, component: target.name }
-        : target.kind === "projection"
-          ? { kind: "projection", name: target.name, component: target.name }
-          : target.kind === "asset"
-            ? {
-                kind: "asset",
-                level: "asset",
-                name: target.name,
-                component: target.name,
-              }
-            : {
-                kind: target.kind,
-                level: target.kind,
-                name: target.name,
-                component: target.name,
-              };
-    props.actions.openTab({ selection, preview: true });
-  };
 
   return (
     <aside
@@ -2253,7 +2231,6 @@ export function TopologyInspector({
                       component: entityComponent ?? entity.name,
                     }
               }
-              onOpen={openAxis}
             />
           </section>
         </div>

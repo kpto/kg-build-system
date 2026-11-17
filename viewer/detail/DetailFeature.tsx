@@ -63,7 +63,6 @@ import {
   SourceRelationPill,
 } from "@/shared/ui/ConceptPill";
 import { ConceptReferenceChip } from "@/shared/ui/ConceptReference";
-import { selectionForConceptTarget } from "@/workbench/conceptTarget";
 import { activeDocument, documentSelection } from "@/workbench/types";
 import type {
   LineageLane,
@@ -80,7 +79,6 @@ import {
   type DetailFact,
   type MemberRow,
 } from "./view/DetailChrome";
-import type { AxisOpenTarget } from "./view/FulfilmentMap";
 import {
   ExpressionTree,
   type ExpressionChain,
@@ -108,7 +106,6 @@ import { Constitution } from "@/shared/design/Constitution";
 import { DesignMeaning } from "@/shared/design/DesignMeaning";
 import {
   constitutionModel,
-  type ConstitutionTarget,
 } from "@/shared/design/constitution";
 import {
   attachedMeaning,
@@ -198,13 +195,11 @@ function ProvenanceGroup({
   concept,
   label,
   references,
-  onOpen,
   testId,
 }: {
   concept: ConceptKind;
   label: string;
   references: ConceptReference[];
-  onOpen(reference: ConceptReference): void;
   testId: string;
 }) {
   return (
@@ -222,9 +217,6 @@ function ProvenanceGroup({
             <ConceptReferenceChip
               key={`${reference.concept}:${reference.name}`}
               reference={reference}
-              onOpen={
-                reference.target ? () => onOpen(reference) : undefined
-              }
             />
           ))}
         </div>
@@ -237,10 +229,8 @@ function ProvenanceGroup({
 
 function ProvenanceSection({
   provenance,
-  onOpen,
 }: {
   provenance: ProvenanceReferences;
-  onOpen(reference: ConceptReference): void;
 }) {
   const count = (value: number, singular: string) =>
     `${value} ${value === 1 ? singular : `${singular}s`}`;
@@ -261,21 +251,18 @@ function ProvenanceSection({
           concept="asset"
           label="Assets"
           references={provenance.assets}
-          onOpen={onOpen}
           testId="detail-provenance-assets"
         />
         <ProvenanceGroup
           concept="table"
           label="Source relations"
           references={provenance.tables}
-          onOpen={onOpen}
           testId="detail-provenance-tables"
         />
         <ProvenanceGroup
           concept="projection"
           label="Derived relations"
           references={provenance.projections}
-          onOpen={onOpen}
           testId="detail-provenance-projections"
         />
       </div>
@@ -1442,10 +1429,8 @@ function componentBindings(
 
 function BindingsSection({
   bindings,
-  onOpen,
 }: {
   bindings: ViewerIndex["bindings"];
-  onOpen(target: AxisOpenTarget): void;
 }) {
   const rows: MemberRow[] = bindings.map((binding) => {
     const fields = collectFieldRefs(binding.binding.identity)
@@ -1454,12 +1439,11 @@ function BindingsSection({
     const relations = relationNamesFromRowSource(binding.binding.rows);
     return {
       key: String(binding.index),
-      onActivate: () =>
-        onOpen({ kind: binding.kind, name: binding.component }),
-      title: `Open ${binding.kind} ${binding.component}`,
       cells: [
         <BindingPill
           name={binding.binding.name ?? `binding #${binding.index}`}
+          component={binding.component}
+          ownerConcept={binding.kind}
         />,
         `${Object.keys(binding.binding.properties ?? {}).length}`,
         fields.join(", ") || "not declared",
@@ -1489,12 +1473,10 @@ function ConnectionsSection({
   index,
   kind,
   component,
-  onOpen,
 }: {
   index: ViewerIndex;
   kind: "node" | "edge";
   component: string;
-  onOpen(target: AxisOpenTarget): void;
 }) {
   if (kind === "edge") {
     const edge = index.topologyEdgesByName.get(component);
@@ -1511,20 +1493,14 @@ function ConnectionsSection({
         <div className={styles.connectionRow}>
           <span>source</span>
           {source ? (
-            <NodePill
-              name={source}
-              onOpen={() => onOpen({ kind: "node", name: source })}
-            />
+            <NodePill name={source} />
           ) : (
             <span>not resolved</span>
           )}
           <ArrowRight aria-hidden className={styles.inlineArrow} />
           <span>target</span>
           {target ? (
-            <NodePill
-              name={target}
-              onOpen={() => onOpen({ kind: "node", name: target })}
-            />
+            <NodePill name={target} />
           ) : (
             <span>not resolved</span>
           )}
@@ -1557,17 +1533,11 @@ function ConnectionsSection({
               {outgoing ? (
                 <NodePill name={component} />
               ) : (
-                <NodePill
-                  name={other}
-                  onOpen={() => onOpen({ kind: "node", name: other })}
-                />
+                <NodePill name={other} />
               )}
               <ArrowRight aria-hidden className={styles.inlineArrow} />
               {outgoing ? (
-                <NodePill
-                  name={other}
-                  onOpen={() => onOpen({ kind: "node", name: other })}
-                />
+                <NodePill name={other} />
               ) : (
                 <NodePill name={component} />
               )}
@@ -1665,13 +1635,9 @@ function PropertyProofView({ model }: { model: ProofModel }) {
 function ComponentProofView({
   index,
   model,
-  actions,
-  onOpenAxis,
 }: {
   index: ViewerIndex;
   model: ProofModel;
-  actions: WorkspaceProps["actions"];
-  onOpenAxis(target: AxisOpenTarget): void;
 }) {
   const component = model.component;
   if (!component) {
@@ -1684,20 +1650,13 @@ function ComponentProofView({
   const rows: MemberRow[] = component.properties.map((property) => ({
     key: `${property.kind}:${property.component}.${property.property}`,
     testId: "detail-property",
-    onActivate: () =>
-      actions.openTab({
-        selection: toWorkbenchSelection({
-          level: "property",
-          kind: property.kind,
-          component: property.component,
-          property: property.property,
-          propertyRef: property.propertyRef,
-        }),
-        preview: true,
-      }),
-    title: `Open ${property.component}.${property.property}`,
     cells: [
-      <PropertyPill name={property.property} />,
+      <PropertyPill
+        name={property.property}
+        component={property.component}
+        property={property.property}
+        ownerConcept={property.kind}
+      />,
       logicalTypeName(property.logicalType),
       `${property.branchCount}`,
       property.sources.join(", ") || "—",
@@ -1724,36 +1683,18 @@ function ComponentProofView({
         index={index}
         kind={component.kind}
         component={component.name}
-        onOpen={onOpenAxis}
       />
     </div>
   );
 }
 
-function AbstractProofView({
-  model,
-  actions,
-}: {
-  model: ProofModel;
-  actions: WorkspaceProps["actions"];
-}) {
+function AbstractProofView({ model }: { model: ProofModel }) {
   const abstract = model.abstract;
   if (!abstract) {
     return <DetailEmptyState>No abstract subject is available.</DetailEmptyState>;
   }
   const rows: MemberRow[] = abstract.descendants.map((descendant) => ({
     key: descendant.name,
-    onActivate: () =>
-      actions.openTab({
-        selection: {
-          kind: "node",
-          level: "node",
-          component: descendant.name,
-          name: descendant.name,
-        },
-        preview: true,
-      }),
-    title: `Open the ${descendant.name} document`,
     cells: [
       <NodePill name={descendant.name} />,
       descendant.labels.join(", ") || "—",
@@ -1783,11 +1724,9 @@ function AbstractProofView({
 function AssetProofView({
   index,
   model,
-  onOpenAxis,
 }: {
   index: ViewerIndex;
   model: ProofModel;
-  onOpenAxis(target: AxisOpenTarget): void;
 }) {
   const asset = model.asset;
   if (!asset) {
@@ -1798,12 +1737,6 @@ function AssetProofView({
     ...asset.projections.map((row) => ({ ...row, kindLabel: "derived" })),
   ].map((row) => ({
     key: `${row.kindLabel}:${row.name}`,
-    onActivate: () =>
-      onOpenAxis({
-        kind: row.kindLabel === "source" ? "table" : "projection",
-        name: row.name,
-      }),
-    title: `Open the ${row.name} document`,
     cells: [
       row.kindLabel === "source" ? (
         <SourceRelationPill name={row.name} />
@@ -1818,7 +1751,18 @@ function AssetProofView({
   const fieldRows: MemberRow[] = asset.fields.map((field) => ({
     key: field.key,
     cells: [
-      <FieldPill name={field.field.name} title={field.key} />,
+      <FieldPill
+        name={field.field.name}
+        component={field.ownerName}
+        ownerConcept={
+          field.ownerKind === "relation"
+            ? "table"
+            : field.ownerKind === "projection"
+              ? "projection"
+              : "asset"
+        }
+        title={field.key}
+      />,
       logicalTypeName(field.field.logical_type),
       field.ownerKind,
     ],
@@ -1864,7 +1808,7 @@ function AssetProofView({
           empty="No field resolves to this asset."
         />
       </DetailBand>
-      <BindingsSection bindings={bindings} onOpen={onOpenAxis} />
+      <BindingsSection bindings={bindings} />
     </div>
   );
 }
@@ -2155,59 +2099,6 @@ function SubjectDetailEditor(props: WorkspaceProps) {
     );
   }, [props.actions, props.state.index, selection]);
 
-  const openReference = (reference: ConceptReference) => {
-    if (!reference.target) return;
-    const selection = selectionForConceptTarget(reference.target);
-    if (!selection) return;
-    props.actions.openTab({ selection, preview: true });
-  };
-  const openAxis = (target: AxisOpenTarget) => {
-    const selectionFor = (): SubjectSelection => {
-      switch (target.kind) {
-        case "table":
-          return { kind: "relation", name: target.name, component: target.name };
-        case "projection":
-          return {
-            kind: "projection",
-            name: target.name,
-            component: target.name,
-          };
-        case "asset":
-          return {
-            kind: "asset",
-            level: "asset",
-            name: target.name,
-            component: target.name,
-          };
-        case "node":
-        case "edge": {
-          const abstract = index.topologyNodesByName.get(target.name)?.abstract;
-          return {
-            kind: target.kind,
-            level: target.kind === "node" && abstract ? "abstract" : target.kind,
-            name: target.name,
-            component: target.name,
-          };
-        }
-      }
-    };
-    props.actions.openTab({ selection: selectionFor(), preview: true });
-  };
-  const openConstitution = (target: ConstitutionTarget) => {
-    switch (target.kind) {
-      case "relation":
-        openAxis({ kind: "table", name: target.name });
-        break;
-      case "projection":
-        openAxis({ kind: "projection", name: target.name });
-        break;
-      case "abstract":
-        openAxis({ kind: "node", name: target.name });
-        break;
-      default:
-        openAxis(target);
-    }
-  };
   const endpoint = (name?: string): ConceptReference | undefined =>
     name
       ? {
@@ -2223,19 +2114,13 @@ function SubjectDetailEditor(props: WorkspaceProps) {
       <div className={styles.bannerRelations} aria-label="Edge endpoints">
         <span className={styles.bannerLabel}>source</span>
         {source ? (
-          <ConceptReferenceChip
-            reference={source}
-            onOpen={() => openReference(source)}
-          />
+          <ConceptReferenceChip reference={source} />
         ) : (
           <span className={styles.bannerEmpty}>not resolved</span>
         )}
         <ArrowRight aria-hidden className={styles.bannerArrow} />
         {target ? (
-          <ConceptReferenceChip
-            reference={target}
-            onOpen={() => openReference(target)}
-          />
+          <ConceptReferenceChip reference={target} />
         ) : (
           <span className={styles.bannerEmpty}>not resolved</span>
         )}
@@ -2294,7 +2179,7 @@ function SubjectDetailEditor(props: WorkspaceProps) {
       }`}
       testId="detail-constitution"
     >
-      <Constitution model={constitution} onOpen={openConstitution} />
+      <Constitution model={constitution} />
     </DetailBand>
   );
   const meaningSection = (
@@ -2348,7 +2233,7 @@ function SubjectDetailEditor(props: WorkspaceProps) {
     <>
 
       {dataBound ? (
-        <ProvenanceSection provenance={provenance} onOpen={openReference} />
+        <ProvenanceSection provenance={provenance} />
       ) : null}
 
     </>
@@ -2402,20 +2287,11 @@ function SubjectDetailEditor(props: WorkspaceProps) {
       {model.level === "property" ? (
         <PropertyProofView model={model} />
       ) : model.level === "asset" ? (
-        <AssetProofView
-          index={index}
-          model={model}
-          onOpenAxis={openAxis}
-        />
+        <AssetProofView index={index} model={model} />
       ) : model.level === "abstract" ? (
-        <AbstractProofView model={model} actions={props.actions} />
+        <AbstractProofView model={model} />
       ) : (
-        <ComponentProofView
-          index={index}
-          model={model}
-          actions={props.actions}
-          onOpenAxis={openAxis}
-        />
+        <ComponentProofView index={index} model={model} />
       )}
 
     </>
@@ -2424,7 +2300,7 @@ function SubjectDetailEditor(props: WorkspaceProps) {
     <>
 
       {bindings.length ? (
-        <BindingsSection bindings={bindings} onOpen={openAxis} />
+        <BindingsSection bindings={bindings} />
       ) : null}
 
     </>

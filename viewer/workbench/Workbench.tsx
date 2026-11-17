@@ -3,9 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CircleExclamationPoint, LoaderCircle, RefreshCw } from "lucide-react";
 
+import type { ConceptTarget } from "@/lib/concepts";
 import { buildViewerIndex } from "@/lib/indexes";
 import { loadSnapshot } from "@/lib/load";
 import type { ViewerIndex, ViewerSnapshot } from "@/lib/types";
+import { ConceptNavigationProvider } from "@/shared/ui/ConceptNavigation";
 import { CommandPalette } from "./CommandPalette";
 import { EditorArea } from "./EditorArea";
 import { SideBar } from "./SideBar";
@@ -19,6 +21,7 @@ import {
   postToParent,
   snapshotFromOpen,
 } from "./embed";
+import { destinationForConceptTarget } from "./conceptTarget";
 import { WorkbenchProvider, useWorkbench } from "./store";
 import { MAX_SIDEBAR, MIN_SIDEBAR, lensSelection } from "./types";
 
@@ -144,6 +147,24 @@ function WorkbenchShell() {
   );
   const selection = lensSelection(state);
   const selectionSignature = selection ? JSON.stringify(selection) : "";
+  const conceptNavigation = useMemo(
+    () => ({
+      open: (target: ConceptTarget) => {
+        const destination = destinationForConceptTarget(state.index, target);
+        if (!destination) return;
+        if (destination.kind === "graph") {
+          actions.showGraph({});
+          return;
+        }
+        if (destination.kind === "workflow") {
+          actions.showWorkflow();
+          return;
+        }
+        actions.openTab({ selection: destination.selection, preview: true });
+      },
+    }),
+    [actions, state.index],
+  );
 
   useEffect(() => {
     if (!embed.enabled || !selection?.kind) return;
@@ -212,32 +233,36 @@ function WorkbenchShell() {
   }, [actions]);
 
   return (
-    <div className="wb-shell ui-grain" data-testid="workbench">
-      <div className="wb-body">
-        {sidebarVisible ? (
-          <>
-            <SideBar />
-            <Splitter
-              orientation="vertical"
-              value={layout.sidebarWidth}
-              min={MIN_SIDEBAR}
-              max={MAX_SIDEBAR}
-              label="Resize side bar"
-              onChange={(value) => actions.setLayout({ sidebarWidth: value })}
+    <ConceptNavigationProvider navigation={conceptNavigation}>
+      <div className="wb-shell ui-grain" data-testid="workbench">
+        <div className="wb-body">
+          {sidebarVisible ? (
+            <>
+              <SideBar />
+              <Splitter
+                orientation="vertical"
+                value={layout.sidebarWidth}
+                min={MIN_SIDEBAR}
+                max={MAX_SIDEBAR}
+                label="Resize side bar"
+                onChange={(value) => actions.setLayout({ sidebarWidth: value })}
+              />
+            </>
+          ) : null}
+
+          <div className="wb-main">
+            <EditorArea
+              sidebarVisible={sidebarVisible}
+              onToggleSidebar={() => setSidebarVisible((visible) => !visible)}
             />
-          </>
-        ) : null}
-
-        <div className="wb-main">
-          <EditorArea
-            sidebarVisible={sidebarVisible}
-            onToggleSidebar={() => setSidebarVisible((visible) => !visible)}
-          />
+          </div>
         </div>
-      </div>
 
-      {paletteOpen ? <CommandPalette onClose={() => setPaletteOpen(false)} /> : null}
-    </div>
+        {paletteOpen ? (
+          <CommandPalette onClose={() => setPaletteOpen(false)} />
+        ) : null}
+      </div>
+    </ConceptNavigationProvider>
   );
 }
 

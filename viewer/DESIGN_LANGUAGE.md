@@ -101,7 +101,7 @@ A kind includes or omits a section; it never renames one for itself.
   Expression shows the field and operator chain. The UI never uses the labels
   "Provenance" or "Lineage"; the model keeps those words.
 - **Members** is one table grammar for properties, columns, fields,
-  descendants and openings. A row opens its document when it has one.
+  descendants and openings. The instance pill opens its document when one exists.
 - **Connections** states endpoints, incident relations or ports.
 - **Bindings** states which binding fulfils the subject.
 
@@ -127,9 +127,9 @@ the distinction alone.
 An inline mention of an instance is one pill: the layer's mark, a divider and
 the instance name, all in the instance's colour. The same pill names a record
 in a connection row, a property in a member table, a relation in a source list,
-a field in an expression tree and a card in the fulfilment map. A pill is a
-button when the surrounding row does not already open the instance; inside a
-navigating row it is a span. A long name truncates in the pill; it never wraps.
+a field in an expression tree and a card in the fulfilment map. A pill resolves
+and opens the instance's document itself, so a caller supplies identity, never
+a click handler. A long name truncates in the pill; it never wraps.
 
 ## Interaction motion
 

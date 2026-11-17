@@ -212,7 +212,6 @@ export function FactGrid({ facts }: { facts: DetailFact[] }) {
 export interface MemberRow {
   key: string;
   cells: ReactNode[];
-  onActivate?(): void;
   title?: string;
   /** Preserve the stable test id a row had before the unified table. */
   testId?: string;
@@ -247,49 +246,26 @@ export function MemberTable({
           <span key={column}>{column}</span>
         ))}
       </div>
-      {rows.map((row) =>
-        row.onActivate ? (
-          <button
-            key={row.key}
-            type="button"
-            className={styles.memberRow}
-            style={{ gridTemplateColumns: template }}
-            onClick={row.onActivate}
-            title={row.title}
-            data-testid={row.testId}
-          >
-            {row.cells.map((cell, index) => (
-              <span
-                key={index}
-                className={styles.memberCell}
-                data-mono={index === 0 || undefined}
-                data-muted={index > 0 || undefined}
-              >
-                {cell}
-              </span>
-            ))}
-          </button>
-        ) : (
-          <div
-            key={row.key}
-            className={styles.memberRow}
-            style={{ gridTemplateColumns: template }}
-            title={row.title}
-            data-testid={row.testId}
-          >
-            {row.cells.map((cell, index) => (
-              <span
-                key={index}
-                className={styles.memberCell}
-                data-mono={index === 0 || undefined}
-                data-muted={index > 0 || undefined}
-              >
-                {cell}
-              </span>
-            ))}
-          </div>
-        ),
-      )}
+      {rows.map((row) => (
+        <div
+          key={row.key}
+          className={styles.memberRow}
+          style={{ gridTemplateColumns: template }}
+          title={row.title}
+          data-testid={row.testId}
+        >
+          {row.cells.map((cell, index) => (
+            <span
+              key={index}
+              className={styles.memberCell}
+              data-mono={index === 0 || undefined}
+              data-muted={index > 0 || undefined}
+            >
+              {cell}
+            </span>
+          ))}
+        </div>
+      ))}
     </div>
   );
 }

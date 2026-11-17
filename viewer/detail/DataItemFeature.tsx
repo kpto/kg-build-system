@@ -20,7 +20,6 @@ import { Constitution } from "@/shared/design/Constitution";
 import { DesignMeaning } from "@/shared/design/DesignMeaning";
 import {
   constitutionModel,
-  type ConstitutionTarget,
 } from "@/shared/design/constitution";
 import { attachedMeaning } from "@/shared/design/meaning";
 import { ConceptGlyph } from "@/shared/ui/ConceptMark";
@@ -32,7 +31,6 @@ import {
 } from "@/shared/ui/ConceptPill";
 import { ConceptReferenceChip } from "@/shared/ui/ConceptReference";
 import { activeDocument, documentSelection, type WorkspaceProps } from "@/workbench/types";
-import { selectionForConceptTarget } from "@/workbench/conceptTarget";
 import {
   DetailBand,
   DetailDocument,
@@ -41,7 +39,6 @@ import {
   type DetailFact,
   type MemberRow,
 } from "./view/DetailChrome";
-import type { AxisOpenTarget } from "./view/FulfilmentMap";
 import {
   ExpressionTree,
   type ExpressionChain,
@@ -162,54 +159,6 @@ export function DataItemEditor(props: WorkspaceProps) {
     [index, model.name],
   );
 
-  const openAxis = (target: AxisOpenTarget) => {
-    switch (target.kind) {
-      case "asset":
-        props.actions.openTab({
-          selection: {
-            kind: "asset",
-            level: "asset",
-            name: target.name,
-            component: target.name,
-          },
-          preview: true,
-        });
-        return;
-      case "table":
-        props.actions.openTab({
-          selection: {
-            kind: "relation",
-            name: target.name,
-            component: target.name,
-          },
-          preview: true,
-        });
-        return;
-      case "projection":
-        props.actions.openTab({
-          selection: {
-            kind: "projection",
-            name: target.name,
-            component: target.name,
-          },
-          preview: true,
-        });
-        return;
-      case "node":
-      case "edge":
-        props.actions.openTab({
-          selection: {
-            kind: target.kind,
-            level: target.kind,
-            name: target.name,
-            component: target.name,
-          },
-          preview: true,
-        });
-        return;
-    }
-  };
-
   const facts: DetailFact[] = [
     {
       label: "Kind",
@@ -223,9 +172,6 @@ export function DataItemEditor(props: WorkspaceProps) {
         "unresolved"
       ),
       absent: !model.assetName,
-      onOpen: model.assetName
-        ? () => openAxis({ kind: "asset", name: model.assetName ?? "" })
-        : undefined,
     },
     { label: "Columns", value: `${model.columns.length}` },
   ];
@@ -268,7 +214,11 @@ export function DataItemEditor(props: WorkspaceProps) {
   const memberRows: MemberRow[] = model.columns.map((column) => ({
     key: column.name,
     cells: [
-      <FieldPill name={column.name} />,
+      <FieldPill
+        name={column.name}
+        component={model.name}
+        ownerConcept={kind === "relation" ? "table" : "projection"}
+      />,
       logicalTypeName(column.logical_type),
       column.definition ? fieldDefinitionDetail(column) : fieldDescription(column),
       column.expression
@@ -280,12 +230,11 @@ export function DataItemEditor(props: WorkspaceProps) {
 
   const bindingRows: MemberRow[] = bindings.map((binding) => ({
     key: String(binding.index),
-    onActivate: () =>
-      openAxis({ kind: binding.kind, name: binding.component }),
-    title: `Open ${binding.kind} ${binding.component}`,
     cells: [
       <BindingPill
         name={binding.binding.name ?? `binding #${binding.index}`}
+        component={binding.component}
+        ownerConcept={binding.kind}
       />,
       binding.kind,
       `${Object.keys(binding.binding.properties ?? {}).length}`,
@@ -300,7 +249,9 @@ export function DataItemEditor(props: WorkspaceProps) {
       cells: [
         binding.step ? (
           <StepPill
-            name={`${binding.step.id[0]}.${binding.step.id[1]}`}
+            name={binding.step.id[1]}
+            component={binding.step.id[0]}
+            stepId={binding.step.id}
             title={binding.step.id.join(".")}
           />
         ) : (
@@ -349,24 +300,7 @@ export function DataItemEditor(props: WorkspaceProps) {
       }`}
       testId="detail-constitution"
     >
-      <Constitution
-        model={constitution}
-        onOpen={(target: ConstitutionTarget) => {
-          switch (target.kind) {
-            case "relation":
-              openAxis({ kind: "table", name: target.name });
-              break;
-            case "projection":
-              openAxis({ kind: "projection", name: target.name });
-              break;
-            case "abstract":
-              openAxis({ kind: "node", name: target.name });
-              break;
-            default:
-              openAxis(target);
-          }
-        }}
-      />
+      <Constitution model={constitution} />
     </DetailBand>
   );
   const hasMeaning =
@@ -417,15 +351,7 @@ export function DataItemEditor(props: WorkspaceProps) {
             </p>
             {assetReference ? (
               <div className={styles.provenanceItems}>
-                <ConceptReferenceChip
-                  reference={assetReference}
-                  onOpen={() => {
-                    const target = selectionForConceptTarget(assetReference.target);
-                    if (target) {
-                      props.actions.openTab({ selection: target, preview: true });
-                    }
-                  }}
-                />
+                <ConceptReferenceChip reference={assetReference} />
               </div>
             ) : (
               <p className={styles.provenanceEmpty}>None resolved</p>
@@ -445,18 +371,6 @@ export function DataItemEditor(props: WorkspaceProps) {
                   <ConceptReferenceChip
                     key={`${reference.concept}:${reference.name}`}
                     reference={reference}
-                    onOpen={
-                      reference.target
-                        ? () => {
-                            const target = selectionForConceptTarget(
-                              reference.target!,
-                            );
-                            if (target) {
-                              props.actions.openTab({ selection: target, preview: true });
-                            }
-                          }
-                        : undefined
-                    }
                   />
                 ))
               ) : (
@@ -478,18 +392,6 @@ export function DataItemEditor(props: WorkspaceProps) {
                   <ConceptReferenceChip
                     key={`${reference.concept}:${reference.name}`}
                     reference={reference}
-                    onOpen={
-                      reference.target
-                        ? () => {
-                            const target = selectionForConceptTarget(
-                              reference.target!,
-                            );
-                            if (target) {
-                              props.actions.openTab({ selection: target, preview: true });
-                            }
-                          }
-                        : undefined
-                    }
                   />
                 ))
               ) : (

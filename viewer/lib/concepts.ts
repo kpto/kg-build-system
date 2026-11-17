@@ -26,6 +26,14 @@ export type ConceptKind =
 export interface ConceptTarget {
   concept: ConceptKind;
   name: string;
+  /** The owner when a property, field or binding is not unique by name. */
+  component?: string;
+  /** The property name when the concept is a property. */
+  property?: string;
+  /** The owner's layer, so a field or binding can open the owner's document. */
+  ownerConcept?: ConceptKind;
+  /** The step identity, when a step name is not unique across components. */
+  stepId?: [string, string];
 }
 
 export interface ConceptReference {

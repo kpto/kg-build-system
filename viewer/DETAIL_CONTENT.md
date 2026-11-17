@@ -21,7 +21,7 @@ includes by their immediate importance to a reader; it never renames one. A
 | 4 | **Sources** | Where does this value come from? | Assets, source relations and derived relations, as navigable references with counts. |
 | 5 | **Build steps** | How is this built? | The narrowed workflow graph of the steps that produce the subject. |
 | 6 | **Expression** | Which fields and operations produce the value? | The expression outline, one root per binding or column. |
-| 7 | **Members** | Which units belong to this subject? | One table grammar: name, type, meaning, source, count; a row opens its document when it has one. |
+| 7 | **Members** | Which units belong to this subject? | One table grammar: name, type, meaning, source, count; the instance pill opens its document when one exists. |
 | 8 | **Connections** | Which records does this subject touch? | Endpoints of an edge, incident relations of a node, ports of a step. |
 | 9 | **Bindings** | Which binding fulfils this subject? | One row per binding: name, writes, identity, rows read. |
 
@@ -104,7 +104,7 @@ label opens that level's document. The box itself is inspection only.
 | Header | concept mark, kicker, title, subtitle, licence. Titles read `Kind · name` for graph subjects and the relation name for data subjects. |
 | Identity | one fact grid. A fact is a label and a value; an absent value is stated as absent, not dressed as a value. |
 | Meaning | one renderer for the subject and for attached units. The label is always **Meaning**. |
-| Members | one table: name, type, meaning, source, count. The row opens its document when one exists. |
+| Members | one table: name, type, meaning, source, count. The instance pill opens its document when one exists. |
 | Counts | always noun-bearing and correctly pluralised: `1 binding`, `2 bindings`, `9 properties`. |
 | Empty state | one inline sentence inside the section. The only whole-document empty state is a document with no content at all. |
 | Licence | the effective licence in the header; a step states that it has none because it owns no data. |

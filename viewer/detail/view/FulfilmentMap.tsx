@@ -32,11 +32,6 @@ import {
 } from "@/shared/ui/ConceptPill";
 import styles from "./fulfilment.module.css";
 
-export interface AxisOpenTarget {
-  kind: "node" | "edge" | "table" | "projection" | "asset";
-  name: string;
-}
-
 function countLabel(count: number, noun: string): string {
   if (count === 1) return `${count} ${noun}`;
   const plural = noun.endsWith("y")
@@ -50,11 +45,9 @@ function countLabel(count: number, noun: string): string {
 function RecordCard({
   record,
   active,
-  onOpen,
 }: {
   record: AxisRecord;
   active: boolean;
-  onOpen?(target: AxisOpenTarget): void;
 }) {
   return (
     <article
@@ -67,11 +60,6 @@ function RecordCard({
           concept={record.kind}
           name={record.name}
           size="md"
-          onOpen={
-            onOpen
-              ? () => onOpen({ kind: record.kind, name: record.name })
-              : undefined
-          }
           title={`Open the ${record.kind} document`}
         />
         <span className={styles.cardTag}>
@@ -161,11 +149,9 @@ function BindingCard({ binding }: { binding: AxisBinding }) {
 function RelationCard({
   relation,
   active,
-  onOpen,
 }: {
   relation: AxisRelation;
   active: boolean;
-  onOpen?(target: AxisOpenTarget): void;
 }) {
   const documentKind = relation.kind === "source" ? "table" : "projection";
   return (
@@ -179,11 +165,6 @@ function RelationCard({
           concept={documentKind}
           name={relation.name}
           size="md"
-          onOpen={
-            onOpen
-              ? () => onOpen({ kind: documentKind, name: relation.name })
-              : undefined
-          }
           title={`Open the ${
             relation.kind === "source" ? "source" : "derived"
           } relation document`}
@@ -231,12 +212,10 @@ function CompactRow({
   binding,
   relations,
   active,
-  onOpen,
 }: {
   binding: AxisBinding;
   relations: AxisRelation[];
   active: boolean;
-  onOpen?(target: AxisOpenTarget): void;
 }) {
   const resolved = relations.filter((relation) =>
     binding.relations.includes(relation.name),
@@ -246,17 +225,14 @@ function CompactRow({
       <ConceptPill
         concept={binding.targetKind}
         name={binding.target}
-        onOpen={
-          onOpen
-            ? () => onOpen({ kind: binding.targetKind, name: binding.target })
-            : undefined
-        }
         title="Open the record document"
       />
       <ArrowLeft aria-hidden className={styles.rowArrow} />
       <span className={styles.rowBinding}>
         <BindingPill
           name={`#${binding.index}`}
+          component={binding.target}
+          ownerConcept={binding.targetKind}
           title={binding.debugName ?? `binding #${binding.index}`}
         />
         {binding.identityFields.length ? (
@@ -273,25 +249,9 @@ function CompactRow({
         {resolved.length ? (
           resolved.map((relation) =>
             relation.kind === "source" ? (
-              <SourceRelationPill
-                key={relation.name}
-                name={relation.name}
-                onOpen={
-                  onOpen
-                    ? () => onOpen({ kind: "table", name: relation.name })
-                    : undefined
-                }
-              />
+              <SourceRelationPill key={relation.name} name={relation.name} />
             ) : (
-              <DerivedRelationPill
-                key={relation.name}
-                name={relation.name}
-                onOpen={
-                  onOpen
-                    ? () => onOpen({ kind: "projection", name: relation.name })
-                    : undefined
-                }
-              />
+              <DerivedRelationPill key={relation.name} name={relation.name} />
             ),
           )
         ) : (
@@ -341,12 +301,10 @@ function GroupRow({
   group,
   relations,
   active,
-  onOpen,
 }: {
   group: BindingGroup;
   relations: AxisRelation[];
   active: boolean;
-  onOpen?(target: AxisOpenTarget): void;
 }) {
   const resolved = relations.filter((relation) =>
     group.relations.includes(relation.name),
@@ -363,11 +321,6 @@ function GroupRow({
             key={`${record.kind}:${record.name}`}
             concept={record.kind}
             name={record.name}
-            onOpen={
-              onOpen
-                ? () => onOpen({ kind: record.kind, name: record.name })
-                : undefined
-            }
             title={`Open the ${record.kind} document`}
           />
         ))}
@@ -391,25 +344,9 @@ function GroupRow({
         {resolved.length ? (
           resolved.map((relation) =>
             relation.kind === "source" ? (
-              <SourceRelationPill
-                key={relation.name}
-                name={relation.name}
-                onOpen={
-                  onOpen
-                    ? () => onOpen({ kind: "table", name: relation.name })
-                    : undefined
-                }
-              />
+              <SourceRelationPill key={relation.name} name={relation.name} />
             ) : (
-              <DerivedRelationPill
-                key={relation.name}
-                name={relation.name}
-                onOpen={
-                  onOpen
-                    ? () => onOpen({ kind: "projection", name: relation.name })
-                    : undefined
-                }
-              />
+              <DerivedRelationPill key={relation.name} name={relation.name} />
             ),
           )
         ) : (
@@ -425,13 +362,11 @@ function GroupRow({
 export function FulfilmentMap({
   index,
   subject,
-  onOpen,
   defaultExpanded = false,
   narrow = false,
 }: {
   index: ViewerIndex;
   subject: AxisSubject;
-  onOpen?(target: AxisOpenTarget): void;
   defaultExpanded?: boolean;
   /** Stack the row for a narrow inspector; the full map is not offered. */
   narrow?: boolean;
@@ -493,7 +428,6 @@ export function FulfilmentMap({
                     key={`${record.kind}:${record.name}`}
                     record={record}
                     active={record.name === activeRecord}
-                    onOpen={onOpen}
                   />
                 ))
               ) : (
@@ -538,7 +472,6 @@ export function FulfilmentMap({
                     key={relation.name}
                     relation={relation}
                     active={relation.name === activeRelation}
-                    onOpen={onOpen}
                   />
                 ))
               ) : (
@@ -559,7 +492,6 @@ export function FulfilmentMap({
                   group={group}
                   relations={map.relations}
                   active={group.relations.includes(activeRelation ?? "")}
-                  onOpen={onOpen}
                 />
               ))
             ) : (
@@ -572,7 +504,6 @@ export function FulfilmentMap({
                     binding.target === activeRecord ||
                     binding.relations.includes(activeRelation ?? "")
                   }
-                  onOpen={onOpen}
                 />
               ))
             )

@@ -8,16 +8,11 @@ import { ConceptGlyph } from "@/shared/ui/ConceptMark";
 import { ConceptPill } from "@/shared/ui/ConceptPill";
 import { cx } from "@/shared/ui/theme";
 import { DesignMeaning } from "./DesignMeaning";
-import type {
-  ConstitutionModel,
-  ConstitutionNode,
-  ConstitutionTarget,
-} from "./constitution";
+import type { ConstitutionModel, ConstitutionNode } from "./constitution";
 import styles from "./design.module.css";
 
 export interface ConstitutionProps {
   model: ConstitutionModel;
-  onOpen?(target: ConstitutionTarget): void;
 }
 
 const CARD_WIDTH = 440;
@@ -52,7 +47,6 @@ function Box({
   hoverCardId,
   onHover,
   onLeave,
-  onOpen,
 }: {
   node: ConstitutionNode;
   root?: boolean;
@@ -63,11 +57,9 @@ function Box({
   hoverCardId: string;
   onHover(node: ConstitutionNode, element: HTMLElement): void;
   onLeave(): void;
-  onOpen?(target: ConstitutionTarget): void;
 }) {
   const purpose = node.meaning.purpose;
   const body = text ?? purpose ?? "No purpose is stated.";
-  const open = node.open && !node.current ? node.open : undefined;
   return (
     <div
       className={cx(
@@ -111,7 +103,6 @@ function Box({
             concept={pillConcept(node.kind)}
             name={node.name}
             active={node.current}
-            onOpen={open && onOpen ? () => onOpen(open) : undefined}
           />
         )}
         {node.current ? (
@@ -157,7 +148,6 @@ function Branch({
   hoverCardId,
   onHover,
   onLeave,
-  onOpen,
 }: {
   side: "graph" | "relation";
   label: string;
@@ -167,7 +157,6 @@ function Branch({
   hoverCardId: string;
   onHover(node: ConstitutionNode, element: HTMLElement): void;
   onLeave(): void;
-  onOpen?(target: ConstitutionTarget): void;
 }) {
   return (
     <div className={styles.constitutionBranch} data-side={side}>
@@ -182,7 +171,6 @@ function Branch({
                 hoverCardId={hoverCardId}
                 onHover={onHover}
                 onLeave={onLeave}
-                onOpen={onOpen}
               />
             </Fragment>
           ))
@@ -202,7 +190,7 @@ function Branch({
  * graph chain at the bottom. Hovering or focusing a box reveals its full
  * meaning in a portal, because the band clips overflow.
  */
-export function Constitution({ model, onOpen }: ConstitutionProps) {
+export function Constitution({ model }: ConstitutionProps) {
   const [hovered, setHovered] = useState<HoveredBox | null>(null);
   const closeTimer = useRef<number | null>(null);
   const cardRef = useRef<HTMLElement | null>(null);
@@ -316,7 +304,6 @@ export function Constitution({ model, onOpen }: ConstitutionProps) {
           hoverCardId={hoverCardId}
           onHover={openHover}
           onLeave={scheduleClose}
-          onOpen={onOpen}
         />
         <div className={styles.constitutionSeam} aria-hidden>
           <span className={styles.constitutionSeamLine} />
@@ -338,8 +325,7 @@ export function Constitution({ model, onOpen }: ConstitutionProps) {
             hoverCardId={hoverCardId}
             onHover={openHover}
             onLeave={scheduleClose}
-            onOpen={onOpen}
-          />
+            />
         </div>
         <div className={styles.constitutionExchange} aria-hidden>
           <svg viewBox="0 0 82 20" preserveAspectRatio="none">
@@ -358,7 +344,6 @@ export function Constitution({ model, onOpen }: ConstitutionProps) {
           hoverCardId={hoverCardId}
           onHover={openHover}
           onLeave={scheduleClose}
-          onOpen={onOpen}
         />
 
         <div className={styles.constitutionSeam} aria-hidden>
@@ -375,8 +360,7 @@ export function Constitution({ model, onOpen }: ConstitutionProps) {
                 hoverCardId={hoverCardId}
                 onHover={openHover}
                 onLeave={scheduleClose}
-                onOpen={onOpen}
-              />
+                    />
             ) : (
               <p className={styles.constitutionEmpty}>No relation is shown.</p>
             )}
@@ -394,8 +378,7 @@ export function Constitution({ model, onOpen }: ConstitutionProps) {
                       hoverCardId={hoverCardId}
                       onHover={openHover}
                       onLeave={scheduleClose}
-                      onOpen={onOpen}
-                    />
+                                />
                   </div>
                 ))}
               </div>

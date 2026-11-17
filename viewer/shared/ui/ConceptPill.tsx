@@ -1,14 +1,22 @@
 import type { CSSProperties } from "react";
 
-import type { ConceptKind } from "@/lib/concepts";
+import type { ConceptKind, ConceptTarget } from "@/lib/concepts";
 import { ConceptGlyph } from "./ConceptMark";
+import { useConceptNavigation } from "./ConceptNavigation";
 import { concepts } from "./concepts";
 import styles from "./ConceptPill.module.css";
 
 export interface ConceptPillProps {
   concept: ConceptKind;
   name: string;
-  onOpen?(): void;
+  /** The owner when a property, field or binding is not unique by name. */
+  component?: string;
+  /** The property name when the concept is a property. */
+  property?: string;
+  /** The owner's layer, so a field or binding opens the owner's document. */
+  ownerConcept?: ConceptKind;
+  /** The step identity, when a step name is not unique across components. */
+  stepId?: [string, string];
   title?: string;
   active?: boolean;
   className?: string;
@@ -17,24 +25,36 @@ export interface ConceptPillProps {
 
 /**
  * One instance of a layer as an inline pill: the layer's mark, a divider, then
- * the instance name. Use it wherever a document names an instance in prose, a
- * table, a connection row or a card. The pill is a button when it opens the
- * instance's document and a plain span inside a row that already navigates.
+ * the instance name. The pill resolves and opens the instance's document
+ * itself through the workbench navigation; a parent supplies identity, never a
+ * click handler. Outside the workbench it degrades to a label.
  */
 export function ConceptPill({
   concept,
   name,
-  onOpen,
+  component,
+  property,
+  ownerConcept,
+  stepId,
   title,
   active = false,
   className,
   size = "sm",
 }: ConceptPillProps) {
+  const navigation = useConceptNavigation();
   const definition = concepts[concept];
   const style = { "--concept-color": definition.color } as CSSProperties;
   const classes = [styles.pill, size === "md" && styles.md, className]
     .filter(Boolean)
     .join(" ");
+  const target: ConceptTarget = {
+    concept,
+    name,
+    ...(component ? { component } : {}),
+    ...(property ? { property } : {}),
+    ...(ownerConcept ? { ownerConcept } : {}),
+    ...(stepId ? { stepId } : {}),
+  };
   const body = (
     <>
       <ConceptGlyph concept={concept} className={styles.mark} active={active} />
@@ -43,7 +63,7 @@ export function ConceptPill({
     </>
   );
 
-  if (!onOpen) {
+  if (!navigation) {
     return (
       <span
         className={classes}
@@ -66,7 +86,7 @@ export function ConceptPill({
       data-active={active || undefined}
       title={title ?? `Open ${definition.label.toLowerCase()} ${name}`}
       aria-label={`Open ${definition.label.toLowerCase()} ${name}`}
-      onClick={onOpen}
+      onClick={() => navigation.open(target)}
     >
       {body}
     </button>
