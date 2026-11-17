@@ -19,20 +19,25 @@
   grid-template-columns: minmax(0, 132px) minmax(0, 1fr);
 }
 
-.bands {
+/* One horizontal deck: each card fills the height, and the next card peeks
+   past the right edge as the cue for more content. */
+.deck {
   display: flex;
   min-width: 0;
   min-height: 0;
-  flex-direction: column;
+  height: 100%;
+  flex-direction: row;
   gap: var(--space-group);
-  overflow-y: auto;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
   padding: var(--space-section) var(--space-section) var(--space-region);
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
 }
 
-/* The cards keep their natural height; the column scrolls, it does not
-   compress the cards to fit the pane. */
-.bands > * {
-  flex: none;
+.deck::-webkit-scrollbar {
+  display: none;
 }
 
 /* The index is the only detail navigation: the cards themselves do not fold.
@@ -108,11 +113,10 @@
   }
 }
 
+/* The proof subviews group several cards; the wrapper is layout-transparent
+   so the deck sees each card, not the grouping. */
 .levelBody {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: var(--space-group);
+  display: contents;
 }
 
 .workflowGraph {
@@ -1711,11 +1715,26 @@ button.expressionToggle:hover {
  * content, never a floating card, and the index rail navigates between cards.
  */
 
-/* The one card frame. Every section renders through DetailBand, so this is
-   the only place a section card outline, radius or surface is declared. */
+/* The one card frame. Every section renders through DetailBand; the card is
+   borderless, fills the deck height and leaves the next card peeking. */
 .band {
+  display: flex;
   min-width: 0;
-  scroll-margin-top: var(--space-section);
+  min-height: 0;
+  height: 100%;
+  flex: 0 0 calc(100% - var(--space-page) - var(--space-section));
+  flex-direction: column;
+  overflow: hidden;
+  padding: var(--space-section);
+  scroll-snap-align: start;
+}
+
+.bandHead {
+  display: flex;
+  min-width: 0;
+  flex: none;
+  align-items: center;
+  gap: var(--space-stack);
 }
 
 .bandGlyph {
@@ -1733,12 +1752,12 @@ button.expressionToggle:hover {
   line-height: var(--leading-tight);
 }
 
-.bandBody {
-  padding: var(--space-section);
-}
-
+.bandBody,
 .bandBodyFlush {
-  padding: 0;
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding-top: var(--space-group);
 }
 
 .bandNote {

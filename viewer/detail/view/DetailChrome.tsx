@@ -12,7 +12,7 @@ import {
 import type { ConceptKind } from "@/lib/concepts";
 import { ConceptGlyph } from "@/shared/ui/ConceptMark";
 import { TabBanner, type TabBannerFact } from "@/shared/ui/TabBanner";
-import { Panel, PanelHeader } from "@/shared/ui/Primitives";
+import { Panel } from "@/shared/ui/Primitives";
 import { cx } from "@/shared/ui/theme";
 import styles from "../detail.module.css";
 
@@ -101,7 +101,8 @@ function DetailIndex({ sections }: { sections: DetailIndexSection[] }) {
                 ).matches;
                 document.getElementById(section.id)?.scrollIntoView({
                   behavior: reduce ? "auto" : "smooth",
-                  block: "start",
+                  block: "nearest",
+                  inline: "start",
                 });
               }}
             >
@@ -160,7 +161,7 @@ export function DetailDocument({
       />
       <div className={styles.body}>
         <DetailIndex sections={sections} />
-        <div className={styles.bands} ref={bodyRef}>
+        <div className={styles.deck} ref={bodyRef}>
           {children}
         </div>
       </div>
@@ -206,15 +207,16 @@ export function DetailBand({
       id={id}
       className={cx(styles.band, className)}
       aria-label={question ? `${title}: ${question}` : title}
+      data-plain
       data-detail-band
       data-detail-title={title}
       data-detail-concept={mark}
       data-testid={testId}
     >
-      <PanelHeader>
+      <header className={styles.bandHead}>
         <ConceptGlyph concept={mark} className={styles.bandGlyph} />
         <h2 className={styles.bandTitle}>{title}</h2>
-      </PanelHeader>
+      </header>
       <div className={flush ? styles.bandBodyFlush : styles.bandBody}>
         {children}
       </div>

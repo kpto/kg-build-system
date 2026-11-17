@@ -7,6 +7,10 @@
     overflow: hidden;
   }
 
+  .panel[data-plain] {
+    border: 0;
+  }
+
   .panelHeader {
     display: flex;
     min-height: 34px;

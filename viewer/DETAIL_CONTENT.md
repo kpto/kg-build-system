@@ -22,11 +22,11 @@ the index rail is the only navigation between cards.
 | 4 | **Connections** | Which records does this subject touch? | Endpoints of an edge, incident relations of a node, ports of a step. |
 | 5 | **Bindings** | Which binding fulfils this subject? | One row per binding: name, writes, identity, rows read. The binding pill opens the binding document. |
 
-A card header carries the card's concept mark and structural title. The
-question in the reader's language becomes the card's accessible label, not a
-visible line, and the header carries no count: the body owns the items it
-shows. Every card gets a logo; the title-to-concept mapping lives once beside
-`DetailBand`.
+A card header sits inside the card at its top-left: the card's concept mark and
+structural title, never a separate banner bar. The question in the reader's
+language becomes the card's accessible label, not a visible line, and the
+header carries no count: the body owns the items it shows. Every card gets a
+logo; the title-to-concept mapping lives once beside `DetailBand`.
 
 A detail document has a left index rail. It lists every top-level card in
 reading order and scrolls to a card when its row is chosen; it does not follow
@@ -121,14 +121,16 @@ label opens that level's document. The box itself is inspection only.
 
 ## Layout
 
-- A document is a stack of section cards inset 12px from the document edge and
-  separated by 8px. Each card is a shared `Panel` surface with the generic
-  panel radius and hairline outline, no drop shadow. Every card is rendered by
-  the one shared `DetailBand` feature primitive; a detail view does not declare
-  its own card markup or surface.
-- The banner and the left index are static; only the card column scrolls.
-- The section body is 8px above and 10px below its content; a flush body is
-  used for a canvas or a table that owns its own padding.
+- A document is a horizontal deck of borderless section cards. Each card fills
+  the available body height and is narrower than the deck so the next card's
+  edge stays visible as the cue for more content. Cards are separated by the
+  group spacing. Every card is rendered by the one shared `DetailBand` feature
+  primitive; a detail view does not declare its own card markup or surface.
+- The banner and the left index are static. The deck scrolls horizontally; each
+  card body scrolls vertically.
+- The card title sits at the top-left inside the card surface. The card body
+  starts below it with the group gap; a flush body is used for a canvas or a
+  table that owns its own padding.
 - A table shares one `grid-template-columns` between its head and every row.
 - At narrow width the Meaning readings stack into one column, the index rail
   hides, and nothing overflows horizontally.

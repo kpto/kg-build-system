@@ -54,7 +54,7 @@ The first paint states the design, not every annotation.
 
 - **Low detail is the default.** The Graph labels hubs only; edge labels,
   containment, meaning badges and property lists are off. A subject document
-  states its overview in the banner and opens its full card stack; graph claims
+  states its overview in the banner and opens its full card deck; graph claims
   and limitations are revealed on demand in the Explorer section. The Workflow shows the compositor graph; a
   step document reveals complex payload values on demand.
 - **A reveal is explicit.** Every hidden layer has one control that names it.
@@ -64,8 +64,9 @@ The first paint states the design, not every annotation.
 - **No raw JSON in the default surface.** A design reader shows named values,
   not serialised models.
 - **The body states its own extent.** A card header carries no count; the list,
-  table or graph inside the card shows what it holds. A section header is
-  larger and bolder than its content; a caption is a label, not a header.
+  table or graph inside the card shows what it holds. A card header sits inside
+  the card at its top-left, not in a banner bar. A section header is larger and
+  bolder than its content; a caption is a label, not a header.
 
 ## Detail content
 
@@ -271,18 +272,19 @@ control style. The compound primitives — viewport, pill, concept mark and
 context menu — own their own modules.
 
 An item-detail card is not a generic primitive. `DetailBand` is the detail
-feature's one card primitive: it composes `Panel` and `PanelHeader` and adds the
-card title and concept mark. The card question is the section's accessible
-label, not a visible line. Cards are static; the detail body never folds them.
-The card may not re-declare a surface or header; those belong to the generic
-layer.
+feature's one card primitive: it composes the borderless `Panel` surface and
+adds an in-card header at the top-left with the concept mark and title. The
+card question is the section's accessible label, not a visible line. Cards are
+static; the detail body never folds them. A view may not re-declare a card
+surface or header; those belong to `DetailBand`.
 
-A detail body pairs one left index pane with the card stack. The index is a
-static view: it does not scroll with the cards, it centres its tiles in the
-pane and lists the top-level cards in reading order. It does not track the
-scroll position; the tile group carries one side line. The card column owns the
-scroll. The index disappears below the width where a card would lose its
-reading measure.
+A detail body pairs one left index pane with a horizontal deck of borderless
+cards. The index is a static view: it centres its tiles in the pane, lists the
+top-level cards in reading order and does not track the scroll position; the
+tile group carries one side line. Each card fills the deck height, carries its
+title at the top-left and leaves the next card's edge visible. The deck owns
+horizontal scroll; each card body owns vertical scroll. The index disappears
+below the width where a card would lose its reading measure.
 
 ## Interaction motion
 
@@ -297,16 +299,16 @@ reading measure.
 - `prefers-reduced-motion` keeps the state change and removes movement.
 
 - A detail document orders its cards by immediate reader need. Every card is
-  open and static; the index rail carries navigation. The order is per kind,
-  not a global section list.
+  open and static; the index rail carries navigation and the deck reads left to
+  right. The order is per kind, not a global section list.
 
 ## Panels and persistence
 
 - The shell owns side-bar visibility, width and the split between its sections.
   A document never resizes the workbench.
-- Every detail document shares one section rhythm: the body is a column with the
-  same gap between meaning, constitution, members, connections and bindings.
-  A view does not add its own section margins.
+- Every detail document shares one section rhythm: the deck uses the same group
+  gap between cards, and each card body starts a group gap below its title. A
+  view does not add its own section margins.
 - Both side-bar sections start expanded, split 50/50. Each body sits directly
   below its header; the separator between the two open sections is adjustable. The
   tab-strip toggle and `Cmd/Ctrl+B` change side-bar visibility, not purpose.
