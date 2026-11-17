@@ -253,6 +253,8 @@ missing, not the code.
   border, background or radius; the body owns vertical scroll, the deck owns
   horizontal scroll. The index is the only card navigation and does not follow
   the scroll position.
+- A label stays with the group it names; do not push it to a shared baseline
+  with auto spacing when that separates it from its content.
 - Every tab uses one banner for identity, overview and view actions. A detail
   body starts at its first section, not an Overview band.
 - A record detail leads with meaning and then states its constitution, members,
