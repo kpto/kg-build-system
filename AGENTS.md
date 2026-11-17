@@ -247,7 +247,9 @@ missing, not the code.
   beside it. A count appears once, in the region that owns the list.
 - A detail document is a horizontal deck of flat cards. Each card fills the
   body height, states its title above the body at the top-left in the heading
-  role, and leaves the next card peeking as the cue for more. The card has no
+  role, and leaves the next card peeking as the cue for more. The body is set
+  off by the region gap and a page-scale left inset, so proximity groups the
+  title with its mark and the body as the reading region. The card has no
   border, background or radius; the body owns vertical scroll, the deck owns
   horizontal scroll. The index is the only card navigation and does not follow
   the scroll position.
