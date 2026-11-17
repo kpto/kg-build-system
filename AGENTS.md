@@ -161,6 +161,11 @@ missing, not the code.
   per consumer. The separator begins below the fulfilment row; a binding is
   never the parent of either axis, the axes are not a Cartesian plot, and
   fulfilment is neither axis.
+- A DAG scene is laid out by a layered layout, not by fixed columns: the scene
+  supplies nodes, edges and any rank constraint (such as one rank for every
+  fulfilment), the layout computes the ranks, ordering and edge routes, and the
+  renderer draws them. The view keeps only the document anchors, labels and the
+  seam.
 - A repeated item renders its units compactly. A heading is structural, not per
   unit: a table cell or list row does not repeat the section chrome.
 - A card uses one vertical gap between stacked items. A connector sits in that
