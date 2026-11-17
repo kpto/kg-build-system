@@ -17,96 +17,6 @@
     background-color: var(--color-abyss);
   }
 
-  .head {
-    display: flex;
-    height: 25px;
-    flex: none;
-    align-items: center;
-    gap: var(--space-stack);
-    padding: 0 var(--space-stack) 0 var(--space-group);
-    border-bottom: var(--border-hairline) solid var(--color-line-soft);
-    background-color: var(--color-panel-raised);
-  }
-
-  .title {
-    display: inline-flex;
-    min-width: 0;
-    flex: none;
-    align-items: center;
-    gap: var(--space-stack);
-    color: var(--color-text);
-    font-size: var(--text-caption);
-    font-weight: var(--weight-bold);
-    letter-spacing: var(--tracking-wide);
-    text-transform: uppercase;
-  }
-
-  .title svg {
-    flex: none;
-    width: 10px;
-    height: 10px;
-  }
-
-  .titleText {
-    overflow: hidden;
-    max-width: 24vw;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .meta {
-    min-width: 0;
-    overflow: hidden;
-    color: var(--color-faint);
-    font-size: var(--text-caption);
-    font-variant-numeric: tabular-nums;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .headSpacer {
-    min-width: 6px;
-    flex: 1 1 auto;
-  }
-
-  .actions {
-    display: flex;
-    min-width: 0;
-    flex: none;
-    align-items: center;
-    gap: var(--space-hairline);
-  }
-
-  .action {
-    display: inline-flex;
-    height: 19px;
-    align-items: center;
-    gap: var(--space-inline);
-    border: var(--border-hairline) solid transparent;
-    border-radius: var(--radius-sm);
-    background: transparent;
-    padding: 0 var(--space-stack);
-    color: var(--color-muted);
-    font-size: var(--text-caption);
-    white-space: nowrap;
-  }
-
-  .action:hover {
-    background-color: var(--color-panel-soft);
-    color: var(--color-text);
-  }
-
-  .action[data-active="true"] {
-    border-color: var(--color-accent);
-    background-color: var(--color-accent);
-    color: var(--color-on-accent);
-  }
-
-  .action[data-active="true"]:hover {
-    background-color: var(--color-accent-strong);
-    color: var(--color-accent-ink);
-  }
-
   .body {
     position: relative;
     min-height: 0;
@@ -129,8 +39,8 @@
 
   .nav button {
     display: flex;
-    height: 20px;
-    min-width: 20px;
+    height: 26px;
+    min-width: 26px;
     align-items: center;
     justify-content: center;
     border: 0;
@@ -144,8 +54,8 @@
 
   .navOutput {
     display: flex;
-    height: 20px;
-    min-width: 38px;
+    height: 26px;
+    min-width: 42px;
     align-items: center;
     justify-content: center;
     border-right: var(--border-hairline) solid var(--color-line);
@@ -161,7 +71,7 @@
     bottom: 6px;
     z-index: var(--z-overlay);
     display: flex;
-    height: 20px;
+    height: 24px;
     max-width: calc(100% - 150px);
     align-items: center;
     overflow: hidden;
@@ -186,7 +96,7 @@
 
   .chip {
     display: inline-flex;
-    height: 18px;
+    height: 22px;
     max-width: 40vw;
     align-items: center;
     gap: var(--space-inline);

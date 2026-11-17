@@ -74,7 +74,7 @@
   .paletteResult {
     display: flex;
     width: 100%;
-    min-height: 44px;
+    min-height: 56px;
     align-items: center;
     gap: var(--space-section);
     padding: var(--space-stack) var(--space-group);
@@ -150,7 +150,7 @@
 
   .paletteFooter {
     display: flex;
-    height: 30px;
+    height: 36px;
     flex: none;
     align-items: center;
     gap: var(--space-panel);

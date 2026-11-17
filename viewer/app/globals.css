@@ -17,7 +17,7 @@
 
   --color-text: #e6e6e6;
   --color-muted: #b0b0b0;
-  --color-faint: #808080;
+  --color-faint: #a0a0a0;
   --color-ink: #e6e6e6;
   --color-ink-soft: #d2d2d2;
 
@@ -65,14 +65,25 @@
   --color-grid: rgb(255 255 255 / 1.1%);
   --color-glow: rgb(255 255 255 / 2%);
 
-  /* Type roles, not measurements. */
-  --text-micro: 8px;
-  --text-caption: 9px;
-  --text-body: 10px;
-  --text-label: 11px;
-  --text-title: 12px;
-  --text-heading: 14px;
-  --text-display: 18px;
+  /* Type roles, not measurements. 14px is the UI base; 12px is the smallest
+     reading role; 11px is reserved for badges and micro affordances. */
+  --text-root: 12px;
+  --text-micro: 11px;
+  --text-caption: 12px;
+  --text-body: 13px;
+  --text-label: 14px;
+  --text-title: 16px;
+  --text-section: 18px;
+  --text-heading: 22px;
+  --text-display: 26px;
+
+  /* Tailwind's own length names resolve to the same roles. */
+  --text-xs: var(--text-micro);
+  --text-sm: var(--text-caption);
+  --text-base: var(--text-body);
+  --text-lg: var(--text-title);
+  --text-xl: var(--text-heading);
+  --text-2xl: var(--text-display);
 
   --leading-none: 1;
   --leading-tight: 1.2;
@@ -164,7 +175,7 @@
   }
 
   html {
-    font-size: var(--text-title);
+    font-size: var(--text-root);
     background: var(--color-abyss);
     overflow: hidden;
   }
@@ -173,7 +184,9 @@
     margin: 0;
     color: var(--color-text);
     font-family: var(--font-sans);
+    font-size: var(--text-label);
     font-synthesis: none;
+    line-height: var(--leading-normal);
     background-color: var(--color-abyss);
     overscroll-behavior: none;
     text-rendering: optimizeLegibility;

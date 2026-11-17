@@ -1323,7 +1323,7 @@ button.expressionToggle:hover {
 
 .search {
   display: flex;
-  height: 26px;
+  height: 32px;
   flex: none;
   align-items: center;
   gap: var(--space-stack);
@@ -1417,18 +1417,17 @@ button.expressionToggle:hover {
 .sideSectionHead {
   display: flex;
   width: 100%;
-  height: 25px;
+  height: 34px;
   align-items: center;
   gap: var(--space-inline);
   padding: 0 var(--space-group);
   border: 0;
   background: transparent;
-  color: var(--color-muted);
-  font-size: var(--text-caption);
+  color: var(--color-text);
+  font-size: var(--text-title);
   font-weight: var(--weight-bold);
-  letter-spacing: var(--tracking-wide);
+  letter-spacing: var(--tracking-tight);
   text-align: left;
-  text-transform: uppercase;
 }
 
 .sideSectionHead:hover {
@@ -1466,7 +1465,7 @@ button.expressionToggle:hover {
 .sideRow {
   display: flex;
   width: 100%;
-  min-height: 22px;
+  min-height: 28px;
   align-items: center;
   gap: var(--space-stack);
   padding: var(--space-hairline) var(--space-stack) var(--space-hairline) var(--space-panel);
@@ -1532,7 +1531,7 @@ button.expressionToggle:hover {
 
 .treeRow {
   display: flex;
-  min-height: 22px;
+  min-height: 28px;
   align-items: center;
   gap: var(--space-hairline);
   border-radius: var(--radius-sm);
@@ -1549,8 +1548,8 @@ button.expressionToggle:hover {
 
 .treeToggle {
   display: flex;
-  width: 15px;
-  height: 18px;
+  width: 18px;
+  height: 22px;
   flex: none;
   align-items: center;
   justify-content: center;
@@ -1646,7 +1645,7 @@ button.expressionToggle:hover {
 
 .sideFooterLabel {
   color: var(--color-faint);
-  font-size: var(--text-micro);
+  font-size: var(--text-caption);
   font-weight: var(--weight-bold);
   letter-spacing: var(--tracking-wide);
   text-transform: uppercase;
@@ -1656,7 +1655,7 @@ button.expressionToggle:hover {
   overflow: hidden;
   color: var(--color-muted);
   font-family: var(--font-mono);
-  font-size: var(--text-caption);
+  font-size: var(--text-body);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1720,18 +1719,18 @@ button.expressionToggle:hover {
 }
 
 .bandGlyph {
-  width: 11px;
-  height: 11px;
+  width: 15px;
+  height: 15px;
   flex: none;
 }
 
 .bandTitle {
   margin: 0;
   color: var(--color-text);
-  font-size: var(--text-caption);
+  font-size: var(--text-section);
   font-weight: var(--weight-bold);
-  letter-spacing: var(--tracking-widest);
-  text-transform: uppercase;
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-tight);
 }
 
 .bandBody {
@@ -1831,22 +1830,22 @@ button.expressionToggle:hover {
 }
 
 .memberHead {
-  min-height: 20px;
+  min-height: 30px;
   border-bottom: var(--border-hairline) solid var(--color-line);
   color: var(--color-faint);
-  font-size: var(--text-micro);
+  font-size: var(--text-caption);
   font-weight: var(--weight-bold);
-  letter-spacing: var(--tracking-widest);
+  letter-spacing: var(--tracking-wide);
   text-transform: uppercase;
 }
 
 .memberRow {
-  min-height: 22px;
+  min-height: 30px;
   border: 0;
   border-bottom: var(--border-hairline) solid var(--color-line-soft);
   background: transparent;
   color: var(--color-text);
-  font-size: var(--text-body);
+  font-size: var(--text-label);
   text-align: left;
 }
 

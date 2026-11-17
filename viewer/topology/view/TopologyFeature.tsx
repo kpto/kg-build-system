@@ -1520,7 +1520,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
                     x={frame.labelX}
                     y={frame.labelY}
                     fill={theme.faint}
-                    fontSize={8.5}
+                    fontSize="var(--text-micro)"
                     fontFamily="var(--font-sans)"
                     letterSpacing="0.08em"
                     className="select-none"
@@ -1606,7 +1606,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
                       y={midY - 4}
                       textAnchor="middle"
                       fill={selected ? theme.selection : theme.muted}
-                      fontSize={9}
+                      fontSize="var(--text-micro)"
                       fontFamily="var(--font-mono)"
                       stroke={theme.page}
                       strokeWidth={3}
@@ -1777,7 +1777,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
                           y={-radius - 2}
                           textAnchor="end"
                           fill={theme.faint}
-                          fontSize={9}
+                          fontSize="var(--text-micro)"
                           fontFamily="var(--font-mono)"
                           stroke={theme.page}
                           strokeWidth={3}
@@ -1819,7 +1819,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
                                       ? theme.text
                                       : theme.muted
                                 }
-                                fontSize={9}
+                                fontSize="var(--text-caption)"
                                 fontFamily="var(--font-sans)"
                                 letterSpacing="0.02em"
                               >
@@ -1933,12 +1933,12 @@ function SummaryField({
   value: string | number;
 }) {
   return (
-    <div className="flex items-baseline gap-2">
-      <span className="w-20 shrink-0 text-[length:var(--text-sm)] tracking-[0.06em] text-faint uppercase">
+    <div className="grid grid-cols-[minmax(0,max-content)_minmax(0,1fr)] items-baseline gap-3">
+      <span className="whitespace-nowrap text-[length:var(--text-sm)] tracking-[0.06em] text-faint uppercase">
         {label}
       </span>
       <span
-        className="min-w-0 flex-1 truncate font-mono text-[length:var(--text-base)] text-text"
+        className="min-w-0 truncate font-mono text-[length:var(--text-base)] text-text"
         title={String(value)}
       >
         {value}

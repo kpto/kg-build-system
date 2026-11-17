@@ -64,7 +64,8 @@ The first paint states the design, not every annotation.
 - **No raw JSON in the default surface.** A design reader shows named values,
   not serialised models.
 - **The body states its own extent.** A card header carries no count; the list,
-  table or graph inside the card shows what it holds.
+  table or graph inside the card shows what it holds. A section header is
+  larger and bolder than its content; a caption is a label, not a header.
 
 ## Detail content
 
@@ -161,6 +162,30 @@ component because it describes that component's composition, not the system.
 | Layer | `--color-asset`, `--color-source`, `--color-transform`, `--color-binding`, `--color-post`, `--color-target`, `--color-group-*` | data lanes |
 | Concept | `--color-concept-*` | the 13 concept marks and reference pills |
 | Type | `--text-micro` … `--text-display`, `--leading-*`, `--tracking-*`, `--weight-regular/medium/bold` | role, line height, tracking, weight |
+
+### Type roles
+
+The scale is global: a size states a role, not a component.
+
+| Role | Size | Use |
+| --- | --- | --- |
+| `--text-micro` | 11px | badges, pills, keyboard and canvas annotations |
+| `--text-caption` | 12px | metadata, table headers, group labels and kickers |
+| `--text-body` | 13px | dense secondary text and table values |
+| `--text-label` | 14px | default UI, controls, inputs, claims and limitations |
+| `--text-title` | 16px | purpose lead, emphasized values, brand and palette titles |
+| `--text-section` | 18px | card and section headings |
+| `--text-heading` | 22px | banner and page titles |
+| `--text-display` | 26px | gate and empty-document hero |
+
+`--text-root` keeps the rem geometry at 12px; `--text-xs`/`sm`/`base`/`lg`/`xl`
+resolve to the same roles, so a Tailwind length and a component token agree. A
+section header is `--text-section`, bold and sentence case. A side-bar
+navigation header is `--text-title`, also sentence case. An uppercase
+`--text-caption` is a label, not a section header. A component selects a role;
+it does not invent a size. A missing size is a missing role, added here rather
+than at the call site. `--color-faint` is the lightest reading tint and clears 4.5:1 on
+every surface.
 | Space | `--space-hairline`, `--space-inline`, `--space-stack`, `--space-group`, `--space-section`, `--space-panel`, `--space-region`, `--space-page` | gap, padding and margin by role |
 | Shape | `--border-*`, `--radius-*` | hairline and heavy strokes, corner radii |
 | Depth | `--shadow-*` | popover, panel, modal, inset and selection rails |

@@ -698,7 +698,7 @@ export function WorkflowGraphSceneView({
             y={edge.labelY - 4}
             textAnchor="middle"
             fill={highlighted ? theme.selectionStrong : theme.faint}
-            fontSize={9.5}
+            fontSize="var(--text-micro)"
             fontFamily="var(--font-mono)"
             stroke={theme.page}
             strokeWidth={3}
@@ -794,7 +794,9 @@ export function WorkflowGraphSceneView({
                 x={12}
                 y={node.headerHeight - 8}
                 fill={theme.text}
-                fontSize={isComponent ? 11.5 : 9.5}
+                fontSize={
+                  isComponent ? "var(--text-body)" : "var(--text-caption)"
+                }
                 fontWeight={600}
                 fontFamily="var(--font-mono)"
                 pointerEvents="none"
@@ -805,7 +807,9 @@ export function WorkflowGraphSceneView({
                 x={12}
                 y={node.headerHeight + 24}
                 fill={theme.text}
-                fontSize={isComponent ? 10.5 : 8.5}
+                fontSize={
+                  isComponent ? "var(--text-caption)" : "var(--text-micro)"
+                }
                 fontFamily="var(--font-mono)"
                 pointerEvents="none"
               >
@@ -815,7 +819,7 @@ export function WorkflowGraphSceneView({
                 x={12}
                 y={node.headerHeight + 46}
                 fill={theme.faint}
-                fontSize={isComponent ? 9.5 : 8}
+                fontSize="var(--text-micro)"
                 fontFamily="var(--font-mono)"
                 pointerEvents="none"
               >
@@ -826,7 +830,7 @@ export function WorkflowGraphSceneView({
                   x={12}
                   y={node.headerHeight + 68}
                   fill={theme.faint}
-                  fontSize={isComponent ? 9.5 : 8}
+                  fontSize="var(--text-micro)"
                   fontFamily="var(--font-mono)"
                   pointerEvents="none"
                 >

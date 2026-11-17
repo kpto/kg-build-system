@@ -4,7 +4,7 @@
     z-index: var(--z-sticky);
     top: 0;
     display: flex;
-    min-height: 60px;
+    min-height: 72px;
     align-items: center;
     gap: var(--space-section);
     padding: var(--space-group) var(--space-section);
@@ -22,8 +22,8 @@
 
   .mark {
     display: flex;
-    width: 30px;
-    height: 30px;
+    width: 36px;
+    height: 36px;
     flex: none;
     align-items: center;
     justify-content: center;
@@ -39,8 +39,8 @@
   }
 
   .mark > svg {
-    width: 18px;
-    height: 18px;
+    width: 22px;
+    height: 22px;
   }
 
   .titles {

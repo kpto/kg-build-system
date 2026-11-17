@@ -4,7 +4,7 @@
 @layer components {
   .tabbar {
     display: flex;
-    height: 28px;
+    height: 34px;
     flex: none;
     align-items: stretch;
     overflow: hidden;
@@ -23,8 +23,8 @@
 
   .tabnavButton {
     display: inline-flex;
-    width: 22px;
-    height: 22px;
+    width: 26px;
+    height: 26px;
     align-items: center;
     justify-content: center;
     border: 0;
@@ -80,7 +80,7 @@
   .tabLabel {
     display: flex;
     min-width: 0;
-    max-width: 230px;
+    max-width: 260px;
     align-items: center;
     gap: var(--space-stack);
     overflow: hidden;
@@ -113,8 +113,8 @@
 
   .tabClose {
     display: inline-flex;
-    width: 22px;
-    height: 22px;
+    width: 26px;
+    height: 26px;
     align-self: center;
     align-items: center;
     justify-content: center;
