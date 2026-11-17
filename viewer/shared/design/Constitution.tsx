@@ -187,11 +187,10 @@ function Branch({
  * The subject as a constitution: one purpose across the top, the graph and
  * relation axes below it, and the binding as the relation side's fulfilment.
  *
- * The graph chain reads upward to the purpose. On the relation side the
- * fulfilment box sits directly under the purpose, the relation under it, and
- * the relation's provenance branches below the relation. The dashed centre is
- * the axis divide, not a third axis. Hovering or focusing a box reveals its
- * full meaning in a portal, because the band clips overflow.
+ * The graph and relation chains read upward toward the purpose. The fulfilment
+ * box is centred in the gap above both axes; the dashed centre starts below it
+ * and separates the axes without reaching the purpose. Hovering or focusing a
+ * box reveals its full meaning in a portal, because the band clips overflow.
  */
 export function Constitution({
   model,
@@ -316,6 +315,28 @@ export function Constitution({
         />
       </div>
 
+      <div className={styles.constitutionFulfilment}>
+        <Arrow />
+        <Box
+          node={
+            bindingNode ?? {
+              kind: "binding",
+              name: "no binding",
+              label: "Fulfilment",
+              meaning: { claims: [], limitations: [], frames: [] },
+            }
+          }
+          fulfilment
+          hoverable={bindingHoverable}
+          text={bindingText}
+          hovered={hoveredKey === bindingKey}
+          hoverCardId={hoverCardId}
+          onHover={openHover}
+          onLeave={scheduleClose}
+          onOpen={onOpen}
+        />
+      </div>
+
       <div className={styles.constitutionBranches}>
         <Branch
           side="graph"
@@ -336,25 +357,6 @@ export function Constitution({
         <div className={styles.constitutionBranch} data-side="relation">
           <span className={styles.constitutionBranchLabel}>Relation</span>
           <div className={styles.constitutionStack}>
-            <Arrow />
-            <Box
-              node={
-                bindingNode ?? {
-                  kind: "binding",
-                  name: "no binding",
-                  label: "Fulfilment",
-                  meaning: { claims: [], limitations: [], frames: [] },
-                }
-              }
-              fulfilment
-              hoverable={bindingHoverable}
-              text={bindingText}
-              hovered={hoveredKey === bindingKey}
-              hoverCardId={hoverCardId}
-              onHover={openHover}
-              onLeave={scheduleClose}
-              onOpen={onOpen}
-            />
             {primaryRelation ? (
               <>
                 <Arrow />
@@ -367,7 +369,9 @@ export function Constitution({
                   onOpen={onOpen}
                 />
               </>
-            ) : null}
+            ) : (
+              <p className={styles.constitutionEmpty}>No relation is shown.</p>
+            )}
             {childRelations.length ? (
               <div
                 className={styles.constitutionChildren}

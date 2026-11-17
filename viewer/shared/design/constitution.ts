@@ -4,9 +4,9 @@
  *
  * The purpose is the root. The graph branch holds the record-axis purposes
  * that narrow it; the relation branch holds the provenance that supplies it,
- * from the relation down to the asset. The fulfilment box sits between the
- * purpose and the relation tree. A level keeps its own meaning, so the two
- * branches show derivation and supply, never inherited text.
+ * from the relation down to the asset. The fulfilment box is centred in the
+ * gap above both axes. A level keeps its own meaning, so the two branches show
+ * derivation and supply, never inherited text.
  */
 
 import {

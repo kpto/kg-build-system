@@ -400,6 +400,17 @@ button.constitutionName:focus-visible {
   font-style: italic;
 }
 
+.constitutionFulfilment {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.constitutionFulfilment .constitutionBox {
+  width: min(480px, 44%);
+}
+
 .constitutionBranches {
   position: relative;
   display: grid;
@@ -529,6 +540,14 @@ button.constitutionName:focus-visible {
   }
 
   .constitutionSeam {
+    display: none;
+  }
+
+  .constitutionFulfilment .constitutionBox {
+    width: 100%;
+  }
+
+  .constitutionStack > .constitutionArrow:first-child {
     display: none;
   }
 
