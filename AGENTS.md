@@ -160,6 +160,9 @@ missing, not the code.
   are parallel lanes, not a Cartesian plot; fulfilment is neither axis.
 - A repeated item renders its units compactly. A heading is structural, not per
   unit: a table cell or list row does not repeat the section chrome.
+- A card uses one vertical gap between stacked items. A connector that needs
+  more reach extends across the card; it does not enlarge the gap between two
+  items.
 - Present the design before an author workflow: a canonical view carries the
   facts a reader must know immediately, and a detail view shows the same object
   with more evidence rather than starting a separate task.
