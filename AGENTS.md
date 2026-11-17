@@ -154,13 +154,15 @@ missing, not the code.
 - A visualisation opens at the lowest detail that still answers its first
   question; every further layer is revealed by a named control, and raw JSON is
   not a default surface.
-- A subject that carries purpose, fulfilment and provenance is one constitution
-  DAG: purpose and one fulfilment per binding are the top consumers, the graph
-  ancestry and the relation provenance hang below them, every edge points from
-  the supply to the consumer, and a shared declaration is one node with one edge
-  per consumer. The separator begins below the fulfilment row; a binding is
-  never the parent of either axis, the axes are not a Cartesian plot, and
-  fulfilment is neither axis.
+- A constitution is the subject's production account: its own purpose at the
+  top, the declarations that bring it into being below, and every edge from the
+  supply to the consumer. A record adds one fulfilment per binding and its graph
+  ancestry; a source relation shows only its asset; a derived relation only its
+  scanned source relations and their assets; a binding shows the target record's
+  purpose and identity and the relations it reads; an asset is the origin and
+  has no card. A shared declaration is one node with one edge per consumer; a
+  binding is never the parent of either side, fulfilment is neither axis, and
+  the purpose box carries the subject's own concept mark, never the graph mark.
 - A DAG scene is laid out by a layered layout, not by fixed columns: the scene
   supplies nodes, edges and any rank constraint (such as one rank for every
   fulfilment), the layout computes the ranks, ordering and edge routes, and the
