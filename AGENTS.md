@@ -154,12 +154,13 @@ missing, not the code.
 - A visualisation opens at the lowest detail that still answers its first
   question; every further layer is revealed by a named control, and raw JSON is
   not a default surface.
-- A subject that carries purpose, fulfilment and provenance is one constitution,
-  read top to bottom: purpose, then the fulfilment that answers it, then the
-  graph and relation trees side by side. Every arrow points up to the level it
-  supports, and both tree arrows climb to the fulfilment; the separator begins
-  below fulfilment. The axes are not a Cartesian plot; fulfilment is neither
-  axis.
+- A subject that carries purpose, fulfilment and provenance is one constitution:
+  purpose sits at the top left over the graph tree and fulfilment one row lower
+  on the right over the relation tree, linked fulfilment-to-purpose by an elbow.
+  The graph tree climbs to the purpose and the relation tree to the fulfilment;
+  the separator begins below fulfilment and divides the trees. The binding is
+  never the parent of either axis: the axes are not a Cartesian plot, and
+  fulfilment is neither axis.
 - A repeated item renders its units compactly. A heading is structural, not per
   unit: a table cell or list row does not repeat the section chrome.
 - A card uses one vertical gap between stacked items. A connector sits in that
