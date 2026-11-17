@@ -3,7 +3,7 @@
 /**
  * Detail document view: one design subject read in full.
  *
- * Every kind renders the same band order: Overview, Meaning, Fulfilment,
+ * Every kind renders the same band order: Overview, Constitution, Meaning,
  * Sources, Build steps, Expression, Members, Connections and Bindings. A kind
  * includes or omits a band; it never invents a second section grammar. The
  * content contract is `DETAIL_CONTENT.md`.
@@ -95,16 +95,17 @@ import {
   type ProofTrace,
   type ProofTypeChain,
 } from "@/proof/model";
+import { Constitution } from "@/shared/design/Constitution";
 import { DesignMeaning } from "@/shared/design/DesignMeaning";
-import { PurposeChain } from "@/shared/design/PurposeChain";
+import {
+  constitutionModel,
+  type ConstitutionTarget,
+} from "@/shared/design/constitution";
 import {
   attachedMeaning,
   componentMeaning,
   propertyMeaning,
-  purposeLevels,
-  singlePurposeLevel,
   type DesignMeaningValue,
-  type PurposeLevel,
 } from "@/shared/design/meaning";
 import styles from "./detail.module.css";
 import { profileSummary, recordSummary } from "@/lib/summary";
@@ -2135,10 +2136,14 @@ function SubjectDetailEditor(props: WorkspaceProps) {
       (total, frame) => total + (frame.limitations?.length ?? 0),
       0,
     );
-  const chain = purposeLevels(index, model.subject);
-  const purposes: PurposeLevel[] = chain.length
-    ? chain
-    : [singlePurposeLevel(model.level, model.subject.component, meaning)];
+  const constitution = useMemo(
+    () => constitutionModel(index, model.subject),
+    [index, model.subject],
+  );
+  const [axisMapOpen, setAxisMapOpen] = useState(false);
+  useEffect(() => {
+    setAxisMapOpen(false);
+  }, [model.level, model.subject.component, model.subject.property]);
   const provenance = useMemo(
     () => provenanceReferences(index, model),
     [model, index],
@@ -2202,25 +2207,20 @@ function SubjectDetailEditor(props: WorkspaceProps) {
     };
     props.actions.openTab({ selection: selectionFor(), preview: true });
   };
-  const openPurpose = (level: PurposeLevel) => {
-    if (level.current || level.kind === "graph") return;
-    const selection: SubjectSelection | null =
-      level.kind === "abstract"
-        ? {
-            kind: "node",
-            level: "abstract",
-            name: level.name,
-            component: level.name,
-          }
-        : level.kind === "node" || level.kind === "edge"
-          ? {
-              kind: level.kind,
-              level: level.kind,
-              name: level.name,
-              component: level.name,
-            }
-          : null;
-    if (selection) props.actions.openTab({ selection, preview: true });
+  const openConstitution = (target: ConstitutionTarget) => {
+    switch (target.kind) {
+      case "relation":
+        openAxis({ kind: "table", name: target.name });
+        break;
+      case "projection":
+        openAxis({ kind: "projection", name: target.name });
+        break;
+      case "abstract":
+        openAxis({ kind: "node", name: target.name });
+        break;
+      default:
+        openAxis(target);
+    }
   };
   const endpoint = (name?: string): ConceptReference | undefined =>
     name
@@ -2297,22 +2297,33 @@ function SubjectDetailEditor(props: WorkspaceProps) {
         <FactGrid facts={facts} />
       </DetailBand>
   );
-  const purposeSection = (
+  const constitutionSection = (
     <DetailBand
       concept="semantics"
       priority="primary"
-      title="Purpose hierarchy"
-      question="What is each level for?"
-      meta={`${purposes.length} ${
-        purposes.length === 1 ? "level" : "levels"
+      title="Constitution"
+      question="What does this subject assert, and how is it fulfilled?"
+      meta={`${constitution.binding?.count ?? 0} ${
+        (constitution.binding?.count ?? 0) === 1 ? "binding" : "bindings"
       }`}
-      testId="detail-purpose-hierarchy"
+      testId="detail-constitution"
     >
-      <PurposeChain
-        levels={purposes}
-        onOpen={openPurpose}
-        emptyText="Meaning omitted for this subject."
+      <Constitution
+        model={constitution}
+        onOpen={openConstitution}
+        fullMapOpen={axisMapOpen}
+        onToggleFullMap={() => setAxisMapOpen((value) => !value)}
       />
+      {axisMapOpen ? (
+        <div className={styles.constitutionMap}>
+          <FulfilmentMap
+            index={index}
+            subject={constitution.axis ?? axisSubjectFor(model)}
+            onOpen={openAxis}
+            defaultExpanded
+          />
+        </div>
+      ) : null}
     </DetailBand>
   );
   const meaningSection = (
@@ -2336,25 +2347,6 @@ function SubjectDetailEditor(props: WorkspaceProps) {
         emptyText="Meaning omitted for this subject."
       />
     </DetailBand>
-  );
-  const fulfilmentSection = (
-      <DetailBand
-        priority={
-          model.level === "asset" || model.level === "abstract"
-            ? "secondary"
-            : "primary"
-        }
-        title="Fulfilment"
-        question="How do the record and relation axes meet?"
-        meta="two axes"
-        testId="detail-fulfilment"
-      >
-        <FulfilmentMap
-          index={index}
-          subject={axisSubjectFor(model)}
-          onOpen={openAxis}
-        />
-      </DetailBand>
   );
   const assetSourcesSection = (
     <>
@@ -2485,9 +2477,8 @@ function SubjectDetailEditor(props: WorkspaceProps) {
       {model.level === "node" || model.level === "edge" ? (
         <>
           {overviewSection}
-          {purposeSection}
+          {constitutionSection}
           {meaningSection}
-          {fulfilmentSection}
           {kindSection}
           {sourcesSection}
           {buildStepsSection}
@@ -2497,9 +2488,8 @@ function SubjectDetailEditor(props: WorkspaceProps) {
       ) : model.level === "property" ? (
         <>
           {overviewSection}
-          {purposeSection}
+          {constitutionSection}
           {meaningSection}
-          {fulfilmentSection}
           {kindSection}
           {expressionSection}
           {sourcesSection}
@@ -2509,20 +2499,18 @@ function SubjectDetailEditor(props: WorkspaceProps) {
       ) : model.level === "abstract" ? (
         <>
           {overviewSection}
-          {purposeSection}
+          {constitutionSection}
           {meaningSection}
           {kindSection}
-          {fulfilmentSection}
           {bindingsSection}
         </>
       ) : (
         <>
           {overviewSection}
-          {purposeSection}
+          {constitutionSection}
           {meaningSection}
           {assetSourcesSection}
           {kindSection}
-          {fulfilmentSection}
           {sourcesSection}
           {buildStepsSection}
           {expressionSection}

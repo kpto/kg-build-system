@@ -16,15 +16,14 @@ includes by their immediate importance to a reader; it never renames one. A
 | Order | Section | Question it answers | Content |
 | --- | --- | --- | --- |
 | 1 | **Overview** | What is this, in one screen? | One fact grid: kind, labels, identity, owner or endpoints, counts and licence. |
-| 2 | **Purpose hierarchy** | What is each level for? | One confined purpose box per level: graph → category → component → property, labels on the left; the centred purpose boxes taper symmetrically from the widest root to the narrowest current box, with an accent arrow centred over each child box. Each box shows only the purpose, clamped to three lines; a longer purpose hides its remainder. Hovering or focusing a box reveals that level's full meaning; a label navigates to its document. The current level is tinted and marked; the scheme is derivation (a level narrows the one above), not copied text. |
+| 2 | **Constitution** | What does this subject assert, and how is it fulfilled? | One purpose at the root; the graph branch below it, from category to component to property; the relation branch from the binding's relation to the asset; the dashed binding seam between them. Each box shows only its own purpose, clamped to two lines; hovering or focusing it reveals the full meaning, and a box label opens its document. The binding footer states identity and coverage. A grouped branch shows the first item and `+N`; one control expands the full axis map. |
 | 3 | **Meaning** | What is this for, and what does it exclude? | The full meaning of the current subject: purpose, the limitations it owns, then contextless claims; compact counts in the header. |
-| 4 | **Fulfilment** | How do the record and relation axes meet? | The axis map: graph records, the binding, the domain relations. Compact by default; one control reveals the full three-column map. |
-| 5 | **Sources** | Where does this value come from? | Assets, source relations and derived relations, as navigable references with counts. |
-| 6 | **Build steps** | How is this built? | The narrowed workflow graph of the steps that produce the subject. |
-| 7 | **Expression** | Which fields and operations produce the value? | The expression outline, one root per binding or column. |
-| 8 | **Members** | Which units belong to this subject? | One table grammar: name, type, meaning, source, count; a row opens its document when it has one. |
-| 9 | **Connections** | Which records does this subject touch? | Endpoints of an edge, incident relations of a node, ports of a step. |
-| 10 | **Bindings** | Which binding fulfils this subject? | One row per binding: name, writes, identity, rows read. |
+| 4 | **Sources** | Where does this value come from? | Assets, source relations and derived relations, as navigable references with counts. |
+| 5 | **Build steps** | How is this built? | The narrowed workflow graph of the steps that produce the subject. |
+| 6 | **Expression** | Which fields and operations produce the value? | The expression outline, one root per binding or column. |
+| 7 | **Members** | Which units belong to this subject? | One table grammar: name, type, meaning, source, count; a row opens its document when it has one. |
+| 8 | **Connections** | Which records does this subject touch? | Endpoints of an edge, incident relations of a node, ports of a step. |
+| 9 | **Bindings** | Which binding fulfils this subject? | One row per binding: name, writes, identity, rows read. |
 
 A section header carries four things only: the section's concept logo, the
 structural title, the question in the reader's language, and one noun-bearing
@@ -35,13 +34,13 @@ count. Every card gets a logo; the title-to-concept mapping lives once beside
 
 | View kind | Sections | Notes |
 | --- | --- | --- |
-| Node | **Overview**, **Purpose hierarchy**, **Meaning**, **Fulfilment**, **Members**, **Connections**, Sources, Build steps, Expression, Bindings | Members are properties; Connections are incident relations. |
-| Edge | **Overview**, **Purpose hierarchy**, **Meaning**, **Fulfilment**, **Members**, **Connections**, Sources, Build steps, Expression, Bindings | Overview states the endpoints; Connections repeats them with the label. |
-| Property | **Overview**, **Purpose hierarchy**, **Meaning**, **Fulfilment**, **Branches**, **Connections**, **Expression**, Sources, Build steps, Bindings | Branches is the type/presence chain and lane canvas; Connections is its ledger. |
-| Abstract category | **Overview**, **Purpose hierarchy**, **Meaning**, **Members**, Fulfilment | Members are concrete descendants. |
-| Asset | **Overview**, **Purpose hierarchy**, **Meaning**, **Sources**, **Members**, **Fields**, Bindings, Fulfilment | Sources states the release boundary; Members are relations, then fields. |
-| Source relation | **Overview**, **Purpose hierarchy**, **Meaning**, **Members**, **Sources**, **Fulfilment**, Build steps, Bindings, Expression | Columns are the relation; Sources states its asset and scans. The Meaning card is omitted when the declaration states no units; the Purpose hierarchy states the absence explicitly. |
-| Derived relation | **Overview**, **Purpose hierarchy**, **Meaning**, **Expression**, **Members**, **Fulfilment**, Sources, Build steps, Bindings | Expression is the computation; Members are its outputs. |
+| Node | **Overview**, **Constitution**, **Meaning**, **Members**, **Connections**, Sources, Build steps, Expression, Bindings | Members are properties; Connections are incident relations. |
+| Edge | **Overview**, **Constitution**, **Meaning**, **Members**, **Connections**, Sources, Build steps, Expression, Bindings | Overview states the endpoints; Connections repeats them with the label. |
+| Property | **Overview**, **Constitution**, **Meaning**, **Branches**, **Connections**, **Expression**, Sources, Build steps, Bindings | Branches is the type/presence chain and lane canvas; Connections is its ledger. |
+| Abstract category | **Overview**, **Constitution**, **Meaning**, **Members** | Members are concrete descendants. |
+| Asset | **Overview**, **Constitution**, **Meaning**, **Sources**, **Members**, **Fields**, Bindings | Sources states the release boundary; Members are relations, then fields. |
+| Source relation | **Overview**, **Constitution**, **Meaning**, **Members**, **Sources**, Build steps, Bindings, Expression | Columns are the relation; Sources states its asset and scans. The Meaning card is omitted when the declaration states no units; the Constitution root and relation box state the absence explicitly. |
+| Derived relation | **Overview**, **Constitution**, **Meaning**, **Expression**, **Members**, Sources, Build steps, Bindings | Expression is the computation; Members are its outputs. |
 | Step | **Overview**, **Ports**, **Payload**, **Connections**, **Bindings**, Meaning, Sources | A step is build machinery; Meaning and Sources state their absence last. |
 
 Text in bold is primary and opens by default; the remaining cards are secondary
@@ -49,7 +48,7 @@ and start collapsed. The card's `data-priority` attribute records the class.
 
 `field` and `binding` are not document kinds. A field belongs to its owner's
 Members table; a binding belongs to its record's Bindings table and to the
-Fulfilment map.
+Constitution seam.
 
 ## Provenance and lineage are two visualisations
 
@@ -66,23 +65,36 @@ The UI never labels a section "Provenance" or "Lineage". "Provenance" remains
 the model term for the sources traversal; "lineage" remains the model term for
 the derivation. The section titles state the question.
 
-## The fulfilment map
+## The constitution
 
-The map is one renderer. Left is the record axis, right is the relation axis,
-and the centre is the binding that fulfils one with the other.
+The Constitution card reads one subject as two axes under one purpose. It is a
+tree, not a Cartesian plot: the purpose is the root, the graph and relation
+branches descend from it, and each box points up to the level it is accountable
+to.
 
-- **Compact** (default) is one row per fulfilment for a record, and one row per
-  relation above twelve fulfilments. A row reads `record ← binding → relation`.
-- **Full axis map** is three columns: `GRAPH · records`, `FULFILMENT`,
-  `RELATIONS · domain`. Every card states the facts the declaration owns:
-  identity, grain, coverage, and the meaning count or its absence.
-- A card is clickable whenever it has a document.
-- The selected record or relation is highlighted; the map never moves a
-  settled graph node.
+- **Purpose** is the one root: the graph purpose. A record subject walks its
+  record axis below it; a relation or asset subject lists the records it
+  fulfils. A relation's own purpose stays on the relation box and is not
+  promoted into the root, because a relation purpose is a peer of the graph
+  purpose, not a narrowing of it.
+- **Graph** is the record axis: category → component → property, ordered from
+  the broadest level to the current subject. Each box states its own purpose;
+  the current box is tinted and marked.
+- **Relation** is the relation axis: the relation a binding reads, then the
+  asset it reads from. A derived relation places the scanned source relation
+  between itself and the asset. The current declaration is marked when the
+  subject is a relation or asset.
+- **Fulfilment** is the dashed centre seam, not a third axis. It states the
+  binding count, identity and coverage. The graph asserts, the relation
+  supplies, and the binding states their meeting.
+- A branch with many records, relations or assets shows the first item and
+  `+N`, so the card stays compact. **Full axis map** expands the same data into
+  the three-column records / fulfilment / relations view.
 
-The viewer reads a snapshot that predates relation contracts. When the
-snapshot carries no contract or meaning, the map says so; it does not invent a
-purpose, a grain or an identity.
+The card never invents a purpose, a relation or a binding. When a declaration
+states no meaning, the box says so; when no binding meets the two axes, the
+seam says so. Hovering a box reveals its full meaning; clicking a box label
+opens that level's document. The box itself is inspection only.
 
 ## One grammar per concept
 

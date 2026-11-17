@@ -54,7 +54,7 @@ The first paint states the design, not every annotation.
 
 - **Low detail is the default.** The Graph labels hubs only; edge labels,
   containment, meaning badges and property lists are off. A subject document
-  shows its overview, meaning and fulfilment; graph claims and limitations are revealed on
+  shows its overview, constitution and meaning; graph claims and limitations are revealed on
   demand in the Explorer section. The Workflow shows the compositor graph; a
   step document reveals complex payload values on demand.
 - **A reveal is explicit.** Every hidden layer has one control that names it.
@@ -72,30 +72,27 @@ Every item detail view follows one content contract, stated in
 [`DETAIL_CONTENT.md`](./DETAIL_CONTENT.md). The shared order is:
 
 ```text
-Overview → Purpose hierarchy → Meaning → Fulfilment → Sources
-         → Build steps → Expression → Members → Connections → Bindings
+Overview → Constitution → Meaning → Sources → Build steps → Expression
+         → Members → Connections → Bindings
 ```
 
 A kind includes or omits a section; it never renames one for itself.
 
 - **Overview** is one fact grid: kind, labels, identity, owner or endpoints,
   counts and licence.
-- **Purpose hierarchy** is a compact purpose chain. On the record axis it reads
-  the graph purpose downward through category and component to property: the
-  labels sit on the left, and the centred purpose boxes taper 14% per level,
-  each joined by an accent arrow centred over the child box; each box shows only
-  its purpose. The root is marked, the current level is tinted and accented, and
-  the box is constrained so a long purpose clamps and the rest stays hidden.
-  Hovering or focusing a box reveals that level's full meaning — purpose,
-  exclusions and claims — in a portal card, because the band clips its overflow.
-  A label is the navigation target; the box is not a control. The scheme is
-  derivation, not copied text: a level narrows the one above.
+- **Constitution** is the two-axis tree. The purpose is the root; the Graph
+  branch is the record axis, ordered from category to component to property; the
+  Relation branch is the relation axis, ordered from the relation to the asset.
+  The dashed centre is the binding seam, not a third axis. Each box states only
+  its own purpose and clamps; arrows point up to the level it is accountable to.
+  Hovering or focusing a box reveals its full meaning in a portal card; a box
+  label opens that level's document. A grouped branch shows the first item and
+  `+N`; **Full axis map** expands the same data into the three-column records,
+  fulfilment and relations view.
 - **Meaning** is the full meaning of the current subject: purpose, the
   limitations it owns, then contextless claims. It is a separate card from the
-  Purpose hierarchy, so a reader can see the ancestry and the subject's complete
+  Constitution, so a reader can see the two axes and the subject's complete
   meaning in turn.
-- **Fulfilment** is the axis map: graph records, the binding and the domain
-  relations. It is compact by default; one control reveals the full map.
 - **Sources**, **Build steps** and **Expression** are three visualisations of
   one traversal. Sources names the release data; Build steps shows the plan;
   Expression shows the field and operator chain. The UI never uses the labels

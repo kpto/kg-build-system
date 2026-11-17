@@ -2333,3 +2333,9 @@ button.memberRow:focus-visible {
   letter-spacing: 0.07em;
   text-transform: uppercase;
 }
+
+.constitutionMap {
+  margin-top: 10px;
+  border-top: 1px solid var(--color-line-soft);
+  padding-top: 8px;
+}

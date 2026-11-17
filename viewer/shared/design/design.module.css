@@ -163,169 +163,7 @@
   line-height: 1.5;
 }
 
-/* ----------------------------------------------------------- purpose chain */
-
-.purposeChain {
-  min-width: 0;
-}
-
-.purposeLevels {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-}
-
-.purposeLevel {
-  min-width: 0;
-}
-
-.purposeRow,
-.purposeConnectorRow {
-  display: grid;
-  grid-template-columns: 118px minmax(0, 1fr);
-  gap: 12px;
-  min-width: 0;
-  align-items: stretch;
-}
-
-.purposeMeta {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  justify-content: center;
-  gap: 1px;
-}
-
-.purposeKind {
-  color: var(--color-faint);
-  font-family: var(--font-mono);
-  font-size: 8px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-.purposeName {
-  overflow: hidden;
-  color: var(--color-muted);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.purposeTag {
-  color: var(--color-faint);
-  font-family: var(--font-mono);
-  font-size: 8px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-.purposeTag[data-current] {
-  color: var(--color-selection);
-}
-
-.purposeConnectorRow {
-  height: 26px;
-}
-
-.purposeConnectorCell {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  align-items: center;
-  justify-self: center;
-  color: var(--color-selection);
-}
-
-.purposeConnectorLine {
-  width: 1px;
-  flex: 1;
-  background: currentColor;
-  opacity: 0.6;
-}
-
-.purposeBox {
-  display: block;
-  overflow: hidden;
-  min-width: 0;
-  cursor: help;
-  margin-inline: auto;
-  min-height: 46px;
-  max-height: 68px;
-  border: 1px solid var(--color-line-soft);
-  border-left: 2px solid
-    color-mix(in srgb, var(--color-selection) 38%, var(--color-line-strong));
-  border-radius: 3px;
-  background: var(--color-panel-raised);
-  padding: 7px 10px;
-  text-align: left;
-  transition:
-    border-color 120ms ease,
-    background-color 120ms ease;
-}
-
-.purposeBox:hover {
-  border-color: var(--color-line-strong);
-  border-left-color: var(--color-selection);
-  background: color-mix(
-    in srgb,
-    var(--color-selection) 4%,
-    var(--color-panel-raised)
-  );
-}
-
-.purposeBox:focus-visible {
-  outline: 1px solid var(--color-accent);
-  outline-offset: 1px;
-}
-
-.purposeRow[data-current] .purposeBox {
-  border-left-width: 3px;
-  border-left-color: var(--color-selection);
-  background: color-mix(
-    in srgb,
-    var(--color-selection) 7%,
-    var(--color-panel-raised)
-  );
-  box-shadow: 0 0 0 1px var(--color-selection-soft);
-}
-
-.purposeRow[data-current] .purposeName {
-  color: var(--color-text);
-}
-
-.purposeText {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  margin: 0;
-  color: var(--color-text);
-  font-size: 11.5px;
-  line-height: 1.5;
-}
-
-.purposeMissing {
-  color: var(--color-faint);
-  font-style: italic;
-}
-
-.purposeNote {
-  margin: 8px 0 0;
-  color: var(--color-faint);
-  font-size: 8.5px;
-  line-height: 1.4;
-}
-
-.purposeEmpty {
-  margin: 0;
-  color: var(--color-faint);
-  font-size: 10px;
-  line-height: 1.5;
-}
-
-/* -------------------------------------------------------- purpose hover card */
+/* --------------------------------------------------------- meaning hover card */
 
 .purposeHover {
   position: fixed;
@@ -372,21 +210,348 @@
   margin-left: auto;
 }
 
-button.purposeMeta {
+/* ------------------------------------------------------------ constitution */
+
+.constitution {
+  min-width: 0;
+}
+
+.constitutionRoot {
+  display: flex;
+  justify-content: center;
+}
+
+.constitutionBox {
+  display: flex;
+  overflow: hidden;
+  min-width: 0;
+  min-height: 46px;
+  max-height: 84px;
+  flex-direction: column;
+  gap: 3px;
+  border: 1px solid var(--color-line-soft);
+  border-left: 2px solid
+    color-mix(in srgb, var(--color-selection) 38%, var(--color-line-strong));
+  border-radius: 3px;
+  background: var(--color-panel-raised);
+  padding: 7px 10px;
+  cursor: help;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+
+.constitutionBoxRoot {
+  width: min(560px, 72%);
+  min-height: 56px;
+  max-height: 96px;
+  border-left-color: var(--color-selection);
+  background: color-mix(
+    in srgb,
+    var(--color-selection) 5%,
+    var(--color-panel-raised)
+  );
+}
+
+.constitutionBox:hover {
+  border-color: var(--color-line-strong);
+  border-left-color: var(--color-selection);
+}
+
+.constitutionBox:focus-visible {
+  outline: 1px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.constitutionBoxCurrent {
+  border-left-width: 3px;
+  border-left-color: var(--color-selection);
+  background: color-mix(
+    in srgb,
+    var(--color-selection) 8%,
+    var(--color-panel-raised)
+  );
+  box-shadow: 0 0 0 1px var(--color-selection-soft);
+}
+
+.constitutionMeta {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.constitutionKind {
+  flex: none;
+  color: var(--color-faint);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.constitutionName {
+  overflow: hidden;
+  min-width: 0;
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+button.constitutionName {
   border: 0;
   background: transparent;
   padding: 0;
   text-align: left;
-  font: inherit;
   cursor: pointer;
 }
 
-button.purposeMeta:hover .purposeName {
+button.constitutionName:hover {
   color: var(--color-text);
   text-decoration: underline;
 }
 
-button.purposeMeta:focus-visible {
+button.constitutionName:focus-visible {
   outline: 1px solid var(--color-accent);
   outline-offset: 2px;
+}
+
+.constitutionTag {
+  flex: none;
+  margin-left: auto;
+  color: var(--color-faint);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.constitutionTag[data-current] {
+  color: var(--color-selection);
+}
+
+.constitutionBoxCurrent .constitutionName {
+  color: var(--color-text);
+}
+
+.constitutionText {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  margin: 0;
+  color: var(--color-text);
+  font-size: 10.5px;
+  line-height: 1.45;
+}
+
+.constitutionBoxRoot .constitutionText {
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.constitutionMissing {
+  color: var(--color-faint);
+  font-style: italic;
+}
+
+.constitutionBranches {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 46px minmax(0, 1fr);
+  column-gap: 18px;
+  padding-top: 30px;
+}
+
+.constitutionBranches::before,
+.constitutionBranches::after {
+  position: absolute;
+  top: 0;
+  height: 30px;
+  border-top: 1px solid var(--color-line-strong);
+  content: "";
+  opacity: 0.8;
+  pointer-events: none;
+}
+
+.constitutionBranches::before {
+  left: calc(25% - 20px);
+  width: calc(25% + 20px);
+  border-left: 1px solid var(--color-line-strong);
+  border-top-left-radius: 12px;
+}
+
+.constitutionBranches::after {
+  left: 50%;
+  width: calc(25% + 20px);
+  border-right: 1px solid var(--color-line-strong);
+  border-top-right-radius: 12px;
+}
+
+.constitutionBranch {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.constitutionBranchLabel {
+  position: absolute;
+  top: 1px;
+  color: var(--color-faint);
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.constitutionBranch[data-side="graph"] .constitutionBranchLabel {
+  left: 0;
+}
+
+.constitutionBranch[data-side="relation"] .constitutionBranchLabel {
+  right: 0;
+}
+
+.constitutionStack {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.constitutionArrow {
+  display: flex;
+  height: 20px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  color: var(--color-selection);
+}
+
+.constitutionArrow::before {
+  width: 1px;
+  flex: 1;
+  background: currentColor;
+  content: "";
+  opacity: 0.45;
+}
+
+.constitutionArrow svg {
+  flex: none;
+  margin-top: -1px;
+}
+
+.constitutionEmpty {
+  margin: 0;
+  color: var(--color-faint);
+  font-size: 9.5px;
+  line-height: 1.4;
+}
+
+.constitutionSeam {
+  display: flex;
+  justify-content: center;
+}
+
+.constitutionSeamLine {
+  width: 0;
+  border-left: 1px dashed var(--color-line-strong);
+  opacity: 0.7;
+}
+
+.constitutionBinding {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px 10px;
+  margin-top: 10px;
+  border-top: 1px solid var(--color-line-soft);
+  padding-top: 8px;
+}
+
+.constitutionBindingLabel {
+  color: var(--color-selection);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.constitutionBindingText {
+  color: var(--color-muted);
+  font-size: 9.5px;
+}
+
+.constitutionBinding[data-empty] .constitutionBindingText {
+  color: var(--color-faint);
+  font-style: italic;
+}
+
+.constitutionMapToggle {
+  border: 1px solid var(--color-line-soft);
+  border-radius: 2px;
+  background: transparent;
+  padding: 2px 6px;
+  color: var(--color-selection);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.constitutionMapToggle:hover {
+  border-color: var(--color-line-strong);
+}
+
+.constitutionMapToggle:focus-visible {
+  outline: 1px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.constitutionBindingPurpose {
+  margin: 4px 0 0;
+  color: var(--color-faint);
+  font-size: 9px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.constitutionNote {
+  margin: 6px 0 0;
+  color: var(--color-faint);
+  font-size: 8.5px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  .constitutionBranches {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 12px;
+    padding-top: 22px;
+  }
+
+  .constitutionBranches::before,
+  .constitutionBranches::after,
+  .constitutionSeam {
+    display: none;
+  }
+
+  .constitutionBranchLabel {
+    position: static;
+    align-self: flex-start;
+    margin-bottom: 2px;
+  }
+
+  .constitutionStack > .constitutionArrow:first-child {
+    display: none;
+  }
+
+  .constitutionBoxRoot {
+    width: 100%;
+  }
 }

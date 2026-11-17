@@ -96,7 +96,7 @@ function meaningCount(
   );
 }
 
-function relationModel(
+export function axisRelationFor(
   index: ViewerIndex,
   name: string,
 ): AxisRelation | undefined {
@@ -105,6 +105,13 @@ function relationModel(
   const derived = index.projectionByName.get(name);
   if (derived) return derivedRelationModel(index, derived);
   return undefined;
+}
+
+function relationModel(
+  index: ViewerIndex,
+  name: string,
+): AxisRelation | undefined {
+  return axisRelationFor(index, name);
 }
 
 function sourceRelationModel(

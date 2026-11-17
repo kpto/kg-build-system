@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { expressionPreview, logicalTypeName, operationName } from "@/lib/expressions";
 import {
@@ -16,9 +16,13 @@ import type {
 } from "@/lib/types";
 import { effectiveLicense } from "@/proof/license";
 import type { ProvenanceReferences } from "@/proof/references";
+import { Constitution } from "@/shared/design/Constitution";
 import { DesignMeaning } from "@/shared/design/DesignMeaning";
-import { PurposeChain } from "@/shared/design/PurposeChain";
-import { attachedMeaning, singlePurposeLevel } from "@/shared/design/meaning";
+import {
+  constitutionModel,
+  type ConstitutionTarget,
+} from "@/shared/design/constitution";
+import { attachedMeaning } from "@/shared/design/meaning";
 import { ConceptGlyph } from "@/shared/ui/ConceptMark";
 import { ConceptReferenceChip } from "@/shared/ui/ConceptReference";
 import { activeDocument, documentSelection, type WorkspaceProps } from "@/workbench/types";
@@ -296,6 +300,14 @@ export function DataItemEditor(props: WorkspaceProps) {
     }));
 
   const meaning = attachedMeaning(model.semantics);
+  const constitution = useMemo(
+    () => constitutionModel(index, { level: kind, component: model.name }),
+    [index, kind, model.name],
+  );
+  const [axisMapOpen, setAxisMapOpen] = useState(false);
+  useEffect(() => {
+    setAxisMapOpen(false);
+  }, [kind, model.name]);
   const overviewSection = (
       <DetailBand
         concept={concept}
@@ -317,27 +329,50 @@ export function DataItemEditor(props: WorkspaceProps) {
       (total, frame) => total + (frame.limitations?.length ?? 0),
       0,
     );
-  const purposeSection = (
-      <DetailBand
-        concept="semantics"
-        priority="primary"
-        title="Purpose hierarchy"
-        question="What is this relation for?"
-        meta="1 level"
-        testId="detail-purpose-hierarchy"
-      >
-        <PurposeChain
-          levels={[
-            singlePurposeLevel(
-              kind === "relation" ? "relation" : "projection",
-              model.name,
-              meaning,
-            ),
-          ]}
-          emptyText="Meaning omitted for this declaration."
-        />
-      </DetailBand>
-
+  const constitutionSection = (
+    <DetailBand
+      concept="semantics"
+      priority="primary"
+      title="Constitution"
+      question="What does this declaration assert, and how is it fulfilled?"
+      meta={`${constitution.binding?.count ?? 0} ${
+        (constitution.binding?.count ?? 0) === 1 ? "binding" : "bindings"
+      }`}
+      testId="detail-constitution"
+    >
+      <Constitution
+        model={constitution}
+        onOpen={(target: ConstitutionTarget) => {
+          switch (target.kind) {
+            case "relation":
+              openAxis({ kind: "table", name: target.name });
+              break;
+            case "projection":
+              openAxis({ kind: "projection", name: target.name });
+              break;
+            case "abstract":
+              openAxis({ kind: "node", name: target.name });
+              break;
+            default:
+              openAxis(target);
+          }
+        }}
+        fullMapOpen={axisMapOpen}
+        onToggleFullMap={() => setAxisMapOpen((value) => !value)}
+      />
+      {axisMapOpen ? (
+        <div className={styles.constitutionMap}>
+          <FulfilmentMap
+            index={index}
+            subject={
+              constitution.axis ?? { kind, component: model.name }
+            }
+            onOpen={openAxis}
+            defaultExpanded
+          />
+        </div>
+      ) : null}
+    </DetailBand>
   );
   const hasMeaning =
     Boolean(meaning.purpose) ||
@@ -364,22 +399,6 @@ export function DataItemEditor(props: WorkspaceProps) {
       </DetailBand>
 
   ) : null;
-  const fulfilmentSection = (
-      <DetailBand
-        priority="primary"
-        title="Fulfilment"
-        question="Which record does this relation fulfil?"
-        meta={`${bindings.length} ${bindings.length === 1 ? "binding" : "bindings"}`}
-        testId="detail-fulfilment"
-      >
-        <FulfilmentMap
-          index={index}
-          subject={{ kind, component: model.name }}
-          onOpen={openAxis}
-        />
-      </DetailBand>
-
-  );
   const sourcesSection = (
       <DetailBand
         concept="graph"
@@ -596,11 +615,10 @@ export function DataItemEditor(props: WorkspaceProps) {
       {kind === "relation" ? (
         <>
           {overviewSection}
-          {purposeSection}
+          {constitutionSection}
           {meaningSection}
           {membersSection}
           {sourcesSection}
-          {fulfilmentSection}
           {buildStepsSection}
           {bindingsSection}
           {expressionSection}
@@ -608,11 +626,10 @@ export function DataItemEditor(props: WorkspaceProps) {
       ) : (
         <>
           {overviewSection}
-          {purposeSection}
+          {constitutionSection}
           {meaningSection}
           {expressionSection}
           {membersSection}
-          {fulfilmentSection}
           {sourcesSection}
           {buildStepsSection}
           {bindingsSection}
