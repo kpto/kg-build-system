@@ -94,7 +94,9 @@ A kind includes or omits a section; it never renames one for itself.
   hangs below the purpose and the relation provenance below the bindings.
   Every edge points from the supply to the consumer; a source relation or asset
   shared by several consumers is one node with one edge per consumer, never a
-  copy or a count. The fulfilment answers the purpose and the relation roots
+  copy or a count. The relation provenance is laid out as a layered DAG with
+  the bindings on one rank; the scene supplies nodes, edges and that rank
+  constraint, and the layout computes ranks, ordering and edge routes. The fulfilment answers the purpose and the relation roots
   supply the fulfilment; the separator begins below fulfilment and divides the
   subgraphs. The binding is never the parent of either axis, and fulfilment is
   neither axis. A grouped record keeps the first record and `+N`; the relation

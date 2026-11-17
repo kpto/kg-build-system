@@ -1,14 +1,16 @@
 /**
  * The constitution as one directed acyclic graph.
  *
- * Purpose and the binding nodes are the two top consumers; the record ancestry
- * hangs below the purpose and the relation provenance below the bindings. A
- * declaration is one node: a source relation or an asset shared by several
- * consumers appears once and carries one edge per consumer, and each binding is
- * its own fulfilment node. Every edge points from the supply to the consumer
- * (asset → source relation → derived relation → binding → purpose; the graph
- * ancestry → the purpose).
+ * Purpose and one binding node per fulfilment are the top consumers; the record
+ * ancestry hangs below the purpose and the relation provenance below the
+ * bindings. The relation provenance is laid out by dagre as a layered DAG, so
+ * ranks, ordering and edge routes are computed rather than hand-placed. A
+ * declaration is one node: a source relation or asset shared by several
+ * consumers appears once and carries one edge per consumer. Every edge points
+ * from the supply to the consumer.
  */
+
+import { graphlib, layout } from "@dagrejs/dagre";
 
 import type {
   ConstitutionBinding,
@@ -67,16 +69,16 @@ const NODE = {
 } as const;
 
 const COLUMN_GAP = 60;
-const BINDING_GAP_X = 24;
 const BINDING_Y = 120;
 const STACK_GAP = 56;
-const LEVEL_COLUMNS = 2;
-const LEVEL_GAP_X = 24;
-const LEVEL_GAP_Y = 24;
 const LABEL_GAP = 24;
 const LABEL_HEIGHT = 16;
 const EDGE_BEND = 48;
-const EDGE_INSET = 16;
+
+/** dagre's layered engine: top-to-bottom edges read bottom-to-top. */
+const RANKDIR = "BT";
+const NODE_SEP = 24;
+const RANK_SEP = 48;
 
 export function sceneNodeId(node: ConstitutionNode): string {
   return `${node.kind}:${node.name}`;
@@ -99,6 +101,20 @@ function bindingPath(
   return `M ${fromX} ${fromY} C ${fromX} ${fromY - bend} ${
     toX + bend
   } ${toY} ${toX} ${toY}`;
+}
+
+/** dagre edge points are already routed; keep them as one polyline. */
+function routedPath(
+  points: ReadonlyArray<{ x: number; y: number }>,
+  dx: number,
+  dy: number,
+): string {
+  return points
+    .map(
+      (point, index) =>
+        `${index === 0 ? "M" : "L"} ${point.x + dx} ${point.y + dy}`,
+    )
+    .join(" ");
 }
 
 interface RelationProvenance {
@@ -132,35 +148,30 @@ function relationProvenance(
   return { nodes, roots, down };
 }
 
-/** A shared node sits below every consumer, so every edge points one way. */
-function provenanceLevels({
-  nodes,
-  roots,
-  down,
-}: RelationProvenance): Map<number, string[]> {
-  const level = new Map<string, number>();
-  roots.forEach((id) => level.set(id, 0));
-  let changed = true;
-  for (let pass = 0; pass <= nodes.size && changed; pass += 1) {
-    changed = false;
-    for (const edge of down) {
-      const parentLevel = level.get(edge.parent);
-      if (parentLevel === undefined) continue;
-      const childLevel = level.get(edge.child);
-      if (childLevel === undefined || childLevel < parentLevel + 1) {
-        level.set(edge.child, parentLevel + 1);
-        changed = true;
-      }
-    }
-  }
-  const levels = new Map<number, string[]>();
-  for (const id of nodes.keys()) {
-    const value = level.get(id) ?? 0;
-    const ids = levels.get(value) ?? [];
-    ids.push(id);
-    levels.set(value, ids);
-  }
-  return levels;
+/** The longest path from a relation down to its asset; the asset is 0. */
+function provenanceDepth(
+  down: Array<{ parent: string; child: string }>,
+): (id: string) => number {
+  const children = new Map<string, string[]>();
+  down.forEach((edge) => {
+    const list = children.get(edge.parent) ?? [];
+    list.push(edge.child);
+    children.set(edge.parent, list);
+  });
+  const cache = new Map<string, number>();
+  const depth = (id: string, path = new Set<string>()): number => {
+    const cached = cache.get(id);
+    if (cached !== undefined) return cached;
+    if (path.has(id)) return 0;
+    const next = new Set(path).add(id);
+    const kids = children.get(id) ?? [];
+    const value = kids.length
+      ? 1 + Math.max(...kids.map((child) => depth(child, next)))
+      : 0;
+    cache.set(id, value);
+    return value;
+  };
+  return depth;
 }
 
 function bindingNode(binding: ConstitutionBinding): ConstitutionSceneNode {
@@ -182,9 +193,41 @@ function bindingNode(binding: ConstitutionBinding): ConstitutionSceneNode {
         (binding.meaning.frames?.length ?? 0),
     ),
     x: 0,
-    y: BINDING_Y,
+    y: 0,
     ...NODE.binding,
   };
+}
+
+function relationNode(node: ConstitutionNode): ConstitutionSceneNode {
+  return {
+    id: sceneNodeId(node),
+    axis: "relation",
+    node,
+    x: 0,
+    y: 0,
+    ...NODE.relation,
+  };
+}
+
+/** A relation the bindings read supplies the binding that reads it. */
+function bindingRelationEdges(
+  model: ConstitutionModel,
+  rootByName: Map<string, string>,
+): Array<{ source: string; target: string }> {
+  const edges: Array<{ source: string; target: string }> = [];
+  const seen = new Set<string>();
+  model.bindings.forEach((binding) => {
+    for (const name of binding.relations) {
+      const rootId = rootByName.get(name);
+      if (!rootId) continue;
+      const target = `binding:${binding.index}`;
+      const key = `${rootId}->${target}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      edges.push({ source: rootId, target });
+    }
+  });
+  return edges;
 }
 
 export function buildConstitutionScene(
@@ -210,35 +253,8 @@ export function buildConstitutionScene(
     y: 0,
     ...NODE.purpose,
   };
-  const bindingX = NODE.purpose.width + COLUMN_GAP;
-  const bindingRowWidth = model.bindings.length
-    ? model.bindings.length * NODE.binding.width +
-      (model.bindings.length - 1) * BINDING_GAP_X
-    : NODE.purpose.width;
-  const bindingNodes = model.bindings.map((binding, index) => {
-    const node = bindingNode(binding);
-    node.x = bindingX + index * (NODE.binding.width + BINDING_GAP_X);
-    return node;
-  });
-  nodes.push(purpose, ...bindingNodes);
-  bindingNodes.forEach((node) => {
-    addEdge(
-      node.id,
-      purpose.id,
-      bindingPath(
-        node.x + node.width / 2,
-        node.y,
-        purpose.x + purpose.width,
-        purpose.y + purpose.height / 2,
-      ),
-    );
-  });
-  const bindingsBottom = bindingNodes.length
-    ? BINDING_Y + NODE.binding.height
-    : purpose.y + purpose.height;
 
-  // The record ancestry, read from the immediate parent down to the graph
-  // purpose; each node supplies the one above it.
+  // The record ancestry is a chain under the purpose; it is placed directly.
   const graphNodes: ConstitutionSceneNode[] = model.graph.map((node, index) => ({
     id: sceneNodeId(node),
     axis: "graph",
@@ -247,7 +263,6 @@ export function buildConstitutionScene(
     y: NODE.purpose.height + STACK_GAP + index * (NODE.graph.height + STACK_GAP),
     ...NODE.graph,
   }));
-  nodes.push(...graphNodes);
   graphNodes.forEach((node, index) => {
     const target = index === 0 ? purpose : graphNodes[index - 1];
     addEdge(
@@ -265,122 +280,119 @@ export function buildConstitutionScene(
     ? graphNodes[graphNodes.length - 1].y + NODE.graph.height
     : purpose.y + purpose.height;
 
-  // The relation provenance: every relation a binding reads, all scanned
-  // relations and all assets, deduped and layered below the bindings.
+  // The relation provenance plus the bindings form one DAG for dagre.
   const provenance = relationProvenance(model.relation);
-  const levels = provenanceLevels(provenance);
-  const levelIds = [...levels.keys()].sort((left, right) => left - right);
-  const rows = levelIds.map((level) => {
-    const ids = [...(levels.get(level) ?? [])].sort((left, right) =>
-      left.localeCompare(right),
-    );
-    const columns = Math.min(ids.length, LEVEL_COLUMNS);
-    const lineCount = Math.ceil(ids.length / LEVEL_COLUMNS);
-    return {
-      ids,
-      width:
-        columns * NODE.relation.width + Math.max(0, columns - 1) * LEVEL_GAP_X,
-      height:
-        lineCount * NODE.relation.height +
-        Math.max(0, lineCount - 1) * LEVEL_GAP_Y,
-    };
-  });
-  const regionX = bindingX;
-  const regionWidth = Math.max(
-    bindingRowWidth,
-    ...rows.map((row) => row.width),
-  );
-  const relationTop = bindingsBottom + STACK_GAP;
-  const relationNodes: ConstitutionSceneNode[] = [];
-  let cursorY = relationTop;
-  for (const row of rows) {
-    const startX = regionX + (regionWidth - row.width) / 2;
-    row.ids.forEach((id, index) => {
-      const node = provenance.nodes.get(id);
-      if (!node) return;
-      const column = index % LEVEL_COLUMNS;
-      const line = Math.floor(index / LEVEL_COLUMNS);
-      relationNodes.push({
-        id,
-        axis: "relation",
-        node,
-        x: startX + column * (NODE.relation.width + LEVEL_GAP_X),
-        y: cursorY + line * (NODE.relation.height + LEVEL_GAP_Y),
-        ...NODE.relation,
-      });
-    });
-    cursorY += row.height + STACK_GAP;
-  }
-  nodes.push(...relationNodes);
-  const relationBottom = rows.length ? cursorY - STACK_GAP : relationTop;
-
-  const position = new Map(nodes.map((node) => [node.id, node]));
+  const bindings = model.bindings.map(bindingNode);
+  const relations = [...provenance.nodes.values()].map(relationNode);
+  const dagreNodes = [...bindings, ...relations];
   const rootByName = new Map<string, string>();
   provenance.roots.forEach((id) => {
-    const node = position.get(id);
-    if (node) rootByName.set(node.node.name, id);
+    const node = provenance.nodes.get(id);
+    if (node) rootByName.set(node.name, id);
   });
-  const bindingIdsByRelation = new Map<string, string[]>();
-  model.bindings.forEach((binding) => {
-    for (const name of binding.relations) {
-      const ids = bindingIdsByRelation.get(name) ?? [];
-      ids.push(`binding:${binding.index}`);
-      bindingIdsByRelation.set(name, ids);
-    }
+  const dagreEdges = [
+    ...bindingRelationEdges(model, rootByName),
+    ...provenance.down.map((edge) => ({
+      source: edge.child,
+      target: edge.parent,
+    })),
+  ];
+  const depthOf = provenanceDepth(provenance.down);
+  // Every binding answers the same purpose, so it belongs to the same rank.
+  // A binding on a shallow source relation gets a longer edge to reach the
+  // deepest binding rank instead of floating a row above its peers.
+  const maxDepth = provenance.roots.length
+    ? Math.max(...provenance.roots.map((id) => depthOf(id)))
+    : 0;
+  const minlenFor = (edge: { source: string; target: string }) =>
+    edge.target.startsWith("binding:")
+      ? Math.max(1, maxDepth + 1 - depthOf(edge.source))
+      : 1;
+
+  const graph = new graphlib.Graph();
+  graph.setGraph({ rankdir: RANKDIR, nodesep: NODE_SEP, ranksep: RANK_SEP });
+  graph.setDefaultEdgeLabel(() => ({}));
+  dagreNodes.forEach((node) =>
+    graph.setNode(node.id, { width: node.width, height: node.height }),
+  );
+  dagreEdges.forEach((edge) =>
+    graph.setEdge(edge.source, edge.target, { minlen: minlenFor(edge) }),
+  );
+  layout(graph);
+
+  const measured = dagreNodes.map((node) => {
+    const placed = graph.node(node.id);
+    return {
+      node,
+      left: placed.x - node.width / 2,
+      top: placed.y - node.height / 2,
+      right: placed.x + node.width / 2,
+      bottom: placed.y + node.height / 2,
+    };
   });
-  // Every relation the bindings read supplies each binding that reads it.
-  for (const [name, bindingIds] of bindingIdsByRelation) {
-    const rootId = rootByName.get(name);
-    const root = rootId ? position.get(rootId) : undefined;
-    if (!root) continue;
-    for (const bindingId of bindingIds) {
-      const binding = position.get(bindingId);
-      if (!binding) continue;
-      const targetX = Math.min(
-        Math.max(root.x + root.width / 2, binding.x + EDGE_INSET),
-        binding.x + binding.width - EDGE_INSET,
-      );
+  const hasDagre = measured.length > 0;
+  const minX = hasDagre ? Math.min(...measured.map((entry) => entry.left)) : 0;
+  const minY = hasDagre ? Math.min(...measured.map((entry) => entry.top)) : 0;
+  const maxX = hasDagre ? Math.max(...measured.map((entry) => entry.right)) : 0;
+  const maxY = hasDagre ? Math.max(...measured.map((entry) => entry.bottom)) : 0;
+  const regionX = NODE.purpose.width + COLUMN_GAP;
+  // Anchor the binding rank at the same row as the drawing: one row below the
+  // purpose. The rest of the DAG keeps dagre's ranks below it.
+  const dx = regionX - minX;
+  const dy = BINDING_Y - minY;
+
+  const positioned = measured.map((entry) => ({
+    ...entry.node,
+    x: entry.left + dx,
+    y: entry.top + dy,
+  }));
+  nodes.push(purpose, ...positioned, ...graphNodes);
+
+  // dagre routes every relation edge; the renderer keeps the computed path.
+  dagreEdges.forEach((edge) => {
+    const routed = graph.edge(edge.source, edge.target);
+    if (!routed?.points?.length) return;
+    addEdge(
+      edge.source,
+      edge.target,
+      routedPath(routed.points, dx, dy),
+    );
+  });
+  // Each binding answers the purpose.
+  positioned
+    .filter((node) => node.axis === "fulfilment")
+    .forEach((node) => {
       addEdge(
-        root.id,
-        binding.id,
-        verticalPath(
-          root.x + root.width / 2,
-          root.y,
-          targetX,
-          binding.y + binding.height,
+        node.id,
+        purpose.id,
+        bindingPath(
+          node.x + node.width / 2,
+          node.y,
+          purpose.x + purpose.width,
+          purpose.y + purpose.height / 2,
         ),
       );
-    }
-  }
-  // A scanned relation or an asset supplies its consumer above it.
-  for (const edge of provenance.down) {
-    const child = position.get(edge.child);
-    const parent = position.get(edge.parent);
-    if (!child || !parent) continue;
-    addEdge(
-      child.id,
-      parent.id,
-      verticalPath(
-        child.x + child.width / 2,
-        child.y,
-        parent.x + parent.width / 2,
-        parent.y + parent.height,
-      ),
-    );
-  }
+    });
+
+  const bindingsBottom = bindings.length
+    ? BINDING_Y + NODE.binding.height
+    : purpose.y + purpose.height;
+  const relationBottom = hasDagre ? maxY + dy : bindingsBottom;
+  const regionCentre = regionX + (maxX - minX) / 2;
 
   if (!model.bindings.length) {
     notes.push({
       text: "No binding meets these two axes.",
-      x: regionX + regionWidth / 2,
-      y: BINDING_Y + 20,
+      x: regionCentre,
+      y: BINDING_Y - 8,
     });
   }
+  const relationLabelY = relationBottom + LABEL_GAP;
   if (!provenance.roots.length) {
     notes.push({
       text: "No relation is shown.",
-      x: regionX + regionWidth / 2,
-      y: relationTop + 20,
+      x: regionCentre,
+      y: relationLabelY + 20,
     });
   }
 
@@ -391,20 +403,23 @@ export function buildConstitutionScene(
   });
   labels.push({
     text: "RELATION",
-    x: regionX + regionWidth / 2,
-    y: relationBottom + LABEL_GAP,
+    x: regionCentre,
+    y: relationLabelY,
   });
 
-  const seamX = (purpose.width + bindingX) / 2;
+  const seamX = (purpose.width + regionX) / 2;
   const seamY1 = bindingsBottom;
-  const seamY2 = Math.max(graphBottom, relationBottom) + LABEL_GAP + 8;
+  const seamY2 =
+    Math.max(graphBottom, relationBottom) +
+    LABEL_GAP +
+    (provenance.roots.length ? 8 : 40);
   const height =
     Math.max(
       bindingsBottom,
       graphBottom + LABEL_GAP + LABEL_HEIGHT,
-      relationBottom + LABEL_GAP + LABEL_HEIGHT,
+      relationLabelY + (provenance.roots.length ? 0 : LABEL_HEIGHT + 8),
     ) + LABEL_GAP;
-  const width = Math.max(purpose.width, regionX + regionWidth);
+  const width = Math.max(purpose.width, regionX + (maxX - minX));
 
   return {
     nodes,

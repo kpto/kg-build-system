@@ -82,8 +82,9 @@ the purpose and one fulfilment per binding are the top consumers, the graph
 ancestry hangs below the purpose and the relation provenance below the
 bindings, and every edge points from the supply to the consumer. A declaration
 is one node: a source relation or asset shared by several consumers appears once
-and carries one edge per consumer. The axes are parallel lanes, not a Cartesian
-plot.
+and carries one edge per consumer. The bindings share one fulfilment rank, and
+the relation provenance is a layered DAG: ranks, ordering and edge routes are
+computed, not hand-placed. The axes are parallel lanes, not a Cartesian plot.
 
 - **Purpose** is the record axis's top node: the current subject's purpose, the
   use the binding answers. A record subject lists its ancestry below it; a
