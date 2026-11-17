@@ -163,6 +163,8 @@ missing, not the code.
 - A card uses one vertical gap between stacked items. A connector that needs
   more reach extends across the card; it does not enlarge the gap between two
   items.
+- A connector is one graphic: its shaft and head share the path, so a gap or
+  rotation cannot separate them.
 - Present the design before an author workflow: a canonical view carries the
   facts a reader must know immediately, and a detail view shows the same object
   with more evidence rather than starting a separate task.
