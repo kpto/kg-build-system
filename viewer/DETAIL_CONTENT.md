@@ -88,10 +88,12 @@ to.
 - **Fulfilment** is the box on the right side, above the relation axis and
   slightly inset from it. It is not part of either axis. The separator starts
   below it, so the axes lie below the separator and Fulfilment above it. Its
-  arrow to the purpose and the relation's long arrow to it both bend left. It
-  states the binding count; identity fields and coverage appear when the box
-  has room and always in the full axis map. The graph asserts, the relation supplies, and the
-  Fulfilment box states their meeting.
+  arrow to the purpose and the relation's arrow to it both bend left. Every
+  stacked item uses the same vertical gap; the Fulfilment box is one gap below
+  the purpose and one gap above the axes. It states the binding count; identity
+  fields and coverage appear when the box has room and always in the full axis
+  map. The graph asserts, the relation supplies, and the Fulfilment box states
+  their meeting.
 - A branch with many records, relations or assets shows the first item and
   `+N`, so the card stays compact. **Full axis map** expands the same data into
   the three-column records / fulfilment / relations view.

@@ -212,8 +212,8 @@ function Branch({
  *
  * The fulfilment box sits on the right side above the separator; the separator
  * starts below it so the graph and relation axes lie below. The arrow from
- * fulfilment to purpose and the long arrow from the relation to fulfilment
- * both bend left. Hovering or focusing a box reveals its full meaning in a
+ * fulfilment to purpose and the arrow from the relation to fulfilment both
+ * bend left. Hovering or focusing a box reveals its full meaning in a
  * portal, because the band clips overflow.
  */
 export function Constitution({

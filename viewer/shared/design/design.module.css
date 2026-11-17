@@ -279,7 +279,6 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   column-gap: 14px;
-  padding-top: 12px;
 }
 
 .constitutionChildren[data-count="1"] {
@@ -422,7 +421,7 @@ button.constitutionName:focus-visible {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 46px minmax(0, 1fr);
   column-gap: 18px;
-  height: 170px;
+  height: 138px;
 }
 
 .constitutionFulfilmentCell {
@@ -446,7 +445,7 @@ button.constitutionName:focus-visible {
   bottom: 100%;
   left: 50%;
   display: flex;
-  height: 170px;
+  height: 138px;
   flex-direction: column;
   align-items: center;
   color: var(--color-selection);
@@ -472,7 +471,7 @@ button.constitutionName:focus-visible {
   bottom: 100%;
   left: 0;
   width: 100%;
-  height: 74px;
+  height: 36px;
 }
 
 .constitutionRelationRise .constitutionCurve {
@@ -482,7 +481,7 @@ button.constitutionName:focus-visible {
 .constitutionCurve {
   position: relative;
   width: 100%;
-  height: 30px;
+  height: 36px;
   color: var(--color-selection);
 }
 
@@ -546,7 +545,7 @@ button.constitutionName:focus-visible {
 
 .constitutionArrow {
   display: flex;
-  height: 20px;
+  height: 36px;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
@@ -621,6 +620,7 @@ button.constitutionName:focus-visible {
   .constitutionFulfilmentRow {
     display: block;
     height: auto;
+    margin: 36px 0;
   }
 
   .constitutionRowSpacer {
@@ -643,7 +643,7 @@ button.constitutionName:focus-visible {
 
   .constitutionBranches {
     grid-template-columns: minmax(0, 1fr);
-    row-gap: 12px;
+    row-gap: 36px;
   }
 
   .constitutionRise,
@@ -667,7 +667,6 @@ button.constitutionName:focus-visible {
   .constitutionChildren {
     grid-template-columns: minmax(0, 1fr);
     row-gap: 0;
-    padding-top: 8px;
   }
 
   .constitutionChildren::before {
