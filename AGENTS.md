@@ -222,6 +222,13 @@ missing, not the code.
   own composition. A token names a role, not a measured value: spacing has no
   numbered steps. A theme check rejects a raw value or a numbered spacing token
   in a component stylesheet.
+- A component owns its stylesheet: the global file holds theme roles, base
+  element behaviour and global utilities only. A parent passes context down; a
+  child never styles an ancestor, and a component block never lives in the
+  global file.
+- A CSS module declares the keyframes it animates with: CSS Modules scopes the
+  animation name, so a reference to a global keyframe silently loses its
+  animation.
 - Motion is feedback, not decoration: short ease-out transitions on transform and
   opacity, origin-aware entrances, and reduced motion removes movement.
 - End every change report with the rule-promotion result: none, refined or
