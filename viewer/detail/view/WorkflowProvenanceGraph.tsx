@@ -43,10 +43,8 @@ export function WorkflowProvenanceGraph({
     return (
       <DetailBand
         concept="workflow"
-        priority="secondary"
         title="Build steps"
         question="How is this built?"
-        meta="0 steps"
       >
         <p className={styles.workflowEmpty}>
           No workflow steps resolve to this subject.
@@ -58,10 +56,8 @@ export function WorkflowProvenanceGraph({
   return (
     <DetailBand
       concept="workflow"
-      priority="secondary"
       title="Build steps"
       question="How is this built?"
-      meta={`${rows.length} steps · ${scene.stats?.internalEdges ?? 0} links`}
     >
       <GraphCanvas
         width={scene.width}

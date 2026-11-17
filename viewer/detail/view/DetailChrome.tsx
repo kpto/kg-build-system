@@ -1,19 +1,24 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
-import { ChevronRight } from "lucide-react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react";
 
 import type { ConceptKind } from "@/lib/concepts";
 import { ConceptGlyph } from "@/shared/ui/ConceptMark";
 import { TabBanner, type TabBannerFact } from "@/shared/ui/TabBanner";
-import { Panel, PanelHeaderButton } from "@/shared/ui/Primitives";
+import { Panel, PanelHeader } from "@/shared/ui/Primitives";
 import { cx } from "@/shared/ui/theme";
 import styles from "../detail.module.css";
 
 /** The one logo rule for a section title; a view overrides it only when the
  * document kind, not the title, supplies the right mark. */
 const SECTION_CONCEPT: Record<string, ConceptKind> = {
-  Overview: "node",
   Meaning: "semantics",
   Fulfilment: "semantics",
   Sources: "asset",
@@ -28,6 +33,143 @@ const SECTION_CONCEPT: Record<string, ConceptKind> = {
   Payload: "step",
 };
 
+interface DetailIndexSection {
+  id: string;
+  title: string;
+  concept: ConceptKind;
+}
+
+/**
+ * The index reads the rendered cards, not a second section list. A band is a
+ * card, so the index cannot drift from the document: nested bands are skipped
+ * and a card added by any kind appears without touching the index.
+ */
+function useDetailSections(bodyRef: RefObject<HTMLDivElement | null>) {
+  const [sections, setSections] = useState<DetailIndexSection[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const body = bodyRef.current;
+    if (!body) return;
+    const collect = () => {
+      const bands = Array.from(
+        body.querySelectorAll<HTMLElement>("[data-detail-band]"),
+      ).filter((band) => !band.parentElement?.closest("[data-detail-band]"));
+      const next = bands.map((band) => ({
+        id: band.id,
+        title: band.dataset.detailTitle ?? "",
+        concept:
+          (band.dataset.detailConcept as ConceptKind | undefined) ?? "graph",
+      }));
+      setSections((current) =>
+        current.length === next.length &&
+        current.every(
+          (section, index) =>
+            section.id === next[index].id &&
+            section.title === next[index].title,
+        )
+          ? current
+          : next,
+      );
+    };
+    collect();
+    const observer = new MutationObserver(collect);
+    observer.observe(body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [bodyRef]);
+
+  useEffect(() => {
+    if (sections.length < 2) return;
+    const body = bodyRef.current;
+    if (!body) return;
+    const root = body.closest<HTMLElement>("[data-detail-document]");
+    let frame = 0;
+
+    const update = () => {
+      // Inactive tabs stay mounted at display:none; their geometry is zero and
+      // must not overwrite the index of the visible document.
+      if (!root || root.getClientRects().length === 0) return;
+      const banner = root.querySelector("header");
+      const line = (banner?.getBoundingClientRect().bottom ?? 0) + 12;
+      let active = sections[0].id;
+      for (const section of sections) {
+        const element = document.getElementById(section.id);
+        if (element && element.getBoundingClientRect().top <= line) {
+          active = section.id;
+        }
+      }
+      setActiveId(active);
+    };
+    const schedule = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(update);
+    };
+    update();
+    // Scroll does not bubble; capture sees the editor pane and any nested
+    // scroller without assuming which ancestor owns the scrollbar.
+    const resize = new ResizeObserver(schedule);
+    resize.observe(body);
+    document.addEventListener("scroll", schedule, {
+      capture: true,
+      passive: true,
+    });
+    window.addEventListener("resize", schedule);
+    return () => {
+      cancelAnimationFrame(frame);
+      resize.disconnect();
+      document.removeEventListener("scroll", schedule, { capture: true });
+      window.removeEventListener("resize", schedule);
+    };
+  }, [bodyRef, sections]);
+
+  return { sections, activeId };
+}
+
+function DetailIndex({
+  sections,
+  activeId,
+}: {
+  sections: DetailIndexSection[];
+  activeId: string | null;
+}) {
+  if (sections.length < 2) return null;
+  return (
+    <nav
+      className={styles.index}
+      aria-label="Sections in this document"
+      data-testid="detail-index"
+    >
+      <p className={styles.indexLabel}>Sections</p>
+      <ol className={styles.indexList}>
+        {sections.map((section) => (
+          <li key={section.id}>
+            <a
+              className={styles.indexLink}
+              href={`#${section.id}`}
+              aria-current={section.id === activeId ? "location" : undefined}
+              onClick={(event) => {
+                event.preventDefault();
+                const reduce = window.matchMedia(
+                  "(prefers-reduced-motion: reduce)",
+                ).matches;
+                document.getElementById(section.id)?.scrollIntoView({
+                  behavior: reduce ? "auto" : "smooth",
+                  block: "start",
+                });
+              }}
+            >
+              <ConceptGlyph
+                concept={section.concept}
+                className={styles.indexMark}
+              />
+              <span className={styles.indexTitle}>{section.title}</span>
+            </a>
+          </li>
+        ))}
+      </ol>
+    </nav>
+  );
+}
 
 export interface DetailDocumentProps {
   concept: ConceptKind;
@@ -40,9 +182,9 @@ export interface DetailDocumentProps {
 }
 
 /**
- * The shared chrome of a detail document: sticky top bar, title block and one
- * body of full-width bands. Every kind uses this surface; a kind adds bands,
- * not chrome.
+ * The shared chrome of a detail document: one tab banner and one body of
+ * static cards with an index rail. Every kind uses this surface; a kind adds
+ * cards, not chrome.
  */
 export function DetailDocument({
   concept,
@@ -53,8 +195,15 @@ export function DetailDocument({
   testId,
   children,
 }: DetailDocumentProps) {
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const { sections, activeId } = useDetailSections(bodyRef);
   return (
-    <div className={styles.root} data-testid={testId} data-concept={concept}>
+    <div
+      className={styles.root}
+      data-testid={testId}
+      data-concept={concept}
+      data-detail-document
+    >
       <TabBanner
         concept={concept}
         kicker={kicker}
@@ -62,7 +211,12 @@ export function DetailDocument({
         subtitle={subtitle}
         facts={facts}
       />
-      <div className={styles.body}>{children}</div>
+      <div className={styles.body}>
+        <DetailIndex sections={sections} activeId={activeId} />
+        <div className={styles.bands} ref={bodyRef}>
+          {children}
+        </div>
+      </div>
     </div>
   );
 }
@@ -70,71 +224,53 @@ export function DetailDocument({
 export interface DetailBandProps {
   /** Short structural title, for example `Meaning`. */
   title: string;
-  /** The question the band answers, in the reader's language. */
+  /** The question the card answers, in the reader's language. */
   question?: string;
-  meta?: ReactNode;
   concept?: ConceptKind;
   className?: string;
   flush?: boolean;
-  /** A card's place in the reader order: primary opens, secondary starts closed. */
-  priority?: "primary" | "secondary";
-  defaultOpen?: boolean;
   testId?: string;
   children: ReactNode;
 }
 
 /**
- * One section of a detail document.
+ * One card of a detail document.
  *
- * The header is structural and shared by every kind: a micro title, the
- * question the section answers, and one count. This component is the one card
- * frame: every section in every detail view renders through it, so the card
- * outline, surface and header cannot drift between node, edge, source
+ * The cards are static: the body is always visible, and the index rail is the
+ * only navigation. The header is structural and shared by every kind, so the
+ * card outline, surface and header cannot drift between node, edge, source
  * relation, derived relation or step documents. The body holds content only.
  */
 export function DetailBand({
   title,
   question,
-  meta,
   concept,
   className,
   flush = false,
-  priority = "primary",
-  defaultOpen,
   testId,
   children,
 }: DetailBandProps) {
-  const [open, setOpen] = useState(defaultOpen ?? priority === "primary");
+  const uid = useId().replace(/:/g, "");
+  const id = `detail-section-${uid}`;
+  const mark = concept ?? SECTION_CONCEPT[title] ?? "semantics";
   return (
     <Panel
       as="section"
+      id={id}
       className={cx(styles.band, className)}
-      data-open={open}
-      data-priority={priority}
+      aria-label={question ? `${title}: ${question}` : title}
+      data-detail-band
+      data-detail-title={title}
+      data-detail-concept={mark}
       data-testid={testId}
     >
-      <PanelHeaderButton
-        className={styles.bandHead}
-        aria-expanded={open}
-        aria-label={question ? `${title}: ${question}` : undefined}
-        title={question ? `${title}: ${question}` : title}
-        onClick={() => setOpen((value) => !value)}
-      >
-        <ChevronRight aria-hidden className={styles.bandChevron} />
-        <ConceptGlyph
-          concept={concept ?? SECTION_CONCEPT[title] ?? "semantics"}
-          className={styles.bandGlyph}
-        />
-        <span className={styles.bandTitle}>{title}</span>
-        {!open && meta !== undefined ? (
-          <span className={styles.bandMeta}>{meta}</span>
-        ) : null}
-      </PanelHeaderButton>
-      {open ? (
-        <div className={flush ? styles.bandBodyFlush : styles.bandBody}>
-          {children}
-        </div>
-      ) : null}
+      <PanelHeader>
+        <ConceptGlyph concept={mark} className={styles.bandGlyph} />
+        <h2 className={styles.bandTitle}>{title}</h2>
+      </PanelHeader>
+      <div className={flush ? styles.bandBodyFlush : styles.bandBody}>
+        {children}
+      </div>
     </Panel>
   );
 }

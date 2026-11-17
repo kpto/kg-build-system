@@ -54,8 +54,8 @@ The first paint states the design, not every annotation.
 
 - **Low detail is the default.** The Graph labels hubs only; edge labels,
   containment, meaning badges and property lists are off. A subject document
-  shows its overview, constitution and meaning; graph claims and limitations are revealed on
-  demand in the Explorer section. The Workflow shows the compositor graph; a
+  states its overview in the banner and opens its full card stack; graph claims
+  and limitations are revealed on demand in the Explorer section. The Workflow shows the compositor graph; a
   step document reveals complex payload values on demand.
 - **A reveal is explicit.** Every hidden layer has one control that names it.
   A control's state is visible; a revealed layer is one click away from hidden.
@@ -63,8 +63,8 @@ The first paint states the design, not every annotation.
   to the same graph; it does not switch function or selection.
 - **No raw JSON in the default surface.** A design reader shows named values,
   not serialised models.
-- **Counts are honest.** A collapsed section states how many items it holds, so
-  the reader knows what is hidden without expanding it.
+- **The body states its own extent.** A card header carries no count; the list,
+  table or graph inside the card shows what it holds.
 
 ## Detail content
 
@@ -199,11 +199,15 @@ control style. The compound primitives — viewport, pill, concept mark and
 context menu — own their own modules.
 
 An item-detail card is not a generic primitive. `DetailBand` is the detail
-feature's one card primitive: it composes `Panel` and `PanelHeaderButton` and
-adds the section title, concept mark, collapse state and, while collapsed, one
-count. The section question is the header's title and accessible description,
-not a visible line. The card may not re-declare a surface or header; those
-belong to the generic layer.
+feature's one card primitive: it composes `Panel` and `PanelHeader` and adds the
+card title and concept mark. The card question is the section's accessible
+label, not a visible line. Cards are static; the detail body never folds them.
+The card may not re-declare a surface or header; those belong to the generic
+layer.
+
+A detail body pairs one left index rail with the card stack. The rail is sticky,
+lists the top-level cards in reading order, marks the current card, and
+disappears below the width where a card would lose its reading measure.
 
 ## Interaction motion
 
@@ -217,9 +221,9 @@ belong to the generic layer.
 - A graph node's dim or highlight fades; a settled node never moves.
 - `prefers-reduced-motion` keeps the state change and removes movement.
 
-- A detail document orders its cards by immediate reader need. A **primary**
-  card opens by default; a **secondary** card starts collapsed. The order and
-  class are per kind, not a global section list.
+- A detail document orders its cards by immediate reader need. Every card is
+  open and static; the index rail carries navigation. The order is per kind,
+  not a global section list.
 
 ## Panels and persistence
 

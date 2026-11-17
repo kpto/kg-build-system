@@ -29,21 +29,6 @@ export function PanelHeader({
   return <Tag className={cx(styles.panelHeader, className)} {...props} />;
 }
 
-/** A panel header that is itself the collapse control. */
-export function PanelHeaderButton({
-  className,
-  type = "button",
-  ...props
-}: ComponentPropsWithoutRef<"button">) {
-  return (
-    <button
-      type={type}
-      className={cx(styles.panelHeader, className)}
-      {...props}
-    />
-  );
-}
-
 /** A small uppercase field label. */
 export function Label({
   className,

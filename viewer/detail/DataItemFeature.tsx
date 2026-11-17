@@ -251,21 +251,11 @@ export function DataItemEditor(props: WorkspaceProps) {
     () => constitutionModel(index, { level: kind, component: model.name }),
     [index, kind, model.name],
   );
-  const meaningLimitationCount =
-    meaning.limitations.length +
-    (meaning.frames ?? []).reduce(
-      (total, frame) => total + (frame.limitations?.length ?? 0),
-      0,
-    );
   const constitutionSection = (
     <DetailBand
       concept="semantics"
-      priority="primary"
       title="Constitution"
       question="What does this declaration assert, and how is it fulfilled?"
-      meta={`${constitution.binding?.count ?? 0} ${
-        (constitution.binding?.count ?? 0) === 1 ? "binding" : "bindings"
-      }`}
       testId="detail-constitution"
     >
       <Constitution model={constitution} />
@@ -279,14 +269,8 @@ export function DataItemEditor(props: WorkspaceProps) {
   const meaningSection = hasMeaning ? (
       <DetailBand
         concept="semantics"
-        priority="primary"
         title="Meaning"
         question="What is this for, and what does it exclude?"
-        meta={`${meaning.claims.length} ${
-          meaning.claims.length === 1 ? "claim" : "claims"
-        } · ${meaningLimitationCount} ${
-          meaningLimitationCount === 1 ? "limitation" : "limitations"
-        }`}
         testId="detail-meaning"
       >
         <DesignMeaning
@@ -299,14 +283,8 @@ export function DataItemEditor(props: WorkspaceProps) {
   const sourcesSection = (
       <DetailBand
         concept="graph"
-        priority={kind === "relation" ? "primary" : "secondary"}
         title="Sources"
         question="Where does this relation read from?"
-        meta={`${model.assetName ? 1 : 0} ${
-          model.assetName ? "asset" : "assets"
-        } · ${references.tables.length} ${
-          references.tables.length === 1 ? "source relation" : "source relations"
-        }`}
       >
         <div className={styles.sourcesGrid}>
           <div className={styles.sourcesGroup}>
@@ -374,10 +352,8 @@ export function DataItemEditor(props: WorkspaceProps) {
   const buildStepsSection = (
       <DetailBand
         concept="workflow"
-        priority="secondary"
         title="Build steps"
         question="Which steps read this relation?"
-        meta={`${stepRows.length} ${stepRows.length === 1 ? "consumer" : "consumers"}`}
       >
         {stepRows.length ? (
           <MemberTable
@@ -404,7 +380,6 @@ export function DataItemEditor(props: WorkspaceProps) {
         <ExpressionTree
           index={index}
           references={references}
-          priority="primary"
           item={{ concept, label: model.name }}
           fields={model.columns.map((column) => column.name)}
           chains={expressionChains}
@@ -412,10 +387,8 @@ export function DataItemEditor(props: WorkspaceProps) {
       ) : (
         <DetailBand
           concept="graph"
-          priority="secondary"
           title="Expression"
           question="Which fields and operations produce the value?"
-          meta="source"
         >
           <p className={styles.inlineEmpty}>
             A source relation reads one asset field per output. It has no
@@ -427,10 +400,8 @@ export function DataItemEditor(props: WorkspaceProps) {
   const membersSection = (
       <DetailBand
         concept="field"
-        priority="primary"
         title="Members"
         question="Which columns does this relation publish?"
-        meta={`${model.columns.length}`}
         testId="detail-columns"
       >
         <MemberTable
@@ -445,10 +416,8 @@ export function DataItemEditor(props: WorkspaceProps) {
   const bindingsSection = (
       <DetailBand
         concept={kind === "relation" ? "node" : "projection"}
-        priority="secondary"
         title="Bindings"
         question="Which record does this relation fulfil?"
-        meta={`${bindingRows.length}`}
       >
         <MemberTable
           columns={["Binding", "Record kind", "Writes", "Rows read"]}

@@ -10,12 +10,106 @@
 }
 
 .body {
-  display: flex;
+  display: grid;
   min-width: 0;
   flex: 1;
+  grid-template-columns: minmax(0, 132px) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-panel);
+  padding: var(--space-section) var(--space-section) var(--space-region);
+}
+
+.bands {
+  display: flex;
+  min-width: 0;
   flex-direction: column;
   gap: var(--space-group);
-  padding: var(--space-section) var(--space-section) var(--space-region);
+}
+
+/* The index is the only detail navigation: the cards themselves do not fold. */
+.index {
+  position: sticky;
+  top: calc(var(--space-page) + var(--space-region));
+  display: flex;
+  min-width: 0;
+  max-height: calc(100vh - var(--space-page) - var(--space-region) * 2);
+  flex-direction: column;
+  align-self: start;
+  overflow-y: auto;
+  padding: var(--space-inline) 0;
+}
+
+.indexLabel {
+  margin: 0 0 var(--space-inline);
+  padding: 0 var(--space-stack);
+  color: var(--color-faint);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+}
+
+.indexList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-hairline);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.indexLink {
+  display: flex;
+  min-height: 22px;
+  align-items: center;
+  gap: var(--space-stack);
+  padding: 0 var(--space-stack);
+  border-radius: var(--radius-sm);
+  color: var(--color-muted);
+  font-size: var(--text-label);
+  text-decoration: none;
+}
+
+.indexLink:hover {
+  background-color: var(--color-panel-soft);
+  color: var(--color-text);
+}
+
+.indexLink[aria-current="location"] {
+  background-color: color-mix(
+    in srgb,
+    var(--color-accent) 10%,
+    transparent
+  );
+  box-shadow: var(--shadow-rail-accent);
+  color: var(--color-text);
+}
+
+.indexMark {
+  width: 10px;
+  height: 10px;
+  flex: none;
+  color: var(--color-faint);
+}
+
+.indexLink[aria-current="location"] .indexMark {
+  color: var(--color-accent-strong);
+}
+
+.indexTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 1180px) {
+  .body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .index {
+    display: none;
+  }
 }
 
 .levelBody {
@@ -1731,47 +1825,18 @@ button.expressionToggle:hover {
 
 /* ---- Unified detail bands --------------------------------------------- */
 /*
- * Every detail document is a stack of full-width bands. A band header is the
- * one section grammar: micro title, the question it answers, and a count. The
- * body is flat content, never a floating card.
+ * Every detail document is a stack of static cards. A card header is the one
+ * section grammar: concept mark and structural title. The body is flat
+ * content, never a floating card, and the index rail navigates between cards.
  */
 
 /* The one card frame. Every section renders through DetailBand, so this is
    the only place a section card outline, radius or surface is declared. */
 .band {
   min-width: 0;
-}
-
-.bandHead {
-  width: 100%;
-  border: 0;
-  border-bottom: var(--border-hairline) solid var(--color-line-soft);
-  border-left: var(--border-heavy) solid transparent;
-  text-align: left;
-}
-
-.bandHead:hover {
-  background-color: var(--color-panel-soft);
-}
-
-.band[data-open="true"] .bandHead {
-  border-left-color: var(--color-accent);
-}
-
-.band[data-open="true"] .bandChevron {
-  color: var(--color-accent);
-}
-
-.bandChevron {
-  width: 11px;
-  height: 11px;
-  flex: none;
-  color: var(--color-faint);
-  transition: transform var(--motion-fast) var(--ease-instrument);
-}
-
-.band[data-open="true"] .bandChevron {
-  transform: rotate(90deg);
+  scroll-margin-top: calc(
+    var(--space-page) + var(--space-region) + var(--space-stack)
+  );
 }
 
 .bandGlyph {
@@ -1781,21 +1846,12 @@ button.expressionToggle:hover {
 }
 
 .bandTitle {
-  flex: none;
+  margin: 0;
   color: var(--color-text);
   font-size: var(--text-caption);
   font-weight: var(--weight-bold);
   letter-spacing: var(--tracking-widest);
   text-transform: uppercase;
-}
-
-.bandMeta {
-  margin-left: auto;
-  flex: none;
-  color: var(--color-faint);
-  font-family: var(--font-mono);
-  font-size: var(--text-caption);
-  font-variant-numeric: tabular-nums;
 }
 
 .bandBody {

@@ -210,18 +210,11 @@ function ProvenanceSection({
 }: {
   provenance: ProvenanceReferences;
 }) {
-  const count = (value: number, singular: string) =>
-    `${value} ${value === 1 ? singular : `${singular}s`}`;
   return (
     <DetailBand
       concept="graph"
-      priority="secondary"
       title="Sources"
       question="Where does this value come from?"
-      meta={`${count(provenance.assets.length, "asset")} · ${count(
-        provenance.tables.length,
-        "source relation",
-      )} · ${count(provenance.projections.length, "derived relation")}`}
       testId="detail-provenance"
     >
       <div className={styles.sourcesGrid}>
@@ -1419,10 +1412,8 @@ function BindingsSection({
   });
   return (
     <DetailBand
-      priority="secondary"
       title="Bindings"
       question="Which binding fulfils this subject?"
-      meta={`${bindings.length}`}
       testId="detail-bindings"
     >
       <MemberTable
@@ -1451,10 +1442,8 @@ function ConnectionsSection({
     const target = edge.target?.[2];
     return (
       <DetailBand
-        priority="primary"
         title="Connections"
         question="Which records does this relation join?"
-        meta="2 endpoints"
       >
         <div className={styles.connectionRow}>
           <span>source</span>
@@ -1482,10 +1471,8 @@ function ConnectionsSection({
   );
   return (
     <DetailBand
-      priority="primary"
       title="Connections"
       question="Which relations touch this record?"
-      meta={`${incident.length}`}
     >
       {incident.length ? (
         incident.map((edge) => {
@@ -1531,10 +1518,8 @@ function PropertyProofView({ model }: { model: ProofModel }) {
   if (!branch) {
     return (
       <DetailBand
-        priority="primary"
         title="Branches"
         question="Which bindings resolve this property?"
-        meta="0"
       >
         <p className={styles.inlineEmpty}>
           The topology property is declared, but no blueprint binding resolves
@@ -1549,7 +1534,6 @@ function PropertyProofView({ model }: { model: ProofModel }) {
       <DetailBand
         title="Branches"
         question="Which bindings resolve this property?"
-        meta={`${model.branches.length}`}
         flush
       >
         <div className={styles.workToolbar}>
@@ -1567,10 +1551,8 @@ function PropertyProofView({ model }: { model: ProofModel }) {
 
       <DetailBand
         concept="edge"
-        priority="primary"
         title="Connections"
         question="Which links does this branch assert?"
-        meta={`${branch.edges.length} edges`}
       >
         <ConnectionLedger branch={branch} />
       </DetailBand>
@@ -1611,10 +1593,8 @@ function ComponentProofView({
   return (
     <div className={styles.levelBody}>
       <DetailBand
-        priority="primary"
         title="Members"
         question="Which properties does this record assert?"
-        meta={`${component.properties.length}`}
         testId="detail-properties"
       >
         <MemberTable
@@ -1650,10 +1630,8 @@ function AbstractProofView({ model }: { model: ProofModel }) {
   return (
     <div className={styles.levelBody}>
       <DetailBand
-        priority="primary"
         title="Members"
         question="Which records belong to this category?"
-        meta={`${abstract.descendants.length}`}
       >
         <MemberTable
           columns={["Record", "Labels", "Properties", "Description"]}
@@ -1727,10 +1705,8 @@ function AssetProofView({
   return (
     <div className={styles.levelBody}>
       <DetailBand
-        priority="primary"
         title="Members"
         question="Which relations and fields does this asset supply?"
-        meta={`${relationRows.length} relations`}
       >
         <MemberTable
           columns={["Relation", "Shape", "Meaning"]}
@@ -1740,10 +1716,8 @@ function AssetProofView({
         />
       </DetailBand>
       <DetailBand
-        priority="primary"
         title="Fields"
         question="Which declared fields carry this asset's values?"
-        meta={`${fieldRows.length}`}
       >
         <MemberTable
           columns={["Field", "Type", "Owner"]}
@@ -1980,12 +1954,6 @@ function SubjectDetailEditor(props: WorkspaceProps) {
   const model = useProofModel(props);
   const selection = documentSelection(activeDocument(props.state));
   const meaning = subjectMeaning(index, model);
-  const meaningLimitationCount =
-    meaning.limitations.length +
-    (meaning.frames ?? []).reduce(
-      (total, frame) => total + (frame.limitations?.length ?? 0),
-      0,
-    );
   const constitution = useMemo(
     () => constitutionModel(index, model.subject),
     [index, model.subject],
@@ -2040,12 +2008,8 @@ function SubjectDetailEditor(props: WorkspaceProps) {
   const constitutionSection = (
     <DetailBand
       concept="semantics"
-      priority="primary"
       title="Constitution"
       question="What does this subject assert, and how is it fulfilled?"
-      meta={`${constitution.binding?.count ?? 0} ${
-        (constitution.binding?.count ?? 0) === 1 ? "binding" : "bindings"
-      }`}
       testId="detail-constitution"
     >
       <Constitution model={constitution} />
@@ -2054,14 +2018,8 @@ function SubjectDetailEditor(props: WorkspaceProps) {
   const meaningSection = (
     <DetailBand
       concept="semantics"
-      priority="primary"
       title="Meaning"
       question="What is this for, and what does it exclude?"
-      meta={`${meaning.claims.length} ${
-        meaning.claims.length === 1 ? "claim" : "claims"
-      } · ${meaningLimitationCount} ${
-        meaningLimitationCount === 1 ? "limitation" : "limitations"
-      }`}
       testId="detail-meaning"
     >
       <DesignMeaning
@@ -2079,10 +2037,8 @@ function SubjectDetailEditor(props: WorkspaceProps) {
       {model.level === "asset" ? (
         <DetailBand
           concept="asset"
-          priority="primary"
           title="Sources"
           question="Where does this asset read from?"
-          meta="release boundary"
         >
           <p className={styles.inlineEmpty}>
             {`${
@@ -2136,7 +2092,6 @@ function SubjectDetailEditor(props: WorkspaceProps) {
         <ExpressionTree
           index={index}
           references={provenance}
-          priority={model.level === "property" ? "primary" : "secondary"}
           chains={expressionChains}
           item={{
             concept: model.level,

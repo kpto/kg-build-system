@@ -9,9 +9,10 @@ routes and owners are in `HIERARCHY.md`.
 
 ## The section registry
 
-The tab banner carries the overview. The registry below starts at the first band; each kind reorders the sections it
-includes by their immediate importance to a reader; it never renames one. A
-**primary** card opens by default, a **secondary** card starts collapsed.
+The tab banner carries the overview. The registry below starts at the first
+card; each kind orders the cards it includes by their immediate importance to
+a reader and never renames one. Every card is static: all content is open, and
+the index rail is the only navigation between cards.
 
 | Order | Section | Question it answers | Content |
 | --- | --- | --- | --- |
@@ -24,12 +25,17 @@ includes by their immediate importance to a reader; it never renames one. A
 | 7 | **Connections** | Which records does this subject touch? | Endpoints of an edge, incident relations of a node, ports of a step. |
 | 8 | **Bindings** | Which binding fulfils this subject? | One row per binding: name, writes, identity, rows read. |
 
-A section header carries the section's concept mark and structural title. The
-question in the reader's language becomes the header's title and accessible
-description, not a visible line. The noun-bearing count appears only while the
-section is collapsed; an open section does not repeat what its body shows.
-Every card gets a logo; the title-to-concept mapping lives once beside
+A card header carries the card's concept mark and structural title. The
+question in the reader's language becomes the card's accessible label, not a
+visible line, and the header carries no count: the body owns the items it
+shows. Every card gets a logo; the title-to-concept mapping lives once beside
 `DetailBand`.
+
+A detail document has a left index rail. It lists every top-level card in
+reading order, scrolls to a card when its row is chosen, highlights the card at
+the top of the reading position, and is hidden when the pane is narrower than
+the rail plus one readable card. The rail reads the rendered cards, so a card
+added by any kind appears in it without a second section list.
 
 ## Per-kind registry
 
@@ -44,8 +50,8 @@ Every card gets a logo; the title-to-concept mapping lives once beside
 | Derived relation | **Constitution**, **Meaning**, **Expression**, **Members**, Sources, Build steps, Bindings | Expression is the computation; Members are its outputs. |
 | Step | **Ports**, **Payload**, **Connections**, **Bindings**, Meaning, Sources | A step is build machinery; Meaning and Sources state their absence last. |
 
-Text in bold is primary and opens by default; the remaining cards are secondary
-and start collapsed. The card's `data-priority` attribute records the class.
+Text in bold is the first card the reader meets; every card in the row is
+present and open, in that order.
 
 `field` and `binding` are not document kinds. A field belongs to its owner's
 Members table; a binding belongs to its record's Bindings table and to the

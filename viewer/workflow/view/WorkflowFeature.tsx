@@ -319,10 +319,8 @@ function StepDetail({
 
       <DetailBand
         concept="step"
-        priority="primary"
         title="Ports"
         question="Which artifacts does this step open?"
-        meta={`${(step.inputs?.length ?? 0) + (step.outputs?.length ?? 0)}`}
       >
         <div className="grid gap-3 xl:grid-cols-2">
           <div>
@@ -338,20 +336,16 @@ function StepDetail({
 
       <DetailBand
         concept="step"
-        priority="primary"
         title="Payload"
         question="Which instruction does this step execute?"
-        meta={`${Object.keys(step.instruction.payload ?? {}).length} fields`}
       >
         <PayloadFacts step={step} />
       </DetailBand>
 
       <DetailBand
         concept="edge"
-        priority="primary"
         title="Connections"
         question="Which steps feed this step and which does it feed?"
-        meta={`${incoming.length} in · ${outgoing.length} out`}
       >
         <div className="grid gap-3 xl:grid-cols-2">
           <div>
@@ -406,10 +400,8 @@ function StepDetail({
       {bindings.length ? (
         <DetailBand
           concept="step"
-          priority="primary"
           title="Bindings"
           question="Which record does this step produce?"
-          meta={`${bindings.length}`}
         >
           <div className="grid gap-1">
             {bindings.slice(0, 16).map((binding) => (
@@ -438,10 +430,8 @@ function StepDetail({
       ) : null}
       <DetailBand
         concept="semantics"
-        priority="secondary"
         title="Meaning"
         question="What is this step for?"
-        meta="build machinery"
       >
         <p className="text-[length:var(--text-base)] leading-relaxed text-faint">
           A step is build machinery. It carries no design meaning of its own;
@@ -452,10 +442,8 @@ function StepDetail({
 
       <DetailBand
         concept="graph"
-        priority="secondary"
         title="Sources"
         question="Where does this step read from?"
-        meta="upstream ports"
       >
         <p className="text-[length:var(--text-base)] leading-relaxed text-faint">
           A step has no release source. It reads the artifacts its input
