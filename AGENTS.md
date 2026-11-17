@@ -245,11 +245,11 @@ missing, not the code.
   component with one consumer also belongs to that feature.
 - A concept's mark carries its type; do not repeat the type as visible text
   beside it. A count appears once, in the region that owns the list.
-- A detail card is static and its header states the title and concept mark.
-  The question is the accessible description, and the body, not a header
-  count, shows what the card holds. The detail index is a static pane beside
-  the scrolling card column; it is the only card navigation and does not
-  follow the scroll position.
+- A detail document is a horizontal deck of borderless cards. Each card fills
+  the body height, states its title at the top-left inside the card, and leaves
+  the next card peeking as the cue for more. The card body owns vertical scroll
+  and the deck owns horizontal scroll. The index is the only card navigation
+  and does not follow the scroll position.
 - Every tab uses one banner for identity, overview and view actions. A detail
   body starts at its first section, not an Overview band.
 - A record detail leads with meaning and then states its constitution, members,
