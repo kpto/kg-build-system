@@ -239,6 +239,8 @@ missing, not the code.
   beside it. A count appears once, in the region that owns the list.
 - A section header states its title. Its question is the accessible
   description, and its count appears only while the section is collapsed.
+- Every tab uses one banner for identity, overview and view actions. A detail
+  body starts at its first section, not an Overview band.
 - Motion is feedback, not decoration: short ease-out transitions on transform and
   opacity, origin-aware entrances, and reduced motion removes movement.
 - End every change report with the rule-promotion result: none, refined or
