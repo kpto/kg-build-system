@@ -128,11 +128,30 @@ function Box({
   );
 }
 
-function Arrow() {
+function Arrow({ tall = false }: { tall?: boolean }) {
   return (
-    <span className={styles.constitutionArrow} aria-hidden>
+    <span
+      className={cx(styles.constitutionArrow, tall && styles.constitutionArrowTall)}
+      aria-hidden
+    >
       <ArrowUp size={13} strokeWidth={1.8} />
     </span>
+  );
+}
+
+function CurvedArrow({ from, to }: { from: number; to: number }) {
+  return (
+    <div className={styles.constitutionCurve} aria-hidden>
+      <svg viewBox="0 0 100 30" preserveAspectRatio="none">
+        <path d={`M ${from} 30 C ${from} 16, ${to} 14, ${to} 2`} />
+      </svg>
+      <span
+        className={styles.constitutionCurveHead}
+        style={{ left: `${to}%` }}
+      >
+        <ArrowUp size={13} strokeWidth={1.8} />
+      </span>
+    </div>
   );
 }
 
@@ -146,6 +165,7 @@ function Branch({
   onHover,
   onLeave,
   onOpen,
+  tallFirst = false,
 }: {
   side: "graph" | "relation";
   label: string;
@@ -156,15 +176,16 @@ function Branch({
   onHover(node: ConstitutionNode, element: HTMLElement): void;
   onLeave(): void;
   onOpen?(target: ConstitutionTarget): void;
+  tallFirst?: boolean;
 }) {
   return (
     <div className={styles.constitutionBranch} data-side={side}>
       <span className={styles.constitutionBranchLabel}>{label}</span>
       <div className={styles.constitutionStack}>
         {nodes.length ? (
-          nodes.map((node) => (
+          nodes.map((node, index) => (
             <Fragment key={boxKey(node)}>
-              <Arrow />
+              <Arrow tall={tallFirst && index === 0} />
               <Box
                 node={node}
                 hovered={hoveredKey === boxKey(node)}
@@ -188,9 +209,10 @@ function Branch({
  * relation axes below it, and the binding as the relation side's fulfilment.
  *
  * The graph and relation chains read upward toward the purpose. The fulfilment
- * box is centred in the gap above both axes; the dashed centre starts below it
- * and separates the axes without reaching the purpose. Hovering or focusing a
- * box reveals its full meaning in a portal, because the band clips overflow.
+ * box sits on the right side above the relation axis, inset from it; the arrow
+ * from fulfilment to purpose and the arrow from the relation to fulfilment
+ * both bend left. Hovering or focusing a box reveals its full meaning in a
+ * portal, because the band clips overflow.
  */
 export function Constitution({
   model,
@@ -315,29 +337,10 @@ export function Constitution({
         />
       </div>
 
-      <div className={styles.constitutionFulfilment}>
-        <Arrow />
-        <Box
-          node={
-            bindingNode ?? {
-              kind: "binding",
-              name: "no binding",
-              label: "Fulfilment",
-              meaning: { claims: [], limitations: [], frames: [] },
-            }
-          }
-          fulfilment
-          hoverable={bindingHoverable}
-          text={bindingText}
-          hovered={hoveredKey === bindingKey}
-          hoverCardId={hoverCardId}
-          onHover={openHover}
-          onLeave={scheduleClose}
-          onOpen={onOpen}
-        />
-      </div>
-
-      <div className={styles.constitutionBranches}>
+      <div
+        className={styles.constitutionBranches}
+        data-count="2"
+      >
         <Branch
           side="graph"
           label="Graph"
@@ -348,27 +351,51 @@ export function Constitution({
           onHover={openHover}
           onLeave={scheduleClose}
           onOpen={onOpen}
+          tallFirst
         />
-
-        <div className={styles.constitutionSeam} aria-hidden>
-          <span className={styles.constitutionSeamLine} />
-        </div>
 
         <div className={styles.constitutionBranch} data-side="relation">
           <span className={styles.constitutionBranchLabel}>Relation</span>
+          <CurvedArrow from={18} to={-3} />
+          <div className={styles.constitutionFulfilmentBox}>
+            <Box
+              node={
+                bindingNode ?? {
+                  kind: "binding",
+                  name: "no binding",
+                  label: "Fulfilment",
+                  meaning: { claims: [], limitations: [], frames: [] },
+                }
+              }
+              fulfilment
+              hoverable={bindingHoverable}
+              text={bindingText}
+              hovered={hoveredKey === bindingKey}
+              hoverCardId={hoverCardId}
+              onHover={openHover}
+              onLeave={scheduleClose}
+              onOpen={onOpen}
+            />
+          </div>
+          <CurvedArrow from={50} to={18} />
+          <span
+            className={cx(
+              styles.constitutionBranchLabel,
+              styles.constitutionMobileBranchLabel,
+            )}
+          >
+            Relation
+          </span>
           <div className={styles.constitutionStack}>
             {primaryRelation ? (
-              <>
-                <Arrow />
-                <Box
-                  node={primaryRelation}
-                  hovered={hoveredKey === boxKey(primaryRelation)}
-                  hoverCardId={hoverCardId}
-                  onHover={openHover}
-                  onLeave={scheduleClose}
-                  onOpen={onOpen}
-                />
-              </>
+              <Box
+                node={primaryRelation}
+                hovered={hoveredKey === boxKey(primaryRelation)}
+                hoverCardId={hoverCardId}
+                onHover={openHover}
+                onLeave={scheduleClose}
+                onOpen={onOpen}
+              />
             ) : (
               <p className={styles.constitutionEmpty}>No relation is shown.</p>
             )}

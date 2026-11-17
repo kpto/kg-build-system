@@ -82,11 +82,12 @@ A kind includes or omits a section; it never renames one for itself.
   counts and licence.
 - **Constitution** is the two-axis tree. The wide purpose is the root; the
   Graph branch is the record axis, ordered from category to component to
-  property; the Relation branch is the relation axis. The Fulfilment box is
-  centred in the gap above both axes; the dashed centre starts below it and
-  never reaches the purpose. The relation axis carries its provenance branches
-  below its relation. Each box states only its own purpose and clamps; arrows
-  point up to the level it is accountable to. Hovering or focusing a box reveals its full meaning in a
+  property; the Relation branch is the relation axis. The Fulfilment box sits
+  on the right side above the relation axis, slightly inset from it; its arrow
+  to the purpose and the relation's arrow to it both bend left. The relation
+  axis carries its provenance branches below its relation. Each box states only
+  its own purpose and clamps; arrows point up to the level it is accountable
+  to. Hovering or focusing a box reveals its full meaning in a
   portal card; a box label opens that level's document. A grouped branch shows
   the first item and `+N`; **Full axis map** expands the same data into the
   three-column records, fulfilment and relations view.
