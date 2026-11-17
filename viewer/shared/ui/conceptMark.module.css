@@ -1,5 +1,6 @@
 /* Concept marks: one grammar for every layer. The caller sets the box size;
-   the active element fills at 24% so selection does not change the silhouette. */
+   the catalogue's tight viewBox and scaled stroke give every logo one visual
+   size; the active element fills at 24% without changing the silhouette. */
 
 @layer components {
   .mark {

@@ -8,6 +8,8 @@ export interface ConceptDefinition {
   label: string;
   color: string;
   mark: ReactNode;
+  /** The tight viewBox around the mark's drawn content, stroke included. */
+  box: string;
 }
 
 /**
@@ -16,13 +18,16 @@ export interface ConceptDefinition {
  * Every surface that shows a concept reads this catalogue: a banner, a tab, a
  * reference chip, the expression outline and a membership row. One grammar
  * draws every mark — a 24 px grid, a 1.6 px stroke, round joins and one
- * optional element that fills at 24% when the concept is active. Colour is a
- * second cue; the silhouette and the label carry the distinction alone.
+ * optional element that fills at 24% when the concept is active. The viewBox is
+ * tight to the mark's visual bounds and the stroke is scaled back to the 24 px
+ * grid, so every logo reads at one size and one stroke. Colour is a second cue;
+ * the silhouette and the label carry the distinction alone.
  */
 export const concepts: Record<ConceptKind, ConceptDefinition> = {
   graph: {
     label: "Graph",
     color: theme.conceptGraph,
+    box: "1.7 1.7 20.6 19.6",
     mark: (
       <>
         <g className={styles.fill}>
@@ -37,6 +42,7 @@ export const concepts: Record<ConceptKind, ConceptDefinition> = {
   abstract: {
     label: "Abstract category",
     color: theme.conceptAbstract,
+    box: "2.8 2.8 18.4 18.4",
     mark: (
       <>
         <rect x="4" y="4" width="16" height="16" rx="3" />
@@ -54,6 +60,7 @@ export const concepts: Record<ConceptKind, ConceptDefinition> = {
   node: {
     label: "Node",
     color: theme.conceptNode,
+    box: "3.8 3.8 16.4 16.4",
     mark: (
       <>
         <circle cx="12" cy="12" r="7" />
@@ -64,6 +71,7 @@ export const concepts: Record<ConceptKind, ConceptDefinition> = {
   edge: {
     label: "Edge",
     color: theme.conceptEdge,
+    box: "1.7 3.7 20.6 16.6",
     mark: (
       <>
         <circle className={styles.fill} cx="5" cy="17" r="2.1" />
@@ -75,6 +83,7 @@ export const concepts: Record<ConceptKind, ConceptDefinition> = {
   property: {
     label: "Property",
     color: theme.conceptProperty,
+    box: "7.8 3.8 8.4 16.4",
     mark: (
       <>
         <circle className={styles.fill} cx="12" cy="8" r="3" />
@@ -85,6 +94,7 @@ export const concepts: Record<ConceptKind, ConceptDefinition> = {
   asset: {
     label: "Asset",
     color: theme.conceptAsset,
+    box: "4.3 2.8 15.4 18.4",
     mark: (
       <>
         <ellipse
@@ -102,6 +112,7 @@ export const concepts: Record<ConceptKind, ConceptDefinition> = {
   table: {
     label: "Source relation",
     color: theme.conceptSource,
+    box: "3.3 4.3 17.4 18.9",
     mark: (
       <>
         <rect x="4.5" y="5.5" width="15" height="10" rx="1.5" />
@@ -114,6 +125,7 @@ export const concepts: Record<ConceptKind, ConceptDefinition> = {
   projection: {
     label: "Derived relation",
     color: theme.conceptDerived,
+    box: "0.8 1.8 22.4 20.4",
     mark: (
       <>
         <rect x="7" y="3" width="10" height="7" rx="1.5" />
@@ -130,6 +142,7 @@ export const concepts: Record<ConceptKind, ConceptDefinition> = {
   field: {
     label: "Field",
     color: theme.conceptField,
+    box: "2.8 2.8 19 19",
     mark: (
       <>
         <path d="M9 4 7 20M17 4l-2 16M4.5 9h15M4 15h15" />
@@ -140,6 +153,7 @@ export const concepts: Record<ConceptKind, ConceptDefinition> = {
   binding: {
     label: "Binding",
     color: theme.conceptBinding,
+    box: "0.8 6.8 22.4 10.4",
     mark: (
       <>
         <circle className={styles.fill} cx="12" cy="12" r="4" />
@@ -150,6 +164,7 @@ export const concepts: Record<ConceptKind, ConceptDefinition> = {
   workflow: {
     label: "Workflow",
     color: theme.conceptWorkflow,
+    box: "1.8 1.8 20.4 20.4",
     mark: (
       <>
         <rect x="3" y="3" width="7" height="6" rx="1.5" />
@@ -169,6 +184,7 @@ export const concepts: Record<ConceptKind, ConceptDefinition> = {
   step: {
     label: "Step",
     color: theme.conceptStep,
+    box: "2.3 3.3 19.4 17.4",
     mark: (
       <>
         <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
@@ -180,6 +196,7 @@ export const concepts: Record<ConceptKind, ConceptDefinition> = {
   semantics: {
     label: "Meaning",
     color: theme.conceptMeaning,
+    box: "4.8 2.8 14.4 20.4",
     mark: (
       <>
         <circle className={styles.fill} cx="12" cy="10" r="6" />
@@ -206,22 +223,28 @@ export function LayerMark({
   active?: boolean;
   style?: CSSProperties;
 }) {
+  const definition = concepts[concept];
+  const box = definition.box.split(" ").map(Number);
+  // The stroke keeps the weight it has on the 24 px grid even when the tight
+  // viewBox scales the mark up or down to one visual size.
+  const boxMax = Math.max(box[2] ?? 24, box[3] ?? 24);
+  const strokeWidth = (1.6 * boxMax) / 24;
   return (
     <svg
       aria-hidden
       className={cx(styles.mark, className)}
       style={style}
-      viewBox="0 0 24 24"
+      viewBox={definition.box}
       fill="none"
       stroke="currentColor"
-      strokeWidth={1.6}
+      strokeWidth={strokeWidth}
       strokeLinecap="round"
       strokeLinejoin="round"
       focusable="false"
       data-concept={concept}
       data-active={active || undefined}
     >
-      {concepts[concept].mark}
+      {definition.mark}
     </svg>
   );
 }

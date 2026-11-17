@@ -139,7 +139,9 @@ step and meaning. A banner, a tab, a section reference, an expression row and a
 membership row read the same catalogue, so an asset is the same green cylinder
 mark wherever it appears. The marks share one grammar — a 24 px grid, a 1.6 px
 stroke and round joins — and the concept's one filled element takes a 24% tint
-when it is active. Colour is a second cue; the silhouette and the label carry
+when it is active. The viewBox is tight to each mark's visual bounds and the
+stroke is scaled back to the grid, so every layer's logo reads at one visual
+size and one stroke. Colour is a second cue; the silhouette and the label carry
 the distinction alone.
 
 An inline mention of an instance is one pill: the layer's mark, a divider and
