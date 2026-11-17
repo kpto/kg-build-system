@@ -5,11 +5,12 @@
  * The current subject's purpose is the root. The graph branch holds its
  * ancestry below, from the immediate parent down to the graph purpose; the
  * relation branch holds every relation the bindings read, each derived relation
- * with all its scanned relations and each source relation with its asset. The
- * fulfilment box sits one row lower on the right, linked to the purpose; the
- * graph tree hangs from the purpose and the relation tree from the fulfilment.
- * A level keeps its own meaning, so the two branches show derivation and
- * supply, never inherited text.
+ * with all its scanned relations and each source relation with its asset, as one
+ * DAG: a declaration shared by several consumers is one node. The scene places
+ * the fulfilment one row lower on the right, linked to the purpose; the graph
+ * ancestry hangs from the purpose and the relation provenance from the
+ * fulfilment. A level keeps its own meaning, so the two branches show derivation
+ * and supply, never inherited text.
  */
 
 import {

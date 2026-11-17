@@ -48,14 +48,44 @@
 /* ------------------------------------------------------------ constitution */
 
 .constitution {
-  /* The lane gutter shared by the top pair and the tree row. */
-  --constitution-gutter: 46px;
+  height: 100%;
   min-width: 0;
+  min-height: 0;
 }
 
-.constitutionRoot {
-  display: flex;
-  justify-content: center;
+/* The constitution is one DAG on the shared pan/zoom canvas. */
+.constitutionCanvas {
+  height: 100%;
+  min-height: 0;
+}
+
+.constitutionSceneNode {
+  height: 100%;
+}
+
+.constitutionSceneNode .constitutionBox {
+  width: 100%;
+  height: 100%;
+}
+
+.constitutionSceneSeam {
+  stroke: var(--color-line-strong);
+  stroke-width: var(--border-hairline);
+  stroke-dasharray: 2 4;
+  opacity: 0.7;
+}
+
+.constitutionSceneLabel {
+  fill: var(--color-faint);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  letter-spacing: var(--tracking-wide);
+}
+
+.constitutionSceneNote {
+  fill: var(--color-faint);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
 }
 
 .constitutionBox {
@@ -107,50 +137,6 @@
     var(--color-selection) 7%,
     var(--color-panel-raised)
   );
-}
-
-/* Every relation a binding reads, each with its full provenance. */
-.constitutionProvenance {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: var(--space-page);
-}
-
-.constitutionProvenanceNode {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: var(--space-stack);
-}
-
-.constitutionChildren {
-  position: relative;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  column-gap: var(--space-panel);
-  row-gap: var(--space-panel);
-}
-
-.constitutionChildren[data-count="1"] {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.constitutionChildren[data-count="2"]::before {
-  position: absolute;
-  top: 0;
-  right: 25%;
-  left: 25%;
-  border-top: var(--border-hairline) solid var(--color-line-strong);
-  content: "";
-  opacity: 0.8;
-}
-
-.constitutionChild {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: var(--space-stack);
 }
 
 .constitutionBoxCurrent {
@@ -264,254 +250,10 @@ button.constitutionName:focus-visible {
   font-style: italic;
 }
 
-/*
- * Two axes with one fulfilment. Purpose sits at the top left over the graph
- * tree; fulfilment sits one row lower on the right over the relation tree.
- * The empty cells hold the two long connectors and the elbow that links the
- * binding to the purpose.
- */
-.constitutionTop {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--constitution-gutter) minmax(0, 1fr);
-  grid-template-rows: auto auto;
-  column-gap: var(--space-region);
-}
-
-.constitutionPurpose {
-  display: flex;
-  grid-area: 1 / 1 / 2 / 2;
-  min-width: 0;
-  flex-direction: column;
-}
-
-.constitutionPurpose .constitutionBox,
-.constitutionFulfilment .constitutionBox {
-  width: 100%;
-}
-
-/* The record axis's long arrow reaches from the purpose's bottom, past the
-   empty row beside fulfilment, to the first graph record. */
-.constitutionSpan {
-  display: flex;
-  grid-area: 2 / 1 / 3 / 2;
-  justify-content: center;
-  padding-top: var(--space-stack);
-}
-
-.constitutionFulfilment {
-  display: flex;
-  grid-area: 2 / 3 / 3 / 4;
-  min-width: 0;
-  flex-direction: column;
-  gap: var(--space-stack);
-  padding-top: var(--space-region);
-}
-
-/* The relation axis's arrow reaches from the fulfilment's bottom to the first
-   relation; it stretches so both trees start on one line. */
-.constitutionRelationArrow {
-  display: flex;
-  min-height: 36px;
-  flex: 1 1 auto;
-  justify-content: center;
-}
-
-.constitutionSpanArrow {
-  position: relative;
-  display: block;
-  width: 14px;
-  height: 100%;
-  min-height: 36px;
-  color: var(--color-selection);
-}
-
-/* The shaft runs behind the head and meets its vertex. */
-.constitutionSpanArrow::before {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  border-left: var(--border-hairline) solid currentColor;
-  content: "";
-}
-
-.constitutionSpanHead {
-  position: relative;
-  display: block;
-  width: 14px;
-  height: 8px;
-  overflow: visible;
-}
-
-.constitutionSpanHead path {
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1;
-}
-
-/* The elbow rises from the centre of fulfilment's top edge into purpose's
-   right edge. */
-.constitutionCurveCell {
-  position: relative;
-  display: block;
-  grid-area: 1 / 3 / 2 / 4;
-  min-width: 0;
-  pointer-events: none;
-}
-
-.constitutionCurve {
-  position: absolute;
-  top: 50%;
-  right: 50%;
-  bottom: calc(-1 * var(--space-region));
-  width: calc(
-    var(--constitution-gutter) + var(--space-region) * 2 + 50%
-  );
-  border-top: var(--border-hairline) solid var(--color-selection);
-  border-right: var(--border-hairline) solid var(--color-selection);
-  border-top-right-radius: var(--radius-lg);
-}
-
-.constitutionCurveHead {
-  position: absolute;
-  top: -6px;
-  left: -2px;
-  width: 12px;
-  height: 12px;
-  overflow: visible;
-  color: var(--color-selection);
-}
-
-.constitutionCurveHead path {
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1;
-}
-
-.constitutionAxes {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--constitution-gutter) minmax(0, 1fr);
-  column-gap: var(--space-region);
-  padding-top: var(--space-stack);
-}
-
-.constitutionSeam {
-  display: flex;
-  justify-content: center;
-}
-
-.constitutionSeamLine {
-  width: 0;
-  border-left: var(--border-hairline) dashed var(--color-line-strong);
-  opacity: 0.7;
-}
-
-.constitutionBranch {
-  position: relative;
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-}
-
-.constitutionBranchLabel {
-  align-self: center;
-  /* Follow this lane's content; do not push the label to a shared baseline. */
-  padding-top: var(--space-stack);
-  color: var(--color-faint);
-  font-family: var(--font-mono);
-  font-size: var(--text-caption);
-  letter-spacing: var(--tracking-wide);
-  text-align: center;
-  text-transform: uppercase;
-}
-
-.constitutionStack {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: var(--space-stack);
-}
-
-.constitutionArrow {
-  display: block;
-  width: 14px;
-  height: 36px;
-  margin: 0 auto;
-  color: var(--color-selection);
-}
-
-.constitutionArrow path {
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1;
-}
-
-.constitutionEmpty {
-  margin: 0;
-  color: var(--color-faint);
-  font-size: var(--text-body);
-  line-height: var(--leading-normal);
-}
-
-
-
 @media (max-width: 1400px) {
   .constitutionBoxFulfilment .constitutionTag {
     display: none;
   }
 }
 
-@media (max-width: 900px) {
-  /* One column: purpose over fulfilment, then the axes stacked. */
-  .constitutionTop {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto;
-    row-gap: var(--space-page);
-  }
 
-  .constitutionPurpose,
-  .constitutionSpan,
-  .constitutionFulfilment,
-  .constitutionCurveCell {
-    grid-area: auto;
-  }
-
-  .constitutionSpan,
-  .constitutionRelationArrow,
-  .constitutionCurveCell {
-    display: none;
-  }
-
-  .constitutionFulfilment {
-    padding-top: 0;
-  }
-
-  .constitutionAxes {
-    grid-template-columns: minmax(0, 1fr);
-    row-gap: var(--space-page);
-    margin-top: var(--space-page);
-  }
-
-  .constitutionSeam {
-    display: none;
-  }
-
-  .constitutionChildren {
-    grid-template-columns: minmax(0, 1fr);
-    row-gap: var(--space-panel);
-  }
-
-  .constitutionChildren::before {
-    display: none;
-  }
-
-  .constitutionBranchLabel {
-    align-self: center;
-    margin-top: 0;
-    padding-top: var(--space-group);
-    text-align: center;
-  }
-
-}

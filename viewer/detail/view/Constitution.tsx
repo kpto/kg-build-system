@@ -1,18 +1,20 @@
 "use client";
 
-import { Fragment, useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import type { ConceptKind } from "@/lib/concepts";
 import { ConceptGlyph } from "@/shared/ui/ConceptMark";
+import { GraphCanvas } from "@/shared/ui/GraphCanvas";
 import { ConceptPill } from "./ConceptPill";
 import { cx } from "@/shared/ui/theme";
 import { DesignMeaning } from "@/shared/design/DesignMeaning";
-import type {
-  ConstitutionModel,
-  ConstitutionNode,
-  ConstitutionRelation,
-} from "../model/constitution";
+import type { ConstitutionModel, ConstitutionNode } from "../model/constitution";
+import {
+  buildConstitutionScene,
+  sceneNodeId,
+  type ConstitutionScene,
+} from "./constitutionScene";
 import styles from "./constitution.module.css";
 
 export interface ConstitutionProps {
@@ -38,7 +40,7 @@ function plural(count: number, noun: string): string {
 }
 
 function boxKey(node: ConstitutionNode): string {
-  return `${node.kind}:${node.name}`;
+  return sceneNodeId(node);
 }
 
 function Box({
@@ -131,134 +133,165 @@ function Box({
   );
 }
 
-function Arrow({ height = 36 }: { height?: number }) {
-  return (
-    <svg
-      className={styles.constitutionArrow}
-      style={{ height }}
-      viewBox={`0 0 14 ${height}`}
-      preserveAspectRatio="none"
-      aria-hidden
-    >
-      <path d={`M7 ${height} L7 0 M2 7 L7 1 L12 7`} />
-    </svg>
-  );
-}
-
 /**
- * A connector that stretches to the gap it crosses. The shaft is positioned
- * behind the head and reaches its vertex, so a long reach never separates the
- * two; the container has an intrinsic minimum, so it never inflates the row.
+ * One renderer for the constitution scene. The scene is a DAG: every node is a
+ * declaration box, every edge points from the supply to the consumer, and a
+ * shared node is drawn once.
  */
-function SpanArrow() {
-  return (
-    <span className={styles.constitutionSpanArrow} aria-hidden>
-      <svg className={styles.constitutionSpanHead} viewBox="0 0 14 8">
-        <path d="M2 7 L7 1 L12 7" />
-      </svg>
-    </span>
-  );
-}
-function Branch({
-  side,
-  label,
-  nodes,
-  empty,
+function ConstitutionSceneView({
+  scene,
   hoveredKey,
   hoverCardId,
+  selectedId,
+  onSelect,
   onHover,
   onLeave,
 }: {
-  side: "graph" | "relation";
-  label: string;
-  nodes: ConstitutionNode[];
-  empty: string;
+  scene: ConstitutionScene;
   hoveredKey?: string;
   hoverCardId: string;
+  selectedId?: string;
+  onSelect(id: string): void;
   onHover(node: ConstitutionNode, element: HTMLElement): void;
   onLeave(): void;
 }) {
-  return (
-    <div className={styles.constitutionBranch} data-side={side}>
-      <div className={styles.constitutionStack}>
-        {nodes.length ? (
-          nodes.map((node, index) => (
-            <Fragment key={boxKey(node)}>
-              {index ? <Arrow /> : null}
-              <Box
-                node={node}
-                hovered={hoveredKey === boxKey(node)}
-                hoverCardId={hoverCardId}
-                onHover={onHover}
-                onLeave={onLeave}
-              />
-            </Fragment>
-          ))
-        ) : (
-          <p className={styles.constitutionEmpty}>{empty}</p>
-        )}
-      </div>
-      <span className={styles.constitutionBranchLabel}>{label}</span>
-    </div>
-  );
-}
+  const incident = useMemo(() => {
+    if (!selectedId) return new Set<string>();
+    return new Set(
+      scene.edges
+        .filter(
+          (edge) => edge.source === selectedId || edge.target === selectedId,
+        )
+        .map((edge) => edge.id),
+    );
+  }, [scene.edges, selectedId]);
 
-/** One relation and its whole provenance: scanned relations, then the asset. */
-function RelationTree({
-  relation,
-  hoveredKey,
-  hoverCardId,
-  onHover,
-  onLeave,
-}: {
-  relation: ConstitutionRelation;
-  hoveredKey?: string;
-  hoverCardId: string;
-  onHover(node: ConstitutionNode, element: HTMLElement): void;
-  onLeave(): void;
-}) {
   return (
-    <div className={styles.constitutionProvenanceNode}>
-      <Box
-        node={relation.node}
-        hovered={hoveredKey === boxKey(relation.node)}
-        hoverCardId={hoverCardId}
-        onHover={onHover}
-        onLeave={onLeave}
-      />
-      {relation.children.length ? (
-        <div
-          className={styles.constitutionChildren}
-          data-count={relation.children.length}
+    <>
+      <defs>
+        <marker
+          id="constitution-arrow"
+          viewBox="0 0 8 8"
+          refX="8"
+          refY="4"
+          markerWidth="8"
+          markerHeight="8"
+          orient="auto"
+          markerUnits="userSpaceOnUse"
         >
-          {relation.children.map((child) => (
-            <div className={styles.constitutionChild} key={boxKey(child.node)}>
-              <Arrow />
-              <RelationTree
-                relation={child}
-                hoveredKey={hoveredKey}
+          <path
+            d="M 0 0 L 8 4 L 0 8"
+            fill="none"
+            stroke="var(--color-selection)"
+            strokeWidth="1"
+          />
+        </marker>
+      </defs>
+
+      <g data-constitution-edges pointerEvents="none">
+        {scene.edges.map((edge) => {
+          const highlighted = incident.has(edge.id);
+          return (
+            <path
+              key={edge.id}
+              d={edge.path}
+              fill="none"
+              stroke={
+                highlighted
+                  ? "var(--color-selection-strong)"
+                  : "var(--color-selection)"
+              }
+              strokeWidth={highlighted ? 1.6 : 1}
+              opacity={selectedId && !highlighted ? 0.12 : 1}
+              markerEnd="url(#constitution-arrow)"
+              data-constitution-edge={edge.id}
+              data-active={highlighted || undefined}
+            />
+          );
+        })}
+      </g>
+
+      {scene.seam ? (
+        <line
+          className={styles.constitutionSceneSeam}
+          x1={scene.seam.x}
+          y1={scene.seam.y1}
+          x2={scene.seam.x}
+          y2={scene.seam.y2}
+        />
+      ) : null}
+
+      <g data-constitution-nodes>
+        {scene.nodes.map((node) => (
+          <foreignObject
+            key={node.id}
+            x={node.x}
+            y={node.y}
+            width={node.width}
+            height={node.height}
+            opacity={selectedId && node.id !== selectedId ? 0.28 : 1}
+          >
+            <div
+              className={styles.constitutionSceneNode}
+              onClick={(event) => {
+                event.stopPropagation();
+                onSelect(node.id);
+              }}
+            >
+              <Box
+                node={node.node}
+                root={node.axis === "purpose"}
+                fulfilment={node.axis === "fulfilment"}
+                hoverable={node.hoverable}
+                text={node.text}
+                hovered={hoveredKey === boxKey(node.node)}
                 hoverCardId={hoverCardId}
                 onHover={onHover}
                 onLeave={onLeave}
               />
             </div>
-          ))}
-        </div>
-      ) : null}
-    </div>
+          </foreignObject>
+        ))}
+      </g>
+
+      <g pointerEvents="none">
+        {scene.labels.map((label) => (
+          <text
+            key={label.text}
+            className={styles.constitutionSceneLabel}
+            x={label.x}
+            y={label.y}
+            textAnchor="middle"
+          >
+            {label.text}
+          </text>
+        ))}
+        {scene.notes.map((note) => (
+          <text
+            key={note.text}
+            className={styles.constitutionSceneNote}
+            x={note.x}
+            y={note.y}
+            textAnchor="middle"
+          >
+            {note.text}
+          </text>
+        ))}
+      </g>
+    </>
   );
 }
 
 /**
- * The subject as a constitution: purpose at the top left over the graph tree,
- * fulfilment one row lower on the right over the relation tree, linked by an
- * elbow that rises from fulfilment's top edge into purpose's right edge. Both
- * trees start on one line, and every arrow points up to the level it supports.
- * Hovering or focusing a box reveals its full meaning in a portal, because the
- * band clips overflow.
+ * The subject as a constitution DAG: purpose, the fulfilment that answers it,
+ * the graph ancestry and the relation provenance. Every edge points up from the
+ * supply to the consumer; shared declarations are one node. Hovering or
+ * focusing a node reveals its full meaning in a portal; selecting a node dims
+ * the rest and keeps its incident edges.
  */
 export function Constitution({ model }: ConstitutionProps) {
   const [hovered, setHovered] = useState<HoveredBox | null>(null);
+  const [selectedId, setSelectedId] = useState<string>();
   const closeTimer = useRef<number | null>(null);
   const cardRef = useRef<HTMLElement | null>(null);
   const hoverCardId = useId();
@@ -306,15 +339,6 @@ export function Constitution({ model }: ConstitutionProps) {
   const hoveredKey = hovered ? boxKey(hovered.node) : undefined;
 
   const binding = model.binding;
-  const bindingNode: ConstitutionNode | undefined = binding
-    ? {
-        kind: "binding",
-        name: plural(binding.count, "binding"),
-        label: "Fulfilment",
-        meaning: binding.meaning,
-      }
-    : undefined;
-  const bindingKey = bindingNode ? boxKey(bindingNode) : "binding:no binding";
   const bindingText = binding
     ? binding.count === 1
       ? (binding.purpose ?? "No purpose is stated.")
@@ -333,6 +357,27 @@ export function Constitution({ model }: ConstitutionProps) {
         (binding.meaning.frames?.length ?? 0)),
   );
 
+  const scene = useMemo(() => {
+    const node: ConstitutionNode = binding
+      ? {
+          kind: "binding",
+          name: plural(binding.count, "binding"),
+          label: "Fulfilment",
+          meaning: binding.meaning,
+        }
+      : {
+          kind: "binding",
+          name: "no binding",
+          label: "Fulfilment",
+          meaning: { claims: [], limitations: [], frames: [] },
+        };
+    return buildConstitutionScene(model, {
+      node,
+      text: bindingText,
+      hoverable: bindingHoverable,
+    });
+  }, [model, binding, bindingText, bindingHoverable]);
+
   const hoveredLeft = hovered
     ? Math.min(
         Math.max(12, hovered.rect.left),
@@ -347,90 +392,24 @@ export function Constitution({ model }: ConstitutionProps) {
 
   return (
     <div className={styles.constitution} aria-label="Constitution">
-      <div className={styles.constitutionTop}>
-        <div className={styles.constitutionPurpose}>
-          <Box
-            node={model.purpose}
-            root
-            hovered={hoveredKey === boxKey(model.purpose)}
-            hoverCardId={hoverCardId}
-            onHover={openHover}
-            onLeave={scheduleClose}
-          />
-        </div>
-
-        <span className={styles.constitutionSpan} aria-hidden>
-          <SpanArrow />
-        </span>
-
-        <div className={styles.constitutionFulfilment}>
-          <Box
-            node={
-              bindingNode ?? {
-                kind: "binding",
-                name: "no binding",
-                label: "Fulfilment",
-                meaning: { claims: [], limitations: [], frames: [] },
-              }
-            }
-            fulfilment
-            hoverable={bindingHoverable}
-            text={bindingText}
-            hovered={hoveredKey === bindingKey}
-            hoverCardId={hoverCardId}
-            onHover={openHover}
-            onLeave={scheduleClose}
-          />
-          <span className={styles.constitutionRelationArrow} aria-hidden>
-            <SpanArrow />
-          </span>
-        </div>
-
-        <span className={styles.constitutionCurveCell} aria-hidden>
-          <span className={styles.constitutionCurve}>
-            <svg className={styles.constitutionCurveHead} viewBox="0 0 12 12">
-              <path d="M10 2 L2 6 L10 10" />
-            </svg>
-          </span>
-        </span>
-      </div>
-
-      <div className={styles.constitutionAxes}>
-        <Branch
-          side="graph"
-          label="Graph"
-          nodes={model.graph}
-          empty="No record is bound."
+      <GraphCanvas
+        width={scene.width}
+        height={scene.height}
+        className={styles.constitutionCanvas}
+        testId="constitution-graph"
+        ariaLabel="Constitution graph"
+        onBackgroundClick={() => setSelectedId(undefined)}
+      >
+        <ConstitutionSceneView
+          scene={scene}
           hoveredKey={hoveredKey}
           hoverCardId={hoverCardId}
+          selectedId={selectedId}
+          onSelect={setSelectedId}
           onHover={openHover}
           onLeave={scheduleClose}
         />
-
-        <div className={styles.constitutionSeam} aria-hidden>
-          <span className={styles.constitutionSeamLine} />
-        </div>
-
-        <div className={styles.constitutionBranch} data-side="relation">
-          {model.relation.length ? (
-            <div className={styles.constitutionProvenance}>
-              {model.relation.map((relation) => (
-                <RelationTree
-                  key={boxKey(relation.node)}
-                  relation={relation}
-                  hoveredKey={hoveredKey}
-                  hoverCardId={hoverCardId}
-                  onHover={openHover}
-                  onLeave={scheduleClose}
-                />
-              ))}
-            </div>
-          ) : (
-            <p className={styles.constitutionEmpty}>No relation is shown.</p>
-          )}
-          <span className={styles.constitutionBranchLabel}>Relation</span>
-        </div>
-      </div>
+      </GraphCanvas>
 
       {hovered
         ? createPortal(

@@ -89,24 +89,19 @@ Meaning → Expression → Build steps
 A kind includes or omits a section; it never renames one for itself.
 
 - **Overview** is the tab banner: identity and one fact row. It is not a band.
-- **Constitution** places the subject's purpose at the top left over the graph
-  tree and Fulfilment one row lower on the right over the relation tree; a
-  curved elbow rises from the centre of Fulfilment's top edge into Purpose's
-  right edge. The
-  Graph tree is the record axis, its leading arrow spanning the offset row to
-  Purpose; the Relation tree is the relation axis, its leading arrow climbing to
-  Fulfilment and its provenance showing every relation the bindings read, with a
-  derived relation's scanned relations and a source relation's asset. The binding is the meeting, never the parent of either axis: the
-  separator begins below Fulfilment, and the two trees start on one line.
-  Fulfilment is not a relation declaration. Every stacked item uses the same
-  vertical gap, and each arrow keeps that gap from the boxes it joins. Each box
-  states only its own purpose and clamps; arrows point up to the level it
-  supports. Hovering or focusing a box reveals its full meaning in a portal
-  card; a box label opens that level's document. A grouped record branch shows
-  the first record and `+N`; the relation tree never groups. The axis legend
-  sits below its own lane's content,
-  centred; proximity keeps it with that lane even when the other lane is
-  longer.
+- **Constitution** is one DAG on the shared graph canvas: the subject's purpose
+  and the fulfilment that answers it are the two top nodes, the graph ancestry
+  hangs below the purpose and the relation provenance below the fulfilment.
+  Every edge points from the supply to the consumer; a source relation or asset
+  shared by several consumers is one node with one edge per consumer, never a
+  copy or a count. The fulfilment answers the purpose and the relation roots
+  supply the fulfilment; the separator begins below fulfilment and divides the
+  subgraphs. The binding is never the parent of either axis, and fulfilment is
+  neither axis. A grouped record keeps the first record and `+N`; the relation
+  provenance never groups. The canvas pans and zooms; selecting a node dims
+  every other node and non-incident link, empty space clears, hovering or
+  focusing reveals the full meaning, and a node label opens its document. The
+  GRAPH and RELATION labels sit below their subgraphs.
 - **Meaning** leads with the subject's purpose, then sets the contextless
   claims and the limitations that bound that purpose as two labelled readings.
   Each group carries its own count, and the groups stack when the card is
