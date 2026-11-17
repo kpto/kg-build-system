@@ -46,7 +46,6 @@ interface DetailIndexSection {
  */
 function useDetailSections(bodyRef: RefObject<HTMLDivElement | null>) {
   const [sections, setSections] = useState<DetailIndexSection[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
 
   useEffect(() => {
     const body = bodyRef.current;
@@ -78,62 +77,10 @@ function useDetailSections(bodyRef: RefObject<HTMLDivElement | null>) {
     return () => observer.disconnect();
   }, [bodyRef]);
 
-  useEffect(() => {
-    if (sections.length < 2) return;
-    const body = bodyRef.current;
-    if (!body) return;
-    const root = body.closest<HTMLElement>("[data-detail-document]");
-    let frame = 0;
-
-    const update = () => {
-      // Inactive tabs stay mounted at display:none; their geometry is zero and
-      // must not overwrite the index of the visible document.
-      if (!root || root.getClientRects().length === 0) return;
-      const banner = root.querySelector("header");
-      const line = (banner?.getBoundingClientRect().bottom ?? 0) + 20;
-      let active = sections[0].id;
-      for (const section of sections) {
-        const element = document.getElementById(section.id);
-        if (element && element.getBoundingClientRect().top <= line) {
-          active = section.id;
-        }
-      }
-      setActiveId(active);
-    };
-    const schedule = () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(update);
-    };
-    update();
-    // Scroll does not bubble; capture sees the editor pane and any nested
-    // scroller without assuming which ancestor owns the scrollbar.
-    const resize = new ResizeObserver(schedule);
-    resize.observe(body);
-    document.addEventListener("scroll", schedule, {
-      capture: true,
-      passive: true,
-    });
-    window.addEventListener("resize", schedule);
-    return () => {
-      cancelAnimationFrame(frame);
-      resize.disconnect();
-      document.removeEventListener("scroll", schedule, { capture: true });
-      window.removeEventListener("resize", schedule);
-    };
-  }, [bodyRef, sections]);
-
-  return { sections, activeId, setActiveId };
+  return sections;
 }
 
-function DetailIndex({
-  sections,
-  activeId,
-  onSelect,
-}: {
-  sections: DetailIndexSection[];
-  activeId: string | null;
-  onSelect: (id: string) => void;
-}) {
+function DetailIndex({ sections }: { sections: DetailIndexSection[] }) {
   if (sections.length < 2) return null;
   return (
     <nav
@@ -147,10 +94,8 @@ function DetailIndex({
             <a
               className={styles.indexLink}
               href={`#${section.id}`}
-              aria-current={section.id === activeId ? "location" : undefined}
               onClick={(event) => {
                 event.preventDefault();
-                onSelect(section.id);
                 const reduce = window.matchMedia(
                   "(prefers-reduced-motion: reduce)",
                 ).matches;
@@ -163,7 +108,6 @@ function DetailIndex({
               <ConceptGlyph
                 concept={section.concept}
                 className={styles.indexMark}
-                active={section.id === activeId}
               />
               <span className={styles.indexTitle}>{section.title}</span>
             </a>
@@ -199,7 +143,7 @@ export function DetailDocument({
   children,
 }: DetailDocumentProps) {
   const bodyRef = useRef<HTMLDivElement>(null);
-  const { sections, activeId, setActiveId } = useDetailSections(bodyRef);
+  const sections = useDetailSections(bodyRef);
   return (
     <div
       className={styles.root}
@@ -215,11 +159,7 @@ export function DetailDocument({
         facts={facts}
       />
       <div className={styles.body}>
-        <DetailIndex
-          sections={sections}
-          activeId={activeId}
-          onSelect={setActiveId}
-        />
+        <DetailIndex sections={sections} />
         <div className={styles.bands} ref={bodyRef}>
           {children}
         </div>

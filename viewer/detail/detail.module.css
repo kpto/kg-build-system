@@ -56,6 +56,17 @@
   list-style: none;
 }
 
+/* The side line belongs to the index group, not to the pane. */
+.indexList::after {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: calc(-1 * var(--space-group));
+  width: var(--border-hairline);
+  background-color: var(--color-line);
+  content: "";
+}
+
 .indexLink {
   position: relative;
   display: flex;
@@ -71,11 +82,6 @@
 
 .indexLink:hover {
   background-color: var(--color-panel-soft);
-  color: var(--color-text);
-}
-
-.indexLink[aria-current="location"] {
-  background-color: color-mix(in srgb, var(--color-accent) 9%, transparent);
   color: var(--color-text);
 }
 

@@ -32,10 +32,10 @@ shows. Every card gets a logo; the title-to-concept mapping lives once beside
 `DetailBand`.
 
 A detail document has a left index rail. It lists every top-level card in
-reading order, scrolls to a card when its row is chosen, highlights the card at
-the top of the reading position, and is hidden when the pane is narrower than
-the rail plus one readable card. The rail reads the rendered cards, so a card
-added by any kind appears in it without a second section list.
+reading order and scrolls to a card when its row is chosen; it does not follow
+the scroll position. It is hidden when the pane is narrower than the rail plus
+one readable card. The rail reads the rendered cards, so a card added by any
+kind appears in it without a second section list.
 
 ## Per-kind registry
 
