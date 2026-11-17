@@ -35,8 +35,8 @@ Reference: Blender 4.x dark theme, not a generic dashboard.
   its renderer, not its chrome; the frame is `shared/ui/Viewport.tsx`.
 - **Selection is orange; active/accent is blue.** Do not use orange for ordinary
   buttons. Blue = focus/active/primary; orange = selected graph item.
-- The scale is compact (12.5px root). Micro type is 8.5–9.5px; body type is
-  10–11px; a document title is 13px.
+- The scale is compact (12px root, the `title` role). Micro type is 8–9px;
+  body type is 10–11px; a document title is 14px (`heading`).
 
 ## Workbench measurements
 

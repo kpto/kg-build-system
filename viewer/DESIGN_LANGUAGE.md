@@ -149,11 +149,11 @@ component because it describes that component's composition, not the system.
 | State | `--color-critical*`, `--color-high`, `--color-medium`, `--color-low`, `--color-accepted`, `--color-open`, `--color-rejected` | verdicts and severity |
 | Layer | `--color-asset`, `--color-source`, `--color-transform`, `--color-binding`, `--color-post`, `--color-target`, `--color-group-*` | data lanes |
 | Concept | `--color-concept-*` | the 13 concept marks and reference pills |
-| Type | `--text-micro` … `--text-hero`, `--leading-*`, `--tracking-*`, `--weight-*` | role, line height, tracking, weight |
+| Type | `--text-micro` … `--text-display`, `--leading-*`, `--tracking-*`, `--weight-regular/medium/bold` | role, line height, tracking, weight |
 | Space | `--space-hairline`, `--space-inline`, `--space-stack`, `--space-group`, `--space-section`, `--space-panel`, `--space-region`, `--space-page` | gap, padding and margin by role |
 | Shape | `--border-*`, `--radius-*` | hairline and heavy strokes, corner radii |
 | Depth | `--shadow-*` | popover, panel, modal, inset and selection rails |
-| Motion | `--motion-*`, `--ease-*` | durations and easing |
+| Motion | `--motion-fast/base/slow/pulse`, `--ease-*` | durations and easing |
 | Layer order | `--z-*` | raised, sticky, header, overlay, modal, tooltip |
 
 Every component stylesheet is checked by `scripts/check-theme.mjs`; `npm test`

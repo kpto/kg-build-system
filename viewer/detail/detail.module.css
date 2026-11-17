@@ -652,8 +652,8 @@ button.expressionToggle:hover {
   max-height: 266px;
   overflow: auto;
   background-image:
-    linear-gradient(var(--color-grid-strong) 1px, transparent 1px),
-    linear-gradient(90deg, var(--color-grid-strong) 1px, transparent 1px);
+    linear-gradient(var(--color-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-grid) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
@@ -1647,7 +1647,7 @@ button.expressionToggle:hover {
 
 .sideRow[data-active="true"] {
   background-color: var(--color-row-active);
-  color: var(--color-on-active)fff;
+  color: var(--color-on-accent);
 }
 
 .sideRowIcon {
@@ -1685,7 +1685,7 @@ button.expressionToggle:hover {
 
 .sideRow[data-active="true"] .sideRowMeta,
 .sideRow[data-active="true"] .sideAbstract {
-  color: var(--color-on-active-muted);
+  color: var(--color-text);
 }
 
 .treeBlock {
@@ -1749,7 +1749,7 @@ button.expressionToggle:hover {
 
 .treeRow[data-active="true"] .treeLabel,
 .treeRow[data-active="true"] .treeToggle {
-  color: var(--color-on-active)fff;
+  color: var(--color-on-accent);
 }
 
 .treeMeta {
@@ -1787,7 +1787,7 @@ button.expressionToggle:hover {
 
 .propertyRow[data-active="true"] {
   background-color: var(--color-row-active);
-  color: var(--color-on-active)fff;
+  color: var(--color-on-accent);
 }
 
 .propertyRow > span {

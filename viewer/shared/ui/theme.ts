@@ -61,22 +61,11 @@ export const theme = {
   conceptStep: "var(--color-concept-step)",
   conceptMeaning: "var(--color-concept-meaning)",
   lineDeep: "var(--color-line-deep)",
-  lineMid: "var(--color-line-mid)",
-  panelShade: "var(--color-panel-shade)",
-  panelDeep: "var(--color-panel-deep)",
-  panelMuted: "var(--color-panel-muted)",
   rowHover: "var(--color-row-hover)",
   rowActive: "var(--color-row-active)",
-  onActive: "var(--color-on-active)",
-  onActiveMuted: "var(--color-on-active-muted)",
-  criticalStrong: "var(--color-critical-strong)",
-  selectionBorder: "var(--color-selection-border)",
-  selectionInk: "var(--color-selection-ink)",
   overlay: "var(--color-overlay)",
-  overlayStrong: "var(--color-overlay-strong)",
   scrim: "var(--color-scrim)",
   grid: "var(--color-grid)",
-  gridStrong: "var(--color-grid-strong)",
   glow: "var(--color-glow)",
 } as const;
 
@@ -92,8 +81,6 @@ export const type = {
   title: "var(--text-title)",
   heading: "var(--text-heading)",
   display: "var(--text-display)",
-  hero: "var(--text-hero)",
-  root: "var(--text-root)",
 } as const;
 
 /** The one spacing scale for gaps, padding and margins. */
@@ -121,7 +108,6 @@ export const radius = {
 
 export const shadow = {
   popover: "var(--shadow-popover)",
-  popoverStrong: "var(--shadow-popover-strong)",
   panel: "var(--shadow-panel)",
   modal: "var(--shadow-modal)",
   inset: "var(--shadow-inset)",
@@ -134,7 +120,7 @@ export const motion = {
   fast: "var(--motion-fast)",
   base: "var(--motion-base)",
   slow: "var(--motion-slow)",
-  long: "var(--motion-long)",
+  pulse: "var(--motion-pulse)",
   none: "var(--motion-none)",
   instrument: "var(--ease-instrument)",
   standard: "var(--ease-standard)",
