@@ -232,6 +232,9 @@ missing, not the code.
 - A feature composes the shared primitive layer for panels, headers, rows,
   fields, controls, inputs and small type roles before declaring a local
   equivalent.
+- A shared component or model needs a consumer in more than one feature. A
+  domain component with one consumer belongs to that feature; a generic
+  component with one consumer also belongs to that feature.
 - Motion is feedback, not decoration: short ease-out transitions on transform and
   opacity, origin-aware entrances, and reduced motion removes movement.
 - End every change report with the rule-promotion result: none, refined or
