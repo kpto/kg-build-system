@@ -161,10 +161,6 @@ export function DataItemEditor(props: WorkspaceProps) {
 
   const facts: DetailFact[] = [
     {
-      label: "Kind",
-      value: kind === "relation" ? "source relation" : "derived relation",
-    },
-    {
       label: "Asset",
       value: model.assetName ? (
         <AssetPill name={model.assetName} />
@@ -173,7 +169,6 @@ export function DataItemEditor(props: WorkspaceProps) {
       ),
       absent: !model.assetName,
     },
-    { label: "Columns", value: `${model.columns.length}` },
   ];
   if (model.definition) {
     facts.push(
@@ -192,19 +187,8 @@ export function DataItemEditor(props: WorkspaceProps) {
         label: "Row source",
         value: model.rowSource.kind ?? "scan",
       },
-      {
-        label: "Scans",
-        value:
-          relationNamesFromRowSource(model.rowSource).join(", ") ||
-          "no relation",
-        absent: !relationNamesFromRowSource(model.rowSource).length,
-      },
     );
   }
-  facts.push({
-    label: "Bindings",
-    value: `${bindings.length}`,
-  });
   facts.push({
     label: "License",
     value: license.value,
@@ -497,9 +481,6 @@ export function DataItemEditor(props: WorkspaceProps) {
       concept={concept}
       kicker={`Design · ${kind === "relation" ? "source relation" : "derived relation"}`}
       title={model.name || (kind === "relation" ? "Source relation" : "Derived relation")}
-      subtitle={`${model.columns.length} columns${
-        model.assetName ? ` · asset ${model.assetName}` : ""
-      }`}
       license={{
         value: license.value,
         source: license.source,

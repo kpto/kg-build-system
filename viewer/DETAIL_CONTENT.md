@@ -15,9 +15,9 @@ includes by their immediate importance to a reader; it never renames one. A
 
 | Order | Section | Question it answers | Content |
 | --- | --- | --- | --- |
-| 1 | **Overview** | What is this, in one screen? | One fact grid: kind, labels, identity, owner or endpoints, counts and licence. |
-| 2 | **Constitution** | What does this subject assert, and how is it fulfilled? | Purpose and Fulfilment are the two top boxes, on opposite sides of the separator; a horizontal arrow runs from Fulfilment to Purpose. The Graph chain is below Purpose and ends at the graph purpose; the Relation chain is below Fulfilment. The separator divides the two axes. The axis legend sits at the bottom centre of each lane. Arrows point up to the purpose each box supports; the relation's provenance branches sit below it. Each box clamps its purpose to two lines; hovering or focusing it reveals the full meaning, and a box label opens its document. The Fulfilment box states the binding count; identity fields and coverage appear when the box has room. A grouped branch shows the first item and `+N`. |
-| 3 | **Meaning** | What is this for, and what does it exclude? | The full meaning of the current subject: purpose, the limitations it owns, then contextless claims; compact counts in the header. |
+| 1 | **Overview** | What is this, in one screen? | One fact grid: labels, identity, owner or endpoints, and licence. Counts live in the section that owns the list. |
+| 2 | **Constitution** | What does this subject assert, and how is it fulfilled? | Purpose and Fulfilment are the two top boxes, on opposite sides of the separator; a horizontal arrow runs from Fulfilment to Purpose. The Graph chain is below Purpose and ends at the graph purpose; the Relation chain is below Fulfilment. The separator divides the two axes. The axis legend sits at the bottom centre of each lane. Arrows point up to the purpose each box supports; the relation's provenance branches sit below it. Each box clamps its purpose to two lines; hovering or focusing it reveals the full meaning, and a box label opens its document. The Fulfilment box states the binding count and its purpose; identity fields and coverage stay in the relation and binding detail. A grouped branch shows the first item and `+N`. |
+| 3 | **Meaning** | What is this for, and what does it exclude? | The full meaning of the current subject: purpose, the limitations it owns, then contextless claims; one compact count pair beside the reading. |
 | 4 | **Sources** | Where does this value come from? | Assets, source relations and derived relations, as navigable references with counts. |
 | 5 | **Build steps** | How is this built? | The narrowed workflow graph of the steps that produce the subject. |
 | 6 | **Expression** | Which fields and operations produce the value? | The expression outline, one root per binding or column. |
@@ -25,9 +25,11 @@ includes by their immediate importance to a reader; it never renames one. A
 | 8 | **Connections** | Which records does this subject touch? | Endpoints of an edge, incident relations of a node, ports of a step. |
 | 9 | **Bindings** | Which binding fulfils this subject? | One row per binding: name, writes, identity, rows read. |
 
-A section header carries four things only: the section's concept mark, the
-structural title, the question in the reader's language, and one noun-bearing
-count. Every card gets a logo; the title-to-concept mapping lives once beside
+A section header carries the section's concept mark and structural title. The
+question in the reader's language becomes the header's title and accessible
+description, not a visible line. The noun-bearing count appears only while the
+section is collapsed; an open section does not repeat what its body shows.
+Every card gets a logo; the title-to-concept mapping lives once beside
 `DetailBand`.
 
 ## Per-kind registry

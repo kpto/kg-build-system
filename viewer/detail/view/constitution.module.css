@@ -357,13 +357,7 @@ button.constitutionName:focus-visible {
   line-height: var(--leading-normal);
 }
 
-.constitutionNote {
-  margin: var(--space-stack) 0 0;
-  color: var(--color-faint);
-  font-size: var(--text-caption);
-  line-height: var(--leading-normal);
-  text-align: center;
-}
+
 
 @media (max-width: 1400px) {
   .constitutionBoxFulfilment .constitutionTag {

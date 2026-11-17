@@ -95,7 +95,9 @@ function Box({
         {fulfilment ? (
           <ConceptGlyph concept="binding" className={styles.constitutionMark} />
         ) : null}
-        <span className={styles.constitutionKind}>{node.label}</span>
+        {root || fulfilment ? (
+          <span className={styles.constitutionKind}>{node.label}</span>
+        ) : null}
         {fulfilment ? (
           <span className={styles.constitutionName}>{node.name}</span>
         ) : (
@@ -109,7 +111,7 @@ function Box({
           <span className={styles.constitutionTag} data-current>
             current
           </span>
-        ) : node.detail ? (
+        ) : !fulfilment && node.detail ? (
           <span className={styles.constitutionTag}>{node.detail}</span>
         ) : null}
       </div>
@@ -245,21 +247,6 @@ export function Constitution({ model }: ConstitutionProps) {
         name: plural(binding.count, "binding"),
         label: "Fulfilment",
         meaning: binding.meaning,
-        detail:
-          binding.count === 1
-            ? [
-                binding.identity.length
-                  ? `${binding.identity.length} ${
-                      binding.identity.length === 1
-                        ? "identity field"
-                        : "identity fields"
-                    }`
-                  : "",
-                binding.properties ? plural(binding.properties, "property") : "",
-              ]
-                .filter(Boolean)
-                .join(" · ") || undefined
-            : undefined,
       }
     : undefined;
   const bindingKey = bindingNode ? boxKey(bindingNode) : "binding:no binding";
@@ -387,11 +374,6 @@ export function Constitution({ model }: ConstitutionProps) {
           <span className={styles.constitutionBranchLabel}>Relation</span>
         </div>
       </div>
-
-      <p className={styles.constitutionNote}>
-        The graph asserts the purpose; the relation supplies the rows; the
-        fulfilment states their meeting.
-      </p>
 
       {hovered
         ? createPortal(

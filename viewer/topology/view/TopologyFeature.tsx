@@ -270,13 +270,11 @@ function FilterButton({
   pressed,
   onClick,
   children,
-  count,
   title,
 }: {
   pressed: boolean;
   onClick: () => void;
   children: ReactNode;
-  count?: number;
   title?: string;
 }) {
   return (
@@ -291,7 +289,6 @@ function FilterButton({
       )}
     >
       <span>{children}</span>
-      {count !== undefined ? <Meta>{count}</Meta> : null}
     </Control>
   );
 }
@@ -314,12 +311,10 @@ function FilterGroup({
 function LegendRow({
   color,
   label,
-  count,
   dashed,
 }: {
   color: string;
   label: string;
-  count?: number;
   dashed?: boolean;
 }) {
   return (
@@ -335,9 +330,6 @@ function LegendRow({
       <span className="min-w-0 flex-1 truncate text-[length:var(--text-base)] text-muted">
         {label}
       </span>
-      {count !== undefined ? (
-        <span className="font-mono text-[length:var(--text-sm)] text-faint tabular-nums">{count}</span>
-      ) : null}
     </div>
   );
 }
@@ -371,25 +363,8 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
     if ("containment" in patch || "edges" in patch) store.requestFit();
   };
 
-  const relationLinks = visible.links.filter(
-    (link) => link.kind === "edge",
-  ).length;
-  const containmentLinks = visible.links.filter(
-    (link) => link.kind === "containment",
-  ).length;
-
   return (
     <div className="flex h-full min-h-0 flex-col bg-panel">
-      <header className="border-b border-line-soft px-3 py-2">
-        <p className="text-[length:var(--text-base)] text-muted">
-          {visible.nodes.length} visible · {relationLinks} relations
-          {containmentLinks ? ` · ${containmentLinks} containment` : ""}
-        </p>
-        <p className="mt-0.5 font-mono text-[length:var(--text-sm)] text-faint tabular-nums">
-          {model.stats.nodes} nodes · {model.stats.edgeLinks} edges ·{" "}
-          {model.stats.semantics} with meaning
-        </p>
-      </header>
 
       <div className="thin-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-2">
         <section className="space-y-2" aria-label="Topology filters">
@@ -397,7 +372,6 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
             <FilterButton
               pressed={filters.kinds.node}
               onClick={() => patchFilters({ kinds: { node: !filters.kinds.node } })}
-              count={counts.kinds.node}
               title="Show or hide topology node components"
             >
               Nodes
@@ -405,7 +379,6 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
             <FilterButton
               pressed={filters.kinds.edge}
               onClick={() => patchFilters({ kinds: { edge: !filters.kinds.edge } })}
-              count={counts.kinds.edge}
               title="Show or hide topology edge components as relation links"
             >
               Relations
@@ -416,21 +389,18 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
             <FilterButton
               pressed={filters.abstract === "all"}
               onClick={() => patchFilters({ abstract: "all" })}
-              count={counts.abstract.all}
             >
               All
             </FilterButton>
             <FilterButton
               pressed={filters.abstract === "concrete"}
               onClick={() => patchFilters({ abstract: "concrete" })}
-              count={counts.abstract.concrete}
             >
               Concrete
             </FilterButton>
             <FilterButton
               pressed={filters.abstract === "abstract"}
               onClick={() => patchFilters({ abstract: "abstract" })}
-              count={counts.abstract.abstract}
             >
               Abstract
             </FilterButton>
@@ -440,21 +410,18 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
             <FilterButton
               pressed={filters.semantics === "all"}
               onClick={() => patchFilters({ semantics: "all" })}
-              count={counts.semantics.all}
             >
               All
             </FilterButton>
             <FilterButton
               pressed={filters.semantics === "present"}
               onClick={() => patchFilters({ semantics: "present" })}
-              count={counts.semantics.present}
             >
               Present
             </FilterButton>
             <FilterButton
               pressed={filters.semantics === "missing"}
               onClick={() => patchFilters({ semantics: "missing" })}
-              count={counts.semantics.missing}
             >
               Missing
             </FilterButton>
@@ -553,30 +520,25 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
           <LegendRow
             color={theme.source}
             label="Concrete node"
-            count={model.stats.nodes - model.stats.abstractNodes}
           />
           <LegendRow
             color={theme.asset}
             label="Abstract category"
-            count={model.stats.abstractNodes}
             dashed
           />
           <LegendRow
             color={theme.edge}
             label="Relation edge"
-            count={model.stats.edgeLinks}
           />
           <LegendRow
             color={theme.lineStrong}
             label="Category containment"
-            count={model.stats.containmentLinks}
             dashed
           />
           {detail.semantics ? (
             <LegendRow
               color={theme.accent}
               label="Meaning present"
-              count={model.stats.semantics}
             />
           ) : null}
         </section>
@@ -636,10 +598,6 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
               Reset
             </button>
           </div>
-          <p className="text-[length:var(--text-sm)] leading-relaxed text-faint">
-            Drag a node to move it; drag empty space to pan; wheel to zoom;
-            double-click a node to focus.
-          </p>
         </section>
       </div>
     </div>
@@ -1425,7 +1383,6 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
     <ViewportFrame
       concept="graph"
       title="Graph"
-      meta={`${visible.nodes.length} nodes · ${visible.links.length} links`}
       testId="topology-editor"
       ariaLabel="Topology force graph"
       bodyRef={containerRef}
@@ -2071,7 +2028,7 @@ export function TopologyInspector({
       aria-label="Graph selection inspector"
       data-testid="topology-inspector"
     >
-      <PanelHeader as="header" className="flex-none">
+      <PanelHeader as="header" className="flex-none justify-between">
         <Label className="text-text">Inspect</Label>
         <button
           type="button"
@@ -2113,14 +2070,6 @@ export function TopologyInspector({
               <p className="truncate font-mono text-[length:var(--text-xl)] text-accent-strong">
                 {activeProperty ? `${entity.name}.${activeProperty}` : entity.name}
               </p>
-              <p className="truncate text-[length:var(--text-sm)] text-faint">
-                {activeProperty
-                  ? "property"
-                  : isTopologyNode(entity)
-                    ? "node"
-                    : "relation"}{" "}
-                · {entity.category}
-              </p>
             </div>
             <div className="flex shrink-0 gap-1">
               <button
@@ -2142,19 +2091,14 @@ export function TopologyInspector({
           </div>
 
           <section>
-            <p className="mb-1 text-[length:var(--text-sm)] font-semibold tracking-[0.08em] text-faint uppercase">
-              Identity
-            </p>
+            <Label className="mb-1 block">Identity</Label>
             <div className="grid gap-1">
-              <SummaryField label="Kind" value={entityKindLabel(entity)} />
               <SummaryField label="Category" value={entity.category} />
               <SummaryField
                 label="Effective license"
                 value={entityLicense?.value ?? "Not declared"}
               />
-              {isTopologyNode(entity) ? (
-                <SummaryField label="Degree" value={entity.degree} />
-              ) : (
+              {isTopologyNode(entity) ? null : (
                 <>
                   <SummaryField label="Source" value={entity.sourceName} />
                   <SummaryField label="Target" value={entity.targetName} />
@@ -2176,9 +2120,7 @@ export function TopologyInspector({
           </section>
 
           <section>
-            <p className="mb-1 text-[length:var(--text-sm)] font-semibold tracking-[0.08em] text-faint uppercase">
-              Properties · {entityProperties(props, entity).length}
-            </p>
+            <Label className="mb-1 block">Properties</Label>
             <PropertyRows
               props={props}
               entity={entity}
@@ -2196,9 +2138,7 @@ export function TopologyInspector({
           </section>
 
           <section>
-            <p className="mb-1 text-[length:var(--text-sm)] font-semibold tracking-[0.08em] text-faint uppercase">
-              Meaning
-            </p>
+            <Label className="mb-1 block">Meaning</Label>
             <DesignMeaning
               claims={meaning?.claims ?? []}
               limitations={meaning?.limitations ?? []}
@@ -2213,9 +2153,7 @@ export function TopologyInspector({
           </section>
 
           <section>
-            <p className="mb-1 text-[length:var(--text-sm)] font-semibold tracking-[0.08em] text-faint uppercase">
-              Fulfilment
-            </p>
+            <Label className="mb-1 block">Fulfilment</Label>
             <FulfilmentMap
               index={props.state.index}
               narrow

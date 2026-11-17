@@ -1931,17 +1931,7 @@ button.expressionToggle:hover {
   text-transform: uppercase;
 }
 
-.bandQuestion {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--color-faint);
-  font-size: var(--text-caption);
-  font-weight: var(--weight-regular);
-  letter-spacing: var(--tracking-normal);
-  text-overflow: ellipsis;
-  text-transform: none;
-  white-space: nowrap;
-}
+
 
 .bandMeta {
   margin-left: auto;

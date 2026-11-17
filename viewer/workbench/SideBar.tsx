@@ -115,14 +115,6 @@ function ControlBody({ state, actions }: WorkspaceProps) {
   if (workflowContext(document)) {
     return <WorkflowControls state={state} actions={actions} />;
   }
-  if (document.kind === "subject") {
-    return (
-      <p className="p-3 text-[length:var(--text-base)] leading-relaxed text-faint">
-        This document has no view controls. Control applies to the Graph and
-        Workflow documents.
-      </p>
-    );
-  }
   return <TopologySidebar state={state} actions={actions} />;
 }
 
@@ -138,13 +130,12 @@ export function SideBar() {
   const stats = state.index.stats;
   const document = activeDocument(state);
   const workflow = workflowContext(document);
+  const showControl = document.kind !== "subject";
   const controlMeta = workflow
-    ? `${state.index.workflow.steps.length} steps`
-    : document.kind === "subject"
-      ? "no view"
-      : `${stats.topologyNodes}N · ${stats.topologyEdges}E`;
+    ? ""
+    : `${stats.topologyNodes}N · ${stats.topologyEdges}E`;
   const explorerMeta = `${stats.topologyNodes} subjects · ${state.index.workflow.steps.length} steps`;
-  const bothOpen = open.control && open.explorer;
+  const bothOpen = showControl && open.control && open.explorer;
 
   const toggle = (section: SectionId) => {
     setOpen((current) => ({ ...current, [section]: !current[section] }));
@@ -204,18 +195,19 @@ export function SideBar() {
       aria-label="Workbench side bar"
       data-testid="sidebar"
     >
-
       <div className={styles.sideSearch}>
         <span className={styles.sideSearchName} title={state.snapshot.title}>
           {state.snapshot.name}
         </span>
       </div>
-      {section(
-        "control",
-        "Control",
-        controlMeta,
-        <ControlBody state={state} actions={actions} />,
-      )}
+      {showControl
+        ? section(
+            "control",
+            "Control",
+            controlMeta,
+            <ControlBody state={state} actions={actions} />,
+          )
+        : null}
       {bothOpen ? (
         <SideBarSplitter
           ratio={state.layout.sidebarSplit}

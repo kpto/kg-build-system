@@ -33,7 +33,7 @@ export interface WorkflowGraphNode {
   kind: WorkflowGraphNodeKind;
   label: string;
   detail: string;
-  meta: string;
+  meta?: string;
   note?: string;
   tint: string;
   x: number;
@@ -80,7 +80,7 @@ export interface WorkflowGraphScene {
 }
 
 const NODE_WIDTH = 208;
-const NODE_HEIGHT = 140;
+const NODE_HEIGHT = 78;
 const HEADER_HEIGHT = 28;
 const COLUMN_GAP = 68;
 const ROW_GAP = 56;
@@ -284,9 +284,7 @@ export function buildCompositorScene(
       id: node.id,
       kind: "component",
       label: node.id,
-      detail: `${node.steps} steps · ${node.kinds} kind${node.kinds === 1 ? "" : "s"}`,
-      meta: `${node.incoming} in · ${node.outgoing} out`,
-      note: inner ? `${inner} internal` : undefined,
+      detail: `${node.steps} steps`,
       tint: color,
       x,
       y,

@@ -200,8 +200,10 @@ context menu — own their own modules.
 
 An item-detail card is not a generic primitive. `DetailBand` is the detail
 feature's one card primitive: it composes `Panel` and `PanelHeaderButton` and
-adds the section title, question, count, concept mark and collapse state. The
-card may not re-declare a surface or header; those belong to the generic layer.
+adds the section title, concept mark, collapse state and, while collapsed, one
+count. The section question is the header's title and accessible description,
+not a visible line. The card may not re-declare a surface or header; those
+belong to the generic layer.
 
 ## Interaction motion
 

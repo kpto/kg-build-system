@@ -23,7 +23,7 @@ import type {
 import { stepKey } from "@/lib/indexes";
 import { DetailBand, DetailDocument, FactGrid } from "@/detail/view/DetailChrome";
 import { ContextMenu } from "@/shared/ui/ContextMenu";
-import { Control, Empty, Field, Hint, Input, Label, Meta, Select } from "@/shared/ui/Primitives";
+import { Control, Empty, Field, Input, Label, Meta, Select } from "@/shared/ui/Primitives";
 import { useGraphViewport } from "@/shared/ui/GraphCanvas";
 import { cx, groupPalette, theme } from "@/shared/ui/theme";
 import {
@@ -114,18 +114,9 @@ export function WorkflowControls({ state }: WorkspaceProps) {
           </Select>
         </label>
 
-        <Meta className="flex items-center justify-between border-t border-line-soft pt-2">
-          <span>
-            {rows.length} / {model.steps} steps
-          </span>
-          <span>{model.connections} connections</span>
+        <Meta className="flex items-center border-t border-line-soft pt-2">
+          {rows.length} / {model.steps} steps
         </Meta>
-
-        <Hint>
-          Choosing a component selects it. Use Open step group in the view
-          header to enter its step graph. Filters narrow that graph and dim the
-          component overview; every step remains available in Explorer.
-        </Hint>
 
         <Control
           onClick={() => store.resetFilters()}
@@ -350,11 +341,11 @@ function StepDetail({
       >
         <div className="grid gap-3 xl:grid-cols-2">
           <div>
-            <DetailSubhead>Inputs · {step.inputs?.length ?? 0}</DetailSubhead>
+            <DetailSubhead>Inputs</DetailSubhead>
             <Openings step={step} direction="input" />
           </div>
           <div>
-            <DetailSubhead>Outputs · {step.outputs?.length ?? 0}</DetailSubhead>
+            <DetailSubhead>Outputs</DetailSubhead>
             <Openings step={step} direction="output" />
           </div>
         </div>
@@ -379,7 +370,7 @@ function StepDetail({
       >
         <div className="grid gap-3 xl:grid-cols-2">
           <div>
-            <DetailSubhead>Incoming · {incoming.length}</DetailSubhead>
+            <DetailSubhead>Incoming</DetailSubhead>
             {incoming.length ? (
               <div className="border border-line-soft bg-panel px-2">
                 {incoming.slice(0, 24).map((connection) => (
@@ -402,7 +393,7 @@ function StepDetail({
             )}
           </div>
           <div>
-            <DetailSubhead>Outgoing · {outgoing.length}</DetailSubhead>
+            <DetailSubhead>Outgoing</DetailSubhead>
             {outgoing.length ? (
               <div className="border border-line-soft bg-panel px-2">
                 {outgoing.slice(0, 24).map((connection) => (
@@ -904,8 +895,8 @@ export function WorkflowEditor(props: WorkspaceProps) {
 
         <ViewportHint className="pointer-events-none">
           {inStepGroup
-            ? "drag to pan · wheel to zoom · click a step to select · double-click to open"
-            : "drag to pan · wheel to zoom · right-click a component for actions · node = component · link = aggregated step connections"}
+            ? "drag to pan · wheel to zoom · double-click a step to open"
+            : "drag to pan · wheel to zoom"}
         </ViewportHint>
 
       {menu ? (

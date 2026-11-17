@@ -90,7 +90,6 @@ import { laneColor } from "@/shared/ui/theme";
 import {
   branchLaneNodes,
   buildProof,
-  collectProofSemantics,
   defaultProofSubject,
   traceArtifactLabel,
   type ProofBranch,
@@ -161,35 +160,15 @@ function levelTitle(model: ProofModel): string {
     case "property":
       return `${model.subject.component}.${model.subject.property ?? ""}`;
     case "node":
-      return `Node · ${model.subject.component}`;
     case "edge":
-      return `Edge · ${model.subject.component}`;
+      return model.subject.component;
     case "abstract":
-      return `Abstract · ${model.abstract?.name ?? model.subject.component}`;
+      return model.abstract?.name ?? model.subject.component;
     case "asset":
-      return `Asset · ${model.asset?.name ?? model.subject.component}`;
+      return model.asset?.name ?? model.subject.component;
   }
 }
 
-function levelSubtitle(model: ProofModel): string {
-  switch (model.level) {
-    case "property": {
-      const branchCount = model.branches.length;
-      const type = model.typeChain?.steps.at(0)?.typeName ?? "unknown";
-      return `${branchCount} ${branchCount === 1 ? "branch" : "branches"} · ${type}`;
-    }
-    case "node":
-    case "edge":
-      return `${model.properties.length} ${model.properties.length === 1 ? "property" : "properties"} · ${model.component?.labels.join(", ") || "no labels"}`;
-    case "abstract":
-      return `${model.abstract?.descendants.length ?? 0} concrete descendants`;
-    case "asset": {
-      const relations = model.asset?.relations.length ?? 0;
-      const projections = model.asset?.projections.length ?? 0;
-      return `${relations} tables · ${projections} projections · ${model.asset?.fields.length ?? 0} fields`;
-    }
-  }
-}
 
 function ProvenanceGroup({
   concept,
@@ -335,18 +314,6 @@ function TypeChainView({ chain }: { chain: ProofTypeChain }) {
   );
 }
 
-function TypeChainSummary({ chain }: { chain?: ProofTypeChain }) {
-  if (!chain) return <Badge tone="muted">no type chain</Badge>;
-  return (
-    <>
-      <span className={styles.summaryType}>
-        {chain.steps.at(0)?.typeName ?? "unknown"}
-      </span>
-      {chain.mismatch ? <Badge tone="warn">type mismatch</Badge> : null}
-      {chain.narrowed ? <Badge tone="warn">presence narrowing</Badge> : null}
-    </>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Sidebar
@@ -1543,9 +1510,6 @@ function ConnectionsSection({
               )}
               <span className={styles.connectionLabel}>
                 <EdgePill name={edge.name} />
-                {edge.labels?.length ? (
-                  <span>{edge.labels.join(" · ")}</span>
-                ) : null}
               </span>
             </div>
           );
@@ -1564,7 +1528,6 @@ function PropertyProofView({ model }: { model: ProofModel }) {
   }, [model.property?.component, model.property?.property]);
 
   const branch = model.branches[activeBranch] ?? model.branches[0];
-  const attachments = collectProofSemantics(model);
 
   if (!branch) {
     return (
@@ -1596,22 +1559,6 @@ function PropertyProofView({ model }: { model: ProofModel }) {
             active={activeBranch}
             onChange={setActiveBranch}
           />
-          <div className={styles.workMeta}>
-            <span className={styles.summaryLabel}>Type</span>
-            <TypeChainSummary chain={branch.typeChain} />
-            <span className={styles.summaryDivider} />
-            <span className={styles.summaryLabel}>Targets</span>
-            <span className={styles.summaryValue}>
-              {branch.trace.target.length}
-            </span>
-            <span className={styles.summaryLabel}>Post</span>
-            <span className={styles.summaryValue}>
-              {branch.trace.post.length}
-            </span>
-            <span className={styles.summaryDivider} />
-            <span className={styles.summaryLabel}>Meanings</span>
-            <span className={styles.summaryValue}>{attachments.length}</span>
-          </div>
         </div>
 
         <TypeChainView chain={branch.typeChain} />
@@ -1660,7 +1607,6 @@ function ComponentProofView({
       logicalTypeName(property.logicalType),
       `${property.branchCount}`,
       property.sources.join(", ") || "—",
-      property.bindingIndexes.join(", ") || "—",
     ],
   }));
   return (
@@ -1673,8 +1619,8 @@ function ComponentProofView({
         testId="detail-properties"
       >
         <MemberTable
-          columns={["Property", "Type", "Branches", "Sources", "Bindings"]}
-          template="minmax(160px, 1.3fr) minmax(110px, 1fr) 64px minmax(100px, 1fr) 70px"
+          columns={["Property", "Type", "Branches", "Sources"]}
+          template="minmax(160px, 1.3fr) minmax(110px, 1fr) 64px minmax(100px, 1fr)"
           rows={rows}
           empty="No properties are declared for this subject."
         />
@@ -1743,7 +1689,6 @@ function AssetProofView({
       ) : (
         <DerivedRelationPill name={row.name} />
       ),
-      row.kindLabel === "source" ? "source relation" : "derived relation",
       `${row.columns} columns`,
       `${row.semantics.length} meanings`,
     ],
@@ -1789,8 +1734,8 @@ function AssetProofView({
         meta={`${relationRows.length} relations`}
       >
         <MemberTable
-          columns={["Relation", "Kind", "Shape", "Meaning"]}
-          template="minmax(160px, 1.2fr) 110px 90px minmax(90px, 0.8fr)"
+          columns={["Relation", "Shape", "Meaning"]}
+          template="minmax(160px, 1.2fr) 90px minmax(90px, 0.8fr)"
           rows={relationRows}
           empty="No relation is declared for this asset."
         />
@@ -1926,7 +1871,6 @@ function overviewFacts(
     case "property": {
       const chain = model.typeChain;
       facts.push(
-        { label: "Kind", value: "property" },
         {
           label: "Owner",
           value: index.topologyNodesByName.has(model.subject.component) ? (
@@ -1946,8 +1890,6 @@ function overviewFacts(
             : chain?.steps.at(0)?.presence ?? "unknown",
           absent: !chain,
         },
-        { label: "Branches", value: `${model.branches.length}` },
-        { label: "Bindings", value: `${model.branches.length}` },
         licenseFact,
       );
       break;
@@ -1959,7 +1901,6 @@ function overviewFacts(
         ? identityFields(index, component.kind, component.name)
         : [];
       facts.push(
-        { label: "Kind", value: model.level },
         {
           label: "Labels",
           value: component?.labels.length
@@ -1971,10 +1912,6 @@ function overviewFacts(
           label: "Identity",
           value: identity.length ? identity.join(", ") : "not declared",
           absent: !identity.length,
-        },
-        {
-          label: "Properties",
-          value: `${model.properties.length}`,
         },
       );
       if (model.level === "edge") {
@@ -1995,30 +1932,18 @@ function overviewFacts(
             ),
           absent: !source || !target,
         });
-      } else {
-        const incident = index.topologyEdges.filter(
-          (edge) =>
-            edge.source?.[2] === model.subject.component ||
-            edge.target?.[2] === model.subject.component,
-        );
-        facts.push({ label: "Connections", value: `${incident.length}` });
       }
       facts.push(licenseFact);
       break;
     }
     case "abstract": {
       facts.push(
-        { label: "Kind", value: "abstract category" },
         {
           label: "Labels",
           value: model.abstract?.labels.length
             ? model.abstract.labels.join(" · ")
             : "no labels",
           absent: !model.abstract?.labels.length,
-        },
-        {
-          label: "Descendants",
-          value: `${model.abstract?.descendants.length ?? 0}`,
         },
         licenseFact,
       );
@@ -2028,7 +1953,6 @@ function overviewFacts(
       const asset = model.asset;
       const profile = asset?.profile;
       facts.push(
-        { label: "Kind", value: "asset" },
         {
           label: "Version",
           value: index.assetsByName.get(model.subject.component)?.version ?? "—",
@@ -2044,13 +1968,6 @@ function overviewFacts(
           value: profile?.coverage ?? "not declared",
           absent: !profile?.coverage,
         },
-        {
-          label: "Relations",
-          value: `${asset?.relations.length ?? 0} source · ${
-            asset?.projections.length ?? 0
-          } derived`,
-        },
-        { label: "Fields", value: `${asset?.fields.length ?? 0}` },
         licenseFact,
       );
       break;
@@ -2312,7 +2229,6 @@ function SubjectDetailEditor(props: WorkspaceProps) {
       concept={model.level}
       kicker={`Design · ${model.level}`}
       title={levelTitle(model)}
-      subtitle={levelSubtitle(model)}
       license={{
         value: license.value,
         source: license.source,

@@ -81,26 +81,6 @@
     border-radius: var(--radius-md);
     background-color: var(--color-panel);
   }
-
-  .sideSearch {
-    display: flex;
-    height: 28px;
-    flex: none;
-    align-items: center;
-    padding: 0 var(--space-section);
-    border-bottom: var(--border-hairline) solid var(--color-line-soft);
-    background-color: var(--color-panel);
-  }
-
-  .sideSearchName {
-    min-width: 0;
-    overflow: hidden;
-    color: var(--color-text);
-    font-family: var(--font-mono);
-    font-size: var(--text-body);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
 }
 
 @layer components {
@@ -141,5 +121,27 @@
   .sectionSplitter:hover .sectionSplitterGrip,
   .sectionSplitter:focus-visible .sectionSplitterGrip {
     opacity: 1;
+  }
+}
+
+@layer components {
+  .sideSearch {
+    display: flex;
+    height: 28px;
+    flex: none;
+    align-items: center;
+    padding: 0 var(--space-section);
+    border-bottom: var(--border-hairline) solid var(--color-line-soft);
+    background-color: var(--color-panel);
+  }
+
+  .sideSearchName {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--color-text);
+    font-family: var(--font-mono);
+    font-size: var(--text-body);
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }

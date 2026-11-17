@@ -146,6 +146,8 @@ export function DetailBand({
       <PanelHeaderButton
         className={styles.bandHead}
         aria-expanded={open}
+        aria-label={question ? `${title}: ${question}` : undefined}
+        title={question ? `${title}: ${question}` : title}
         onClick={() => setOpen((value) => !value)}
       >
         <ChevronRight aria-hidden className={styles.bandChevron} />
@@ -154,8 +156,7 @@ export function DetailBand({
           className={styles.bandGlyph}
         />
         <span className={styles.bandTitle}>{title}</span>
-        {question ? <span className={styles.bandQuestion}>{question}</span> : null}
-        {meta !== undefined ? (
+        {!open && meta !== undefined ? (
           <span className={styles.bandMeta}>{meta}</span>
         ) : null}
       </PanelHeaderButton>
