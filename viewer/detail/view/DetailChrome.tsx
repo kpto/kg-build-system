@@ -139,7 +139,6 @@ function DetailIndex({
       aria-label="Sections in this document"
       data-testid="detail-index"
     >
-      <p className={styles.indexLabel}>Sections</p>
       <ol className={styles.indexList}>
         {sections.map((section) => (
           <li key={section.id}>
@@ -161,6 +160,7 @@ function DetailIndex({
               <ConceptGlyph
                 concept={section.concept}
                 className={styles.indexMark}
+                active={section.id === activeId}
               />
               <span className={styles.indexTitle}>{section.title}</span>
             </a>

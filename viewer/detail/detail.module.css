@@ -31,39 +31,31 @@
   position: sticky;
   top: calc(var(--space-page) + var(--space-region));
   display: flex;
+  height: calc(
+    100vh - var(--space-page) * 2 - var(--space-region) - var(--space-stack)
+  );
   min-width: 0;
-  max-height: calc(100vh - var(--space-page) - var(--space-region) * 2);
   flex-direction: column;
   align-self: start;
   overflow-y: auto;
-  padding: var(--space-inline) 0;
-}
-
-.indexLabel {
-  margin: 0 0 var(--space-inline);
-  padding: 0 var(--space-stack);
-  color: var(--color-faint);
-  font-size: var(--text-caption);
-  font-weight: var(--weight-bold);
-  letter-spacing: var(--tracking-widest);
-  text-transform: uppercase;
+  padding: var(--space-section) 0;
 }
 
 .indexList {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--space-hairline);
-  margin: 0;
-  padding: 0 0 0 var(--space-group);
+  gap: var(--space-inline);
+  margin: auto 0;
+  padding: 0;
   list-style: none;
 }
 
 /* One side line carries the reading position; the cards stay unframed. */
 .indexList::before {
   position: absolute;
-  top: var(--space-inline);
-  bottom: var(--space-inline);
+  top: 0;
+  bottom: 0;
   left: 0;
   width: var(--border-hairline);
   border-radius: var(--radius-pill);
@@ -74,10 +66,11 @@
 .indexLink {
   position: relative;
   display: flex;
-  min-height: 30px;
-  align-items: center;
-  gap: var(--space-group);
-  padding: 0 var(--space-stack);
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-hairline);
+  padding: var(--space-inline) var(--space-stack) var(--space-inline)
+    var(--space-group);
   border-radius: var(--radius-sm);
   color: var(--color-muted);
   font-size: var(--text-label);
@@ -89,7 +82,7 @@
   position: absolute;
   top: var(--space-inline);
   bottom: var(--space-inline);
-  left: calc(-1 * var(--space-group));
+  left: 0;
   width: var(--border-heavy);
   border-radius: var(--radius-pill);
   background-color: var(--color-accent-strong);
@@ -113,23 +106,14 @@
 }
 
 .indexMark {
-  width: 16px;
-  height: 16px;
+  width: 24px;
+  height: 24px;
   flex: none;
-  color: var(--color-faint);
-  transition: color var(--motion-base) var(--ease-instrument);
-}
-
-.indexLink:hover .indexMark {
-  color: var(--color-muted);
-}
-
-.indexLink[aria-current="location"] .indexMark {
-  color: var(--color-accent-strong);
 }
 
 .indexTitle {
   overflow: hidden;
+  max-width: 100%;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
