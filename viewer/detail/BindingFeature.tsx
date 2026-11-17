@@ -15,6 +15,8 @@ import {
   NodePill,
   StepPill,
 } from "@/detail/view/ConceptPill";
+import { Constitution } from "@/detail/view/Constitution";
+import { constitutionModel } from "@/detail/model/constitution";
 import { DesignMeaning } from "@/shared/design/DesignMeaning";
 import { attachedMeaning } from "@/shared/design/meaning";
 import { activeDocument, documentSelection, type WorkspaceProps } from "@/workbench/types";
@@ -139,6 +141,17 @@ export function BindingEditor(props: WorkspaceProps) {
         : undefined,
     [index.bindings, selection],
   );
+  const constitution = useMemo(
+    () =>
+      binding
+        ? constitutionModel(index, {
+            level: "binding",
+            component: binding.component,
+            bindingIndex: binding.index,
+          })
+        : undefined,
+    [binding, index],
+  );
 
   if (!binding) {
     return (
@@ -240,6 +253,17 @@ export function BindingEditor(props: WorkspaceProps) {
             {...meaning}
             emptyText="Meaning omitted for this binding."
           />
+        </DetailBand>
+      ) : null}
+
+      {constitution ? (
+        <DetailBand
+          concept="semantics"
+          title="Constitution"
+          question="What is this binding for, and how does it come to be?"
+          testId="detail-constitution"
+        >
+          <Constitution model={constitution} />
         </DetailBand>
       ) : null}
 

@@ -1,16 +1,23 @@
 /**
- * The constitution of one subject: its purpose, the graph axis that asserts it
- * and the relation axis that fulfils it.
+ * The constitution of one subject: how it comes to be.
  *
- * The current subject's purpose is the root. The graph branch holds its
- * ancestry below, from the immediate parent down to the graph purpose; the
- * relation branch holds every relation the bindings read, each derived relation
- * with all its scanned relations and each source relation with its asset, as one
- * DAG: a declaration shared by several consumers is one node. The scene places
- * one fulfilment per binding to the right of the purpose, each linked to it;
- * the graph ancestry hangs from the purpose and the relation provenance from
- * the bindings. A level keeps its own meaning, so the two branches show
- * derivation and supply, never inherited text.
+ * The subject's purpose is the root; the declarations that bring it into being
+ * hang below it and every edge follows production (supply → subject). What
+ * constitutes a subject depends on its kind:
+ *
+ * - a record (node, edge, property, abstract category) is produced by its
+ *   bindings, each supplied by a relation and that relation's provenance; its
+ *   graph ancestry states where it sits;
+ * - a source relation is produced by its asset, and an asset is the origin;
+ * - a derived relation is produced by the source relations it scans and their
+ *   assets;
+ * - a binding is the meeting of a record and a relation: its components are the
+ *   target record (purpose and identity only) and the relations it reads.
+ *
+ * The purpose box carries the subject's own concept mark. A declaration shared
+ * by several consumers is one node with one edge per consumer. A level keeps
+ * its own meaning, so the branches show production and supply, never inherited
+ * text.
  */
 
 import {
@@ -21,8 +28,9 @@ import {
   type AxisRelation,
   type AxisSubject,
 } from "@/lib/axis";
-import { resolveAssetName } from "@/lib/indexes";
-import type { ViewerIndex } from "@/lib/types";
+import { collectFieldRefs } from "@/lib/expressions";
+import { relationNamesFromRowSource } from "@/lib/indexes";
+import type { IndexedBinding, ViewerIndex } from "@/lib/types";
 
 import {
   attachedMeaning,
@@ -66,8 +74,6 @@ export interface ConstitutionBinding {
   index: number;
   /** The binding's display handle; a binding name is not its identity. */
   name: string;
-  identity: string[];
-  properties: number;
   /** The relations this binding's row source reads. */
   relations: string[];
   purpose?: string;
@@ -90,6 +96,8 @@ export interface ConstitutionSubjectLike {
   kind?: string;
   component: string;
   property?: string;
+  /** The binding's index when the subject is a binding document. */
+  bindingIndex?: number;
 }
 
 const LABELS: Record<PurposeLevelKind, string> = {
@@ -104,6 +112,23 @@ const LABELS: Record<PurposeLevelKind, string> = {
   binding: "Binding",
   step: "Step",
 };
+
+/** The purpose box carries the subject's own concept, never the graph mark. */
+const SUBJECT_CONCEPTS: Record<string, PurposeLevelKind> = {
+  property: "property",
+  node: "node",
+  edge: "edge",
+  abstract: "abstract",
+  asset: "asset",
+  relation: "relation",
+  projection: "projection",
+  binding: "binding",
+  step: "step",
+};
+
+function subjectConcept(subject: ConstitutionSubjectLike): PurposeLevelKind {
+  return SUBJECT_CONCEPTS[subject.level] ?? "graph";
+}
 
 /** Map a detail subject onto the axis subject the fulfilment read model takes. */
 export function axisSubjectFor(
@@ -161,18 +186,15 @@ function subjectMeaning(
       const projection = index.projectionByName.get(subject.component);
       return attachedMeaning(projection?.meaning ?? projection?.semantics);
     }
+    case "binding": {
+      const binding = index.bindings.find(
+        (candidate) => candidate.index === subject.bindingIndex,
+      );
+      return attachedMeaning(binding?.binding.meaning ?? binding?.binding.semantics);
+    }
     default:
       return graphMeaning(index);
   }
-}
-
-function graphPurposeNode(index: ViewerIndex): ConstitutionNode {
-  return {
-    kind: "graph",
-    name: index.graphDeclaration?.name ?? "graph",
-    label: "Graph",
-    meaning: graphMeaning(index),
-  };
 }
 
 function relationMeaning(index: ViewerIndex, name: string): DesignMeaningValue {
@@ -226,19 +248,6 @@ function purposeNode(level: PurposeLevel): ConstitutionNode {
   };
 }
 
-function recordNode(
-  index: ViewerIndex,
-  record: NonNullable<AxisMap["records"][number]>,
-): ConstitutionNode {
-  return {
-    kind: record.kind,
-    name: record.name,
-    label: LABELS[record.kind],
-    meaning: componentMeaning(index, record.kind, record.name),
-    open: { kind: record.kind, name: record.name },
-  };
-}
-
 function relationNode(
   index: ViewerIndex,
   relation: AxisRelation,
@@ -268,18 +277,6 @@ function assetNode(
     current,
     open: { kind: "asset", name },
   };
-}
-
-function recordLevels(
-  index: ViewerIndex,
-  subject: ConstitutionSubjectLike,
-  map: AxisMap | undefined,
-): ConstitutionNode[] {
-  const records = map?.records ?? [];
-  if (!records.length) return [];
-  const first = recordNode(index, records[0]);
-  if (records.length > 1) first.detail = `+${records.length - 1} records`;
-  return [first];
 }
 
 function relationKey(relation: AxisRelation): string {
@@ -335,22 +332,103 @@ function relationTree(
   return { node, children };
 }
 
-/** Every relation the bindings read, each rooted with its own provenance. */
+/**
+ * The subject's own components.
+ *
+ * A record's components are the relations its bindings read; a source
+ * relation's is its asset; a derived relation's are the source relations it
+ * scans and their assets; an asset is the origin and has none. The subject
+ * itself is the purpose box, so it is not repeated in the branch.
+ */
 function relationTrees(
   index: ViewerIndex,
   subject: ConstitutionSubjectLike,
   map: AxisMap | undefined,
 ): ConstitutionRelation[] {
+  if (subject.level === "asset" || subject.level === "binding") return [];
   const relations = map?.relations ?? [];
   const isRelationSubject =
     subject.level === "relation" || subject.level === "projection";
-  const roots = isRelationSubject
-    ? [
-        relations.find((relation) => relation.name === subject.component) ??
-          axisRelationFor(index, subject.component),
-      ].filter((relation): relation is AxisRelation => Boolean(relation))
-    : relations;
-  return roots.map((relation) => relationTree(index, relation, subject, new Set()));
+  if (isRelationSubject) {
+    const relation =
+      relations.find((entry) => entry.name === subject.component) ??
+      axisRelationFor(index, subject.component);
+    if (!relation) return [];
+    return relationTree(index, relation, subject, new Set()).children;
+  }
+  return relations.map((relation) =>
+    relationTree(index, relation, subject, new Set()),
+  );
+}
+
+/**
+ * The relations a binding reads, each with its own provenance. The binding is
+ * the meeting, so neither side is repeated as the subject.
+ */
+function bindingRelations(
+  index: ViewerIndex,
+  binding: IndexedBinding,
+  subject: ConstitutionSubjectLike,
+): ConstitutionRelation[] {
+  return [...new Set(relationNamesFromRowSource(binding.binding.rows))]
+    .map((name) => axisRelationFor(index, name))
+    .filter((relation): relation is AxisRelation => Boolean(relation))
+    .map((relation) => relationTree(index, relation, subject, new Set()));
+}
+
+function bindingDisplayName(binding: IndexedBinding): string {
+  return (
+    binding.binding.name ??
+    binding.binding.debug_name ??
+    `binding #${binding.index}`
+  );
+}
+
+/**
+ * A binding comes to be at the meeting of a record and a relation: the target
+ * record (its purpose and identity only) and the relations it reads. The
+ * record's graph ancestry belongs to the record's own constitution.
+ */
+function bindingConstitution(
+  index: ViewerIndex,
+  subject: ConstitutionSubjectLike,
+): ConstitutionModel {
+  const binding = index.bindings.find(
+    (candidate) => candidate.index === subject.bindingIndex,
+  );
+  const purpose: ConstitutionNode = {
+    kind: "binding",
+    name: binding ? bindingDisplayName(binding) : `binding #${subject.bindingIndex ?? "?"}`,
+    label: "Purpose",
+    meaning: subjectMeaning(index, subject),
+    current: true,
+  };
+  if (!binding) return { purpose, graph: [], relation: [], bindings: [] };
+
+  const identity = [
+    ...new Set(
+      collectFieldRefs(binding.binding.identity)
+        .map((ref) => ref[ref.length - 1])
+        .filter((name): name is string => Boolean(name)),
+    ),
+  ];
+  const target: ConstitutionNode = {
+    kind: binding.kind,
+    name: binding.component,
+    label: LABELS[binding.kind],
+    meaning: componentMeaning(index, binding.kind, binding.component),
+    detail: identity.length
+      ? `identity ${identity.join(", ")}`
+      : "identity not declared",
+    open: { kind: binding.kind, name: binding.component },
+  };
+
+  return {
+    purpose,
+    graph: [target],
+    relation: bindingRelations(index, binding, subject),
+    bindings: [],
+  };
 }
 
 function bindingSummaries(
@@ -361,8 +439,6 @@ function bindingSummaries(
   return bindings.map((binding) => ({
     index: binding.index,
     name: binding.debugName ?? `binding #${binding.index}`,
-    identity: [...new Set(binding.identityFields)],
-    properties: binding.propertyCount,
     relations: binding.relations,
     purpose: binding.purpose,
     meaning: bindingMeaning(index, binding),
@@ -370,18 +446,20 @@ function bindingSummaries(
 }
 
 /**
- * Read the constitution for one subject.
+ * Read how one subject comes to be.
  *
- * The root is the current subject's purpose. The graph branch lists its
- * ancestry below, from the immediate parent down to the graph purpose; a
- * relation or asset subject lists the records it fulfils instead. Both cases
- * carry the relation tree and its fulfilment box, so the two axes are read
- * together rather than in separate cards.
+ * The purpose box is the subject. A record hangs its bindings, graph ancestry
+ * and each binding's relation provenance below it; a relation hangs only the
+ * declarations that produce it; a binding hangs its target record and the
+ * relations it reads; an asset is the origin and has no constitution.
  */
 export function constitutionModel(
   index: ViewerIndex,
   subject: ConstitutionSubjectLike,
 ): ConstitutionModel {
+  if (subject.level === "binding") {
+    return bindingConstitution(index, subject);
+  }
   const axis = axisSubjectFor(subject);
   const map = axis ? buildAxisMap(index, axis) : undefined;
   const recordSubject =
@@ -390,22 +468,31 @@ export function constitutionModel(
     subject.level === "abstract" ||
     subject.level === "property";
   const purpose: ConstitutionNode = {
-    kind: "graph",
+    kind: subjectConcept(subject),
     name:
       subject.level === "property"
         ? `${subject.component}.${subject.property ?? ""}`
         : subject.component,
-    label: LABELS.graph,
+    label: "Purpose",
     meaning: subjectMeaning(index, subject),
     current: true,
   };
-  const graph = recordSubject
-    ? purposeLevels(index, subject)
-        .slice(0, -1)
-        .reverse()
-        .map(purposeNode)
-    : [...recordLevels(index, subject, map), graphPurposeNode(index)];
-  const relation = relationTrees(index, subject, map);
-  const bindings = bindingSummaries(index, map);
-  return { purpose, graph, relation, bindings };
+  if (!recordSubject) {
+    return {
+      purpose,
+      graph: [],
+      relation: relationTrees(index, subject, map),
+      bindings: [],
+    };
+  }
+  const graph = purposeLevels(index, subject)
+    .slice(0, -1)
+    .reverse()
+    .map(purposeNode);
+  return {
+    purpose,
+    graph,
+    relation: relationTrees(index, subject, map),
+    bindings: bindingSummaries(index, map),
+  };
 }

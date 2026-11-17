@@ -89,22 +89,28 @@ Meaning → Expression → Build steps
 A kind includes or omits a section; it never renames one for itself.
 
 - **Overview** is the tab banner: identity and one fact row. It is not a band.
-- **Constitution** is one DAG on the shared graph canvas: the subject's purpose
-  and one fulfilment per binding are the top consumers, the graph ancestry
-  hangs below the purpose and the relation provenance below the bindings.
-  Every edge points from the supply to the consumer; a source relation or asset
-  shared by several consumers is one node with one edge per consumer, never a
-  copy or a count. The relation provenance is laid out as a layered DAG with
-  the bindings on one rank; the scene supplies nodes, edges and that rank
-  constraint, and the layout computes ranks, ordering and edge routes. The fulfilment answers the purpose and the relation roots
-  supply the fulfilment; the separator begins below fulfilment and divides the
-  subgraphs. The binding is never the parent of either axis, and fulfilment is
-  neither axis. A grouped record keeps the first record and `+N`; the relation
-  provenance never groups. The canvas opens fitted and pans and zooms; selecting
-  a node dims every other node and non-incident link, empty space clears,
-  hovering or focusing reveals the full meaning, and a node label opens its
-  document. The
-  GRAPH and RELATION labels sit below their subgraphs.
+- **Constitution** shows how the subject comes to be: its purpose at the top
+  and only the declarations that produce it below, laid out as one layered DAG
+  on the shared graph canvas. Every edge points from the supply to the
+  consumer; a declaration shared by several consumers is one node with one edge
+  per consumer, never a copy or a count. The purpose box carries the subject's
+  own concept mark, never the graph mark.
+  - A record shows one Fulfilment per binding, its graph ancestry and each
+    binding's relation provenance. The bindings share one rank; the separator
+    begins below that row, and GRAPH and RELATION label the two subgraphs.
+  - A source relation shows its purpose over its asset alone; a derived relation
+    its purpose over the source relations it scans and their assets. Neither
+    carries a binding or a graph axis.
+  - A binding shows its purpose over the target record (its purpose and
+    identity only) and the relations it reads with their provenance. The
+    record's graph ancestry belongs to the record's own constitution.
+  - An asset is the given source, so it has no Constitution card. A step is
+    build machinery and has none either.
+  The scene supplies nodes, edges and any rank constraint; the layout computes
+  ranks, ordering and edge routes. The canvas opens fitted and pans and zooms;
+  selecting a node dims every other node and non-incident link, empty space
+  clears, hovering or focusing reveals the full meaning, and a node label opens
+  its document.
 - **Meaning** leads with the subject's purpose, then sets the contextless
   claims and the limitations that bound that purpose as two labelled readings.
   Each group carries its own count, and the groups stack when the card is
@@ -121,7 +127,9 @@ A kind includes or omits a section; it never renames one for itself.
 - **Bindings** states which binding fulfils the subject; its pill opens the
   binding document.
 - A binding document leads with its **Meaning** (when the binding carries one),
-  then its **Expression** and **Build steps**.
+  then its **Constitution**, its **Expression** and its **Build steps**. The
+  Constitution is the binding's purpose over the target record and the
+  relations it reads.
 
 A kind may state an absence instead of omitting a section. A step has no design
 meaning and no release source, and it says so; it is build machinery.

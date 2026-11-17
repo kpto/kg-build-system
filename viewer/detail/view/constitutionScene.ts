@@ -1,13 +1,14 @@
 /**
- * The constitution as one directed acyclic graph.
+ * The constitution as one directed acyclic graph: how the subject comes to be.
  *
- * Purpose and one binding node per fulfilment are the top consumers; the record
- * ancestry hangs below the purpose and the relation provenance below the
- * bindings. The relation provenance is laid out by dagre as a layered DAG, so
- * ranks, ordering and edge routes are computed rather than hand-placed. A
- * declaration is one node: a source relation or asset shared by several
- * consumers appears once and carries one edge per consumer. Every edge points
- * from the supply to the consumer.
+ * A record has purpose and one binding node per fulfilment at the top, with the
+ * graph ancestry under the purpose and each binding's relation provenance under
+ * the bindings. A relation, binding or asset has the subject's purpose at the
+ * top and only the declarations that produce it below. The provenance is laid
+ * out by dagre as a layered DAG, so ranks, ordering and edge routes are
+ * computed rather than hand-placed. A declaration is one node: a source
+ * relation or asset shared by several consumers appears once and carries one
+ * edge per consumer. Every edge points from the supply to the consumer.
  */
 
 import { graphlib, layout } from "@dagrejs/dagre";
@@ -73,6 +74,8 @@ const BINDING_Y = 120;
 const STACK_GAP = 56;
 const LABEL_GAP = 24;
 const LABEL_HEIGHT = 16;
+const NOTE_GAP = 24;
+const NOTE_HEIGHT = 24;
 const EDGE_BEND = 48;
 
 /** dagre's layered engine: top-to-bottom edges read bottom-to-top. */
@@ -115,6 +118,84 @@ function routedPath(
         `${index === 0 ? "M" : "L"} ${point.x + dx} ${point.y + dy}`,
     )
     .join(" ");
+}
+
+interface LayeredNode {
+  id: string;
+  width: number;
+  height: number;
+}
+
+interface LayeredEdge {
+  source: string;
+  target: string;
+  /** The minimum number of ranks the edge spans. */
+  minlen?: number;
+}
+
+interface LayeredLayout {
+  positions: Map<string, { x: number; y: number }>;
+  paths: Map<string, string>;
+  width: number;
+  height: number;
+}
+
+/**
+ * Lay out one layered DAG and translate it into the scene by `offset`.
+ *
+ * The scene supplies nodes, edges and any rank constraint; dagre computes the
+ * ranks, the ordering within a rank and the edge routes. The result is bound
+ * to the origin so the caller only adds its document anchors.
+ */
+function layeredLayout(
+  nodes: LayeredNode[],
+  edges: LayeredEdge[],
+  offset: { x: number; y: number } = { x: 0, y: 0 },
+): LayeredLayout {
+  const graph = new graphlib.Graph();
+  graph.setGraph({ rankdir: RANKDIR, nodesep: NODE_SEP, ranksep: RANK_SEP });
+  graph.setDefaultEdgeLabel(() => ({}));
+  nodes.forEach((node) =>
+    graph.setNode(node.id, { width: node.width, height: node.height }),
+  );
+  edges.forEach((edge) =>
+    graph.setEdge(edge.source, edge.target, { minlen: edge.minlen ?? 1 }),
+  );
+  layout(graph);
+
+  const placed = nodes.map((node) => {
+    const position = graph.node(node.id);
+    return {
+      node,
+      left: position.x - node.width / 2,
+      top: position.y - node.height / 2,
+      right: position.x + node.width / 2,
+      bottom: position.y + node.height / 2,
+    };
+  });
+  const minX = Math.min(...placed.map((entry) => entry.left));
+  const minY = Math.min(...placed.map((entry) => entry.top));
+  const maxX = Math.max(...placed.map((entry) => entry.right));
+  const maxY = Math.max(...placed.map((entry) => entry.bottom));
+  const dx = offset.x - minX;
+  const dy = offset.y - minY;
+
+  const positions = new Map(
+    placed.map((entry) => [
+      entry.node.id,
+      { x: entry.left + dx, y: entry.top + dy },
+    ]),
+  );
+  const paths = new Map<string, string>();
+  edges.forEach((edge) => {
+    const routed = graph.edge(edge.source, edge.target);
+    if (!routed?.points?.length) return;
+    paths.set(
+      `${edge.source}->${edge.target}`,
+      routedPath(routed.points, dx, dy),
+    );
+  });
+  return { positions, paths, width: maxX - minX, height: maxY - minY };
 }
 
 interface RelationProvenance {
@@ -230,9 +311,22 @@ function bindingRelationEdges(
   return edges;
 }
 
-export function buildConstitutionScene(
-  model: ConstitutionModel,
-): ConstitutionScene {
+/** A subject whose constitution is its own purpose over its components. */
+function isComponentsSubject(kind: ConstitutionNode["kind"]): boolean {
+  return (
+    kind === "relation" ||
+    kind === "projection" ||
+    kind === "binding" ||
+    kind === "asset"
+  );
+}
+
+/**
+ * A record's constitution: purpose and one fulfilment per binding at the top,
+ * the graph ancestry under the purpose and each binding's relation provenance
+ * under the bindings.
+ */
+function buildRecordScene(model: ConstitutionModel): ConstitutionScene {
   const nodes: ConstitutionSceneNode[] = [];
   const edges: ConstitutionSceneEdge[] = [];
   const labels: ConstitutionSceneLabel[] = [];
@@ -304,60 +398,30 @@ export function buildConstitutionScene(
   const maxDepth = provenance.roots.length
     ? Math.max(...provenance.roots.map((id) => depthOf(id)))
     : 0;
-  const minlenFor = (edge: { source: string; target: string }) =>
-    edge.target.startsWith("binding:")
+  const edgesWithRank = dagreEdges.map((edge) => ({
+    ...edge,
+    minlen: edge.target.startsWith("binding:")
       ? Math.max(1, maxDepth + 1 - depthOf(edge.source))
-      : 1;
+      : 1,
+  }));
 
-  const graph = new graphlib.Graph();
-  graph.setGraph({ rankdir: RANKDIR, nodesep: NODE_SEP, ranksep: RANK_SEP });
-  graph.setDefaultEdgeLabel(() => ({}));
-  dagreNodes.forEach((node) =>
-    graph.setNode(node.id, { width: node.width, height: node.height }),
-  );
-  dagreEdges.forEach((edge) =>
-    graph.setEdge(edge.source, edge.target, { minlen: minlenFor(edge) }),
-  );
-  layout(graph);
-
-  const measured = dagreNodes.map((node) => {
-    const placed = graph.node(node.id);
-    return {
-      node,
-      left: placed.x - node.width / 2,
-      top: placed.y - node.height / 2,
-      right: placed.x + node.width / 2,
-      bottom: placed.y + node.height / 2,
-    };
-  });
-  const hasDagre = measured.length > 0;
-  const minX = hasDagre ? Math.min(...measured.map((entry) => entry.left)) : 0;
-  const minY = hasDagre ? Math.min(...measured.map((entry) => entry.top)) : 0;
-  const maxX = hasDagre ? Math.max(...measured.map((entry) => entry.right)) : 0;
-  const maxY = hasDagre ? Math.max(...measured.map((entry) => entry.bottom)) : 0;
   const regionX = NODE.purpose.width + COLUMN_GAP;
-  // Anchor the binding rank at the same row as the drawing: one row below the
-  // purpose. The rest of the DAG keeps dagre's ranks below it.
-  const dx = regionX - minX;
-  const dy = BINDING_Y - minY;
+  const layered = dagreNodes.length
+    ? layeredLayout(dagreNodes, edgesWithRank, { x: regionX, y: BINDING_Y })
+    : undefined;
 
-  const positioned = measured.map((entry) => ({
-    ...entry.node,
-    x: entry.left + dx,
-    y: entry.top + dy,
+  const positioned = dagreNodes.map((node) => ({
+    ...node,
+    ...(layered?.positions.get(node.id) ?? { x: regionX, y: BINDING_Y }),
   }));
   nodes.push(purpose, ...positioned, ...graphNodes);
 
-  // dagre routes every relation edge; the renderer keeps the computed path.
-  dagreEdges.forEach((edge) => {
-    const routed = graph.edge(edge.source, edge.target);
-    if (!routed?.points?.length) return;
-    addEdge(
-      edge.source,
-      edge.target,
-      routedPath(routed.points, dx, dy),
-    );
-  });
+  if (layered) {
+    dagreEdges.forEach((edge) => {
+      const path = layered.paths.get(`${edge.source}->${edge.target}`);
+      if (path) addEdge(edge.source, edge.target, path);
+    });
+  }
   // Each binding answers the purpose.
   positioned
     .filter((node) => node.axis === "fulfilment")
@@ -377,8 +441,11 @@ export function buildConstitutionScene(
   const bindingsBottom = bindings.length
     ? BINDING_Y + NODE.binding.height
     : purpose.y + purpose.height;
-  const relationBottom = hasDagre ? maxY + dy : bindingsBottom;
-  const regionCentre = regionX + (maxX - minX) / 2;
+  const relationBottom = layered
+    ? BINDING_Y + layered.height
+    : bindingsBottom;
+  const regionWidth = layered ? layered.width : NODE.purpose.width;
+  const regionCentre = regionX + regionWidth / 2;
 
   if (!model.bindings.length) {
     notes.push({
@@ -419,7 +486,7 @@ export function buildConstitutionScene(
       graphBottom + LABEL_GAP + LABEL_HEIGHT,
       relationLabelY + (provenance.roots.length ? 0 : LABEL_HEIGHT + 8),
     ) + LABEL_GAP;
-  const width = Math.max(purpose.width, regionX + (maxX - minX));
+  const width = Math.max(purpose.width, regionX + regionWidth);
 
   return {
     nodes,
@@ -430,4 +497,94 @@ export function buildConstitutionScene(
     width,
     height,
   };
+}
+
+/**
+ * A relation's, binding's or asset's constitution: the subject's purpose at
+ * the top and only the declarations that produce it below. There is no
+ * fulfilment row and no graph axis. An asset has no producer at all.
+ */
+function buildComponentsScene(model: ConstitutionModel): ConstitutionScene {
+  const purpose: ConstitutionSceneNode = {
+    id: "purpose",
+    axis: "purpose",
+    node: model.purpose,
+    x: 0,
+    y: 0,
+    ...NODE.purpose,
+  };
+  const graphNodes: ConstitutionSceneNode[] = model.graph.map((node) => ({
+    id: sceneNodeId(node),
+    axis: "graph",
+    node,
+    x: 0,
+    y: 0,
+    ...NODE.graph,
+  }));
+  const provenance = relationProvenance(model.relation);
+  const relationNodes = [...provenance.nodes.values()].map(relationNode);
+  const components = [...graphNodes, ...relationNodes];
+  const nodes: ConstitutionSceneNode[] = [purpose, ...components];
+  const edges: ConstitutionSceneEdge[] = [];
+  const notes: ConstitutionSceneNote[] = [];
+  const edgeKeys = new Set<string>();
+
+  if (!components.length) {
+    const width = NODE.purpose.width;
+    const height = NODE.purpose.height + NOTE_GAP + NOTE_HEIGHT;
+    notes.push({
+      text: "No component is declared.",
+      x: width / 2,
+      y: NODE.purpose.height + NOTE_GAP,
+    });
+    return { nodes, edges, labels: [], notes, seam: null, width, height };
+  }
+
+  const links: LayeredEdge[] = [];
+  const addLink = (source: string, target: string) => {
+    const key = `${source}->${target}`;
+    if (edgeKeys.has(key)) return;
+    edgeKeys.add(key);
+    links.push({ source, target });
+  };
+  graphNodes.forEach((node) => addLink(node.id, purpose.id));
+  provenance.roots.forEach((id) => addLink(id, purpose.id));
+  provenance.down.forEach((edge) => addLink(edge.child, edge.parent));
+
+  const layered = layeredLayout(nodes, links);
+  nodes.forEach((node) => {
+    const position = layered.positions.get(node.id);
+    if (position) {
+      node.x = position.x;
+      node.y = position.y;
+    }
+  });
+  links.forEach((edge) => {
+    const path = layered.paths.get(`${edge.source}->${edge.target}`);
+    if (!path) return;
+    edges.push({
+      id: `${edge.source}->${edge.target}`,
+      source: edge.source,
+      target: edge.target,
+      path,
+    });
+  });
+
+  return {
+    nodes,
+    edges,
+    labels: [],
+    notes,
+    seam: null,
+    width: layered.width,
+    height: layered.height,
+  };
+}
+
+export function buildConstitutionScene(
+  model: ConstitutionModel,
+): ConstitutionScene {
+  return isComponentsSubject(model.purpose.kind)
+    ? buildComponentsScene(model)
+    : buildRecordScene(model);
 }

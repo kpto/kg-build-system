@@ -1964,7 +1964,7 @@ function SubjectDetailEditor(props: WorkspaceProps) {
     <DetailBand
       concept="semantics"
       title="Constitution"
-      question="What does this subject assert, and how is it fulfilled?"
+      question="What is this subject for, and how does it come to be?"
       testId="detail-constitution"
     >
       <Constitution model={constitution} />
@@ -2025,7 +2025,7 @@ function SubjectDetailEditor(props: WorkspaceProps) {
       facts={facts}
     >
       {meaningSection}
-      {constitutionSection}
+      {model.level === "asset" ? null : constitutionSection}
       {kindSection}
       {bindingsSection}
     </DetailDocument>

@@ -17,7 +17,7 @@ the index rail is the only navigation between cards.
 | Order | Section | Question it answers | Content |
 | --- | --- | --- | --- |
 | 1 | **Meaning** | What is this for, and what does it exclude? | Purpose as the lead, then two labelled readings: contextless claims and the limitations that bound the purpose. Each group states its own count; the groups stack when the card is narrow. Legacy readings follow under **Earlier reading**. |
-| 2 | **Constitution** | What does this subject assert, and how is it fulfilled? | One DAG on a pan/zoom canvas: Purpose and one Fulfilment per binding are the top consumers, the graph ancestry hangs below Purpose and the relation provenance below the bindings. Each declaration is one node and each edge points from the supply to the consumer; shared relations and assets appear once with one edge per consumer. The separator begins below the fulfilment row and divides the two subgraphs. The GRAPH and RELATION labels sit below their subgraphs. Each node clamps its purpose to two lines; hovering or focusing it reveals the full meaning, selecting it dims the rest, and its label opens its document. Each Fulfilment node states its binding's display name and purpose; identity fields and coverage stay in the binding detail. The graph subgraph groups records as the first record and `+N`; the relation provenance never groups. |
+| 2 | **Constitution** | What is this subject for, and how does it come to be? | One layered DAG on a pan/zoom canvas. A record shows Purpose, one Fulfilment per binding, its graph ancestry and each binding's relation provenance. A source relation shows its Purpose over its asset; a derived relation its Purpose over the source relations it scans and their assets; a binding its Purpose over the target record's purpose and identity and the relations it reads. An asset has no Constitution card: it is the origin. Every edge points from the supply to the consumer; a shared declaration is one node with one edge per consumer; ranks, ordering and edge routes are computed; the purpose box carries the subject's own concept mark. Each node clamps its purpose to two lines; hovering or focusing it reveals the full meaning, selecting it dims the rest, and its label opens its document. |
 | 3 | **Members** | Which units belong to this subject? | One table grammar: name, type, meaning, source, count; the instance pill opens its document when one exists. |
 | 4 | **Connections** | Which records does this subject touch? | Endpoints of an edge, incident relations of a node, ports of a step. |
 | 5 | **Bindings** | Which binding fulfils this subject? | One row per binding: name, writes, identity, rows read. The binding pill opens the binding document. |
@@ -34,10 +34,11 @@ the scroll position. It is hidden when the pane is narrower than the rail plus
 one readable card. The rail reads the rendered cards, so a card added by any
 kind appears in it without a second section list.
 
-A binding is its own document. Its sections are **Meaning**, **Expression** and
-**Build steps**. The binding banner states the record, writes, identity, rows
-read, step and output. A record detail does not repeat the traversal; its
-Bindings table and the Constitution's binding node open the binding document.
+A binding is its own document. Its sections are **Meaning**, **Constitution**,
+**Expression** and **Build steps**. The binding banner states the record,
+writes, identity, rows read, step and output. A record detail does not repeat
+the traversal; its Bindings table and the Constitution's binding node open the
+binding document.
 
 ## Per-kind registry
 
@@ -47,10 +48,10 @@ Bindings table and the Constitution's binding node open the binding document.
 | Edge | **Meaning**, **Constitution**, **Members**, **Connections**, **Bindings** | The banner states the endpoints; Connections repeats them with the edge. |
 | Property | **Meaning**, **Constitution**, **Branches**, **Connections**, **Bindings** | Branches is the type/presence chain and lane canvas; Connections is its ledger. |
 | Abstract category | **Meaning**, **Constitution**, **Members** | Members are concrete descendants. |
-| Asset | **Meaning**, **Constitution**, **Members**, **Fields**, **Bindings** | The banner states the layout and location; Members are relations, then fields. |
-| Source relation | **Meaning**, **Constitution**, **Members**, **Bindings** | Columns are the relation; the banner states the asset and row source. The Meaning card is omitted when the declaration states no units; the Constitution root and relation box state the absence explicitly. |
-| Derived relation | **Meaning**, **Constitution**, **Members**, **Bindings** | Members are its columns; the banner states the row source. |
-| Binding | **Meaning**, **Expression**, **Build steps** | One binding's identity and property expressions, then its workflow neighbourhood. |
+| Asset | **Meaning**, **Members**, **Fields**, **Bindings** | The banner states the layout and location; Members are relations, then fields. An asset is the origin, so it has no Constitution card. |
+| Source relation | **Meaning**, **Constitution**, **Members**, **Bindings** | Columns are the relation; the banner states the asset and row source. The Constitution is the relation's purpose over its asset alone: a source relation is not fulfilled by a binding and has no graph axis. |
+| Derived relation | **Meaning**, **Constitution**, **Members**, **Bindings** | Members are its columns; the banner states the row source. The Constitution is its purpose over the source relations it scans and their assets. |
+| Binding | **Meaning**, **Constitution**, **Expression**, **Build steps** | The Constitution is the binding's purpose over the target record (purpose and identity only) and the relations it reads; Expression and Build steps carry the computation and the plan. |
 | Step | **Ports**, **Payload**, **Connections**, **Bindings**, Meaning, Sources | A step is build machinery; Meaning and Sources state their absence last. |
 
 Text in bold is the first card the reader meets; every card in the row is
@@ -68,6 +69,7 @@ document is the one place for the computation and the plan:
 | Section | Strict meaning | Visualisation |
 | --- | --- | --- |
 | **Expression** | the field and operator chain the binding writes | the indented expression outline: identity, source and target identity, then each property expression |
+| **Constitution** | how the binding comes to be | its purpose over the target record's purpose and identity, and the relations it reads with their provenance |
 | **Build steps** | the plan that executes the binding | the binding step and the workflow neighbours it reads from and writes to |
 
 Sources is not a record card. The binding banner states the rows read; the
@@ -77,48 +79,50 @@ The section titles state the question.
 
 ## The constitution
 
-The Constitution card draws one subject as a DAG on the shared graph canvas:
-the purpose and one fulfilment per binding are the top consumers, the graph
-ancestry hangs below the purpose and the relation provenance below the
-bindings, and every edge points from the supply to the consumer. A declaration
-is one node: a source relation or asset shared by several consumers appears once
-and carries one edge per consumer. The bindings share one fulfilment rank, and
-the relation provenance is a layered DAG: ranks, ordering and edge routes are
-computed, not hand-placed. The axes are parallel lanes, not a Cartesian plot.
+A constitution states how one subject comes to be. The subject's purpose is the
+top node, the declarations that produce it hang below, and every edge points
+from the supply to the consumer. The purpose box carries the subject's own
+concept mark, never the graph mark. The card is one layered DAG: a declaration
+shared by several consumers is one node with one edge per consumer, ranks,
+ordering and edge routes are computed, and nothing is grouped or hidden.
 
-- **Purpose** is the record axis's top node: the current subject's purpose, the
-  use the binding answers. A record subject lists its ancestry below it; a
-  relation or asset subject lists the records it fulfils. The graph purpose is
-  the bottom node of the ancestry, not the top, so the current item leads the
-  reading.
-- **Graph** is the record axis below Purpose: each node supplies the one above
-  it, from the current subject's immediate parent down to the graph purpose. A
-  grouped record keeps the first record and `+N`; the node states its own
-  purpose and the root purpose is marked current.
-- **Relation** is the relation provenance below the bindings. Every relation a
-  binding reads is a node; each derived relation's scanned relations and each
-  source relation's asset are nodes below it. A shared declaration is one node
-  with one edge per consumer; nothing is grouped or hidden. The relation root
-  supplies its binding. The current declaration is marked when the subject is a
-  relation or asset.
-- **Fulfilment** is one node per binding, in a row to the right of Purpose;
-  each binding→purpose edge enters Purpose's right edge. A binding is not part
-  of either axis: the relations it reads supply it, and it answers the purpose.
+| Subject | How it comes to be | The card |
+| --- | --- | --- |
+| Node, edge, property, abstract category | its bindings, each meeting a relation at a grain and identity; the graph states what it is and where it sits | Purpose, one Fulfilment per binding, the graph ancestry, and each binding's relation provenance |
+| Source relation | its asset | Purpose over its asset alone; no bindings, no graph axis |
+| Derived relation | the source relations it scans, each from its asset | Purpose over those source relations and their assets; no bindings, no graph axis |
+| Binding | the meeting of a record and a relation | Purpose over the target record (purpose and identity only) and the relations it reads with their provenance |
+| Asset | nothing: it is the given source | no Constitution card |
+| Step | build machinery, not a semantic declaration | no Constitution card |
+
+The record's graph ancestry belongs to the record's own constitution, not to
+its binding's. A binding owns neither side's meaning: its purpose states the
+fulfilment, and the target record keeps its purpose and identity; the record's
+purpose is not repeated as the binding's parent.
+
+- **Purpose** is the subject's own use, marked current. For a record it is the
+  use the bindings answer; for a relation and a binding it is the `Purpose`
+  value declared on that subject.
+- **Fulfilment** appears only for a record: one node per binding, in one rank.
   Each node states the binding's display name and purpose; identity fields and
   coverage stay in the binding document. The dashed separator begins below the
-  fulfilment row and divides the two subgraphs. The graph asserts, the
-  relations supply, and each binding states its own meeting; a binding is never
-  the parent of either axis.
-- The graph subgraph groups many records as the first record and `+N`. The
-  relation provenance never groups: every relation, scanned relation and asset
-  is a node.
+  fulfilment row.
+- **Graph** appears only for a record: each node supplies the one above it,
+  from the immediate parent down to the graph purpose. It groups many records
+  as the first record and `+N`; the relation provenance never groups.
+- **Relation** is the subject's components below the purpose: a binding's
+  target record and the relations it reads, a source relation's asset, a
+  derived relation's scanned relations and their assets. A source relation or
+  asset shared by several consumers is one node with one edge per consumer.
+- **GRAPH** and **RELATION** label the record's two subgraphs below their own
+  content. A relation or binding subject has neither label and no separator.
 
 The card never invents a purpose, a relation or a binding. When a declaration
-states no meaning, the node says so; when no binding meets the two axes, the
-card says so. The canvas opens fitted and pans and zooms; hovering or focusing
-a node reveals its full meaning, selecting one dims every other node and keeps
-its incident edges, and a node label opens its document. The node itself is
-inspection only.
+states no meaning, the node says so; when a record has no binding, the card
+says so; when a produced subject has no component, it says that instead. The
+canvas opens fitted and pans and zooms; hovering or focusing a node reveals its
+full meaning, selecting one dims every other node and keeps its incident edges,
+and a node label opens its document. The node itself is inspection only.
 
 ## One grammar per concept
 

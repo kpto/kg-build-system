@@ -6,6 +6,7 @@ import type {
   ConstitutionRelation,
 } from "../detail/model/constitution";
 import { buildConstitutionScene } from "../detail/view/constitutionScene";
+import type { ConstitutionScene } from "../detail/view/constitutionScene";
 
 const meaning = { claims: [], limitations: [], frames: [] };
 
@@ -35,7 +36,7 @@ function derivedTree(
 }
 
 const sceneModel: ConstitutionModel = {
-  purpose: node("graph", "defect", "Purpose"),
+  purpose: node("node", "defect", "Purpose"),
   graph: [node("graph", "fixture_graph", "Graph")],
   relation: [
     derivedTree("alpha", sourceTree("surveys")),
@@ -46,8 +47,6 @@ const sceneModel: ConstitutionModel = {
     {
       index: 0,
       name: "alpha_binding",
-      identity: ["alpha_id"],
-      properties: 1,
       relations: ["alpha"],
       purpose: "Alpha binding.",
       meaning,
@@ -55,8 +54,6 @@ const sceneModel: ConstitutionModel = {
     {
       index: 1,
       name: "beta_binding",
-      identity: ["beta_id"],
-      properties: 1,
       relations: ["beta"],
       purpose: "Beta binding.",
       meaning,
@@ -64,8 +61,6 @@ const sceneModel: ConstitutionModel = {
     {
       index: 2,
       name: "gamma_binding",
-      identity: ["gamma_id"],
-      properties: 1,
       relations: ["surveys"],
       purpose: "Gamma binding.",
       meaning,
@@ -139,6 +134,95 @@ describe("constitution scene", () => {
     expect(scene.labels.map((label) => label.text)).toEqual([
       "GRAPH",
       "RELATION",
+    ]);
+  });
+});
+
+describe("constitution scene for a produced subject", () => {
+  const findBySceneId = (scenes: ConstitutionScene, id: string) =>
+    scenes.nodes.find((entry) => entry.id === id);
+  const findEdge = (scenes: ConstitutionScene, source: string, target: string) =>
+    scenes.edges.find((entry) => entry.id === `${source}->${target}`);
+
+  it("shows a source relation as its purpose over its asset alone", () => {
+    const model: ConstitutionModel = {
+      purpose: node("relation", "surveys", "Purpose"),
+      graph: [],
+      relation: [{ node: node("asset", "estate", "Asset"), children: [] }],
+      bindings: [],
+    };
+    const sourceScene = buildConstitutionScene(model);
+    expect(sourceScene.nodes.map((entry) => entry.id)).toEqual([
+      "purpose",
+      "asset:estate",
+    ]);
+    expect(findEdge(sourceScene, "asset:estate", "purpose")).toBeTruthy();
+    expect(sourceScene.labels).toEqual([]);
+    expect(sourceScene.seam).toBeNull();
+    const purpose = findBySceneId(sourceScene, "purpose");
+    const asset = findBySceneId(sourceScene, "asset:estate");
+    expect(purpose).toBeTruthy();
+    expect(asset).toBeTruthy();
+    expect(asset!.y).toBeGreaterThan(purpose!.y);
+  });
+
+  it("shows a derived relation as its purpose over its scanned sources and their assets", () => {
+    const model: ConstitutionModel = {
+      purpose: node("projection", "defect", "Purpose"),
+      graph: [],
+      relation: [sourceTree("surveys")],
+      bindings: [],
+    };
+    const derivedScene = buildConstitutionScene(model);
+    expect(findEdge(derivedScene, "relation:surveys", "purpose")).toBeTruthy();
+    expect(findEdge(derivedScene, "asset:estate", "relation:surveys")).toBeTruthy();
+    expect(derivedScene.labels).toEqual([]);
+    expect(derivedScene.seam).toBeNull();
+    const surveys = findBySceneId(derivedScene, "relation:surveys");
+    const estate = findBySceneId(derivedScene, "asset:estate");
+    const purpose = findBySceneId(derivedScene, "purpose");
+    expect(surveys!.y).toBeGreaterThan(purpose!.y);
+    expect(estate!.y).toBeGreaterThan(surveys!.y);
+  });
+
+  it("shows a binding as its purpose over the target record and the relations it reads", () => {
+    const model: ConstitutionModel = {
+      purpose: node("binding", "defect.title", "Purpose"),
+      graph: [
+        {
+          ...node("node", "defect", "Node"),
+          detail: "identity surveys.survey_id",
+        },
+      ],
+      relation: [sourceTree("surveys")],
+      bindings: [],
+    };
+    const bindingScene = buildConstitutionScene(model);
+    expect(findEdge(bindingScene, "node:defect", "purpose")).toBeTruthy();
+    expect(findEdge(bindingScene, "relation:surveys", "purpose")).toBeTruthy();
+    expect(findEdge(bindingScene, "asset:estate", "relation:surveys")).toBeTruthy();
+    const target = findBySceneId(bindingScene, "node:defect");
+    const surveys = findBySceneId(bindingScene, "relation:surveys");
+    const purpose = findBySceneId(bindingScene, "purpose");
+    expect(target!.y).toBe(surveys!.y);
+    expect(target!.y).toBeGreaterThan(purpose!.y);
+    expect(target!.node.detail).toBe("identity surveys.survey_id");
+  });
+
+  it("shows an asset as its purpose with no component", () => {
+    const model: ConstitutionModel = {
+      purpose: node("asset", "estate", "Purpose"),
+      graph: [],
+      relation: [],
+      bindings: [],
+    };
+    const assetScene = buildConstitutionScene(model);
+    expect(assetScene.nodes.map((entry) => entry.id)).toEqual(["purpose"]);
+    expect(assetScene.edges).toEqual([]);
+    expect(assetScene.labels).toEqual([]);
+    expect(assetScene.seam).toBeNull();
+    expect(assetScene.notes.map((note) => note.text)).toEqual([
+      "No component is declared.",
     ]);
   });
 });

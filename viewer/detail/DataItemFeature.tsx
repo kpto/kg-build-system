@@ -165,7 +165,7 @@ export function DataItemEditor(props: WorkspaceProps) {
     <DetailBand
       concept="semantics"
       title="Constitution"
-      question="What does this declaration assert, and how is it fulfilled?"
+      question="What is this subject for, and how does it come to be?"
       testId="detail-constitution"
     >
       <Constitution model={constitution} />

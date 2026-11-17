@@ -210,6 +210,7 @@ button.constitutionName:focus-visible {
 .constitutionTag {
   overflow: hidden;
   min-width: 0;
+  max-width: 60%;
   flex: 0 1 auto;
   margin-left: auto;
   color: var(--color-faint);
