@@ -3,10 +3,11 @@
 /**
  * Detail document view: one design subject read in full.
  *
- * Every kind renders the same band order: Overview, Constitution, Meaning,
- * Sources, Build steps, Expression, Members, Connections and Bindings. A kind
- * includes or omits a band; it never invents a second section grammar. The
- * content contract is `DETAIL_CONTENT.md`.
+ * Every record detail renders the same band order: Meaning, Constitution,
+ * Members, Connections and Bindings. The binding document carries the
+ * Expression and Build steps. A kind includes or omits a band; it never
+ * invents a second section grammar. The content contract is
+ * `DETAIL_CONTENT.md`.
  */
 
 import {
@@ -48,10 +49,6 @@ import {
   effectiveLicenseForModel,
   type EffectiveLicense,
 } from "@/proof/license";
-import {
-  provenanceReferences,
-  type ProvenanceReferences,
-} from "@/proof/references";
 import { ConceptGlyph, ConceptMark } from "@/shared/ui/ConceptMark";
 import {
   BindingPill,
@@ -62,7 +59,6 @@ import {
   PropertyPill,
   SourceRelationPill,
 } from "@/detail/view/ConceptPill";
-import { ConceptReferenceChip } from "@/detail/view/ConceptReference";
 import { activeDocument, documentSelection } from "@/workbench/types";
 import type {
   LineageLane,
@@ -78,12 +74,8 @@ import {
   type DetailFact,
   type MemberRow,
 } from "./view/DetailChrome";
-import {
-  ExpressionTree,
-  type ExpressionChain,
-} from "./view/ExpressionTree";
-import { WorkflowProvenanceGraph } from "./view/WorkflowProvenanceGraph";
 import { DataItemEditor } from "./DataItemFeature";
+import { BindingEditor } from "./BindingFeature";
 import { ContextMenu } from "@/shared/ui/ContextMenu";
 import { laneColor } from "@/shared/ui/theme";
 import {
@@ -168,78 +160,6 @@ function levelTitle(model: ProofModel): string {
   }
 }
 
-
-function ProvenanceGroup({
-  concept,
-  label,
-  references,
-  testId,
-}: {
-  concept: ConceptKind;
-  label: string;
-  references: ConceptReference[];
-  testId: string;
-}) {
-  return (
-    <div className={styles.sourcesGroup} data-testid={testId}>
-      <p className={styles.sourcesLabel}>
-        <span>
-          <ConceptGlyph concept={concept} className={styles.provenanceGroupIcon} />{" "}
-          {label}
-        </span>
-        <span>{references.length}</span>
-      </p>
-      {references.length ? (
-        <div className={styles.provenanceItems}>
-          {references.map((reference) => (
-            <ConceptReferenceChip
-              key={`${reference.concept}:${reference.name}`}
-              reference={reference}
-            />
-          ))}
-        </div>
-      ) : (
-        <p className={styles.provenanceEmpty}>None resolved</p>
-      )}
-    </div>
-  );
-}
-
-function ProvenanceSection({
-  provenance,
-}: {
-  provenance: ProvenanceReferences;
-}) {
-  return (
-    <DetailBand
-      concept="graph"
-      title="Sources"
-      question="Where does this value come from?"
-      testId="detail-provenance"
-    >
-      <div className={styles.sourcesGrid}>
-        <ProvenanceGroup
-          concept="asset"
-          label="Assets"
-          references={provenance.assets}
-          testId="detail-provenance-assets"
-        />
-        <ProvenanceGroup
-          concept="table"
-          label="Source relations"
-          references={provenance.tables}
-          testId="detail-provenance-tables"
-        />
-        <ProvenanceGroup
-          concept="projection"
-          label="Derived relations"
-          references={provenance.projections}
-          testId="detail-provenance-projections"
-        />
-      </div>
-    </DetailBand>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Small shared pieces
@@ -359,6 +279,7 @@ interface SidebarRowProps {
   concept?: ConceptKind;
   active?: boolean;
   abstract?: boolean;
+  testId?: string;
   onSelect(): void;
   onOpenPermanent?(): void;
   onContextMenu?(event: ReactMouseEvent): void;
@@ -370,6 +291,7 @@ function SidebarRow({
   concept,
   active,
   abstract,
+  testId,
   onSelect,
   onOpenPermanent,
   onContextMenu,
@@ -379,6 +301,7 @@ function SidebarRow({
       type="button"
       className={styles.sideRow}
       data-active={active ? "true" : undefined}
+      data-testid={testId}
       onClick={onSelect}
       onDoubleClick={onOpenPermanent ?? onSelect}
       onContextMenu={onContextMenu}
@@ -459,6 +382,17 @@ export function ExplorerSidebar(props: WorkspaceProps) {
     });
   }, [normalized, focusedComponent, activeStepKey, activeStepComponent]);
 
+  // Opening a binding from a pill should reveal its Explorer group once.
+  useEffect(() => {
+    if (normalized || active?.kind !== "binding") return;
+    setOpen((current) => {
+      if (current.has("bindings")) return current;
+      const next = new Set(current);
+      next.add("bindings");
+      return next;
+    });
+  }, [normalized, active?.kind, active?.bindingIndex]);
+
   // Single-click navigation reuses one preview tab; an explicit open is permanent.
   const select = (next: ProofSubject) => {
     props.actions.openTab({ selection: toWorkbenchSelection(next), preview: true });
@@ -512,6 +446,20 @@ export function ExplorerSidebar(props: WorkspaceProps) {
       preview,
     });
   };
+  const openBinding = (
+    binding: ViewerIndex["bindings"][number],
+    preview: boolean,
+  ) => {
+    props.actions.openTab({
+      selection: {
+        kind: "binding",
+        component: binding.component,
+        name: binding.binding.name ?? `binding #${binding.index}`,
+        bindingIndex: binding.index,
+      },
+      preview,
+    });
+  };
   const toggle = (id: string) => {
     setOpen((current) => {
       const next = new Set(current);
@@ -543,6 +491,16 @@ export function ExplorerSidebar(props: WorkspaceProps) {
   const edges = index.topologyEdges.filter((edge) =>
     matches(normalized, edge.name) ||
     (edge.properties ?? []).some((property) => matches(normalized, property.name)),
+  );
+  const bindings = index.bindings.filter((binding) =>
+    matches(
+      normalized,
+      binding.binding.name,
+      binding.component,
+      binding.kind,
+      `binding #${binding.index}`,
+      String(binding.index),
+    ),
   );
   const concreteNodes = nodes.filter((node) => !node.abstract);
   const abstractNodes = nodes.filter((node) => node.abstract);
@@ -994,6 +952,30 @@ export function ExplorerSidebar(props: WorkspaceProps) {
         </SideSection>
 
         <SideSection
+          id="bindings"
+          title="Bindings"
+          count={bindings.length}
+          open={sectionOpen("bindings")}
+          onToggle={toggle}
+        >
+          {bindings.map((binding) => (
+            <SidebarRow
+              key={`binding:${binding.index}`}
+              testId="explorer-binding"
+              label={binding.binding.name ?? `binding #${binding.index}`}
+              concept="binding"
+              meta={`${binding.kind} · ${binding.component}`}
+              active={
+                active?.kind === "binding" &&
+                active.bindingIndex === binding.index
+              }
+              onSelect={() => openBinding(binding, true)}
+              onOpenPermanent={() => openBinding(binding, false)}
+            />
+          ))}
+        </SideSection>
+
+        <SideSection
           id="workflow"
           title="Workflow"
           count={filteredWorkflowRows.length}
@@ -1403,6 +1385,7 @@ function BindingsSection({
           name={binding.binding.name ?? `binding #${binding.index}`}
           component={binding.component}
           ownerConcept={binding.kind}
+          bindingIndex={binding.index}
         />,
         `${Object.keys(binding.binding.properties ?? {}).length}`,
         fields.join(", ") || "not declared",
@@ -1767,6 +1750,9 @@ function subjectMeaning(
 
 export function DetailEditor(props: WorkspaceProps) {
   const selection = documentSelection(activeDocument(props.state));
+  if (selection?.kind === "binding") {
+    return <BindingEditor {...props} />;
+  }
   if (selection?.kind === "relation" || selection?.kind === "projection") {
     return <DataItemEditor {...props} />;
   }
@@ -1791,42 +1777,6 @@ function subjectLicense(
     );
   }
   return effectiveLicenseForModel(index, model);
-}
-
-function subjectExpressionChains(
-  index: ViewerIndex,
-  model: ProofModel,
-): ExpressionChain[] {
-  const component = model.subject.component;
-  if (model.level === "property") {
-    return model.branches.map((branch) => ({
-      id: branch.key,
-      target: {
-        concept: "property" as const,
-        label: `${component}.${model.subject.property ?? ""}`,
-        detail: "property expression",
-      },
-      expression: branch.branch.expression,
-    }));
-  }
-  if (model.level === "node" || model.level === "edge") {
-    const level = model.level;
-    return index.bindings
-      .filter(
-        (binding) =>
-          binding.kind === level && binding.component === component,
-      )
-      .map((binding) => ({
-        id: `binding:${binding.index}`,
-        target: {
-          concept: level,
-          label: component,
-          detail: "identity expression",
-        },
-        expression: binding.binding.identity,
-      }));
-  }
-  return [];
 }
 
 function overviewFacts(
@@ -1941,6 +1891,24 @@ function overviewFacts(
           value: profile?.coverage ?? "not declared",
           absent: !profile?.coverage,
         },
+        {
+          label: "Layout",
+          value:
+            index.assetsByName.get(model.subject.component)?.layout?.kind ??
+            "unspecified",
+          absent: !index.assetsByName.get(model.subject.component)?.layout?.kind,
+        },
+        {
+          label: "Location",
+          value:
+            index.assetsByName.get(model.subject.component)?.layout?.locator ??
+            "not recorded",
+          title:
+            index.assetsByName.get(model.subject.component)?.layout?.locator ??
+            undefined,
+          absent:
+            !index.assetsByName.get(model.subject.component)?.layout?.locator,
+        },
         licenseFact,
       );
       break;
@@ -1958,24 +1926,11 @@ function SubjectDetailEditor(props: WorkspaceProps) {
     () => constitutionModel(index, model.subject),
     [index, model.subject],
   );
-  const provenance = useMemo(
-    () => provenanceReferences(index, model),
-    [model, index],
-  );
-  const expressionChains = useMemo(
-    () => subjectExpressionChains(index, model),
-    [model, index],
-  );
   const license = subjectLicense(index, model);
   const facts = useMemo(
     () => overviewFacts(index, model, license),
     [index, model, license],
   );
-  const dataBound =
-    model.level === "property" ||
-    model.level === "node" ||
-    model.level === "edge";
-
   useEffect(() => {
     if (selection) return;
     props.actions.setSelection(
@@ -2031,80 +1986,6 @@ function SubjectDetailEditor(props: WorkspaceProps) {
       />
     </DetailBand>
   );
-  const assetSourcesSection = (
-    <>
-
-      {model.level === "asset" ? (
-        <DetailBand
-          concept="asset"
-          title="Sources"
-          question="Where does this asset read from?"
-        >
-          <p className={styles.inlineEmpty}>
-            {`${
-              index.assetsByName.get(model.subject.component)?.layout?.kind ??
-              "Unspecified"
-            } layout at ${
-              index.assetsByName.get(model.subject.component)?.layout?.locator ??
-              "an unrecorded location"
-            }. The asset is the release boundary; every relation in Members reads it.`}
-          </p>
-        </DetailBand>
-      ) : null}
-
-    </>
-  );
-  const sourcesSection = (
-    <>
-
-      {dataBound ? (
-        <ProvenanceSection provenance={provenance} />
-      ) : null}
-
-    </>
-  );
-  const buildStepsSection = (
-    <>
-
-      {dataBound ? (
-        <WorkflowProvenanceGraph
-          index={index}
-          model={model}
-          onOpenStep={(row) =>
-            props.actions.openTab({
-              selection: {
-                kind: "step",
-                component: row.component,
-                name: row.name,
-                stepId: row.id,
-              },
-            })
-          }
-        />
-      ) : null}
-
-    </>
-  );
-  const expressionSection = (
-    <>
-
-      {dataBound ? (
-        <ExpressionTree
-          index={index}
-          references={provenance}
-          chains={expressionChains}
-          item={{
-            concept: model.level,
-            label:
-              model.level === "property"
-                ? `${model.subject.component}.${model.subject.property ?? ""}`
-                : model.subject.component,
-          }}
-        />
-      ) : null}
-
-    </>
-  );
   const kindSection = (
     <>
 
@@ -2143,45 +2024,10 @@ function SubjectDetailEditor(props: WorkspaceProps) {
       }
       facts={facts}
     >
-      {model.level === "node" || model.level === "edge" ? (
-        <>
-          {constitutionSection}
-          {meaningSection}
-          {kindSection}
-          {sourcesSection}
-          {buildStepsSection}
-          {expressionSection}
-          {bindingsSection}
-        </>
-      ) : model.level === "property" ? (
-        <>
-          {constitutionSection}
-          {meaningSection}
-          {kindSection}
-          {expressionSection}
-          {sourcesSection}
-          {buildStepsSection}
-          {bindingsSection}
-        </>
-      ) : model.level === "abstract" ? (
-        <>
-          {constitutionSection}
-          {meaningSection}
-          {kindSection}
-          {bindingsSection}
-        </>
-      ) : (
-        <>
-          {constitutionSection}
-          {meaningSection}
-          {assetSourcesSection}
-          {kindSection}
-          {sourcesSection}
-          {buildStepsSection}
-          {expressionSection}
-          {bindingsSection}
-        </>
-      )}
+      {meaningSection}
+      {constitutionSection}
+      {kindSection}
+      {bindingsSection}
     </DetailDocument>
   );
 }

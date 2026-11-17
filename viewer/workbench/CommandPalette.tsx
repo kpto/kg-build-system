@@ -107,6 +107,9 @@ function subjectTarget(
           kind: "binding",
           name: record.name,
           component: record.component,
+          ...(record.bindingIndex !== undefined
+            ? { bindingIndex: record.bindingIndex }
+            : {}),
         },
         tabLabel,
       };

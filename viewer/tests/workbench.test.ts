@@ -237,6 +237,44 @@ describe("workbench documents and geometry", () => {
     ).toBe("binding.0");
   });
 
+  it("keeps two bindings of one record as distinct documents", () => {
+    let current = state();
+    current = workbenchReducer(current, {
+      type: "open-tab",
+      input: {
+        selection: {
+          kind: "binding",
+          component: "defect",
+          name: "binding #0",
+          bindingIndex: 0,
+        },
+      },
+    });
+    current = workbenchReducer(current, {
+      type: "open-tab",
+      input: {
+        selection: {
+          kind: "binding",
+          component: "defect",
+          name: "binding #1",
+          bindingIndex: 1,
+        },
+      },
+    });
+    expect(current.tabs.map((tab) => documentTitle(tab.document))).toEqual([
+      "Graph",
+      "Workflow",
+      "binding #0",
+      "binding #1",
+    ]);
+    expect(subjectTitle({
+      kind: "binding",
+      component: "defect",
+      name: "#1",
+      bindingIndex: 1,
+    })).toBe("binding #1");
+  });
+
   it("does not close the pinned Graph or Workflow document", () => {
     const initial = state();
     const afterGraph = workbenchReducer(initial, {

@@ -34,6 +34,8 @@ export interface ConceptTarget {
   ownerConcept?: ConceptKind;
   /** The step identity, when a step name is not unique across components. */
   stepId?: [string, string];
+  /** The binding identity, when a binding name is not unique by component. */
+  bindingIndex?: number;
 }
 
 export interface ConceptReference {

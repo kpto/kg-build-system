@@ -29,6 +29,8 @@ export interface SubjectSelection {
   property?: string;
   level?: DetailLevel;
   stepId?: [string, string];
+  /** The binding identity when the subject is a binding document. */
+  bindingIndex?: number;
 }
 
 export type WorkbenchDocument =
@@ -114,6 +116,14 @@ export function subjectTitle(selection: SubjectSelection): string {
   if (selection.kind === "step") {
     return selection.name ?? selection.component ?? "Step";
   }
+  if (selection.kind === "binding") {
+    const base =
+      selection.name ??
+      (selection.bindingIndex !== undefined
+        ? `#${selection.bindingIndex}`
+        : "Binding");
+    return base.toLowerCase().startsWith("binding") ? base : `binding ${base}`;
+  }
   if (selection.kind === "property" && selection.component && selection.property) {
     return `${selection.component}.${selection.property}`;
   }
@@ -140,6 +150,7 @@ export function documentSignature(document: WorkbenchDocument): string {
     selection.property ?? "",
     selection.level ?? "",
     selection.stepId?.join("/") ?? "",
+    selection.bindingIndex?.toString() ?? "",
   ].join("\u0000");
 }
 

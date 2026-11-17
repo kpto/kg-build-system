@@ -11,11 +11,9 @@ import {
 import type {
   ProjectionDTO,
   RelationDTO,
-  RowSource,
   ViewerIndex,
 } from "@/lib/types";
 import { effectiveLicense } from "@/proof/license";
-import type { ProvenanceReferences } from "@/proof/references";
 import { Constitution } from "@/detail/view/Constitution";
 import { DesignMeaning } from "@/shared/design/DesignMeaning";
 import {
@@ -27,9 +25,7 @@ import {
   AssetPill,
   BindingPill,
   FieldPill,
-  StepPill,
 } from "@/detail/view/ConceptPill";
-import { ConceptReferenceChip } from "@/detail/view/ConceptReference";
 import { activeDocument, documentSelection, type WorkspaceProps } from "@/workbench/types";
 import {
   DetailBand,
@@ -38,19 +34,10 @@ import {
   type DetailFact,
   type MemberRow,
 } from "./view/DetailChrome";
-import {
-  ExpressionTree,
-  type ExpressionChain,
-} from "./view/ExpressionTree";
 import styles from "./detail.module.css";
 import { fieldDefinitionDetail, fieldDescription, recordSummary } from "@/lib/summary";
 
 type DataItemKind = "relation" | "projection";
-
-function rowSourceSummary(source: RowSource): string {
-  const relations = relationNamesFromRowSource(source);
-  return [source.kind, relations.join(", ")].filter(Boolean).join(" · ");
-}
 
 function bindingsForRelation(
   index: ViewerIndex,
@@ -98,61 +85,7 @@ export function DataItemEditor(props: WorkspaceProps) {
   }, [index, kind, name, projection, relation]);
 
   const concept = kind === "relation" ? "table" : "projection";
-  const assetReference = model.assetName
-    ? {
-        concept: "asset" as const,
-        name: model.assetName,
-        target: { concept: "asset" as const, name: model.assetName },
-      }
-    : undefined;
-  const references = useMemo<ProvenanceReferences>(
-    () => ({
-      assets: model.assetName
-        ? [
-            {
-              concept: "asset",
-              name: model.assetName,
-              target: { concept: "asset", name: model.assetName },
-            },
-          ]
-        : [],
-      tables:
-        projection
-          ? relationNamesFromRowSource(projection.row_source)
-              .filter((scanned) => index.relationByName.has(scanned))
-              .map((scanned) => ({
-                concept: "table" as const,
-                name: scanned,
-                target: { concept: "table" as const, name: scanned },
-              }))
-          : [],
-      projections: projection
-        ? [
-            ...relationNamesFromRowSource(projection.row_source)
-              .filter((scanned) => index.projectionByName.has(scanned))
-              .map((scanned) => ({
-                concept: "projection" as const,
-                name: scanned,
-                target: { concept: "projection" as const, name: scanned },
-              })),
-          ]
-        : [],
-    }),
-    [index, kind, model.assetName, model.name, projection],
-  );
   const license = effectiveLicense(index, model.assetName ? [model.assetName] : []);
-  const expressionChains = useMemo<ExpressionChain[]>(() => {
-    if (kind !== "projection" || !projection) return [];
-    return projection.columns.map((column) => ({
-      id: `projection:${projection.name}.${column.name}`,
-      target: {
-        concept: "field" as const,
-        label: column.name,
-        detail: "derived column",
-      },
-      expression: column.expression,
-    }));
-  }, [kind, projection]);
   const bindings = useMemo(
     () => bindingsForRelation(index, model.name, index.projections),
     [index, model.name],
@@ -181,12 +114,10 @@ export function DataItemEditor(props: WorkspaceProps) {
     );
   }
   if (model.rowSource) {
-    facts.push(
-      {
-        label: "Row source",
-        value: model.rowSource.kind ?? "scan",
-      },
-    );
+    facts.push({
+      label: "Row source",
+      value: model.rowSource.kind ?? "scan",
+    });
   }
   facts.push({
     label: "License",
@@ -210,7 +141,6 @@ export function DataItemEditor(props: WorkspaceProps) {
         : "reads the source",
     ],
   }));
-
   const bindingRows: MemberRow[] = bindings.map((binding) => ({
     key: String(binding.index),
     cells: [
@@ -218,33 +148,13 @@ export function DataItemEditor(props: WorkspaceProps) {
         name={binding.binding.name ?? `binding #${binding.index}`}
         component={binding.component}
         ownerConcept={binding.kind}
+        bindingIndex={binding.index}
       />,
       binding.kind,
       `${Object.keys(binding.binding.properties ?? {}).length}`,
       relationNamesFromRowSource(binding.binding.rows).join(", ") || "—",
     ],
   }));
-
-  const stepRows: MemberRow[] = bindings
-    .filter((binding) => binding.step)
-    .map((binding) => ({
-      key: `${binding.index}:step`,
-      cells: [
-        binding.step ? (
-          <StepPill
-            name={binding.step.id[1]}
-            component={binding.step.id[0]}
-            stepId={binding.step.id}
-            title={binding.step.id.join(".")}
-          />
-        ) : (
-          "—"
-        ),
-        binding.component,
-        binding.step?.instruction.kind?.join(":") ?? "unknown",
-        `${binding.index}`,
-      ],
-    }));
 
   const meaning = attachedMeaning(model.semantics);
   const constitution = useMemo(
@@ -280,123 +190,6 @@ export function DataItemEditor(props: WorkspaceProps) {
       </DetailBand>
 
   ) : null;
-  const sourcesSection = (
-      <DetailBand
-        concept="graph"
-        title="Sources"
-        question="Where does this relation read from?"
-      >
-        <div className={styles.sourcesGrid}>
-          <div className={styles.sourcesGroup}>
-            <p className={styles.sourcesLabel}>
-              <span>
-                <ConceptGlyph concept="asset" className={styles.provenanceGroupIcon} />{" "}
-                Assets
-              </span>
-              <span>{references.assets.length}</span>
-            </p>
-            {assetReference ? (
-              <div className={styles.provenanceItems}>
-                <ConceptReferenceChip reference={assetReference} />
-              </div>
-            ) : (
-              <p className={styles.provenanceEmpty}>None resolved</p>
-            )}
-          </div>
-          <div className={styles.sourcesGroup}>
-            <p className={styles.sourcesLabel}>
-              <span>
-                <ConceptGlyph concept="table" className={styles.provenanceGroupIcon} />{" "}
-                Source relations
-              </span>
-              <span>{references.tables.length}</span>
-            </p>
-            <div className={styles.provenanceItems}>
-              {references.tables.length ? (
-                references.tables.map((reference) => (
-                  <ConceptReferenceChip
-                    key={`${reference.concept}:${reference.name}`}
-                    reference={reference}
-                  />
-                ))
-              ) : (
-                <p className={styles.provenanceEmpty}>None resolved</p>
-              )}
-            </div>
-          </div>
-          <div className={styles.sourcesGroup}>
-            <p className={styles.sourcesLabel}>
-              <span>
-                <ConceptGlyph concept="projection" className={styles.provenanceGroupIcon} />{" "}
-                Derived relations
-              </span>
-              <span>{references.projections.length}</span>
-            </p>
-            <div className={styles.provenanceItems}>
-              {references.projections.length ? (
-                references.projections.map((reference) => (
-                  <ConceptReferenceChip
-                    key={`${reference.concept}:${reference.name}`}
-                    reference={reference}
-                  />
-                ))
-              ) : (
-                <p className={styles.provenanceEmpty}>None resolved</p>
-              )}
-            </div>
-          </div>
-        </div>
-      </DetailBand>
-
-  );
-  const buildStepsSection = (
-      <DetailBand
-        concept="workflow"
-        title="Build steps"
-        question="Which steps read this relation?"
-      >
-        {stepRows.length ? (
-          <MemberTable
-            columns={["Step", "Record", "Instruction", "Binding"]}
-            template="minmax(160px, 1.2fr) minmax(110px, 0.9fr) minmax(100px, 0.8fr) 60px"
-            rows={stepRows}
-            empty="No step reads this relation."
-          />
-        ) : model.rowSource ? (
-          <p className={styles.inlineEmpty}>
-            {rowSourceSummary(model.rowSource)}. The plan that computes this
-            relation is shown on the record that binds it.
-          </p>
-        ) : (
-          <p className={styles.inlineEmpty}>
-            A source relation reads its asset; no build step is declared on the
-            declaration itself.
-          </p>
-        )}
-      </DetailBand>
-
-  );
-  const expressionSection = kind === "projection" ? (
-        <ExpressionTree
-          index={index}
-          references={references}
-          item={{ concept, label: model.name }}
-          fields={model.columns.map((column) => column.name)}
-          chains={expressionChains}
-        />
-      ) : (
-        <DetailBand
-          concept="graph"
-          title="Expression"
-          question="Which fields and operations produce the value?"
-        >
-          <p className={styles.inlineEmpty}>
-            A source relation reads one asset field per output. It has no
-            computed expression; its adaptations belong to a derived relation.
-          </p>
-        </DetailBand>
-      );
-
   const membersSection = (
       <DetailBand
         concept="field"
@@ -437,27 +230,10 @@ export function DataItemEditor(props: WorkspaceProps) {
       subtitle={model.description}
       facts={facts}
     >
-      {kind === "relation" ? (
-        <>
-          {constitutionSection}
-          {meaningSection}
-          {membersSection}
-          {sourcesSection}
-          {buildStepsSection}
-          {bindingsSection}
-          {expressionSection}
-        </>
-      ) : (
-        <>
-          {constitutionSection}
-          {meaningSection}
-          {expressionSection}
-          {membersSection}
-          {sourcesSection}
-          {buildStepsSection}
-          {bindingsSection}
-        </>
-      )}
+      {meaningSection}
+      {constitutionSection}
+      {membersSection}
+      {bindingsSection}
     </DetailDocument>
   );
 }

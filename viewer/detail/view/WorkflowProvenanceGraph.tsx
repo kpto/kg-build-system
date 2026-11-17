@@ -18,15 +18,20 @@ import styles from "../detail.module.css";
 export function WorkflowProvenanceGraph({
   index,
   model,
+  rows: providedRows,
   onOpenStep,
 }: {
   index: ViewerIndex;
-  model: ProofModel;
+  /** A record model narrows the steps to one record. */
+  model?: ProofModel;
+  /** A caller that already resolved its steps passes them directly. */
+  rows?: WorkflowStepRow[];
   onOpenStep(row: WorkflowStepRow): void;
 }) {
   const rows = useMemo(
-    () => narrowedWorkflowRows(index, model),
-    [index, model],
+    () =>
+      providedRows ?? (model ? narrowedWorkflowRows(index, model) : []),
+    [providedRows, index, model],
   );
   const [selectedId, setSelectedId] = useState<string>();
   const scene = useMemo(() => {
@@ -47,7 +52,7 @@ export function WorkflowProvenanceGraph({
         question="How is this built?"
       >
         <p className={styles.workflowEmpty}>
-          No workflow steps resolve to this subject.
+          No workflow steps resolve to this binding.
         </p>
       </DetailBand>
     );

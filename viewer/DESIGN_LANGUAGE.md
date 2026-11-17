@@ -73,8 +73,14 @@ Every item detail view follows one content contract, stated in
 
 ```text
 Banner: Overview
-Constitution → Meaning → Sources → Build steps → Expression
-         → Members → Connections → Bindings
+Meaning → Constitution → Members → Connections → Bindings
+```
+
+A binding document is the one exception to the record order:
+
+```text
+Banner: Overview
+Meaning → Expression → Build steps
 ```
 
 A kind includes or omits a section; it never renames one for itself.
@@ -97,14 +103,18 @@ A kind includes or omits a section; it never renames one for itself.
   Each group carries its own count, and the groups stack when the card is
   narrow. It is a separate card from the Constitution, so a reader can see the
   two axes and the subject's complete meaning in turn.
-- **Sources**, **Build steps** and **Expression** are three visualisations of
-  one traversal. Sources names the release data; Build steps shows the plan;
-  Expression shows the field and operator chain. The UI never uses the labels
-  "Provenance" or "Lineage"; the model keeps those words.
+- **Expression** and **Build steps** belong to the binding document, not to the
+  record detail. Expression shows the identity and property chains the binding
+  writes; Build steps shows the plan around that binding. The record reaches
+  them through its Bindings table and the Constitution's fulfilment box. The
+  binding banner states the rows read, so Sources is not a separate card.
 - **Members** is one table grammar for properties, columns, fields,
   descendants and openings. The instance pill opens its document when one exists.
 - **Connections** states endpoints, incident relations or ports.
-- **Bindings** states which binding fulfils the subject.
+- **Bindings** states which binding fulfils the subject; its pill opens the
+  binding document.
+- A binding document leads with its **Meaning** (when the binding carries one),
+  then its **Expression** and **Build steps**.
 
 A kind may state an absence instead of omitting a section. A step has no design
 meaning and no release source, and it says so; it is build machinery.
@@ -234,8 +244,8 @@ reading measure.
 - The shell owns side-bar visibility, width and the split between its sections.
   A document never resizes the workbench.
 - Every detail document shares one section rhythm: the body is a column with the
-  same gap between provenance, workflow, expression tree, meaning and proof
-  regions. A view does not add its own section margins.
+  same gap between meaning, constitution, members, connections and bindings.
+  A view does not add its own section margins.
 - Both side-bar sections start expanded, split 50/50. Each body sits directly
   below its header; the separator between the two open sections is adjustable. The
   tab-strip toggle and `Cmd/Ctrl+B` change side-bar visibility, not purpose.

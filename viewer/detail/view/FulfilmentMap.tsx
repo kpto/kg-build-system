@@ -233,6 +233,7 @@ function CompactRow({
           name={`#${binding.index}`}
           component={binding.target}
           ownerConcept={binding.targetKind}
+          bindingIndex={binding.index}
           title={binding.debugName ?? `binding #${binding.index}`}
         />
         {binding.identityFields.length ? (

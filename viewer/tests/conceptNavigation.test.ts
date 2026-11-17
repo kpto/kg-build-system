@@ -61,6 +61,26 @@ describe("concept pill navigation", () => {
     ).toMatchObject({ kind: "relation", component: "surveys" });
   });
 
+  it("opens a binding as its own document when the index is known", () => {
+    const binding = index.bindings[0];
+    expect(
+      selectionForConceptTarget(
+        {
+          concept: "binding",
+          name: `binding #${binding.index}`,
+          component: binding.component,
+          bindingIndex: binding.index,
+        },
+        index,
+      ),
+    ).toEqual({
+      kind: "binding",
+      name: `binding #${binding.index}`,
+      component: binding.component,
+      bindingIndex: binding.index,
+    });
+  });
+
   it("does not invent a destination when the layer has no document", () => {
     expect(
       destinationForConceptTarget(index, {

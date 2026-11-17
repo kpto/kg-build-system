@@ -17,6 +17,8 @@ export interface ConceptPillProps {
   ownerConcept?: ConceptKind;
   /** The step identity, when a step name is not unique across components. */
   stepId?: [string, string];
+  /** The binding identity, when a binding name is not unique by component. */
+  bindingIndex?: number;
   title?: string;
   active?: boolean;
   className?: string;
@@ -36,6 +38,7 @@ export function ConceptPill({
   property,
   ownerConcept,
   stepId,
+  bindingIndex,
   title,
   active = false,
   className,
@@ -54,6 +57,7 @@ export function ConceptPill({
     ...(property ? { property } : {}),
     ...(ownerConcept ? { ownerConcept } : {}),
     ...(stepId ? { stepId } : {}),
+    ...(bindingIndex !== undefined ? { bindingIndex } : {}),
   };
   const body = (
     <>

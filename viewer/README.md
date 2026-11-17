@@ -11,7 +11,7 @@ frame, one document tab strip, and two collapsible side-bar sections:
 | Side-bar section | What it is for |
 | --- | --- |
 | **Control** | Controls for the active view: graph filters, labels, containment, meaning, legend and layout; workflow component and instruction filters. |
-| **Explorer** | Everything in the design: assets, source relations, derived relations, nodes, abstract categories, edges and their properties, plus the workflow components and step catalogue. Right-clicking an item jumps to its Graph or Workflow view; relations open their own documents. |
+| **Explorer** | Everything in the design: assets, source relations, derived relations, nodes, abstract categories, edges and their properties, bindings, plus the workflow components and step catalogue. Right-clicking an item jumps to its Graph or Workflow view; records, relations and bindings open their own documents. |
 
 The viewer reads the snapshot from its configured `/snapshot` source, or from a
 URL passed as `?snapshot=<url>`; there is no bundled project dataset and no file
@@ -21,10 +21,11 @@ The tab strip is the document axis:
 
 - **Graph** — the canonical graph view, pinned;
 - **Workflow** — the compiled workflow plan, pinned;
-- **Subject documents** — a node, edge, property, asset or abstract category.
-  A single click in the Explorer tree or a context-menu action opens or reuses a
-  preview tab; a double click, **Open Detail**, a right-click **Go to Detail**
-  or the command palette opens a permanent tab.
+- **Subject documents** — a node, edge, property, asset, abstract category,
+  source relation, derived relation or binding. A single click in the Explorer
+  tree or a context-menu action opens or reuses a preview tab; a double click,
+  **Open Detail**, a right-click **Go to Detail** or the command palette opens
+  a permanent tab.
 
 There is no mode switch. Control and Explorer are side-bar sections, both open
 by default at a 50/50 split, and their separator is adjustable. The Control body
@@ -174,9 +175,10 @@ The first paint shows the design, not its annotations.
 | --- | --- | --- |
 | Graph document | Blender-node-editor canvas with a dot and major grid, degree-sized nodes tinted by category, faint category hulls and hub labels; the shared visualisation header states visible nodes and links, carries the **Inspect** toggle and opens a floating inspector showing graph purpose and counts | selecting an entity fills Inspect with its meaning, properties and the fulfilment map; clicking empty space returns to graph purpose; **Clusters**, **Labels** and **Show** in Control reveal the other layers |
 | Workflow document | compositor-style component graph in the shared visualisation frame; its header names the workflow or focused step group and states component or step counts, with step-group actions on the right; drag to pan, wheel to zoom, Fit in the bottom-left navigation cluster resets | filter by component or instruction kind in Control; click a component to select it, then use **Open step group** to enter its step-level flow graph with one block per dependency layer; a large layer wraps into aligned sub-columns and chains read left to right; clicking a step node selects it, **Open step** opens its detail document, and **Back** returns to components. Selecting a component, step or boundary node highlights its incident links and dims the other nodes and links; entering another step group requires **Open step group** |
-| Subject document | one banner overview and one stack of bands: Constitution (purpose and fulfilment top boxes, graph and relation branches, axis legends), Meaning, Sources, Build steps, Expression, Members, Connections, Bindings; the effective licence sits in the header | the left index rail navigates the static cards; property rows and the branch selector open their own documents; the Explorer tree opens another subject document |
-| Relation document | the same banner and bands; the banner states asset, grain, identity, row source and licence; Constitution, Meaning, Sources, Build steps, Expression, Members and Bindings follow | a column definition, the expression outline and the Constitution tree |
-| Step document | the same banner and bands; the banner states step id, component, instruction, bindings and ports; Meaning and Sources state absence, then Ports, Payload, Connections and Bindings | a port, a payload field or a connected step |
+| Subject document | one banner overview and one stack of bands: Meaning, Constitution (purpose and fulfilment top boxes, graph and relation branches, axis legends), Members, Connections and Bindings; the effective licence sits in the header | the left index rail navigates the static cards; property rows, the branch selector and binding pills open their own documents; the Explorer tree opens another subject document |
+| Relation document | the same banner and bands; the banner states asset, grain, identity, row source and licence; Meaning, Constitution, Members and Bindings follow | a column definition, a binding pill and the Constitution tree |
+| Binding document | its own banner states record, writes, identity, rows read, step and output; Meaning (when the binding carries one), Expression and Build steps follow | the Explorer Bindings group, a record's Bindings table or a binding pill in the fulfilment map |
+| Step document | the same banner and bands; the banner states step id, component, instruction, bindings and ports; Ports, Payload, Connections, Bindings and the Meaning/Sources absence notes follow | a port, a payload field or a connected step |
 
 Every item document follows the content contract in
 [`DETAIL_CONTENT.md`](./DETAIL_CONTENT.md); its skin is in
@@ -196,9 +198,10 @@ The editor is one global tab strip. The viewer has three kinds of tab view:
 
 - **Graph** — the pinned canonical graph document;
 - **Workflow** — the pinned compiled workflow plan;
-- **Subject documents** — a node, edge, property, asset or abstract category,
-  opened explicitly from **Open Detail**, the Explorer tree, a Detail property
-  row, or the command palette;
+- **Subject documents** — a node, edge, property, asset, abstract category,
+  source relation, derived relation or binding, opened explicitly from **Open
+  Detail**, the Explorer tree, a binding pill, a Detail property row, or the
+  command palette;
 - **Step documents** — one workflow step, opened from the workflow section of Explorer.
 
 Single-clicking a node or a property row only changes the transient **Inspect**

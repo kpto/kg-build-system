@@ -137,6 +137,13 @@ function normalizeSelection(value: unknown): SubjectSelection | undefined {
     selection.level = candidate.level as SubjectSelection["level"];
   }
   if (
+    typeof candidate.bindingIndex === "number" &&
+    Number.isInteger(candidate.bindingIndex) &&
+    candidate.bindingIndex >= 0
+  ) {
+    selection.bindingIndex = candidate.bindingIndex;
+  }
+  if (
     Array.isArray(candidate.stepId) &&
     candidate.stepId.length >= 2 &&
     typeof candidate.stepId[0] === "string" &&
@@ -155,6 +162,7 @@ function selectionSignature(selection: SubjectSelection): string {
     selection.property ?? "",
     selection.level ?? "",
     selection.stepId?.join("/") ?? "",
+    selection.bindingIndex?.toString() ?? "",
   ].join("\u0000");
 }
 

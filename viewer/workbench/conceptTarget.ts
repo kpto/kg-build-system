@@ -144,6 +144,14 @@ export function selectionForConceptTarget(
       );
     }
     case "binding": {
+      if (target.bindingIndex !== undefined) {
+        return {
+          kind: "binding",
+          name: target.name,
+          ...(target.component ? { component: target.component } : {}),
+          bindingIndex: target.bindingIndex,
+        };
+      }
       if (!target.component || !target.ownerConcept) return undefined;
       return selectionForConceptTarget(
         {

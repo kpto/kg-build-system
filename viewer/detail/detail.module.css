@@ -115,120 +115,6 @@
   gap: var(--space-group);
 }
 
-/* ---- Provenance summary ---------------------------------------------- */
-
-.provenance {
-  border: var(--border-hairline) solid var(--color-line);
-  border-radius: var(--radius-md);
-  background-color: var(--color-panel);
-}
-
-.provenanceHead {
-  display: flex;
-  min-height: 28px;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-group);
-  padding: 0 var(--space-section);
-  border-bottom: var(--border-hairline) solid var(--color-line-soft);
-  background-color: var(--color-panel-raised);
-}
-
-.provenanceTitle {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-inline);
-  color: var(--color-text);
-  font-size: var(--text-body);
-  font-weight: var(--weight-bold);
-  letter-spacing: var(--tracking-widest);
-  text-transform: uppercase;
-}
-
-.provenanceMeta {
-  overflow: hidden;
-  color: var(--color-faint);
-  font-family: var(--font-mono);
-  font-size: var(--text-caption);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.provenanceGrid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.provenanceGroup {
-  min-width: 0;
-  padding: var(--space-group) var(--space-section) var(--space-section);
-  border-right: var(--border-hairline) solid var(--color-line-soft);
-}
-
-.provenanceGroup:last-child {
-  border-right: 0;
-}
-
-.provenanceGroupLabel {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-stack);
-  margin: 0;
-  color: var(--color-faint);
-  font-size: var(--text-caption);
-  font-weight: var(--weight-bold);
-  letter-spacing: var(--tracking-wide);
-  text-transform: uppercase;
-}
-
-.provenanceGroupTitle {
-  display: inline-flex;
-  min-width: 0;
-  align-items: center;
-  gap: var(--space-inline);
-}
-
-.provenanceGroupIcon {
-  width: 11px;
-  height: 11px;
-  flex: none;
-}
-
-.provenanceGroupLabel > span:last-child {
-  color: var(--color-muted);
-  font-family: var(--font-mono);
-  letter-spacing: var(--tracking-normal);
-}
-
-.provenanceItems {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-inline);
-  margin-top: var(--space-stack);
-}
-
-.provenanceEmpty {
-  margin: var(--space-stack) 0 0;
-  color: var(--color-faint);
-  font-size: var(--text-caption);
-}
-
-@media (max-width: 900px) {
-  .provenanceGrid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .provenanceGroup {
-    border-right: 0;
-    border-bottom: var(--border-hairline) solid var(--color-line-soft);
-  }
-
-  .provenanceGroup:last-child {
-    border-bottom: 0;
-  }
-}
-
 .workflowGraph {
   display: block;
   width: 100%;
@@ -2085,49 +1971,6 @@ button.memberRow:focus-visible {
   margin-top: var(--space-inline);
 }
 
-/* ---- Sources bands ---------------------------------------------------- */
-
-.sourcesGrid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0;
-}
-
-.sourcesGroup {
-  min-width: 0;
-  padding: 0 var(--space-section) 0 0;
-  border-right: var(--border-hairline) solid var(--color-line-soft);
-}
-
-.sourcesGroup + .sourcesGroup {
-  padding-left: var(--space-section);
-}
-
-.sourcesGroup:last-child {
-  padding-right: 0;
-  border-right: 0;
-}
-
-.sourcesLabel {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-stack);
-  margin: 0 0 var(--space-stack);
-  color: var(--color-faint);
-  font-size: var(--text-caption);
-  font-weight: var(--weight-bold);
-  letter-spacing: var(--tracking-widest);
-  text-transform: uppercase;
-}
-
-.sourcesLabel > span:last-child {
-  color: var(--color-muted);
-  font-family: var(--font-mono);
-  font-size: var(--text-caption);
-  letter-spacing: var(--tracking-normal);
-}
-
 /* ---- Connections ------------------------------------------------------ */
 
 .connectionRow {
@@ -2164,23 +2007,6 @@ button.memberRow:focus-visible {
   text-transform: none;
 }
 
-@media (max-width: 900px) {
-  .sourcesGrid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .sourcesGroup,
-  .sourcesGroup + .sourcesGroup {
-    padding: 0 0 var(--space-group);
-    border-right: 0;
-    border-bottom: var(--border-hairline) solid var(--color-line-soft);
-  }
-
-  .sourcesGroup:last-child {
-    padding-bottom: 0;
-    border-bottom: 0;
-  }
-}
 
 /* A sub-block sits inside one band: a caption, then content. */
 .subBlock {

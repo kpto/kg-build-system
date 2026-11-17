@@ -16,14 +16,11 @@ the index rail is the only navigation between cards.
 
 | Order | Section | Question it answers | Content |
 | --- | --- | --- | --- |
-| 1 | **Constitution** | What does this subject assert, and how is it fulfilled? | Purpose and Fulfilment are the two top boxes, on opposite sides of the separator; a horizontal arrow runs from Fulfilment to Purpose. The Graph chain is below Purpose and ends at the graph purpose; the Relation chain is below Fulfilment. The separator divides the two axes. The axis legend sits at the bottom centre of each lane. Arrows point up to the purpose each box supports; the relation's provenance branches sit below it. Each box clamps its purpose to two lines; hovering or focusing it reveals the full meaning, and a box label opens its document. The Fulfilment box states the binding count and its purpose; identity fields and coverage stay in the relation and binding detail. A grouped branch shows the first item and `+N`. |
-| 2 | **Meaning** | What is this for, and what does it exclude? | Purpose as the lead, then two labelled readings: contextless claims and the limitations that bound the purpose. Each group states its own count; the groups stack when the card is narrow. Legacy readings follow under **Earlier reading**. |
-| 3 | **Sources** | Where does this value come from? | Assets, source relations and derived relations, as navigable references with counts. |
-| 4 | **Build steps** | How is this built? | The narrowed workflow graph of the steps that produce the subject. |
-| 5 | **Expression** | Which fields and operations produce the value? | The expression outline, one root per binding or column. |
-| 6 | **Members** | Which units belong to this subject? | One table grammar: name, type, meaning, source, count; the instance pill opens its document when one exists. |
-| 7 | **Connections** | Which records does this subject touch? | Endpoints of an edge, incident relations of a node, ports of a step. |
-| 8 | **Bindings** | Which binding fulfils this subject? | One row per binding: name, writes, identity, rows read. |
+| 1 | **Meaning** | What is this for, and what does it exclude? | Purpose as the lead, then two labelled readings: contextless claims and the limitations that bound the purpose. Each group states its own count; the groups stack when the card is narrow. Legacy readings follow under **Earlier reading**. |
+| 2 | **Constitution** | What does this subject assert, and how is it fulfilled? | Purpose and Fulfilment are the two top boxes, on opposite sides of the separator; a horizontal arrow runs from Fulfilment to Purpose. The Graph chain is below Purpose and ends at the graph purpose; the Relation chain is below Fulfilment. The separator divides the two axes. The axis legend sits at the bottom centre of each lane. Arrows point up to the purpose each box supports; the relation's provenance branches sit below it. Each box clamps its purpose to two lines; hovering or focusing it reveals the full meaning, and a box label opens its document. The Fulfilment box states the binding count and its purpose; identity fields and coverage stay in the relation and binding detail. A grouped branch shows the first item and `+N`. |
+| 3 | **Members** | Which units belong to this subject? | One table grammar: name, type, meaning, source, count; the instance pill opens its document when one exists. |
+| 4 | **Connections** | Which records does this subject touch? | Endpoints of an edge, incident relations of a node, ports of a step. |
+| 5 | **Bindings** | Which binding fulfils this subject? | One row per binding: name, writes, identity, rows read. The binding pill opens the binding document. |
 
 A card header carries the card's concept mark and structural title. The
 question in the reader's language becomes the card's accessible label, not a
@@ -37,40 +34,46 @@ the scroll position. It is hidden when the pane is narrower than the rail plus
 one readable card. The rail reads the rendered cards, so a card added by any
 kind appears in it without a second section list.
 
+A binding is its own document. Its sections are **Meaning**, **Expression** and
+**Build steps**. The binding banner states the record, writes, identity, rows
+read, step and output. A record detail does not repeat the traversal; its
+Bindings table and the Constitution's fulfilment box open the binding document.
+
 ## Per-kind registry
 
 | View kind | Sections | Notes |
 | --- | --- | --- |
-| Node | **Constitution**, **Meaning**, **Members**, **Connections**, Sources, Build steps, Expression, Bindings | Members are properties; Connections are incident relations. |
-| Edge | **Constitution**, **Meaning**, **Members**, **Connections**, Sources, Build steps, Expression, Bindings | The banner states the endpoints; Connections repeats them with the edge. |
-| Property | **Constitution**, **Meaning**, **Branches**, **Connections**, **Expression**, Sources, Build steps, Bindings | Branches is the type/presence chain and lane canvas; Connections is its ledger. |
-| Abstract category | **Constitution**, **Meaning**, **Members** | Members are concrete descendants. |
-| Asset | **Constitution**, **Meaning**, **Sources**, **Members**, **Fields**, Bindings | Sources states the release boundary; Members are relations, then fields. |
-| Source relation | **Constitution**, **Meaning**, **Members**, **Sources**, Build steps, Bindings, Expression | Columns are the relation; Sources states its asset and scans. The Meaning card is omitted when the declaration states no units; the Constitution root and relation box state the absence explicitly. |
-| Derived relation | **Constitution**, **Meaning**, **Expression**, **Members**, Sources, Build steps, Bindings | Expression is the computation; Members are its outputs. |
+| Node | **Meaning**, **Constitution**, **Members**, **Connections**, **Bindings** | Members are properties; Connections are incident relations. |
+| Edge | **Meaning**, **Constitution**, **Members**, **Connections**, **Bindings** | The banner states the endpoints; Connections repeats them with the edge. |
+| Property | **Meaning**, **Constitution**, **Branches**, **Connections**, **Bindings** | Branches is the type/presence chain and lane canvas; Connections is its ledger. |
+| Abstract category | **Meaning**, **Constitution**, **Members** | Members are concrete descendants. |
+| Asset | **Meaning**, **Constitution**, **Members**, **Fields**, **Bindings** | The banner states the layout and location; Members are relations, then fields. |
+| Source relation | **Meaning**, **Constitution**, **Members**, **Bindings** | Columns are the relation; the banner states the asset and row source. The Meaning card is omitted when the declaration states no units; the Constitution root and relation box state the absence explicitly. |
+| Derived relation | **Meaning**, **Constitution**, **Members**, **Bindings** | Members are its columns; the banner states the row source. |
+| Binding | **Meaning**, **Expression**, **Build steps** | One binding's identity and property expressions, then its workflow neighbourhood. |
 | Step | **Ports**, **Payload**, **Connections**, **Bindings**, Meaning, Sources | A step is build machinery; Meaning and Sources state their absence last. |
 
 Text in bold is the first card the reader meets; every card in the row is
 present and open, in that order.
 
-`field` and `binding` are not document kinds. A field belongs to its owner's
-Members table; a binding belongs to its record's Bindings table and to the
-Constitution's fulfilment box.
+A field is not a document kind; it belongs to its owner's Members table. A
+binding is a document kind and also appears in its record's Bindings table and
+the Constitution's fulfilment box.
 
-## Provenance and lineage are two visualisations
+## The binding document carries the traversal
 
-Both answer "where did this come from?", so the reader is given two distinct
-questions rather than one word used twice:
+The record detail is read for meaning, constitution and membership. The binding
+document is the one place for the computation and the plan:
 
 | Section | Strict meaning | Visualisation |
 | --- | --- | --- |
-| **Sources** | the release data the value is read from | asset, source relation and derived relation references |
-| **Build steps** | the plan that computes the value | the narrowed workflow graph |
-| **Expression** | the field and operator chain of one value | the indented expression outline |
+| **Expression** | the field and operator chain the binding writes | the indented expression outline: identity, source and target identity, then each property expression |
+| **Build steps** | the plan that executes the binding | the binding step and the workflow neighbours it reads from and writes to |
 
-The UI never labels a section "Provenance" or "Lineage". "Provenance" remains
-the model term for the sources traversal; "lineage" remains the model term for
-the derivation. The section titles state the question.
+Sources is not a record card. The binding banner states the rows read; the
+expression tree names the source assets and relations behind each field. The UI
+never uses the labels "Provenance" or "Lineage"; the model keeps those words.
+The section titles state the question.
 
 ## The constitution
 
@@ -112,7 +115,7 @@ label opens that level's document. The box itself is inspection only.
 | Identity | one fact grid. A fact is a label and a value; an absent value is stated as absent, not dressed as a value. |
 | Meaning | one renderer for the subject and for attached units. The label is always **Meaning**. |
 | Members | one table: name, type, meaning, source, count. The instance pill opens its document when one exists. |
-| Counts | always noun-bearing and correctly pluralised: `1 binding`, `2 bindings`, `9 properties`. |
+| Counts | a count sits beside the noun or the label that names its list: `2 bindings`, `Claims 3`. A standalone count is noun-bearing and correctly pluralised. |
 | Empty state | one inline sentence inside the section. The only whole-document empty state is a document with no content at all. |
 | Licence | the effective licence in the header; a step states that it has none because it owns no data. |
 
@@ -123,9 +126,9 @@ label opens that level's document. The box itself is inspection only.
   panel radius and hairline outline, no drop shadow. Every card is rendered by
   the one shared `DetailBand` feature primitive; a detail view does not declare
   its own card markup or surface.
-- The header is sticky; the cards scroll.
+- The banner and the left index are static; only the card column scrolls.
 - The section body is 8px above and 10px below its content; a flush body is
   used for a canvas or a table that owns its own padding.
 - A table shares one `grid-template-columns` between its head and every row.
-- At narrow width the Sources groups stack into one column; nothing overflows
-  horizontally.
+- At narrow width the Meaning readings stack into one column, the index rail
+  hides, and nothing overflows horizontally.
