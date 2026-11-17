@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { constitutionModel } from "../shared/design/constitution";
+import { constitutionModel } from "../detail/model/constitution";
 import { buildViewerIndex } from "../lib/indexes";
 import { loadSnapshotFromObject } from "../lib/load";
 import { contractIndex, contractSnapshot } from "./fixtures";

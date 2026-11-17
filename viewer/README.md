@@ -252,9 +252,10 @@ viewer/
   workbench/           VS Code layout, state, persistence, UI chrome
   topology/            canonical design graph, detail controls and view
   workflow/            compiled workflow plan: compositor graph and step detail
-  detail/              the shared detail contract: bands, constitution and expression
+  detail/              the detail contract: bands, constitution, concept pills and expression
   proof/               the provenance model used by Detail
-  shared/design/       meaning value, graph/entity meaning, and its renderer
+  shared/design/       meaning model and its renderer
+  shared/ui/           generic primitives, concept marks, viewport and menus
   lib/                 snapshot types, loader, indexes, shared models
   scripts/             snapshot regeneration and browser screenshots
   public/data/         checked-in snapshots

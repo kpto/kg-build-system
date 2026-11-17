@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { ConceptKind } from "../lib/concepts";
-import * as pills from "../shared/ui/ConceptPill";
+import * as pills from "../detail/view/ConceptPill";
 import { concepts } from "../shared/ui/concepts";
 
 const kinds: ConceptKind[] = [

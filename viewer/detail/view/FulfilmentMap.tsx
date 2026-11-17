@@ -29,7 +29,7 @@ import {
   ConceptPill,
   DerivedRelationPill,
   SourceRelationPill,
-} from "@/shared/ui/ConceptPill";
+} from "@/detail/view/ConceptPill";
 import styles from "./fulfilment.module.css";
 
 function countLabel(count: number, noun: string): string {

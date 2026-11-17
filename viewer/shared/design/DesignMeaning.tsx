@@ -2,7 +2,7 @@
 
 import type { SemanticText } from "@/lib/types";
 import { cx } from "@/shared/ui/theme";
-import styles from "./design.module.css";
+import styles from "./meaning.module.css";
 
 export interface DesignMeaningProps {
   claims: SemanticText[];

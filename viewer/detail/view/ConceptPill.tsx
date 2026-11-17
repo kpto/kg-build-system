@@ -1,9 +1,9 @@
 import type { CSSProperties } from "react";
 
 import type { ConceptKind, ConceptTarget } from "@/lib/concepts";
-import { ConceptGlyph } from "./ConceptMark";
-import { useConceptNavigation } from "./ConceptNavigation";
-import { concepts } from "./concepts";
+import { ConceptGlyph } from "@/shared/ui/ConceptMark";
+import { useConceptNavigation } from "@/shared/ui/ConceptNavigation";
+import { concepts } from "@/shared/ui/concepts";
 import styles from "./ConceptPill.module.css";
 
 export interface ConceptPillProps {

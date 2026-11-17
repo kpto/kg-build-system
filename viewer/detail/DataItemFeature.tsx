@@ -16,11 +16,11 @@ import type {
 } from "@/lib/types";
 import { effectiveLicense } from "@/proof/license";
 import type { ProvenanceReferences } from "@/proof/references";
-import { Constitution } from "@/shared/design/Constitution";
+import { Constitution } from "@/detail/view/Constitution";
 import { DesignMeaning } from "@/shared/design/DesignMeaning";
 import {
   constitutionModel,
-} from "@/shared/design/constitution";
+} from "@/detail/model/constitution";
 import { attachedMeaning } from "@/shared/design/meaning";
 import { ConceptGlyph } from "@/shared/ui/ConceptMark";
 import {
@@ -28,8 +28,8 @@ import {
   BindingPill,
   FieldPill,
   StepPill,
-} from "@/shared/ui/ConceptPill";
-import { ConceptReferenceChip } from "@/shared/ui/ConceptReference";
+} from "@/detail/view/ConceptPill";
+import { ConceptReferenceChip } from "@/detail/view/ConceptReference";
 import { activeDocument, documentSelection, type WorkspaceProps } from "@/workbench/types";
 import {
   DetailBand,

@@ -30,7 +30,7 @@ import {
   type DesignMeaningValue,
   type PurposeLevel,
   type PurposeLevelKind,
-} from "./meaning";
+} from "@/shared/design/meaning";
 
 export type ConstitutionTarget =
   | { kind: "node" | "edge"; name: string }

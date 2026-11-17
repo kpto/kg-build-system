@@ -61,8 +61,8 @@ import {
   NodePill,
   PropertyPill,
   SourceRelationPill,
-} from "@/shared/ui/ConceptPill";
-import { ConceptReferenceChip } from "@/shared/ui/ConceptReference";
+} from "@/detail/view/ConceptPill";
+import { ConceptReferenceChip } from "@/detail/view/ConceptReference";
 import { activeDocument, documentSelection } from "@/workbench/types";
 import type {
   LineageLane,
@@ -102,11 +102,11 @@ import {
   type ProofTrace,
   type ProofTypeChain,
 } from "@/proof/model";
-import { Constitution } from "@/shared/design/Constitution";
+import { Constitution } from "@/detail/view/Constitution";
 import { DesignMeaning } from "@/shared/design/DesignMeaning";
 import {
   constitutionModel,
-} from "@/shared/design/constitution";
+} from "@/detail/model/constitution";
 import {
   attachedMeaning,
   componentMeaning,

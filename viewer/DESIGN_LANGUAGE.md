@@ -179,6 +179,14 @@ A selector belongs to the component that renders it. A parent passes context
 with props or a scoped CSS variable; it does not reach into the child with a
 global descendant selector. A component-specific block in the global file is a
 boundary violation.
+
+A **shared domain component** knows the graph or semantic vocabulary and has a
+consumer in more than one feature. The current set is `DesignMeaning` and the
+concept presentation (`ConceptMark`, `concepts`). A domain component with one
+feature consumer belongs to that feature: `Constitution`, `ConceptPill` and
+`ConceptReference` are detail components. A generic component with one
+consumer also belongs to that feature; only a reusable or cross-feature
+component stays under `shared/`.
 A CSS module declares the keyframes it animates with. CSS Modules scopes the
 animation name, so a reference to a global keyframe would silently lose its
 animation.

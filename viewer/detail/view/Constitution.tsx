@@ -5,11 +5,11 @@ import { createPortal } from "react-dom";
 
 import type { ConceptKind } from "@/lib/concepts";
 import { ConceptGlyph } from "@/shared/ui/ConceptMark";
-import { ConceptPill } from "@/shared/ui/ConceptPill";
+import { ConceptPill } from "./ConceptPill";
 import { cx } from "@/shared/ui/theme";
-import { DesignMeaning } from "./DesignMeaning";
-import type { ConstitutionModel, ConstitutionNode } from "./constitution";
-import styles from "./design.module.css";
+import { DesignMeaning } from "@/shared/design/DesignMeaning";
+import type { ConstitutionModel, ConstitutionNode } from "../model/constitution";
+import styles from "./constitution.module.css";
 
 export interface ConstitutionProps {
   model: ConstitutionModel;
