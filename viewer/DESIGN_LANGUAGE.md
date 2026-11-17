@@ -124,6 +124,13 @@ stroke and round joins — and the concept's one filled element takes a 24% tint
 when it is active. Colour is a second cue; the silhouette and the label carry
 the distinction alone.
 
+An inline mention of an instance is one pill: the layer's mark, a divider and
+the instance name, all in the instance's colour. The same pill names a record
+in a connection row, a property in a member table, a relation in a source list,
+a field in an expression tree and a card in the fulfilment map. A pill is a
+button when the surrounding row does not already open the instance; inside a
+navigating row it is a span. A long name truncates in the pill; it never wraps.
+
 ## Interaction motion
 
 - Motion is feedback, not decoration. Hover, selection and press changes use

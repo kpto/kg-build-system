@@ -3,7 +3,9 @@
 import { Fragment, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
+import type { ConceptKind } from "@/lib/concepts";
 import { ConceptGlyph } from "@/shared/ui/ConceptMark";
+import { ConceptPill } from "@/shared/ui/ConceptPill";
 import { cx } from "@/shared/ui/theme";
 import { DesignMeaning } from "./DesignMeaning";
 import type {
@@ -20,6 +22,11 @@ export interface ConstitutionProps {
 
 const CARD_WIDTH = 440;
 const CARD_MAX_HEIGHT = 380;
+
+/** A constitution level names the same layers with one relation spelling. */
+function pillConcept(kind: ConstitutionNode["kind"]): ConceptKind {
+  return kind === "relation" ? "table" : kind;
+}
 
 interface HoveredBox {
   node: ConstitutionNode;
@@ -97,17 +104,15 @@ function Box({
           <ConceptGlyph concept="binding" className={styles.constitutionMark} />
         ) : null}
         <span className={styles.constitutionKind}>{node.label}</span>
-        {open && onOpen ? (
-          <button
-            type="button"
-            className={styles.constitutionName}
-            onClick={() => onOpen(open)}
-            title={`Open ${node.name}`}
-          >
-            {node.name}
-          </button>
-        ) : (
+        {fulfilment ? (
           <span className={styles.constitutionName}>{node.name}</span>
+        ) : (
+          <ConceptPill
+            concept={pillConcept(node.kind)}
+            name={node.name}
+            active={node.current}
+            onOpen={open && onOpen ? () => onOpen(open) : undefined}
+          />
         )}
         {node.current ? (
           <span className={styles.constitutionTag} data-current>

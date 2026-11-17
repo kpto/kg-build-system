@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { ConceptKind } from "../lib/concepts";
+import * as pills from "../shared/ui/ConceptPill";
 import { concepts } from "../shared/ui/concepts";
 
 const kinds: ConceptKind[] = [
@@ -41,5 +42,26 @@ describe("concept catalogue", () => {
     expect(concepts.projection.label).toBe("Derived relation");
     expect(concepts.semantics.label).toBe("Meaning");
     expect(concepts.binding.label).toBe("Binding");
+  });
+
+  it("exports one inline pill for every layer", () => {
+    const names = [
+      "GraphPill",
+      "AbstractPill",
+      "NodePill",
+      "EdgePill",
+      "PropertyPill",
+      "AssetPill",
+      "SourceRelationPill",
+      "DerivedRelationPill",
+      "FieldPill",
+      "BindingPill",
+      "WorkflowPill",
+      "StepPill",
+      "MeaningPill",
+    ];
+    for (const name of names) {
+      expect(name in pills, name).toBe(true);
+    }
   });
 });

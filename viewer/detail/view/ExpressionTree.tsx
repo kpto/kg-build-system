@@ -15,7 +15,7 @@ import {
 } from "@/lib/indexes";
 import type { Expression, Ref, ViewerIndex } from "@/lib/types";
 import type { ProvenanceReferences } from "@/proof/references";
-import { ConceptGlyph } from "@/shared/ui/ConceptMark";
+import { ConceptPill } from "@/shared/ui/ConceptPill";
 import { concepts } from "@/shared/ui/concepts";
 import { cx, theme } from "@/shared/ui/theme";
 import { DetailBand, DetailEmptyState } from "@/detail/view/DetailChrome";
@@ -344,17 +344,14 @@ function outlineFromRoots(graph: TreeGraph): OutlineNode[] {
   return selected.map((id) => build(id, new Set()));
 }
 
-function KindMark({ kind }: { kind: TreeKind }) {
-  if (kind === "expression") {
-    return (
-      <Sigma
-        aria-hidden
-        className={styles.expressionKindIcon}
-        style={{ color: theme.transform }}
-      />
-    );
-  }
-  return <ConceptGlyph concept={kind} className={styles.expressionKindIcon} />;
+function OperatorMark() {
+  return (
+    <Sigma
+      aria-hidden
+      className={styles.expressionKindIcon}
+      style={{ color: theme.transform }}
+    />
+  );
 }
 
 function OutlineBranch({
@@ -407,8 +404,14 @@ function OutlineBranch({
         ) : (
           <span className={styles.expressionToggle} aria-hidden />
         )}
-        <KindMark kind={node.kind} />
-        <span className={styles.expressionLabel}>{node.label}</span>
+        {node.kind === "expression" ? (
+          <>
+            <OperatorMark />
+            <span className={styles.expressionLabel}>{node.label}</span>
+          </>
+        ) : (
+          <ConceptPill concept={node.kind} name={node.label} />
+        )}
         {node.detail ? (
           <span className={styles.expressionDetail}>{node.detail}</span>
         ) : null}

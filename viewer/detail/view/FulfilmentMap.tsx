@@ -23,7 +23,13 @@ import {
   type AxisSubject,
 } from "@/lib/axis";
 import type { ViewerIndex } from "@/lib/types";
-import { ConceptGlyph } from "@/shared/ui/ConceptMark";
+import {
+  AssetPill,
+  BindingPill,
+  ConceptPill,
+  DerivedRelationPill,
+  SourceRelationPill,
+} from "@/shared/ui/ConceptPill";
 import styles from "./fulfilment.module.css";
 
 export interface AxisOpenTarget {
@@ -57,15 +63,17 @@ function RecordCard({
       data-active={active || undefined}
     >
       <header className={styles.cardHead}>
-        <button
-          type="button"
-          className={styles.cardName}
-          onClick={() => onOpen?.({ kind: record.kind, name: record.name })}
+        <ConceptPill
+          concept={record.kind}
+          name={record.name}
+          size="md"
+          onOpen={
+            onOpen
+              ? () => onOpen({ kind: record.kind, name: record.name })
+              : undefined
+          }
           title={`Open the ${record.kind} document`}
-        >
-          <ConceptGlyph concept={record.kind} className={styles.cardGlyph} />
-          <span>{record.name}</span>
-        </button>
+        />
         <span className={styles.cardTag}>
           {record.abstract ? "abstract category" : record.kind}
         </span>
@@ -105,13 +113,11 @@ function BindingCard({ binding }: { binding: AxisBinding }) {
     <article className={styles.binding} data-kind={binding.targetKind}>
       <header className={styles.bindingHead}>
         <span className={styles.bindingIndex}>#{binding.index}</span>
-        <span className={styles.bindingTarget}>
-          <ConceptGlyph
-            concept={binding.targetKind}
-            className={styles.cardGlyph}
-          />
-          {binding.target}
-        </span>
+        <ConceptPill
+          concept={binding.targetKind}
+          name={binding.target}
+          size="md"
+        />
       </header>
       {binding.purpose ? (
         <p className={styles.bindingPurpose}>{binding.purpose}</p>
@@ -169,27 +175,34 @@ function RelationCard({
       data-active={active || undefined}
     >
       <header className={styles.cardHead}>
-        <button
-          type="button"
-          className={styles.cardName}
-          onClick={() =>
-            onOpen?.({ kind: documentKind, name: relation.name })
+        <ConceptPill
+          concept={documentKind}
+          name={relation.name}
+          size="md"
+          onOpen={
+            onOpen
+              ? () => onOpen({ kind: documentKind, name: relation.name })
+              : undefined
           }
           title={`Open the ${
             relation.kind === "source" ? "source" : "derived"
           } relation document`}
-        >
-          <ConceptGlyph concept={documentKind} className={styles.cardGlyph} />
-          <span>{relation.name}</span>
-        </button>
+        />
         <span className={styles.cardTag}>
           {relation.kind === "source" ? "source relation" : "derived relation"}
         </span>
       </header>
       {relation.scanned.length ? (
-        <p className={styles.cardMeta}>scans {relation.scanned.join(", ")}</p>
+        <p className={styles.cardInline}>
+          scans
+          {relation.scanned.map((name) => (
+            <SourceRelationPill key={name} name={name} />
+          ))}
+        </p>
       ) : relation.asset ? (
-        <p className={styles.cardMeta}>asset {relation.asset}</p>
+        <p className={styles.cardInline}>
+          asset <AssetPill name={relation.asset} />
+        </p>
       ) : null}
       <div className={styles.chips}>
         {relation.columns.slice(0, 12).map((column) => (
@@ -230,23 +243,22 @@ function CompactRow({
   );
   return (
     <div className={styles.row} data-active={active || undefined}>
-      <button
-        type="button"
-        className={styles.rowRecord}
-        onClick={() =>
-          onOpen?.({ kind: binding.targetKind, name: binding.target })
+      <ConceptPill
+        concept={binding.targetKind}
+        name={binding.target}
+        onOpen={
+          onOpen
+            ? () => onOpen({ kind: binding.targetKind, name: binding.target })
+            : undefined
         }
         title="Open the record document"
-      >
-        <ConceptGlyph
-          concept={binding.targetKind}
-          className={styles.cardGlyph}
-        />
-        {binding.target}
-      </button>
+      />
       <ArrowLeft aria-hidden className={styles.rowArrow} />
       <span className={styles.rowBinding}>
-        <span className={styles.bindingIndex}>#{binding.index}</span>
+        <BindingPill
+          name={`#${binding.index}`}
+          title={binding.debugName ?? `binding #${binding.index}`}
+        />
         {binding.identityFields.length ? (
           <span className={styles.rowIdentity}>
             {binding.identityFields.join(", ")}
@@ -259,23 +271,29 @@ function CompactRow({
       <ArrowRight aria-hidden className={styles.rowArrow} />
       <span className={styles.rowRelations}>
         {resolved.length ? (
-          resolved.map((relation) => (
-            <button
-              key={relation.name}
-              type="button"
-              className={styles.rowRelation}
-              data-kind={relation.kind}
-              onClick={() =>
-                onOpen?.({
-                  kind: relation.kind === "source" ? "table" : "projection",
-                  name: relation.name,
-                })
-              }
-              title="Open the relation document"
-            >
-              {relation.name}
-            </button>
-          ))
+          resolved.map((relation) =>
+            relation.kind === "source" ? (
+              <SourceRelationPill
+                key={relation.name}
+                name={relation.name}
+                onOpen={
+                  onOpen
+                    ? () => onOpen({ kind: "table", name: relation.name })
+                    : undefined
+                }
+              />
+            ) : (
+              <DerivedRelationPill
+                key={relation.name}
+                name={relation.name}
+                onOpen={
+                  onOpen
+                    ? () => onOpen({ kind: "projection", name: relation.name })
+                    : undefined
+                }
+              />
+            ),
+          )
         ) : (
           <span className={styles.rowUnresolved}>
             {bindingRelations(binding)}
@@ -341,15 +359,17 @@ function GroupRow({
     <div className={styles.row} data-active={active || undefined}>
       <span className={styles.rowRelations}>
         {group.records.slice(0, 3).map((record) => (
-          <button
+          <ConceptPill
             key={`${record.kind}:${record.name}`}
-            type="button"
-            className={styles.rowRelation}
-            onClick={() => onOpen?.({ kind: record.kind, name: record.name })}
+            concept={record.kind}
+            name={record.name}
+            onOpen={
+              onOpen
+                ? () => onOpen({ kind: record.kind, name: record.name })
+                : undefined
+            }
             title={`Open the ${record.kind} document`}
-          >
-            {record.name}
-          </button>
+          />
         ))}
         {group.records.length > 3 ? (
           <span className={styles.rowUnresolved}>
@@ -369,23 +389,29 @@ function GroupRow({
       <ArrowRight aria-hidden className={styles.rowArrow} />
       <span className={styles.rowRelations}>
         {resolved.length ? (
-          resolved.map((relation) => (
-            <button
-              key={relation.name}
-              type="button"
-              className={styles.rowRelation}
-              data-kind={relation.kind}
-              onClick={() =>
-                onOpen?.({
-                  kind: relation.kind === "source" ? "table" : "projection",
-                  name: relation.name,
-                })
-              }
-              title="Open the relation document"
-            >
-              {relation.name}
-            </button>
-          ))
+          resolved.map((relation) =>
+            relation.kind === "source" ? (
+              <SourceRelationPill
+                key={relation.name}
+                name={relation.name}
+                onOpen={
+                  onOpen
+                    ? () => onOpen({ kind: "table", name: relation.name })
+                    : undefined
+                }
+              />
+            ) : (
+              <DerivedRelationPill
+                key={relation.name}
+                name={relation.name}
+                onOpen={
+                  onOpen
+                    ? () => onOpen({ kind: "projection", name: relation.name })
+                    : undefined
+                }
+              />
+            ),
+          )
         ) : (
           <span className={styles.rowUnresolved}>
             no published relation

@@ -53,6 +53,15 @@ import {
   type ProvenanceReferences,
 } from "@/proof/references";
 import { ConceptGlyph, ConceptMark } from "@/shared/ui/ConceptMark";
+import {
+  BindingPill,
+  DerivedRelationPill,
+  EdgePill,
+  FieldPill,
+  NodePill,
+  PropertyPill,
+  SourceRelationPill,
+} from "@/shared/ui/ConceptPill";
 import { ConceptReferenceChip } from "@/shared/ui/ConceptReference";
 import { selectionForConceptTarget } from "@/workbench/conceptTarget";
 import { activeDocument, documentSelection } from "@/workbench/types";
@@ -213,7 +222,6 @@ function ProvenanceGroup({
             <ConceptReferenceChip
               key={`${reference.concept}:${reference.name}`}
               reference={reference}
-              showIcon={false}
               onOpen={
                 reference.target ? () => onOpen(reference) : undefined
               }
@@ -1450,10 +1458,9 @@ function BindingsSection({
         onOpen({ kind: binding.kind, name: binding.component }),
       title: `Open ${binding.kind} ${binding.component}`,
       cells: [
-        <span className={styles.memberName}>
-          <ConceptGlyph concept={binding.kind} className={styles.memberGlyph} />
-          {binding.binding.name ?? `binding #${binding.index}`}
-        </span>,
+        <BindingPill
+          name={binding.binding.name ?? `binding #${binding.index}`}
+        />,
         `${Object.keys(binding.binding.properties ?? {}).length}`,
         fields.join(", ") || "not declared",
         relations.join(", ") || "no row source",
@@ -1504,24 +1511,20 @@ function ConnectionsSection({
         <div className={styles.connectionRow}>
           <span>source</span>
           {source ? (
-            <button
-              type="button"
-              onClick={() => onOpen({ kind: "node", name: source })}
-            >
-              {source}
-            </button>
+            <NodePill
+              name={source}
+              onOpen={() => onOpen({ kind: "node", name: source })}
+            />
           ) : (
             <span>not resolved</span>
           )}
           <ArrowRight aria-hidden className={styles.inlineArrow} />
           <span>target</span>
           {target ? (
-            <button
-              type="button"
-              onClick={() => onOpen({ kind: "node", name: target })}
-            >
-              {target}
-            </button>
+            <NodePill
+              name={target}
+              onOpen={() => onOpen({ kind: "node", name: target })}
+            />
           ) : (
             <span>not resolved</span>
           )}
@@ -1552,29 +1555,27 @@ function ConnectionsSection({
             <div className={styles.connectionRow} key={edge.name}>
               <span>{outgoing ? "out" : "in"}</span>
               {outgoing ? (
-                <span>{component}</span>
+                <NodePill name={component} />
               ) : (
-                <button
-                  type="button"
-                  onClick={() => onOpen({ kind: "node", name: other })}
-                >
-                  {other}
-                </button>
+                <NodePill
+                  name={other}
+                  onOpen={() => onOpen({ kind: "node", name: other })}
+                />
               )}
               <ArrowRight aria-hidden className={styles.inlineArrow} />
               {outgoing ? (
-                <button
-                  type="button"
-                  onClick={() => onOpen({ kind: "node", name: other })}
-                >
-                  {other}
-                </button>
+                <NodePill
+                  name={other}
+                  onOpen={() => onOpen({ kind: "node", name: other })}
+                />
               ) : (
-                <span>{component}</span>
+                <NodePill name={component} />
               )}
               <span className={styles.connectionLabel}>
-                {edge.name}
-                {edge.labels?.length ? ` · ${edge.labels.join(" · ")}` : ""}
+                <EdgePill name={edge.name} />
+                {edge.labels?.length ? (
+                  <span>{edge.labels.join(" · ")}</span>
+                ) : null}
               </span>
             </div>
           );
@@ -1696,10 +1697,7 @@ function ComponentProofView({
       }),
     title: `Open ${property.component}.${property.property}`,
     cells: [
-      <span className={styles.memberName}>
-        <ConceptGlyph concept="property" className={styles.memberGlyph} />
-        {property.property}
-      </span>,
+      <PropertyPill name={property.property} />,
       logicalTypeName(property.logicalType),
       `${property.branchCount}`,
       property.sources.join(", ") || "—",
@@ -1757,10 +1755,7 @@ function AbstractProofView({
       }),
     title: `Open the ${descendant.name} document`,
     cells: [
-      <span className={styles.memberName}>
-        <ConceptGlyph concept="node" className={styles.memberGlyph} />
-        {descendant.name}
-      </span>,
+      <NodePill name={descendant.name} />,
       descendant.labels.join(", ") || "—",
       `${descendant.properties.length}`,
       descendant.description ?? "—",
@@ -1810,13 +1805,11 @@ function AssetProofView({
       }),
     title: `Open the ${row.name} document`,
     cells: [
-      <span className={styles.memberName}>
-        <ConceptGlyph
-          concept={row.kindLabel === "source" ? "table" : "projection"}
-          className={styles.memberGlyph}
-        />
-        {row.name}
-      </span>,
+      row.kindLabel === "source" ? (
+        <SourceRelationPill name={row.name} />
+      ) : (
+        <DerivedRelationPill name={row.name} />
+      ),
       row.kindLabel === "source" ? "source relation" : "derived relation",
       `${row.columns} columns`,
       `${row.semantics.length} meanings`,
@@ -1824,7 +1817,11 @@ function AssetProofView({
   }));
   const fieldRows: MemberRow[] = asset.fields.map((field) => ({
     key: field.key,
-    cells: [field.key, logicalTypeName(field.field.logical_type), field.ownerKind],
+    cells: [
+      <FieldPill name={field.field.name} title={field.key} />,
+      logicalTypeName(field.field.logical_type),
+      field.ownerKind,
+    ],
   }));
   const assetRelations = new Set([
     ...index.relations
@@ -1988,11 +1985,11 @@ function overviewFacts(
         { label: "Kind", value: "property" },
         {
           label: "Owner",
-          value: `${model.subject.component} · ${
-            index.topologyNodesByName.has(model.subject.component)
-              ? "node"
-              : "edge"
-          }`,
+          value: index.topologyNodesByName.has(model.subject.component) ? (
+            <NodePill name={model.subject.component} />
+          ) : (
+            <EdgePill name={model.subject.component} />
+          ),
         },
         {
           label: "Type",
@@ -2038,10 +2035,21 @@ function overviewFacts(
       );
       if (model.level === "edge") {
         const edge = index.topologyEdgesByName.get(model.subject.component);
+        const source = edge?.source?.[2];
+        const target = edge?.target?.[2];
         facts.push({
           label: "Endpoints",
-          value: `${edge?.source?.[2] ?? "?"} → ${edge?.target?.[2] ?? "?"}`,
-          absent: !edge?.source || !edge?.target,
+          value:
+            source && target ? (
+              <span className="inline-flex flex-wrap items-center gap-1">
+                <NodePill name={source} />
+                <span aria-hidden>→</span>
+                <NodePill name={target} />
+              </span>
+            ) : (
+              "not resolved"
+            ),
+          absent: !source || !target,
         });
       } else {
         const incident = index.topologyEdges.filter(

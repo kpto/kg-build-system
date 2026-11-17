@@ -335,6 +335,12 @@
   align-self: center;
 }
 
+.constitutionMeta > span[data-concept],
+.constitutionMeta > button[data-concept] {
+  min-width: 0;
+  align-self: center;
+}
+
 .constitutionName {
   overflow: hidden;
   min-width: 0;

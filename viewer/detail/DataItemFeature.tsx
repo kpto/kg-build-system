@@ -24,6 +24,12 @@ import {
 } from "@/shared/design/constitution";
 import { attachedMeaning } from "@/shared/design/meaning";
 import { ConceptGlyph } from "@/shared/ui/ConceptMark";
+import {
+  AssetPill,
+  BindingPill,
+  FieldPill,
+  StepPill,
+} from "@/shared/ui/ConceptPill";
 import { ConceptReferenceChip } from "@/shared/ui/ConceptReference";
 import { activeDocument, documentSelection, type WorkspaceProps } from "@/workbench/types";
 import { selectionForConceptTarget } from "@/workbench/conceptTarget";
@@ -211,7 +217,11 @@ export function DataItemEditor(props: WorkspaceProps) {
     },
     {
       label: "Asset",
-      value: model.assetName ?? "unresolved",
+      value: model.assetName ? (
+        <AssetPill name={model.assetName} />
+      ) : (
+        "unresolved"
+      ),
       absent: !model.assetName,
       onOpen: model.assetName
         ? () => openAxis({ kind: "asset", name: model.assetName ?? "" })
@@ -258,10 +268,7 @@ export function DataItemEditor(props: WorkspaceProps) {
   const memberRows: MemberRow[] = model.columns.map((column) => ({
     key: column.name,
     cells: [
-      <span className={styles.memberName}>
-        <ConceptGlyph concept="field" className={styles.memberGlyph} />
-        {column.name}
-      </span>,
+      <FieldPill name={column.name} />,
       logicalTypeName(column.logical_type),
       column.definition ? fieldDefinitionDetail(column) : fieldDescription(column),
       column.expression
@@ -277,10 +284,9 @@ export function DataItemEditor(props: WorkspaceProps) {
       openAxis({ kind: binding.kind, name: binding.component }),
     title: `Open ${binding.kind} ${binding.component}`,
     cells: [
-      <span className={styles.memberName}>
-        <ConceptGlyph concept={binding.kind} className={styles.memberGlyph} />
-        {binding.binding.name ?? `binding #${binding.index}`}
-      </span>,
+      <BindingPill
+        name={binding.binding.name ?? `binding #${binding.index}`}
+      />,
       binding.kind,
       `${Object.keys(binding.binding.properties ?? {}).length}`,
       relationNamesFromRowSource(binding.binding.rows).join(", ") || "—",
@@ -292,7 +298,14 @@ export function DataItemEditor(props: WorkspaceProps) {
     .map((binding) => ({
       key: `${binding.index}:step`,
       cells: [
-        binding.step ? `${binding.step.id[0]}.${binding.step.id[1]}` : "—",
+        binding.step ? (
+          <StepPill
+            name={`${binding.step.id[0]}.${binding.step.id[1]}`}
+            title={binding.step.id.join(".")}
+          />
+        ) : (
+          "—"
+        ),
         binding.component,
         binding.step?.instruction.kind?.join(":") ?? "unknown",
         `${binding.index}`,
@@ -406,7 +419,6 @@ export function DataItemEditor(props: WorkspaceProps) {
               <div className={styles.provenanceItems}>
                 <ConceptReferenceChip
                   reference={assetReference}
-                  showIcon={false}
                   onOpen={() => {
                     const target = selectionForConceptTarget(assetReference.target);
                     if (target) {
@@ -433,7 +445,6 @@ export function DataItemEditor(props: WorkspaceProps) {
                   <ConceptReferenceChip
                     key={`${reference.concept}:${reference.name}`}
                     reference={reference}
-                    showIcon={false}
                     onOpen={
                       reference.target
                         ? () => {
@@ -467,7 +478,6 @@ export function DataItemEditor(props: WorkspaceProps) {
                   <ConceptReferenceChip
                     key={`${reference.concept}:${reference.name}`}
                     reference={reference}
-                    showIcon={false}
                     onOpen={
                       reference.target
                         ? () => {

@@ -1,0 +1,110 @@
+.pill {
+  display: inline-flex;
+  max-width: 100%;
+  min-width: 0;
+  height: 18px;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px 0 5px;
+  border: 1px solid
+    color-mix(in srgb, var(--concept-color) 34%, var(--color-line-soft));
+  border-radius: 999px;
+  background-color: color-mix(
+    in srgb,
+    var(--concept-color) 9%,
+    transparent
+  );
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 400;
+  line-height: 1;
+  vertical-align: middle;
+  align-self: center;
+  white-space: nowrap;
+  transition:
+    border-color var(--motion-fast) var(--ease-instrument),
+    background-color var(--motion-fast) var(--ease-instrument);
+}
+
+.md {
+  height: 21px;
+  gap: 5px;
+  padding: 0 9px 0 6px;
+  font-size: 10px;
+}
+
+.mark {
+  width: 10px;
+  height: 10px;
+  flex: none;
+}
+
+.md .mark {
+  width: 12px;
+  height: 12px;
+}
+
+.divider {
+  width: 1px;
+  height: 9px;
+  flex: none;
+  background-color: color-mix(
+    in srgb,
+    var(--concept-color) 45%,
+    var(--color-line-strong)
+  );
+  opacity: 0.75;
+}
+
+.md .divider {
+  height: 10px;
+}
+
+.name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+button.pill {
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-align: left;
+}
+
+button.md {
+  font-size: 10px;
+}
+
+button.pill:hover {
+  border-color: color-mix(
+    in srgb,
+    var(--concept-color) 60%,
+    var(--color-line-strong)
+  );
+  background-color: color-mix(
+    in srgb,
+    var(--concept-color) 15%,
+    transparent
+  );
+}
+
+.pill:focus-visible {
+  outline: 2px solid var(--color-accent-strong);
+  outline-offset: 1px;
+}
+
+.pill[data-active] {
+  border-color: color-mix(
+    in srgb,
+    var(--concept-color) 62%,
+    var(--color-line-strong)
+  );
+  background-color: color-mix(
+    in srgb,
+    var(--concept-color) 16%,
+    transparent
+  );
+}
