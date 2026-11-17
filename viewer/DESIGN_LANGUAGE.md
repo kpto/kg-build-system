@@ -95,10 +95,10 @@ A kind includes or omits a section; it never renames one for itself.
   consumer; a declaration shared by several consumers is one node with one edge
   per consumer, never a copy or a count. The purpose box carries the subject's
   own concept mark, never the graph mark.
-  - A record shows one Fulfilment per binding, its graph ancestry and each
-    binding's relation provenance. The bindings share one rank; the separator
-    begins below that row, and each axis is enclosed by a dashed frame labelled
-    GRAPH or RELATION at its top-left.
+  - A record is one intact DAG: its graph ancestry is on the left, its relation
+    provenance on the right, and its binding boxes are between them. The
+    bindings together are the fulfilment, enclosed by one dashed FULFILMENT
+    frame; there is no separator and no axis frame.
   - A source relation shows its purpose over its asset alone; a derived relation
     its purpose over the source relations it scans and their assets. Neither
     carries a binding or a graph axis.
@@ -110,9 +110,9 @@ A kind includes or omits a section; it never renames one for itself.
   Each box background is a tint of its own concept colour, and each box is led
   by its concept pill in the title role. The pill sits one stack gap above its
   purpose, closer than the box padding, so the header and its body read as one
-  group while the rank gap separates boxes. The scene supplies nodes, edges and
-  any rank constraint; the layout computes ranks, ordering and edge routes. The
-  canvas opens fitted and pans and zooms;
+  group while the rank gap separates boxes. The scene supplies nodes and edges;
+  the layout computes ranks, ordering and edge routes. The canvas opens fitted
+  and pans and zooms;
   selecting a node dims every other node and non-incident link, empty space
   clears, hovering or focusing reveals the full meaning, and a node label opens
   its document.

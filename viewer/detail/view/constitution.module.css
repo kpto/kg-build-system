@@ -68,13 +68,6 @@
   height: 100%;
 }
 
-.constitutionSceneSeam {
-  stroke: var(--color-line-strong);
-  stroke-width: var(--border-hairline);
-  stroke-dasharray: 2 4;
-  opacity: 0.7;
-}
-
 .constitutionFrame {
   fill: color-mix(
     in srgb,
@@ -90,12 +83,8 @@
   stroke-dasharray: 2 5;
 }
 
-.constitutionFrame[data-axis="graph"] {
-  --frame-color: var(--color-concept-graph);
-}
-
-.constitutionFrame[data-axis="relation"] {
-  --frame-color: var(--color-concept-source);
+.constitutionFrame[data-axis="fulfilment"] {
+  --frame-color: var(--color-concept-binding);
 }
 
 .constitutionSceneLabel {
@@ -151,7 +140,7 @@
   outline-offset: 1px;
 }
 
-.constitutionBoxFulfilment {
+.constitutionBoxBinding {
   background: color-mix(
     in srgb,
     var(--constitution-concept, var(--color-panel-raised)) 10%,
@@ -219,10 +208,4 @@
 .constitutionMissing {
   color: var(--color-faint);
   font-style: italic;
-}
-
-@media (max-width: 1400px) {
-  .constitutionBoxFulfilment .constitutionTag {
-    display: none;
-  }
 }

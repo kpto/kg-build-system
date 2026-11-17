@@ -1,10 +1,10 @@
 /**
  * The constitution as one directed acyclic graph: how the subject comes to be.
  *
- * A record has purpose and one binding node per fulfilment at the top, with the
- * graph ancestry under the purpose and each binding's relation provenance under
- * the bindings. A relation, binding or asset has the subject's purpose at the
- * top and only the declarations that produce it below. The provenance is laid
+ * A record is one DAG: its graph ancestry sits on the left, its relation
+ * provenance on the right, and its binding nodes between them inside the
+ * fulfilment frame. A relation, binding or asset has the subject's purpose at
+ * the top and only the declarations that produce it below. The graph is laid
  * out by dagre as a layered DAG, so ranks, ordering and edge routes are
  * computed rather than hand-placed. A declaration is one node: a source
  * relation or asset shared by several consumers appears once and carries one
@@ -22,7 +22,7 @@ import type {
 
 export interface ConstitutionSceneNode {
   id: string;
-  axis: "purpose" | "fulfilment" | "graph" | "relation";
+  axis: "purpose" | "binding" | "graph" | "relation";
   node: ConstitutionNode;
   /** The binding's purpose, shown instead of the node's own purpose. */
   text?: string;
@@ -55,9 +55,9 @@ export interface ConstitutionSceneNote {
   y: number;
 }
 
-/** One axis of a record's constitution, framed like a topology category. */
+/** The fulfilment group: the binding nodes framed together. */
 export interface ConstitutionSceneFrame {
-  id: "graph" | "relation";
+  id: "fulfilment";
   x: number;
   y: number;
   width: number;
@@ -69,8 +69,7 @@ export interface ConstitutionScene {
   edges: ConstitutionSceneEdge[];
   labels: ConstitutionSceneLabel[];
   notes: ConstitutionSceneNote[];
-  seam: { x: number; y1: number; y2: number } | null;
-  /** The two axis frames; a produced subject has none. */
+  /** The fulfilment frame; a produced subject has none. */
   frames: ConstitutionSceneFrame[];
   /** The renderer translates the scene so frame padding stays visible. */
   offset: { x: number; y: number };
@@ -85,16 +84,12 @@ const NODE = {
   relation: { width: 300, height: 104 },
 } as const;
 
-const COLUMN_GAP = 60;
-const BINDING_Y = 120;
-const STACK_GAP = 56;
 const FRAME_PAD = 20;
 const FRAME_TOP = 28;
 const FRAME_LABEL_INSET = 12;
 const FRAME_LABEL_BASELINE = 16;
 const NOTE_GAP = 24;
 const NOTE_HEIGHT = 24;
-const EDGE_BEND = 48;
 
 /** dagre's layered engine: top-to-bottom edges read bottom-to-top. */
 const RANKDIR = "BT";
@@ -103,25 +98,6 @@ const RANK_SEP = 48;
 
 export function sceneNodeId(node: ConstitutionNode): string {
   return `${node.kind}:${node.name}`;
-}
-
-function verticalPath(x1: number, y1: number, x2: number, y2: number): string {
-  if (Math.abs(x1 - x2) < 0.5) return `M ${x1} ${y1} L ${x2} ${y2}`;
-  const bend = Math.min(EDGE_BEND, Math.abs(y1 - y2) / 2);
-  return `M ${x1} ${y1} C ${x1} ${y1 - bend} ${x2} ${y2 + bend} ${x2} ${y2}`;
-}
-
-/** A binding node rises into the purpose's right edge. */
-function bindingPath(
-  fromX: number,
-  fromY: number,
-  toX: number,
-  toY: number,
-): string {
-  const bend = Math.min(EDGE_BEND, Math.abs(fromY - toY) / 2);
-  return `M ${fromX} ${fromY} C ${fromX} ${fromY - bend} ${
-    toX + bend
-  } ${toY} ${toX} ${toY}`;
 }
 
 /** dagre edge points are already routed; keep them as one polyline. */
@@ -147,8 +123,6 @@ interface LayeredNode {
 interface LayeredEdge {
   source: string;
   target: string;
-  /** The minimum number of ranks the edge spans. */
-  minlen?: number;
 }
 
 interface LayeredLayout {
@@ -176,9 +150,7 @@ function layeredLayout(
   nodes.forEach((node) =>
     graph.setNode(node.id, { width: node.width, height: node.height }),
   );
-  edges.forEach((edge) =>
-    graph.setEdge(edge.source, edge.target, { minlen: edge.minlen ?? 1 }),
-  );
+  edges.forEach((edge) => graph.setEdge(edge.source, edge.target));
   layout(graph);
 
   const placed = nodes.map((node) => {
@@ -247,42 +219,16 @@ function relationProvenance(
   return { nodes, roots, down };
 }
 
-/** The longest path from a relation down to its asset; the asset is 0. */
-function provenanceDepth(
-  down: Array<{ parent: string; child: string }>,
-): (id: string) => number {
-  const children = new Map<string, string[]>();
-  down.forEach((edge) => {
-    const list = children.get(edge.parent) ?? [];
-    list.push(edge.child);
-    children.set(edge.parent, list);
-  });
-  const cache = new Map<string, number>();
-  const depth = (id: string, path = new Set<string>()): number => {
-    const cached = cache.get(id);
-    if (cached !== undefined) return cached;
-    if (path.has(id)) return 0;
-    const next = new Set(path).add(id);
-    const kids = children.get(id) ?? [];
-    const value = kids.length
-      ? 1 + Math.max(...kids.map((child) => depth(child, next)))
-      : 0;
-    cache.set(id, value);
-    return value;
-  };
-  return depth;
-}
-
 function bindingNode(binding: ConstitutionBinding): ConstitutionSceneNode {
   const node: ConstitutionNode = {
     kind: "binding",
     name: binding.name,
-    label: "Fulfilment",
+    label: "Binding",
     meaning: binding.meaning,
   };
   return {
     id: `binding:${binding.index}`,
-    axis: "fulfilment",
+    axis: "binding",
     node,
     component: binding.component,
     bindingIndex: binding.index,
@@ -331,7 +277,7 @@ function bindingRelationEdges(
   return edges;
 }
 
-/** The padded bounds of one axis: a topology-style category frame. */
+/** The padded bounds of one group: a topology-style category frame. */
 function frameFor(
   id: ConstitutionSceneFrame["id"],
   members: ConstitutionSceneNode[],
@@ -357,22 +303,16 @@ function isComponentsSubject(kind: ConstitutionNode["kind"]): boolean {
 }
 
 /**
- * A record's constitution: purpose and one fulfilment per binding at the top,
- * the graph ancestry under the purpose and each binding's relation provenance
- * under the bindings.
+ * A record's constitution: one DAG whose graph ancestry sits on the left and
+ * whose relation provenance sits on the right. The binding nodes connect the
+ * two sides and are enclosed by the fulfilment frame. The graph purpose and the
+ * bindings converge on the purpose; no separator or axis frame divides them.
  */
 function buildRecordScene(model: ConstitutionModel): ConstitutionScene {
   const nodes: ConstitutionSceneNode[] = [];
   const edges: ConstitutionSceneEdge[] = [];
   const labels: ConstitutionSceneLabel[] = [];
   const notes: ConstitutionSceneNote[] = [];
-  const edgeKeys = new Set<string>();
-  const addEdge = (source: string, target: string, path: string) => {
-    const id = `${source}->${target}`;
-    if (edgeKeys.has(id)) return;
-    edgeKeys.add(id);
-    edges.push({ id, source, target, path });
-  };
 
   const purpose: ConstitutionSceneNode = {
     id: "purpose",
@@ -382,185 +322,132 @@ function buildRecordScene(model: ConstitutionModel): ConstitutionScene {
     y: 0,
     ...NODE.purpose,
   };
-
-  // The record ancestry is a chain under the purpose; it is placed directly.
-  const graphNodes: ConstitutionSceneNode[] = model.graph.map((node, index) => ({
+  const graphNodes: ConstitutionSceneNode[] = model.graph.map((node) => ({
     id: sceneNodeId(node),
     axis: "graph",
     node,
     x: 0,
-    y: NODE.purpose.height + STACK_GAP + index * (NODE.graph.height + STACK_GAP),
+    y: 0,
     ...NODE.graph,
   }));
-  graphNodes.forEach((node, index) => {
-    const target = index === 0 ? purpose : graphNodes[index - 1];
-    addEdge(
-      node.id,
-      target.id,
-      verticalPath(
-        node.x + node.width / 2,
-        node.y,
-        target.x + target.width / 2,
-        target.y + target.height,
-      ),
-    );
-  });
-  const graphBottom = graphNodes.length
-    ? graphNodes[graphNodes.length - 1].y + NODE.graph.height
-    : purpose.y + purpose.height;
-
-  // The relation provenance plus the bindings form one DAG for dagre.
-  const provenance = relationProvenance(model.relation);
   const bindings = model.bindings.map(bindingNode);
+  const provenance = relationProvenance(model.relation);
   const relations = [...provenance.nodes.values()].map(relationNode);
-  const dagreNodes = [...bindings, ...relations];
+  const dagreNodes = [purpose, ...graphNodes, ...bindings, ...relations];
+
   const rootByName = new Map<string, string>();
   provenance.roots.forEach((id) => {
     const node = provenance.nodes.get(id);
     if (node) rootByName.set(node.name, id);
   });
-  const dagreEdges = [
-    ...bindingRelationEdges(model, rootByName),
-    ...provenance.down.map((edge) => ({
-      source: edge.child,
-      target: edge.parent,
-    })),
-  ];
-  const depthOf = provenanceDepth(provenance.down);
-  // Every binding answers the same purpose, so it belongs to the same rank.
-  // A binding on a shallow source relation gets a longer edge to reach the
-  // deepest binding rank instead of floating a row above its peers.
-  const maxDepth = provenance.roots.length
-    ? Math.max(...provenance.roots.map((id) => depthOf(id)))
-    : 0;
-  const edgesWithRank = dagreEdges.map((edge) => ({
-    ...edge,
-    minlen: edge.target.startsWith("binding:")
-      ? Math.max(1, maxDepth + 1 - depthOf(edge.source))
-      : 1,
-  }));
 
-  const regionX = NODE.purpose.width + COLUMN_GAP;
-  const layered = dagreNodes.length
-    ? layeredLayout(dagreNodes, edgesWithRank, { x: regionX, y: BINDING_Y })
-    : undefined;
+  const links: LayeredEdge[] = [];
+  const linkKeys = new Set<string>();
+  const addLink = (source: string, target: string) => {
+    const key = `${source}->${target}`;
+    if (linkKeys.has(key)) return;
+    linkKeys.add(key);
+    links.push({ source, target });
+  };
+  graphNodes.forEach((node, index) =>
+    addLink(node.id, index === 0 ? purpose.id : graphNodes[index - 1].id),
+  );
+  bindings.forEach((binding) => addLink(binding.id, purpose.id));
+  bindingRelationEdges(model, rootByName).forEach((edge) =>
+    addLink(edge.source, edge.target),
+  );
+  provenance.down.forEach((edge) => addLink(edge.child, edge.parent));
 
+  const layered = layeredLayout(dagreNodes, links);
   const positioned = dagreNodes.map((node) => ({
     ...node,
-    ...(layered?.positions.get(node.id) ?? { x: regionX, y: BINDING_Y }),
+    ...(layered.positions.get(node.id) ?? { x: 0, y: 0 }),
   }));
-  nodes.push(purpose, ...positioned, ...graphNodes);
+  nodes.push(...positioned);
+  links.forEach((edge) => {
+    const path = layered.paths.get(`${edge.source}->${edge.target}`);
+    if (path) {
+      edges.push({
+        id: `${edge.source}->${edge.target}`,
+        source: edge.source,
+        target: edge.target,
+        path,
+      });
+    }
+  });
 
-  if (layered) {
-    dagreEdges.forEach((edge) => {
-      const path = layered.paths.get(`${edge.source}->${edge.target}`);
-      if (path) addEdge(edge.source, edge.target, path);
+  const bindingNodes = positioned.filter((node) => node.axis === "binding");
+  const frame = frameFor("fulfilment", bindingNodes);
+  const offset = frame
+    ? { x: Math.max(0, -frame.x), y: Math.max(0, -frame.y) }
+    : { x: 0, y: 0 };
+  if (frame) {
+    labels.push({
+      text: "FULFILMENT",
+      x: frame.x + FRAME_LABEL_INSET,
+      y: frame.y + FRAME_LABEL_BASELINE,
     });
   }
-  // Each binding answers the purpose.
-  positioned
-    .filter((node) => node.axis === "fulfilment")
-    .forEach((node) => {
-      addEdge(
-        node.id,
-        purpose.id,
-        bindingPath(
-          node.x + node.width / 2,
-          node.y,
-          purpose.x + purpose.width,
-          purpose.y + purpose.height / 2,
-        ),
-      );
-    });
 
-  const bindingsBottom = bindings.length
-    ? BINDING_Y + NODE.binding.height
-    : purpose.y + purpose.height;
-  const regionWidth = layered ? layered.width : NODE.purpose.width;
-  const regionCentre = regionX + regionWidth / 2;
-
-  const graphFrame = frameFor("graph", [purpose, ...graphNodes])!;
-  // The bindings are the meeting, not an axis; only provenance is framed.
-  const relationFrame = frameFor(
-    "relation",
-    positioned.filter((node) => node.axis === "relation"),
-  );
-  const frameBottom = Math.max(
-    graphFrame.y + graphFrame.height,
-    relationFrame ? relationFrame.y + relationFrame.height : 0,
-  );
-  // A frame owns its axis; translate the scene so its padding stays visible.
-  const offset = {
-    x: Math.max(0, -Math.min(graphFrame.x, relationFrame?.x ?? graphFrame.x)),
-    y: Math.max(0, -Math.min(graphFrame.y, relationFrame?.y ?? graphFrame.y)),
-  };
-
-  if (!model.bindings.length) {
+  const purposeNode = positioned.find((node) => node.id === purpose.id)!;
+  if (!bindingNodes.length) {
     notes.push({
       text: "No binding meets these two axes.",
-      x: regionCentre,
-      y: BINDING_Y - 8,
+      x: purposeNode.x + purposeNode.width + 140,
+      y: purposeNode.y + purposeNode.height / 2,
     });
-  }
-  if (!provenance.roots.length) {
+  } else if (!provenance.roots.length) {
+    const last = bindingNodes.reduce((lower, node) =>
+      node.y + node.height > lower.y + lower.height ? node : lower,
+    );
     notes.push({
       text: "No relation is shown.",
-      x: regionCentre,
-      y: relationFrame
-        ? relationFrame.y + relationFrame.height - FRAME_PAD
-        : BINDING_Y + NODE.binding.height + 28,
+      x: frame ? frame.x + frame.width / 2 : last.x + last.width / 2,
+      y: last.y + last.height + NOTE_GAP,
     });
   }
 
-  labels.push({
-    text: "GRAPH",
-    x: graphFrame.x + FRAME_LABEL_INSET,
-    y: graphFrame.y + FRAME_LABEL_BASELINE,
-  });
-  if (relationFrame) {
-    labels.push({
-      text: "RELATION",
-      x: relationFrame.x + FRAME_LABEL_INSET,
-      y: relationFrame.y + FRAME_LABEL_BASELINE,
-    });
-  }
-
-  const seamX = (purpose.width + regionX) / 2;
-  const seamY1 = bindingsBottom;
-  const seamY2 = Math.max(bindingsBottom + 8, frameBottom);
-
+  const nodeMaxX = Math.max(
+    ...positioned.map((node) => node.x + node.width),
+  );
+  const nodeMaxY = Math.max(
+    ...positioned.map((node) => node.y + node.height),
+  );
+  const noteMaxX = notes.reduce(
+    (max, note) => Math.max(max, note.x + 140),
+    0,
+  );
+  const noteMaxY = notes.reduce(
+    (max, note) => Math.max(max, note.y + NOTE_HEIGHT),
+    0,
+  );
   const contentMaxX = Math.max(
-    graphFrame.x + graphFrame.width,
-    relationFrame ? relationFrame.x + relationFrame.width : -Infinity,
-    regionX + regionWidth,
+    nodeMaxX,
+    frame ? frame.x + frame.width : 0,
+    noteMaxX,
   );
   const contentMaxY = Math.max(
-    frameBottom,
-    bindingsBottom,
-    ...notes.map((note) => note.y + NOTE_HEIGHT),
+    nodeMaxY,
+    frame ? frame.y + frame.height : 0,
+    noteMaxY,
   );
-  const width = contentMaxX + offset.x;
-  const height = contentMaxY + offset.y;
 
   return {
     nodes,
     edges,
     labels,
     notes,
-    seam: relationFrame
-      ? { x: seamX, y1: seamY1, y2: seamY2 }
-      : null,
-    frames: relationFrame ? [graphFrame, relationFrame] : [graphFrame],
+    frames: frame ? [frame] : [],
     offset,
-    width,
-    height,
+    width: contentMaxX + offset.x,
+    height: contentMaxY + offset.y,
   };
 }
 
 /**
  * A relation's, binding's or asset's constitution: the subject's purpose at
- * the top and only the declarations that produce it below. There is no
- * fulfilment row and no graph axis. An asset has no producer at all.
+ * the top and only the declarations that produce it below. There is no binding
+ * group and no graph axis. An asset has no producer at all.
  */
 function buildComponentsScene(model: ConstitutionModel): ConstitutionScene {
   const purpose: ConstitutionSceneNode = {
@@ -600,8 +487,7 @@ function buildComponentsScene(model: ConstitutionModel): ConstitutionScene {
       edges,
       labels: [],
       notes,
-      seam: null,
-      frames: [],
+        frames: [],
       offset: { x: 0, y: 0 },
       width,
       height,
@@ -643,7 +529,6 @@ function buildComponentsScene(model: ConstitutionModel): ConstitutionScene {
     edges,
     labels: [],
     notes,
-    seam: null,
     frames: [],
     offset: { x: 0, y: 0 },
     width: layered.width,

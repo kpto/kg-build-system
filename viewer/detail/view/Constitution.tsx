@@ -48,7 +48,7 @@ function boxKey(node: ConstitutionNode): string {
 function Box({
   node,
   root = false,
-  fulfilment = false,
+  binding = false,
   hoverable = true,
   text,
   component,
@@ -60,7 +60,7 @@ function Box({
 }: {
   node: ConstitutionNode;
   root?: boolean;
-  fulfilment?: boolean;
+  binding?: boolean;
   hoverable?: boolean;
   text?: string;
   component?: string;
@@ -78,7 +78,7 @@ function Box({
       className={cx(
         styles.constitutionBox,
         root && styles.constitutionBoxRoot,
-        fulfilment && styles.constitutionBoxFulfilment,
+        binding && styles.constitutionBoxBinding,
         node.current && styles.constitutionBoxCurrent,
       )}
       style={
@@ -87,7 +87,7 @@ function Box({
         } as CSSProperties
       }
       data-root={root || undefined}
-      data-fulfilment={fulfilment || undefined}
+      data-binding={binding || undefined}
       data-current={node.current || undefined}
       tabIndex={hoverable ? 0 : undefined}
       onMouseEnter={
@@ -111,7 +111,7 @@ function Box({
     >
       <div className={styles.constitutionMeta}>
         <ConceptPill
-          concept={fulfilment ? "binding" : pillConcept(node.kind)}
+          concept={binding ? "binding" : pillConcept(node.kind)}
           name={node.name}
           {...(component ? { component } : {})}
           {...(bindingIndex !== undefined ? { bindingIndex } : {})}
@@ -122,7 +122,7 @@ function Box({
           <span className={styles.constitutionTag} data-current>
             current
           </span>
-        ) : !fulfilment && node.detail ? (
+        ) : !binding && node.detail ? (
           <span className={styles.constitutionTag}>{node.detail}</span>
         ) : null}
       </div>
@@ -234,16 +234,6 @@ function ConstitutionSceneView({
           })}
         </g>
 
-        {scene.seam ? (
-          <line
-            className={styles.constitutionSceneSeam}
-            x1={scene.seam.x}
-            y1={scene.seam.y1}
-            x2={scene.seam.x}
-            y2={scene.seam.y2}
-          />
-        ) : null}
-
         <g data-constitution-nodes>
           {scene.nodes.map((node) => (
             <foreignObject
@@ -264,7 +254,7 @@ function ConstitutionSceneView({
                 <Box
                   node={node.node}
                   root={node.axis === "purpose"}
-                  fulfilment={node.axis === "fulfilment"}
+                  binding={node.axis === "binding"}
                   hoverable={node.hoverable}
                   text={node.text}
                   component={node.component}
@@ -309,11 +299,12 @@ function ConstitutionSceneView({
 }
 
 /**
- * The subject as a constitution DAG: purpose, the fulfilment that answers it,
- * the graph ancestry and the relation provenance. Every edge points up from the
- * supply to the consumer; shared declarations are one node. Hovering or
- * focusing a node reveals its full meaning in a portal; selecting a node dims
- * the rest and keeps its incident edges.
+ * The subject as one constitution DAG: the graph ancestry on the left, the
+ * relation provenance on the right and the binding nodes between them in the
+ * fulfilment frame. Every edge points up from the supply to the consumer;
+ * shared declarations are one node. Hovering or focusing a node reveals its
+ * full meaning in a portal; selecting a node dims the rest and keeps its
+ * incident edges.
  */
 export function Constitution({ model }: ConstitutionProps) {
   const [hovered, setHovered] = useState<HoveredBox | null>(null);

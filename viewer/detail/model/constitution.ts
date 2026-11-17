@@ -69,7 +69,7 @@ export interface ConstitutionRelation {
   children: ConstitutionRelation[];
 }
 
-/** One binding: the fulfilment between one relation and one record. */
+/** One binding: the meeting of one relation and one record. */
 export interface ConstitutionBinding {
   index: number;
   /** The binding's display handle; a binding name is not its identity. */
@@ -89,7 +89,7 @@ export interface ConstitutionModel {
   graph: ConstitutionNode[];
   /** Every relation a binding reads, each with its full provenance. */
   relation: ConstitutionRelation[];
-  /** One fulfilment per binding; a record may be written by several bindings. */
+  /** One node per binding; together they are the record's fulfilment. */
   bindings: ConstitutionBinding[];
 }
 

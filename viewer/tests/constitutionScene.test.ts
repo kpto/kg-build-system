@@ -79,9 +79,9 @@ const edge = (source: string, target: string) =>
   scene.edges.find((entry) => entry.id === `${source}->${target}`);
 
 describe("constitution scene", () => {
-  it("draws one fulfilment node per binding", () => {
-    const fulfilments = scene.nodes.filter((entry) => entry.axis === "fulfilment");
-    expect(fulfilments).toHaveLength(3);
+  it("draws one binding node per binding", () => {
+    const bindings = scene.nodes.filter((entry) => entry.axis === "binding");
+    expect(bindings).toHaveLength(3);
     expect(byName("alpha_binding")).toHaveLength(1);
     expect(byName("beta_binding")).toHaveLength(1);
     expect(byName("gamma_binding")).toHaveLength(1);
@@ -119,7 +119,7 @@ describe("constitution scene", () => {
     expect(edge("graph:fixture_graph", "purpose")).toBeTruthy();
   });
 
-  it("puts every fulfilment on one rank and layers provenance below it", () => {
+  it("puts every binding on one rank and layers provenance below it", () => {
     const alphaBinding = byName("alpha_binding")[0];
     const betaBinding = byName("beta_binding")[0];
     const gammaBinding = byName("gamma_binding")[0];
@@ -133,51 +133,44 @@ describe("constitution scene", () => {
     expect(estate.y).toBeGreaterThan(surveys.y);
   });
 
-  it("frames each axis like a topology category", () => {
-    expect(scene.frames.map((frame) => frame.id)).toEqual([
-      "graph",
-      "relation",
-    ]);
-    const [graphFrame, relationFrame] = scene.frames;
+  it("encloses the binding nodes in one fulfilment frame", () => {
+    expect(scene.frames.map((frame) => frame.id)).toEqual(["fulfilment"]);
+    const [frame] = scene.frames;
     const contains = (
-      frame: (typeof scene.frames)[number],
-      node: (typeof scene.nodes)[number],
+      entry: (typeof scene.frames)[number],
+      item: (typeof scene.nodes)[number],
     ) =>
-      node.x >= frame.x &&
-      node.y >= frame.y &&
-      node.x + node.width <= frame.x + frame.width &&
-      node.y + node.height <= frame.y + frame.height;
+      item.x >= entry.x &&
+      item.y >= entry.y &&
+      item.x + item.width <= entry.x + entry.width &&
+      item.y + item.height <= entry.y + entry.height;
 
-    expect(contains(graphFrame, byName("defect")[0])).toBe(true);
-    expect(contains(graphFrame, byName("fixture_graph")[0])).toBe(true);
-    expect(contains(relationFrame, byName("alpha")[0])).toBe(true);
-    expect(contains(relationFrame, byName("estate")[0])).toBe(true);
-    expect(contains(relationFrame, byName("alpha_binding")[0])).toBe(false);
-    expect(contains(graphFrame, byName("alpha_binding")[0])).toBe(false);
-    expect(contains(relationFrame, byName("defect")[0])).toBe(false);
-    expect(graphFrame.x + graphFrame.width).toBeLessThanOrEqual(
-      relationFrame.x,
-    );
-    expect(scene.offset.x).toBeGreaterThan(0);
-    expect(scene.offset.y).toBeGreaterThan(0);
-    for (const label of scene.labels) {
-      const frame = scene.frames.find(
-        (entry) =>
-          entry.id === (label.text === "GRAPH" ? "graph" : "relation"),
-      )!;
-      expect(label.x).toBeGreaterThan(frame.x);
-      expect(label.y).toBeGreaterThan(frame.y);
-      expect(label.y).toBeLessThan(frame.y + frame.height);
+    for (const binding of scene.nodes.filter(
+      (entry) => entry.axis === "binding",
+    )) {
+      expect(contains(frame, binding)).toBe(true);
+    }
+    expect(contains(frame, byName("defect")[0])).toBe(false);
+    expect(contains(frame, byName("fixture_graph")[0])).toBe(false);
+    expect(contains(frame, byName("surveys")[0])).toBe(false);
+    expect(scene.offset.x).toBeGreaterThanOrEqual(0);
+    expect(scene.offset.y).toBeGreaterThanOrEqual(0);
+    expect(scene.labels.map((label) => label.text)).toEqual(["FULFILMENT"]);
+    const [label] = scene.labels;
+    expect(label.x).toBeGreaterThan(frame.x);
+    expect(label.y).toBeGreaterThan(frame.y);
+    expect(label.y).toBeLessThan(frame.y + frame.height);
+  });
+
+  it("keeps the graph ancestry left of the relation provenance", () => {
+    const graph = byName("fixture_graph")[0];
+    for (const name of ["surveys", "estate", "alpha", "beta"]) {
+      expect(graph.x).toBeLessThan(byName(name)[0].x);
     }
   });
 
-  it("starts the seam below the fulfilment row and labels both axis frames", () => {
-    const binding = byName("alpha_binding")[0];
-    expect(scene.seam?.y1).toBe(binding.y + binding.height);
-    expect(scene.labels.map((label) => label.text)).toEqual([
-      "GRAPH",
-      "RELATION",
-    ]);
+  it("labels the fulfilment group", () => {
+    expect(scene.labels.map((label) => label.text)).toEqual(["FULFILMENT"]);
   });
 });
 
@@ -203,7 +196,6 @@ describe("constitution scene for a produced subject", () => {
     expect(sourceScene.labels).toEqual([]);
     expect(sourceScene.frames).toEqual([]);
     expect(sourceScene.offset).toEqual({ x: 0, y: 0 });
-    expect(sourceScene.seam).toBeNull();
     const purpose = findBySceneId(sourceScene, "purpose");
     const asset = findBySceneId(sourceScene, "asset:estate");
     expect(purpose).toBeTruthy();
@@ -222,7 +214,6 @@ describe("constitution scene for a produced subject", () => {
     expect(findEdge(derivedScene, "relation:surveys", "purpose")).toBeTruthy();
     expect(findEdge(derivedScene, "asset:estate", "relation:surveys")).toBeTruthy();
     expect(derivedScene.labels).toEqual([]);
-    expect(derivedScene.seam).toBeNull();
     const surveys = findBySceneId(derivedScene, "relation:surveys");
     const estate = findBySceneId(derivedScene, "asset:estate");
     const purpose = findBySceneId(derivedScene, "purpose");
@@ -265,7 +256,6 @@ describe("constitution scene for a produced subject", () => {
     expect(assetScene.nodes.map((entry) => entry.id)).toEqual(["purpose"]);
     expect(assetScene.edges).toEqual([]);
     expect(assetScene.labels).toEqual([]);
-    expect(assetScene.seam).toBeNull();
     expect(assetScene.notes.map((note) => note.text)).toEqual([
       "No component is declared.",
     ]);
