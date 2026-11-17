@@ -21,7 +21,7 @@ import type {
   WorkflowStep,
 } from "@/lib/types";
 import { stepKey } from "@/lib/indexes";
-import { DetailBand, DetailDocument, FactGrid } from "@/detail/view/DetailChrome";
+import { DetailBand, DetailDocument } from "@/detail/view/DetailChrome";
 import { ContextMenu } from "@/shared/ui/ContextMenu";
 import { Control, Empty, Field, Input, Label, Meta, Select } from "@/shared/ui/Primitives";
 import { useGraphViewport } from "@/shared/ui/GraphCanvas";
@@ -297,39 +297,24 @@ function StepDetail({
     <DetailDocument
       testId="workflow-step-detail"
       concept="step"
-      kicker={`Design · step · ${step.id[0]}`}
+      kicker={`Step · ${step.id[0]}`}
       title={step.id[1]}
-      subtitle={`${step.instruction.kind?.join(":") ?? "unknown"} · ${
-        step.inputs?.length ?? 0
-      } inputs · ${step.outputs?.length ?? 0} outputs · ${incoming.length} in / ${
-        outgoing.length
-      } out`}
+      facts={[
+        { label: "Step id", value: formatStepId(step.id) },
+        { label: "Component", value: step.id[0] },
+        {
+          label: "Instruction",
+          value: step.instruction.kind?.join(":") ?? "unknown",
+        },
+        { label: "Bindings", value: `${bindings.length}` },
+        {
+          label: "Ports",
+          value: `${step.inputs?.length ?? 0} in · ${
+            step.outputs?.length ?? 0
+          } out`,
+        },
+      ]}
     >
-      <DetailBand
-        concept="step"
-        priority="primary"
-        title="Overview"
-        question="What does this step do, in one screen?"
-        meta={formatStepId(step.id)}
-      >
-        <FactGrid
-          facts={[
-            { label: "Step id", value: formatStepId(step.id) },
-            { label: "Component", value: step.id[0] },
-            {
-              label: "Instruction",
-              value: step.instruction.kind?.join(":") ?? "unknown",
-            },
-            { label: "Bindings", value: `${bindings.length}` },
-            {
-              label: "Ports",
-              value: `${step.inputs?.length ?? 0} in · ${
-                step.outputs?.length ?? 0
-              } out`,
-            },
-          ]}
-        />
-      </DetailBand>
 
 
       <DetailBand
@@ -499,15 +484,11 @@ export function WorkflowStepEditor({ state }: WorkspaceProps) {
       <DetailDocument
         testId="workflow-step-editor"
         concept="step"
-        kicker="Design · step"
+        kicker="Step"
         title="Step unavailable"
         subtitle="This step is not present in the workflow plan."
       >
-        <DetailBand concept="step" title="Overview" question="What is this step?">
-          <p className="text-[length:var(--text-lg)] leading-relaxed text-faint">
-            The selected workflow step could not be resolved from the snapshot.
-          </p>
-        </DetailBand>
+        {null}
       </DetailDocument>
     );
   }
@@ -638,18 +619,27 @@ export function WorkflowEditor(props: WorkspaceProps) {
     );
   }
 
+  const facts = inStepGroup && stepScene
+    ? [
+        { label: "Steps", value: `${stepScene.stats?.stepCount ?? 0}` },
+        { label: "Boundary", value: `${stepScene.stats?.boundaryCount ?? 0}` },
+      ]
+    : [
+        { label: "Steps", value: `${model.steps}` },
+        { label: "Connections", value: `${model.connections}` },
+        {
+          label: "Components",
+          value: `${activeComponents.size} / ${componentMap.nodes.length}`,
+        },
+      ];
+
   return (
     <ViewportFrame
       concept="workflow"
-      title={inStepGroup ? (focusedNode?.id ?? "Step group") : "Workflow"}
-      meta={
-        inStepGroup && stepScene
-          ? `${stepScene.stats?.stepCount ?? 0} steps · ${
-              stepScene.stats?.boundaryCount ?? 0
-            } boundary`
-          : `${activeComponents.size} / ${componentMap.nodes.length} components active`
-      }
-      metaTestId={
+      kicker={inStepGroup ? "Workflow · Step group" : "Workflow"}
+      title={inStepGroup ? (focusedNode?.id ?? "Step group") : "Compositor"}
+      facts={facts}
+      factsTestId={
         inStepGroup && stepScene ? "workflow-step-group-label" : undefined
       }
       testId="workflow-editor"

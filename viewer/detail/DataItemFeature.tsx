@@ -34,7 +34,6 @@ import { activeDocument, documentSelection, type WorkspaceProps } from "@/workbe
 import {
   DetailBand,
   DetailDocument,
-  FactGrid,
   MemberTable,
   type DetailFact,
   type MemberRow,
@@ -252,21 +251,6 @@ export function DataItemEditor(props: WorkspaceProps) {
     () => constitutionModel(index, { level: kind, component: model.name }),
     [index, kind, model.name],
   );
-  const overviewSection = (
-      <DetailBand
-        concept={concept}
-        priority="primary"
-        title="Overview"
-        question="What is this relation, in one screen?"
-        meta={model.name}
-      >
-        {model.description ? (
-          <p className={styles.bandNote}>{model.description}</p>
-        ) : null}
-        <FactGrid facts={facts} />
-      </DetailBand>
-
-  );
   const meaningLimitationCount =
     meaning.limitations.length +
     (meaning.frames ?? []).reduce(
@@ -479,17 +463,13 @@ export function DataItemEditor(props: WorkspaceProps) {
     <DetailDocument
       testId="data-item-editor"
       concept={concept}
-      kicker={`Design · ${kind === "relation" ? "source relation" : "derived relation"}`}
+      kicker={kind === "relation" ? "Source relation" : "Derived relation"}
       title={model.name || (kind === "relation" ? "Source relation" : "Derived relation")}
-      license={{
-        value: license.value,
-        source: license.source,
-        title: license.licenses.join(" · ") || "No asset declares a license.",
-      }}
+      subtitle={model.description}
+      facts={facts}
     >
       {kind === "relation" ? (
         <>
-          {overviewSection}
           {constitutionSection}
           {meaningSection}
           {membersSection}
@@ -500,7 +480,6 @@ export function DataItemEditor(props: WorkspaceProps) {
         </>
       ) : (
         <>
-          {overviewSection}
           {constitutionSection}
           {meaningSection}
           {expressionSection}

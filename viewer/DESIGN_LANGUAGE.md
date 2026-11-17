@@ -72,14 +72,14 @@ Every item detail view follows one content contract, stated in
 [`DETAIL_CONTENT.md`](./DETAIL_CONTENT.md). The shared order is:
 
 ```text
-Overview → Constitution → Meaning → Sources → Build steps → Expression
+Banner: Overview
+Constitution → Meaning → Sources → Build steps → Expression
          → Members → Connections → Bindings
 ```
 
 A kind includes or omits a section; it never renames one for itself.
 
-- **Overview** is one fact grid: kind, labels, identity, owner or endpoints,
-  counts and licence.
+- **Overview** is the tab banner: identity and one fact row. It is not a band.
 - **Constitution** puts the current subject's purpose and Fulfilment as the
   two top boxes, on opposite sides of a dashed divider; a horizontal arrow runs
   from Fulfilment to Purpose. The Graph branch below Purpose is the record axis,
@@ -108,11 +108,11 @@ A kind includes or omits a section; it never renames one for itself.
 A kind may state an absence instead of omitting a section. A step has no design
 meaning and no release source, and it says so; it is build machinery.
 
-A detail document banner leads with the kind's mark from the one concept
-catalogue, and the tab names the document. Graph and Workflow are working
-surfaces: they have no detail banner and share one visualisation frame. Its
-25px header names the view and its extent and carries the view's own actions;
-every graph surface shares one bottom-left navigation cluster.
+Every tab — detail, Graph and Workflow — uses the same banner. It leads with
+the kind's mark from the one concept catalogue and states the identity,
+overview facts and the view's own actions. Graph and Workflow keep their
+working-surface frame below the banner; every graph surface shares one
+bottom-left navigation cluster.
 
 One concept catalogue in `shared/ui/concepts.tsx` supplies the mark and
 representative colour for every layer: graph, abstract category, node, edge,
@@ -306,7 +306,7 @@ group** enters that component. **Back** returns to the component map.
 
 **Read the design.** Inspect states the graph purpose and its full claims and
 limitations on demand when nothing is selected; the editor reads the selected
-subject in the shared order, from Overview through fulfilment, sources, build
+subject in the shared order, from the banner overview through fulfilment, sources, build
 steps, expression, members, connections and bindings.
 
 ## Writing rules for the UI

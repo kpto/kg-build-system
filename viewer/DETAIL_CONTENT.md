@@ -9,21 +9,20 @@ routes and owners are in `HIERARCHY.md`.
 
 ## The section registry
 
-The registry order is the shared default. Each kind reorders the sections it
+The tab banner carries the overview. The registry below starts at the first band; each kind reorders the sections it
 includes by their immediate importance to a reader; it never renames one. A
 **primary** card opens by default, a **secondary** card starts collapsed.
 
 | Order | Section | Question it answers | Content |
 | --- | --- | --- | --- |
-| 1 | **Overview** | What is this, in one screen? | One fact grid: labels, identity, owner or endpoints, and licence. Counts live in the section that owns the list. |
-| 2 | **Constitution** | What does this subject assert, and how is it fulfilled? | Purpose and Fulfilment are the two top boxes, on opposite sides of the separator; a horizontal arrow runs from Fulfilment to Purpose. The Graph chain is below Purpose and ends at the graph purpose; the Relation chain is below Fulfilment. The separator divides the two axes. The axis legend sits at the bottom centre of each lane. Arrows point up to the purpose each box supports; the relation's provenance branches sit below it. Each box clamps its purpose to two lines; hovering or focusing it reveals the full meaning, and a box label opens its document. The Fulfilment box states the binding count and its purpose; identity fields and coverage stay in the relation and binding detail. A grouped branch shows the first item and `+N`. |
-| 3 | **Meaning** | What is this for, and what does it exclude? | The full meaning of the current subject: purpose, the limitations it owns, then contextless claims; one compact count pair beside the reading. |
-| 4 | **Sources** | Where does this value come from? | Assets, source relations and derived relations, as navigable references with counts. |
-| 5 | **Build steps** | How is this built? | The narrowed workflow graph of the steps that produce the subject. |
-| 6 | **Expression** | Which fields and operations produce the value? | The expression outline, one root per binding or column. |
-| 7 | **Members** | Which units belong to this subject? | One table grammar: name, type, meaning, source, count; the instance pill opens its document when one exists. |
-| 8 | **Connections** | Which records does this subject touch? | Endpoints of an edge, incident relations of a node, ports of a step. |
-| 9 | **Bindings** | Which binding fulfils this subject? | One row per binding: name, writes, identity, rows read. |
+| 1 | **Constitution** | What does this subject assert, and how is it fulfilled? | Purpose and Fulfilment are the two top boxes, on opposite sides of the separator; a horizontal arrow runs from Fulfilment to Purpose. The Graph chain is below Purpose and ends at the graph purpose; the Relation chain is below Fulfilment. The separator divides the two axes. The axis legend sits at the bottom centre of each lane. Arrows point up to the purpose each box supports; the relation's provenance branches sit below it. Each box clamps its purpose to two lines; hovering or focusing it reveals the full meaning, and a box label opens its document. The Fulfilment box states the binding count and its purpose; identity fields and coverage stay in the relation and binding detail. A grouped branch shows the first item and `+N`. |
+| 2 | **Meaning** | What is this for, and what does it exclude? | The full meaning of the current subject: purpose, the limitations it owns, then contextless claims; one compact count pair beside the reading. |
+| 3 | **Sources** | Where does this value come from? | Assets, source relations and derived relations, as navigable references with counts. |
+| 4 | **Build steps** | How is this built? | The narrowed workflow graph of the steps that produce the subject. |
+| 5 | **Expression** | Which fields and operations produce the value? | The expression outline, one root per binding or column. |
+| 6 | **Members** | Which units belong to this subject? | One table grammar: name, type, meaning, source, count; the instance pill opens its document when one exists. |
+| 7 | **Connections** | Which records does this subject touch? | Endpoints of an edge, incident relations of a node, ports of a step. |
+| 8 | **Bindings** | Which binding fulfils this subject? | One row per binding: name, writes, identity, rows read. |
 
 A section header carries the section's concept mark and structural title. The
 question in the reader's language becomes the header's title and accessible
@@ -36,14 +35,14 @@ Every card gets a logo; the title-to-concept mapping lives once beside
 
 | View kind | Sections | Notes |
 | --- | --- | --- |
-| Node | **Overview**, **Constitution**, **Meaning**, **Members**, **Connections**, Sources, Build steps, Expression, Bindings | Members are properties; Connections are incident relations. |
-| Edge | **Overview**, **Constitution**, **Meaning**, **Members**, **Connections**, Sources, Build steps, Expression, Bindings | Overview states the endpoints; Connections repeats them with the label. |
-| Property | **Overview**, **Constitution**, **Meaning**, **Branches**, **Connections**, **Expression**, Sources, Build steps, Bindings | Branches is the type/presence chain and lane canvas; Connections is its ledger. |
-| Abstract category | **Overview**, **Constitution**, **Meaning**, **Members** | Members are concrete descendants. |
-| Asset | **Overview**, **Constitution**, **Meaning**, **Sources**, **Members**, **Fields**, Bindings | Sources states the release boundary; Members are relations, then fields. |
-| Source relation | **Overview**, **Constitution**, **Meaning**, **Members**, **Sources**, Build steps, Bindings, Expression | Columns are the relation; Sources states its asset and scans. The Meaning card is omitted when the declaration states no units; the Constitution root and relation box state the absence explicitly. |
-| Derived relation | **Overview**, **Constitution**, **Meaning**, **Expression**, **Members**, Sources, Build steps, Bindings | Expression is the computation; Members are its outputs. |
-| Step | **Overview**, **Ports**, **Payload**, **Connections**, **Bindings**, Meaning, Sources | A step is build machinery; Meaning and Sources state their absence last. |
+| Node | **Constitution**, **Meaning**, **Members**, **Connections**, Sources, Build steps, Expression, Bindings | Members are properties; Connections are incident relations. |
+| Edge | **Constitution**, **Meaning**, **Members**, **Connections**, Sources, Build steps, Expression, Bindings | The banner states the endpoints; Connections repeats them with the edge. |
+| Property | **Constitution**, **Meaning**, **Branches**, **Connections**, **Expression**, Sources, Build steps, Bindings | Branches is the type/presence chain and lane canvas; Connections is its ledger. |
+| Abstract category | **Constitution**, **Meaning**, **Members** | Members are concrete descendants. |
+| Asset | **Constitution**, **Meaning**, **Sources**, **Members**, **Fields**, Bindings | Sources states the release boundary; Members are relations, then fields. |
+| Source relation | **Constitution**, **Meaning**, **Members**, **Sources**, Build steps, Bindings, Expression | Columns are the relation; Sources states its asset and scans. The Meaning card is omitted when the declaration states no units; the Constitution root and relation box state the absence explicitly. |
+| Derived relation | **Constitution**, **Meaning**, **Expression**, **Members**, Sources, Build steps, Bindings | Expression is the computation; Members are its outputs. |
+| Step | **Ports**, **Payload**, **Connections**, **Bindings**, Meaning, Sources | A step is build machinery; Meaning and Sources state their absence last. |
 
 Text in bold is primary and opens by default; the remaining cards are secondary
 and start collapsed. The card's `data-priority` attribute records the class.

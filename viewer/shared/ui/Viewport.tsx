@@ -10,7 +10,7 @@ import type {
 } from "react";
 
 import type { ConceptKind } from "@/lib/concepts";
-import { ConceptGlyph } from "./ConceptMark";
+import { TabBanner, type TabBannerFact } from "./TabBanner";
 import { cx } from "./theme";
 import styles from "./viewport.module.css";
 
@@ -23,9 +23,11 @@ import styles from "./viewport.module.css";
  */
 export function ViewportFrame({
   concept,
+  kicker,
   title,
-  meta,
-  metaTestId,
+  subtitle,
+  facts,
+  factsTestId,
   actions,
   actionsTestId,
   nav,
@@ -39,9 +41,11 @@ export function ViewportFrame({
   children,
 }: {
   concept: ConceptKind;
-  title: ReactNode;
-  meta?: ReactNode;
-  metaTestId?: string;
+  kicker: string;
+  title: string;
+  subtitle?: ReactNode;
+  facts?: TabBannerFact[];
+  factsTestId?: string;
   actions?: ReactNode;
   actionsTestId?: string;
   nav?: ReactNode;
@@ -56,19 +60,16 @@ export function ViewportFrame({
 }) {
   return (
     <div className={styles.viewport} data-testid={testId} aria-label={ariaLabel}>
-      <header className={styles.head}>
-        <span className={styles.title}>
-          <ConceptGlyph concept={concept} className="size-3.5" />
-          <span className={styles.titleText}>{title}</span>
-        </span>
-        <span className={styles.meta} data-testid={metaTestId}>
-          {meta}
-        </span>
-        <span className={styles.headSpacer} />
-        <div className={styles.actions} data-testid={actionsTestId}>
-          {actions}
-        </div>
-      </header>
+      <TabBanner
+        concept={concept}
+        kicker={kicker}
+        title={title}
+        subtitle={subtitle}
+        facts={facts}
+        factsTestId={factsTestId}
+        actions={actions}
+        actionsTestId={actionsTestId}
+      />
 
       <div
         ref={bodyRef}

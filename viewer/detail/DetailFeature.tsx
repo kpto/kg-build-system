@@ -74,7 +74,6 @@ import {
   DetailBand,
   DetailDocument,
   DetailEmptyState,
-  FactGrid,
   MemberTable,
   type DetailFact,
   type MemberRow,
@@ -2016,35 +2015,6 @@ function SubjectDetailEditor(props: WorkspaceProps) {
     );
   }, [props.actions, props.state.index, selection]);
 
-  const endpoint = (name?: string): ConceptReference | undefined =>
-    name
-      ? {
-          concept: "node",
-          name,
-          target: { concept: "node", name },
-        }
-      : undefined;
-  const source = endpoint(model.component?.provenance?.source);
-  const target = endpoint(model.component?.provenance?.target);
-  const banner =
-    model.level === "edge" && (source || target) ? (
-      <div className={styles.bannerRelations} aria-label="Edge endpoints">
-        <span className={styles.bannerLabel}>source</span>
-        {source ? (
-          <ConceptReferenceChip reference={source} />
-        ) : (
-          <span className={styles.bannerEmpty}>not resolved</span>
-        )}
-        <ArrowRight aria-hidden className={styles.bannerArrow} />
-        {target ? (
-          <ConceptReferenceChip reference={target} />
-        ) : (
-          <span className={styles.bannerEmpty}>not resolved</span>
-        )}
-        <span className={styles.bannerLabel}>target</span>
-      </div>
-    ) : undefined;
-
   const propertyBindings =
     model.level === "property"
       ? findComponentPropertyBindings(
@@ -2067,24 +2037,6 @@ function SubjectDetailEditor(props: WorkspaceProps) {
       ? componentBindings(index, model.level, model.subject.component)
       : propertyBindings;
 
-  const overviewSection = (
-      <DetailBand
-        concept={model.level}
-        priority="primary"
-        title="Overview"
-        question="What is this, in one screen?"
-        meta={model.subject.component}
-      >
-        {model.component?.description || model.abstract?.description ? (
-          <p className={styles.bandNote}>
-            {model.component?.description ?? model.abstract?.description}
-          </p>
-        ) : profileSummary(model.asset?.profile) ? (
-          <p className={styles.bandNote}>{profileSummary(model.asset?.profile)}</p>
-        ) : null}
-        <FactGrid facts={facts} />
-      </DetailBand>
-  );
   const constitutionSection = (
     <DetailBand
       concept="semantics"
@@ -2227,19 +2179,17 @@ function SubjectDetailEditor(props: WorkspaceProps) {
     <DetailDocument
       testId="detail-editor"
       concept={model.level}
-      kicker={`Design · ${model.level}`}
+      kicker={model.level}
       title={levelTitle(model)}
-      license={{
-        value: license.value,
-        source: license.source,
-        title:
-          license.licenses.join(" · ") || "No asset declares a license.",
-      }}
-      banner={banner}
+      subtitle={
+        model.component?.description ??
+        model.abstract?.description ??
+        profileSummary(model.asset?.profile)
+      }
+      facts={facts}
     >
       {model.level === "node" || model.level === "edge" ? (
         <>
-          {overviewSection}
           {constitutionSection}
           {meaningSection}
           {kindSection}
@@ -2250,7 +2200,6 @@ function SubjectDetailEditor(props: WorkspaceProps) {
         </>
       ) : model.level === "property" ? (
         <>
-          {overviewSection}
           {constitutionSection}
           {meaningSection}
           {kindSection}
@@ -2261,7 +2210,6 @@ function SubjectDetailEditor(props: WorkspaceProps) {
         </>
       ) : model.level === "abstract" ? (
         <>
-          {overviewSection}
           {constitutionSection}
           {meaningSection}
           {kindSection}
@@ -2269,7 +2217,6 @@ function SubjectDetailEditor(props: WorkspaceProps) {
         </>
       ) : (
         <>
-          {overviewSection}
           {constitutionSection}
           {meaningSection}
           {assetSourcesSection}

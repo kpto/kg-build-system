@@ -4,7 +4,8 @@ import { useState, type ReactNode } from "react";
 import { ChevronRight } from "lucide-react";
 
 import type { ConceptKind } from "@/lib/concepts";
-import { ConceptGlyph, ConceptMark } from "@/shared/ui/ConceptMark";
+import { ConceptGlyph } from "@/shared/ui/ConceptMark";
+import { TabBanner, type TabBannerFact } from "@/shared/ui/TabBanner";
 import { Panel, PanelHeaderButton } from "@/shared/ui/Primitives";
 import { cx } from "@/shared/ui/theme";
 import styles from "../detail.module.css";
@@ -27,19 +28,13 @@ const SECTION_CONCEPT: Record<string, ConceptKind> = {
   Payload: "step",
 };
 
-export interface DetailLicense {
-  value: ReactNode;
-  source?: string;
-  title?: string;
-}
 
 export interface DetailDocumentProps {
   concept: ConceptKind;
   kicker: string;
   title: string;
   subtitle?: ReactNode;
-  banner?: ReactNode;
-  license?: DetailLicense;
+  facts?: TabBannerFact[];
   testId?: string;
   children: ReactNode;
 }
@@ -54,44 +49,19 @@ export function DetailDocument({
   kicker,
   title,
   subtitle,
-  banner,
-  license,
+  facts,
   testId,
   children,
 }: DetailDocumentProps) {
   return (
     <div className={styles.root} data-testid={testId} data-concept={concept}>
-      <header className={styles.topbar}>
-        <div className={styles.headMain}>
-          <ConceptMark concept={concept} className={styles.logo} />
-          <div className={styles.titleBlock}>
-            <p className={styles.kicker}>{kicker}</p>
-            <h1 className={styles.title}>{title}</h1>
-            {subtitle ? <p className={styles.subtitle}>{subtitle}</p> : null}
-          </div>
-        </div>
-        {license || banner ? (
-          <div className={styles.bannerExtra}>
-            {license ? (
-              <span
-                className={styles.bannerLicense}
-                title={license.title}
-                data-testid="detail-license"
-              >
-                <span className={styles.bannerLabel}>license</span>
-                <span
-                  className={styles.bannerLicenseValue}
-                  data-testid="detail-effective-license"
-                  data-license-source={license.source}
-                >
-                  {license.value}
-                </span>
-              </span>
-            ) : null}
-            {banner}
-          </div>
-        ) : null}
-      </header>
+      <TabBanner
+        concept={concept}
+        kicker={kicker}
+        title={title}
+        subtitle={subtitle}
+        facts={facts}
+      />
       <div className={styles.body}>{children}</div>
     </div>
   );
@@ -186,31 +156,6 @@ export interface DetailFact {
 }
 
 /** One fact grid for every identity strip. */
-export function FactGrid({ facts }: { facts: DetailFact[] }) {
-  return (
-    <dl className={styles.facts}>
-      {facts.map((fact) => (
-        <div className={styles.fact} key={fact.label}>
-          <dt className={styles.factLabel}>{fact.label}</dt>
-          <dd
-            className={styles.factValue}
-            data-honest={fact.absent ? "absent" : undefined}
-            data-wrap={fact.wrap ? "true" : undefined}
-            title={fact.title ?? (typeof fact.value === "string" ? fact.value : undefined)}
-          >
-            {fact.onOpen ? (
-              <button type="button" onClick={fact.onOpen}>
-                {fact.value}
-              </button>
-            ) : (
-              fact.value
-            )}
-          </dd>
-        </div>
-      ))}
-    </dl>
-  );
-}
 
 export interface MemberRow {
   key: string;

@@ -1379,10 +1379,19 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
     }
   }
 
+  const graphLicense = effectiveLicenseForGraph(props.state.index);
+
   return (
     <ViewportFrame
       concept="graph"
-      title="Graph"
+      kicker="Graph"
+      title={props.state.index.graphDeclaration?.name ?? "Graph"}
+      facts={[
+        { label: "Nodes", value: `${model.stats.nodes}` },
+        { label: "Edges", value: `${model.stats.edgeLinks}` },
+        { label: "Meaning", value: `${model.stats.semantics}` },
+        { label: "License", value: graphLicense.value },
+      ]}
       testId="topology-editor"
       ariaLabel="Topology force graph"
       bodyRef={containerRef}
