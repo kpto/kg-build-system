@@ -277,22 +277,27 @@ function bindingRelationEdges(
   return edges;
 }
 
-/** A binding sits beside the purpose; its edge enters the purpose's right edge. */
+/**
+ * A binding sits beside the purpose. Its edge leaves the binding from the top
+ * and arcs over the row, entering the purpose's right edge at its own point so
+ * it never crosses another binding box.
+ */
 function bindingToPurposePath(
   binding: ConstitutionSceneNode,
   purpose: ConstitutionSceneNode,
+  entryY: number,
 ): string {
-  const startX = binding.x;
-  const startY = binding.y + binding.height / 2;
+  const startX = binding.x + binding.width / 2;
+  const startY = binding.y;
   const endX = purpose.x + purpose.width;
-  const endY = Math.min(
-    Math.max(startY, purpose.y + 16),
-    purpose.y + purpose.height - 16,
+  const rise = Math.max(
+    32,
+    Math.min(96, startY - (purpose.y + purpose.height) + 24),
   );
-  const bend = 18;
-  return `M ${startX} ${startY} C ${startX - bend} ${startY} ${
+  const bend = 28;
+  return `M ${startX} ${startY} C ${startX} ${startY - rise} ${
     endX + bend
-  } ${endY} ${endX} ${endY}`;
+  } ${entryY} ${endX} ${entryY}`;
 }
 
 /** The ancestry supplies the purpose from below, in the same column. */
@@ -405,6 +410,21 @@ function buildRecordScene(model: ConstitutionModel): ConstitutionScene {
   const positionedById = new Map(
     positioned.map((node) => [node.id, node]),
   );
+  const bindingNodes = positioned.filter((node) => node.axis === "binding");
+  const sortedBindings = [...bindingNodes].sort(
+    (left, right) => left.x - right.x,
+  );
+  const entryY = new Map<string, number>();
+  sortedBindings.forEach((binding, index) => {
+    const top = purposePositioned.y + 16;
+    const bottom =
+      purposePositioned.y + purposePositioned.height - 16;
+    const step =
+      sortedBindings.length > 1
+        ? (bottom - top) / (sortedBindings.length - 1)
+        : 0;
+    entryY.set(binding.id, bottom - index * step);
+  });
   links.forEach((edge) => {
     const source = positionedById.get(edge.source);
     const target = positionedById.get(edge.target);
@@ -412,7 +432,12 @@ function buildRecordScene(model: ConstitutionModel): ConstitutionScene {
     const path =
       edge.target === purpose.id
         ? source.axis === "binding"
-          ? bindingToPurposePath(source, purposePositioned)
+          ? bindingToPurposePath(
+              source,
+              purposePositioned,
+              entryY.get(source.id) ??
+                purposePositioned.y + purposePositioned.height / 2,
+            )
           : ancestryToPurposePath(source, purposePositioned)
         : layered.paths.get(`${edge.source}->${edge.target}`);
     if (!path) return;
@@ -423,8 +448,6 @@ function buildRecordScene(model: ConstitutionModel): ConstitutionScene {
       path,
     });
   });
-
-  const bindingNodes = positioned.filter((node) => node.axis === "binding");
   const axes = [
     {
       id: "graph" as const,
