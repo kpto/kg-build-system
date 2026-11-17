@@ -2,9 +2,10 @@
  * The constitution of one subject: its purpose, the graph axis that asserts it
  * and the relation axis that fulfils it.
  *
- * The purpose is the root. The graph branch holds the record-axis purposes
- * that narrow it; the relation branch holds the provenance that supplies it,
- * from the relation down to the asset. The fulfilment box sits on the right,
+ * The current subject's purpose is the root. The graph branch holds its
+ * ancestry below, from the immediate parent down to the graph purpose; the
+ * relation branch holds the provenance that supplies it, from the relation
+ * down to the asset. The fulfilment box sits on the right,
  * above the separator and inset above the relation axis. A level keeps its own
  * meaning, so the two branches show derivation and supply, never inherited
  * text.
@@ -25,6 +26,7 @@ import {
   attachedMeaning,
   componentMeaning,
   graphMeaning,
+  propertyMeaning,
   purposeLevels,
   type DesignMeaningValue,
   type PurposeLevel,
@@ -115,6 +117,53 @@ export function axisSubjectFor(
   }
 }
 
+function subjectMeaning(
+  index: ViewerIndex,
+  subject: ConstitutionSubjectLike,
+): DesignMeaningValue {
+  switch (subject.level) {
+    case "property": {
+      const kind = index.topologyNodesByName.has(subject.component)
+        ? "node"
+        : "edge";
+      return propertyMeaning(
+        index,
+        kind,
+        subject.component,
+        subject.property ?? "",
+      );
+    }
+    case "node":
+    case "edge":
+      return componentMeaning(index, subject.level, subject.component);
+    case "abstract":
+      return componentMeaning(index, "node", subject.component);
+    case "asset": {
+      const asset = index.assetsByName.get(subject.component);
+      return attachedMeaning(asset?.meaning ?? asset?.semantics);
+    }
+    case "relation": {
+      const relation = index.relationByName.get(subject.component);
+      return attachedMeaning(relation?.meaning ?? relation?.semantics);
+    }
+    case "projection": {
+      const projection = index.projectionByName.get(subject.component);
+      return attachedMeaning(projection?.meaning ?? projection?.semantics);
+    }
+    default:
+      return graphMeaning(index);
+  }
+}
+
+function graphPurposeNode(index: ViewerIndex): ConstitutionNode {
+  return {
+    kind: "graph",
+    name: index.graphDeclaration?.name ?? "graph",
+    label: "Graph",
+    meaning: graphMeaning(index),
+  };
+}
+
 function relationMeaning(index: ViewerIndex, name: string): DesignMeaningValue {
   const source = index.relationByName.get(name);
   if (source) {
@@ -159,7 +208,7 @@ function purposeNode(level: PurposeLevel): ConstitutionNode {
   return {
     kind: level.kind,
     name: level.name,
-    label: LABELS[level.kind],
+    label: level.kind === "graph" ? "Graph" : LABELS[level.kind],
     meaning: level.meaning,
     current: level.current,
     ...(open ? { open } : {}),
@@ -310,10 +359,11 @@ function bindingSummary(
 /**
  * Read the constitution for one subject.
  *
- * A record subject is rooted in the graph purpose and walks its record axis; a
- * relation or asset subject is rooted in its own purpose and lists the records
- * it fulfils. Both cases carry the relation tree and its fulfilment box, so
- * the two axes are read together rather than in separate cards.
+ * The root is the current subject's purpose. The graph branch lists its
+ * ancestry below, from the immediate parent down to the graph purpose; a
+ * relation or asset subject lists the records it fulfils instead. Both cases
+ * carry the relation tree and its fulfilment box, so the two axes are read
+ * together rather than in separate cards.
  */
 export function constitutionModel(
   index: ViewerIndex,
@@ -328,15 +378,20 @@ export function constitutionModel(
     subject.level === "property";
   const purpose: ConstitutionNode = {
     kind: "graph",
-    name: index.graphDeclaration?.name ?? "graph",
+    name:
+      subject.level === "property"
+        ? `${subject.component}.${subject.property ?? ""}`
+        : subject.component,
     label: LABELS.graph,
-    meaning: graphMeaning(index),
+    meaning: subjectMeaning(index, subject),
+    current: true,
   };
   const graph = recordSubject
     ? purposeLevels(index, subject)
-        .filter((level) => level.kind !== "graph")
+        .slice(0, -1)
+        .reverse()
         .map(purposeNode)
-    : recordLevels(index, subject, map);
+    : [...recordLevels(index, subject, map), graphPurposeNode(index)];
   const relation = relationLevels(index, subject, map);
   const binding = bindingSummary(index, map);
   return {

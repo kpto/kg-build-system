@@ -28,18 +28,19 @@ describe("constitution", () => {
       level: "node",
       component: "defect",
     });
-    expect(model.purpose.meaning.purpose).toContain(
-      "Exercise the viewer data contract",
+    expect(model.purpose.name).toBe("defect");
+    expect(model.purpose.current).toBe(true);
+    expect(model.purpose.meaning.claims[0]?.text).toContain(
+      "A defect is observed",
     );
     expect(model.graph.map((level) => level.label)).toEqual([
       "Category",
-      "Node",
+      "Graph",
     ]);
     expect(model.graph.map((level) => level.name)).toEqual([
       "documented",
-      "defect",
+      "fixture_graph",
     ]);
-    expect(model.graph[1].current).toBe(true);
     expect(model.relation.map((level) => level.label)).toEqual([
       "Source relation",
       "Asset",
@@ -62,15 +63,13 @@ describe("constitution", () => {
       component: "defect",
       property: "title",
     });
+    expect(model.purpose.name).toBe("defect.title");
     expect(model.graph.map((level) => level.kind)).toEqual([
-      "abstract",
       "node",
-      "property",
+      "abstract",
+      "graph",
     ]);
-    expect(model.graph.at(-1)?.current).toBe(true);
-    expect(model.graph.at(-1)?.meaning.claims[0]?.text).toContain(
-      "display name",
-    );
+    expect(model.purpose.meaning.claims[0]?.text).toContain("display name");
     expect(model.relation.map((level) => level.name)).toEqual([
       "surveys",
       "estate",
@@ -82,11 +81,15 @@ describe("constitution", () => {
       level: "relation",
       component: "surveys",
     });
-    expect(model.purpose.name).toBe("fixture_graph");
-    expect(model.purpose.meaning.purpose).toContain(
-      "Exercise the viewer data contract",
+    expect(model.purpose.name).toBe("surveys");
+    expect(model.purpose.current).toBe(true);
+    expect(model.purpose.meaning.claims[0]?.text).toContain(
+      "estate survey table",
     );
-    expect(model.graph.map((level) => level.name)).toEqual(["defect"]);
+    expect(model.graph.map((level) => level.name)).toEqual([
+      "defect",
+      "fixture_graph",
+    ]);
     expect(model.relation.map((level) => level.kind)).toEqual([
       "relation",
       "asset",

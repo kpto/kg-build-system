@@ -16,7 +16,7 @@ includes by their immediate importance to a reader; it never renames one. A
 | Order | Section | Question it answers | Content |
 | --- | --- | --- | --- |
 | 1 | **Overview** | What is this, in one screen? | One fact grid: kind, labels, identity, owner or endpoints, counts and licence. |
-| 2 | **Constitution** | What does this subject assert, and how is it fulfilled? | One wide purpose at the top; the Fulfilment box on the right side, slightly inset above the relation axis; the Graph chain on the left and the Relation chain on the right. The separator starts below Fulfilment, so the axes lie below it and Fulfilment above it. The arrow from Fulfilment to the purpose and the arrow from the relation to Fulfilment both curve left. Arrows point up to the level each box is accountable to; the relation's provenance branches sit below it. Each box clamps its purpose to two lines; hovering or focusing it reveals the full meaning, and a box label opens its document. The Fulfilment box states the binding count; identity fields and coverage appear when the box has room and always in the full axis map. A grouped branch shows the first item and `+N`; one control expands the full axis map. |
+| 2 | **Constitution** | What does this subject assert, and how is it fulfilled? | The current subject's purpose is the wide root at the top; the Fulfilment box is on the right side, slightly inset above the relation axis; the Graph chain on the left and the Relation chain on the right. The separator starts below Fulfilment, so the axes lie below it and Fulfilment above it. The arrow from Fulfilment to the purpose and the arrow from the relation to Fulfilment both curve left. Arrows point up to the level each box is accountable to; the relation's provenance branches sit below it. Each box clamps its purpose to two lines; hovering or focusing it reveals the full meaning, and a box label opens its document. The Fulfilment box states the binding count; identity fields and coverage appear when the box has room and always in the full axis map. A grouped branch shows the first item and `+N`; one control expands the full axis map. |
 | 3 | **Meaning** | What is this for, and what does it exclude? | The full meaning of the current subject: purpose, the limitations it owns, then contextless claims; compact counts in the header. |
 | 4 | **Sources** | Where does this value come from? | Assets, source relations and derived relations, as navigable references with counts. |
 | 5 | **Build steps** | How is this built? | The narrowed workflow graph of the steps that produce the subject. |
@@ -69,17 +69,15 @@ the derivation. The section titles state the question.
 
 The Constitution card reads one subject as two axes under one purpose. It is a
 tree, not a Cartesian plot: the purpose is the root, the graph and relation
-branches descend from it, and each box points up to the level it is accountable
-to.
+branches descend from it, and each box points up to the purpose it supports.
 
-- **Purpose** is the wide root: the graph purpose. A record subject walks its
-  record axis below it; a relation or asset subject lists the records it
-  fulfils. A relation's own purpose stays on the relation box and is not
-  promoted into the root, because a relation purpose is a peer of the graph
-  purpose, not a narrowing of it.
-- **Graph** is the record axis: category → component → property, ordered from
-  the broadest level to the current subject. Each box states its own purpose;
-  the current box is tinted and marked.
+- **Purpose** is the wide root: the current subject's purpose. A record subject
+  lists its ancestry below it; a relation or asset subject lists the records it
+  fulfils. The graph purpose sits at the bottom of the Graph branch, not at the
+  top, so the current item leads the reading.
+- **Graph** is the record axis, read from the current subject's immediate
+  parent down to the graph purpose: for a property, node → category → graph.
+  Each box states its own purpose; the root purpose is marked current.
 - **Relation** is the relation axis. The relation sits below the Fulfilment
   box; the relation's provenance branches sit under it. A derived relation
   splits into its scanned source relation and its asset; a source relation

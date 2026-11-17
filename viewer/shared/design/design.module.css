@@ -477,9 +477,15 @@ button.constitutionName:focus-visible {
 .constitutionCurveHead {
   position: absolute;
   top: 0;
-  display: flex;
+  display: block;
   color: var(--color-selection);
   transform: translate(-50%, 0);
+}
+
+.constitutionCurveHead path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1;
 }
 
 .constitutionMobileBranchLabel {

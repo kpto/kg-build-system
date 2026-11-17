@@ -2,7 +2,6 @@
 
 import { Fragment, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowUp } from "lucide-react";
 
 import { cx } from "@/shared/ui/theme";
 import { DesignMeaning } from "./DesignMeaning";
@@ -148,12 +147,16 @@ function CurvedArrow({ from, to }: { from: number; to: number }) {
       <svg viewBox="0 0 100 36" preserveAspectRatio="none">
         <path d={`M ${from} 36 C ${from} 18, ${to} 18, ${to} 0`} />
       </svg>
-      <span
+      <svg
         className={styles.constitutionCurveHead}
         style={{ left: `${to}%` }}
+        viewBox="0 0 14 10"
+        width="14"
+        height="10"
+        aria-hidden
       >
-        <ArrowUp size={13} strokeWidth={1.8} />
-      </span>
+        <path d="M2 9 L7 0 L12 9" />
+      </svg>
     </div>
   );
 }
