@@ -239,8 +239,9 @@ missing, not the code.
   beside it. A count appears once, in the region that owns the list.
 - A detail card is static and its header states the title and concept mark.
   The question is the accessible description, and the body, not a header
-  count, shows what the card holds. The detail index is the only card
-  navigation and marks the current card.
+  count, shows what the card holds. The detail index is a static pane beside
+  the scrolling card column; it is the only card navigation and marks the
+  current card.
 - Every tab uses one banner for identity, overview and view actions. A detail
   body starts at its first section, not an Overview band.
 - Motion is feedback, not decoration: short ease-out transitions on transform and
