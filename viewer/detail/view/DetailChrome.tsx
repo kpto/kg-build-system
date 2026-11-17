@@ -90,7 +90,7 @@ function useDetailSections(bodyRef: RefObject<HTMLDivElement | null>) {
       // must not overwrite the index of the visible document.
       if (!root || root.getClientRects().length === 0) return;
       const banner = root.querySelector("header");
-      const line = (banner?.getBoundingClientRect().bottom ?? 0) + 12;
+      const line = (banner?.getBoundingClientRect().bottom ?? 0) + 20;
       let active = sections[0].id;
       for (const section of sections) {
         const element = document.getElementById(section.id);
@@ -122,15 +122,17 @@ function useDetailSections(bodyRef: RefObject<HTMLDivElement | null>) {
     };
   }, [bodyRef, sections]);
 
-  return { sections, activeId };
+  return { sections, activeId, setActiveId };
 }
 
 function DetailIndex({
   sections,
   activeId,
+  onSelect,
 }: {
   sections: DetailIndexSection[];
   activeId: string | null;
+  onSelect: (id: string) => void;
 }) {
   if (sections.length < 2) return null;
   return (
@@ -148,6 +150,7 @@ function DetailIndex({
               aria-current={section.id === activeId ? "location" : undefined}
               onClick={(event) => {
                 event.preventDefault();
+                onSelect(section.id);
                 const reduce = window.matchMedia(
                   "(prefers-reduced-motion: reduce)",
                 ).matches;
@@ -196,7 +199,7 @@ export function DetailDocument({
   children,
 }: DetailDocumentProps) {
   const bodyRef = useRef<HTMLDivElement>(null);
-  const { sections, activeId } = useDetailSections(bodyRef);
+  const { sections, activeId, setActiveId } = useDetailSections(bodyRef);
   return (
     <div
       className={styles.root}
@@ -212,7 +215,11 @@ export function DetailDocument({
         facts={facts}
       />
       <div className={styles.body}>
-        <DetailIndex sections={sections} activeId={activeId} />
+        <DetailIndex
+          sections={sections}
+          activeId={activeId}
+          onSelect={setActiveId}
+        />
         <div className={styles.bands} ref={bodyRef}>
           {children}
         </div>

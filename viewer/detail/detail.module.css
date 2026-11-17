@@ -2,43 +2,49 @@
 
 .root {
   display: flex;
-  min-height: 100%;
+  height: 100%;
+  min-height: 0;
   flex-direction: column;
   background-color: var(--color-abyss);
   color: var(--color-text);
   font-size: var(--text-label);
 }
 
+/* The index is its own static pane; only the card column scrolls. */
 .body {
   display: grid;
   min-width: 0;
+  min-height: 0;
   flex: 1;
   grid-template-columns: minmax(0, 132px) minmax(0, 1fr);
-  align-items: start;
-  gap: var(--space-panel);
-  padding: var(--space-section) var(--space-section) var(--space-region);
 }
 
 .bands {
   display: flex;
   min-width: 0;
+  min-height: 0;
   flex-direction: column;
   gap: var(--space-group);
+  overflow-y: auto;
+  padding: var(--space-section) var(--space-section) var(--space-region);
+}
+
+/* The cards keep their natural height; the column scrolls, it does not
+   compress the cards to fit the pane. */
+.bands > * {
+  flex: none;
 }
 
 /* The index is the only detail navigation: the cards themselves do not fold. */
 .index {
-  position: sticky;
-  top: calc(var(--space-page) + var(--space-region));
   display: flex;
-  height: calc(
-    100vh - var(--space-page) * 2 - var(--space-region) - var(--space-stack)
-  );
   min-width: 0;
+  min-height: 0;
   flex-direction: column;
-  align-self: start;
   overflow-y: auto;
   padding: var(--space-section) 0;
+  border-right: var(--border-hairline) solid var(--color-line-soft);
+  background-color: var(--color-panel);
 }
 
 .indexList {
@@ -51,38 +57,25 @@
   list-style: none;
 }
 
-/* One side line carries the reading position; the cards stay unframed. */
-.indexList::before {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: var(--border-hairline);
-  border-radius: var(--radius-pill);
-  background-color: var(--color-line);
-  content: "";
-}
-
 .indexLink {
   position: relative;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--space-hairline);
-  padding: var(--space-inline) var(--space-stack) var(--space-inline)
-    var(--space-group);
-  border-radius: var(--radius-sm);
+  padding: var(--space-inline) var(--space-stack);
   color: var(--color-muted);
   font-size: var(--text-label);
+  text-align: center;
   text-decoration: none;
 }
 
-/* The active segment sits on the side line, not on the card. */
+/* The active segment sits on the pane divider, not on the card. */
 .indexLink::before {
   position: absolute;
   top: var(--space-inline);
   bottom: var(--space-inline);
-  left: 0;
+  right: 0;
   width: var(--border-heavy);
   border-radius: var(--radius-pill);
   background-color: var(--color-accent-strong);
@@ -1850,9 +1843,7 @@ button.expressionToggle:hover {
    the only place a section card outline, radius or surface is declared. */
 .band {
   min-width: 0;
-  scroll-margin-top: calc(
-    var(--space-page) + var(--space-region) + var(--space-stack)
-  );
+  scroll-margin-top: var(--space-section);
 }
 
 .bandGlyph {

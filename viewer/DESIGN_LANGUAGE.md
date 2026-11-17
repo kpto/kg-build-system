@@ -205,9 +205,11 @@ label, not a visible line. Cards are static; the detail body never folds them.
 The card may not re-declare a surface or header; those belong to the generic
 layer.
 
-A detail body pairs one left index rail with the card stack. The rail is sticky,
-lists the top-level cards in reading order, marks the current card, and
-disappears below the width where a card would lose its reading measure.
+A detail body pairs one left index pane with the card stack. The index is a
+static view: it does not scroll with the cards, it centres its tiles in the
+pane, lists the top-level cards in reading order and marks the current card.
+The card column owns the scroll. The index disappears below the width where a
+card would lose its reading measure.
 
 ## Interaction motion
 
