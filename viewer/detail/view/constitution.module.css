@@ -320,8 +320,8 @@ button.constitutionName:focus-visible {
 
 .constitutionBranchLabel {
   align-self: center;
-  margin-top: auto;
-  padding-top: var(--space-group);
+  /* Follow this lane's content; do not push the label to a shared baseline. */
+  padding-top: var(--space-stack);
   color: var(--color-faint);
   font-family: var(--font-mono);
   font-size: var(--text-caption);

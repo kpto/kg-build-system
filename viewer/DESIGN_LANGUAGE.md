@@ -99,8 +99,8 @@ A kind includes or omits a section; it never renames one for itself.
   gap. Each box states only its own purpose and clamps; arrows point up to the
   purpose it supports. Hovering or focusing a box reveals its full meaning in a
   portal card; a box label opens that level's document. A grouped branch shows
-  the first item and `+N`. The axis legend sits at the bottom centre of each
-  lane.
+  the first item and `+N`. The axis legend sits below its own lane's content, centred; proximity
+  keeps it with that lane even when the other lane is longer.
 - **Meaning** leads with the subject's purpose, then sets the contextless
   claims and the limitations that bound that purpose as two labelled readings.
   Each group carries its own count, and the groups stack when the card is
