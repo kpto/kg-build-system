@@ -109,11 +109,27 @@
   );
 }
 
+/* Every relation a binding reads, each with its full provenance. */
+.constitutionProvenance {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--space-page);
+}
+
+.constitutionProvenanceNode {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--space-stack);
+}
+
 .constitutionChildren {
   position: relative;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   column-gap: var(--space-panel);
+  row-gap: var(--space-panel);
 }
 
 .constitutionChildren[data-count="1"] {
@@ -484,7 +500,7 @@ button.constitutionName:focus-visible {
 
   .constitutionChildren {
     grid-template-columns: minmax(0, 1fr);
-    row-gap: 0;
+    row-gap: var(--space-panel);
   }
 
   .constitutionChildren::before {

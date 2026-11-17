@@ -41,12 +41,13 @@ describe("constitution", () => {
       "documented",
       "fixture_graph",
     ]);
-    expect(model.relation.map((level) => level.label)).toEqual([
-      "Source relation",
+    expect(model.relation).toHaveLength(1);
+    expect(model.relation[0].node.label).toBe("Source relation");
+    expect(model.relation[0].node.name).toBe("surveys");
+    expect(model.relation[0].children.map((child) => child.node.label)).toEqual([
       "Asset",
     ]);
-    expect(model.relation.map((level) => level.name)).toEqual([
-      "surveys",
+    expect(model.relation[0].children.map((child) => child.node.name)).toEqual([
       "estate",
     ]);
     expect(model.binding?.count).toBe(1);
@@ -70,8 +71,8 @@ describe("constitution", () => {
       "graph",
     ]);
     expect(model.purpose.meaning.claims[0]?.text).toContain("display name");
-    expect(model.relation.map((level) => level.name)).toEqual([
-      "surveys",
+    expect(model.relation.map((root) => root.node.name)).toEqual(["surveys"]);
+    expect(model.relation[0].children.map((child) => child.node.name)).toEqual([
       "estate",
     ]);
   });
@@ -90,15 +91,33 @@ describe("constitution", () => {
       "defect",
       "fixture_graph",
     ]);
-    expect(model.relation.map((level) => level.kind)).toEqual([
+    expect(model.relation.map((root) => root.node.kind)).toEqual([
       "relation",
-      "asset",
     ]);
-    expect(model.relation[0].current).toBe(true);
-    expect(model.relation[0].meaning.claims[0]?.text).toContain(
+    expect(model.relation[0].node.current).toBe(true);
+    expect(model.relation[0].node.meaning.claims[0]?.text).toContain(
       "estate survey table",
     );
-    expect(model.relation[1].name).toBe("estate");
+    expect(model.relation[0].children[0].node.name).toBe("estate");
     expect(model.binding?.count).toBe(1);
+  });
+
+  it("keeps the whole provenance chain of a derived relation", () => {
+    const model = constitutionModel(contractIndex, {
+      level: "projection",
+      component: "defect",
+    });
+    expect(model.relation).toHaveLength(1);
+    const derived = model.relation[0];
+    expect(derived.node.kind).toBe("projection");
+    expect(derived.node.name).toBe("defect");
+    expect(derived.children.map((child) => child.node.name)).toEqual([
+      "surveys",
+    ]);
+    const source = derived.children[0];
+    expect(source.node.kind).toBe("relation");
+    expect(source.children.map((child) => child.node.name)).toEqual(["estate"]);
+    expect(source.children[0].node.kind).toBe("asset");
+    expect(source.children[0].children).toEqual([]);
   });
 });

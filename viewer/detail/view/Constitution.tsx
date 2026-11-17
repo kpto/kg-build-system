@@ -8,7 +8,11 @@ import { ConceptGlyph } from "@/shared/ui/ConceptMark";
 import { ConceptPill } from "./ConceptPill";
 import { cx } from "@/shared/ui/theme";
 import { DesignMeaning } from "@/shared/design/DesignMeaning";
-import type { ConstitutionModel, ConstitutionNode } from "../model/constitution";
+import type {
+  ConstitutionModel,
+  ConstitutionNode,
+  ConstitutionRelation,
+} from "../model/constitution";
 import styles from "./constitution.module.css";
 
 export interface ConstitutionProps {
@@ -199,6 +203,52 @@ function Branch({
   );
 }
 
+/** One relation and its whole provenance: scanned relations, then the asset. */
+function RelationTree({
+  relation,
+  hoveredKey,
+  hoverCardId,
+  onHover,
+  onLeave,
+}: {
+  relation: ConstitutionRelation;
+  hoveredKey?: string;
+  hoverCardId: string;
+  onHover(node: ConstitutionNode, element: HTMLElement): void;
+  onLeave(): void;
+}) {
+  return (
+    <div className={styles.constitutionProvenanceNode}>
+      <Box
+        node={relation.node}
+        hovered={hoveredKey === boxKey(relation.node)}
+        hoverCardId={hoverCardId}
+        onHover={onHover}
+        onLeave={onLeave}
+      />
+      {relation.children.length ? (
+        <div
+          className={styles.constitutionChildren}
+          data-count={relation.children.length}
+        >
+          {relation.children.map((child) => (
+            <div className={styles.constitutionChild} key={boxKey(child.node)}>
+              <Arrow />
+              <RelationTree
+                relation={child}
+                hoveredKey={hoveredKey}
+                hoverCardId={hoverCardId}
+                onHover={onHover}
+                onLeave={onLeave}
+              />
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 /**
  * The subject as a constitution: purpose at the top left over the graph tree,
  * fulfilment one row lower on the right over the relation tree, linked by an
@@ -283,7 +333,6 @@ export function Constitution({ model }: ConstitutionProps) {
         (binding.meaning.frames?.length ?? 0)),
   );
 
-  const [primaryRelation, ...childRelations] = model.relation;
   const hoveredLeft = hovered
     ? Math.min(
         Math.max(12, hovered.rect.left),
@@ -363,38 +412,22 @@ export function Constitution({ model }: ConstitutionProps) {
         </div>
 
         <div className={styles.constitutionBranch} data-side="relation">
-          <div className={styles.constitutionStack}>
-            {primaryRelation ? (
-              <Box
-                node={primaryRelation}
-                hovered={hoveredKey === boxKey(primaryRelation)}
-                hoverCardId={hoverCardId}
-                onHover={openHover}
-                onLeave={scheduleClose}
-              />
-            ) : (
-              <p className={styles.constitutionEmpty}>No relation is shown.</p>
-            )}
-            {childRelations.length ? (
-              <div
-                className={styles.constitutionChildren}
-                data-count={childRelations.length}
-              >
-                {childRelations.map((node) => (
-                  <div className={styles.constitutionChild} key={boxKey(node)}>
-                    <Arrow />
-                    <Box
-                      node={node}
-                      hovered={hoveredKey === boxKey(node)}
-                      hoverCardId={hoverCardId}
-                      onHover={openHover}
-                      onLeave={scheduleClose}
-                    />
-                  </div>
-                ))}
-              </div>
-            ) : null}
-          </div>
+          {model.relation.length ? (
+            <div className={styles.constitutionProvenance}>
+              {model.relation.map((relation) => (
+                <RelationTree
+                  key={boxKey(relation.node)}
+                  relation={relation}
+                  hoveredKey={hoveredKey}
+                  hoverCardId={hoverCardId}
+                  onHover={openHover}
+                  onLeave={scheduleClose}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className={styles.constitutionEmpty}>No relation is shown.</p>
+          )}
           <span className={styles.constitutionBranchLabel}>Relation</span>
         </div>
       </div>

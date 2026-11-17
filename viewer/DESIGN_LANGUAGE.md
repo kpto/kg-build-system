@@ -95,14 +95,16 @@ A kind includes or omits a section; it never renames one for itself.
   right edge. The
   Graph tree is the record axis, its leading arrow spanning the offset row to
   Purpose; the Relation tree is the relation axis, its leading arrow climbing to
-  Fulfilment. The binding is the meeting, never the parent of either axis: the
+  Fulfilment and its provenance showing every relation the bindings read, with a
+  derived relation's scanned relations and a source relation's asset. The binding is the meeting, never the parent of either axis: the
   separator begins below Fulfilment, and the two trees start on one line.
   Fulfilment is not a relation declaration. Every stacked item uses the same
   vertical gap, and each arrow keeps that gap from the boxes it joins. Each box
   states only its own purpose and clamps; arrows point up to the level it
   supports. Hovering or focusing a box reveals its full meaning in a portal
-  card; a box label opens that level's document. A grouped branch shows the
-  first item and `+N`. The axis legend sits below its own lane's content,
+  card; a box label opens that level's document. A grouped record branch shows
+  the first record and `+N`; the relation tree never groups. The axis legend
+  sits below its own lane's content,
   centred; proximity keeps it with that lane even when the other lane is
   longer.
 - **Meaning** leads with the subject's purpose, then sets the contextless

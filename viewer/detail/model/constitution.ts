@@ -4,11 +4,12 @@
  *
  * The current subject's purpose is the root. The graph branch holds its
  * ancestry below, from the immediate parent down to the graph purpose; the
- * relation branch holds the provenance that supplies it, from the relation
- * down to the asset. The fulfilment box sits one row lower on the right, linked
- * to the purpose; the graph tree hangs from the purpose and the relation tree
- * from the fulfilment. A level keeps its own meaning, so the two branches show
- * derivation and supply, never inherited text.
+ * relation branch holds every relation the bindings read, each derived relation
+ * with all its scanned relations and each source relation with its asset. The
+ * fulfilment box sits one row lower on the right, linked to the purpose; the
+ * graph tree hangs from the purpose and the relation tree from the fulfilment.
+ * A level keeps its own meaning, so the two branches show derivation and
+ * supply, never inherited text.
  */
 
 import {
@@ -53,6 +54,12 @@ export interface ConstitutionNode {
   open?: ConstitutionTarget;
 }
 
+/** One relation and its provenance: scanned relations, then the asset. */
+export interface ConstitutionRelation {
+  node: ConstitutionNode;
+  children: ConstitutionRelation[];
+}
+
 /** The fulfilment box: what meets the two axes, summarised. */
 export interface ConstitutionBinding {
   count: number;
@@ -67,8 +74,8 @@ export interface ConstitutionModel {
   purpose: ConstitutionNode;
   /** Record-axis levels, ordered from the root toward the subject. */
   graph: ConstitutionNode[];
-  /** Relation-axis levels, ordered from the relation toward the asset. */
-  relation: ConstitutionNode[];
+  /** Every relation a binding reads, each with its full provenance. */
+  relation: ConstitutionRelation[];
   binding?: ConstitutionBinding;
 }
 
@@ -230,7 +237,6 @@ function relationNode(
   index: ViewerIndex,
   relation: AxisRelation,
   current: boolean,
-  detail?: string,
 ): ConstitutionNode {
   const kind = relation.kind === "source" ? "relation" : "projection";
   return {
@@ -239,7 +245,6 @@ function relationNode(
     label: LABELS[kind],
     meaning: relationMeaning(index, relation.name),
     current,
-    ...(detail ? { detail } : {}),
     open: { kind, name: relation.name },
   };
 }
@@ -271,58 +276,75 @@ function recordLevels(
   return [first];
 }
 
-function relationLevels(
+function relationKey(relation: AxisRelation): string {
+  return `${relation.kind === "source" ? "relation" : "projection"}:${relation.name}`;
+}
+
+/**
+ * One relation's provenance: a derived relation reads its scanned relations,
+ * and an asset-backed source relation shows its asset. Every scanned relation
+ * is kept, not just the first, and the asset hangs under the source relation.
+ */
+function relationTree(
+  index: ViewerIndex,
+  relation: AxisRelation,
+  subject: ConstitutionSubjectLike,
+  seen: Set<string>,
+): ConstitutionRelation {
+  const key = relationKey(relation);
+  const node = relationNode(
+    index,
+    relation,
+    (subject.level === "relation" || subject.level === "projection") &&
+      relation.name === subject.component,
+  );
+  if (seen.has(key)) return { node, children: [] };
+  const next = new Set(seen).add(key);
+  const children: ConstitutionRelation[] = [];
+  if (relation.kind === "derived") {
+    for (const name of relation.scanned) {
+      const scanned = axisRelationFor(index, name);
+      if (scanned) children.push(relationTree(index, scanned, subject, next));
+    }
+  }
+  // A source relation is asset-backed. A derived relation's asset is reached
+  // through its scanned source relations; only a relation with no scanned
+  // relation falls back to its own resolved asset.
+  const assetName =
+    relation.kind === "source"
+      ? relation.asset
+      : relation.scanned.length
+        ? undefined
+        : relation.asset;
+  if (assetName) {
+    children.push({
+      node: assetNode(
+        index,
+        assetName,
+        subject.level === "asset" && subject.component === assetName,
+      ),
+      children: [],
+    });
+  }
+  return { node, children };
+}
+
+/** Every relation the bindings read, each rooted with its own provenance. */
+function relationTrees(
   index: ViewerIndex,
   subject: ConstitutionSubjectLike,
   map: AxisMap | undefined,
-): ConstitutionNode[] {
+): ConstitutionRelation[] {
   const relations = map?.relations ?? [];
   const isRelationSubject =
     subject.level === "relation" || subject.level === "projection";
-  const primary = isRelationSubject
-    ? (relations.find((relation) => relation.name === subject.component) ??
-      axisRelationFor(index, subject.component))
-    : relations[0];
-  const nodes: ConstitutionNode[] = [];
-  if (primary) {
-    nodes.push(
-      relationNode(
-        index,
-        primary,
-        isRelationSubject && primary.name === subject.component,
-        relations.length > 1 ? `+${relations.length - 1} relations` : undefined,
-      ),
-    );
-    if (primary.kind === "derived") {
-      const scanned = primary.scanned
-        .map(
-          (name) =>
-            relations.find((relation) => relation.name === name) ??
-            axisRelationFor(index, name),
-        )
-        .filter((relation): relation is AxisRelation => Boolean(relation));
-      const field = scanned[0];
-      if (field) {
-        nodes.push(
-          relationNode(
-            index,
-            field,
-            false,
-            scanned.length > 1 ? `+${scanned.length - 1} scanned` : undefined,
-          ),
-        );
-      }
-    }
-  }
-  const assetName =
-    subject.level === "asset"
-      ? subject.component
-      : (primary?.asset ??
-        (primary ? resolveAssetName(index, primary.name) : undefined));
-  if (assetName) {
-    nodes.push(assetNode(index, assetName, subject.level === "asset"));
-  }
-  return nodes;
+  const roots = isRelationSubject
+    ? [
+        relations.find((relation) => relation.name === subject.component) ??
+          axisRelationFor(index, subject.component),
+      ].filter((relation): relation is AxisRelation => Boolean(relation))
+    : relations;
+  return roots.map((relation) => relationTree(index, relation, subject, new Set()));
 }
 
 function bindingSummary(
@@ -390,7 +412,7 @@ export function constitutionModel(
         .reverse()
         .map(purposeNode)
     : [...recordLevels(index, subject, map), graphPurposeNode(index)];
-  const relation = relationLevels(index, subject, map);
+  const relation = relationTrees(index, subject, map);
   const binding = bindingSummary(index, map);
   return {
     purpose,
