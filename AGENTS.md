@@ -213,6 +213,10 @@ missing, not the code.
   ownership summary. Selecting a node dims every other node and non-incident
   link and never moves a settled node; empty space clears the selection. A new
   level or kind adds data, not a second renderer within a visualisation kind.
+- An inline mention of a layer instance is one pill: the layer's mark, a
+  divider and the instance name. A pill is a control only where the surrounding
+  row does not already open the instance, and it truncates its name rather than
+  wrapping.
 - Motion is feedback, not decoration: short ease-out transitions on transform and
   opacity, origin-aware entrances, and reduced motion removes movement.
 - End every change report with the rule-promotion result: none, refined or
