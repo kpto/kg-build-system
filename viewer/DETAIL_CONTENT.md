@@ -118,8 +118,10 @@ purpose is not repeated as the binding's parent.
   target record and the relations it reads, a source relation's asset, a
   derived relation's scanned relations and their assets. A source relation or
   asset shared by several consumers is one node with one edge per consumer.
-- **GRAPH** and **RELATION** label the record's two subgraphs below their own
-  content. A relation or binding subject has neither label and no separator.
+- Each axis is enclosed by a dashed frame whose **GRAPH** or **RELATION** label
+  sits at the frame's top-left, like a topology category frame. A relation or
+  binding subject has one production group and no axis frame, label or
+  separator.
 
 The card never invents a purpose, a relation or a binding. When a declaration
 states no meaning, the node says so; when a record has no binding, the card

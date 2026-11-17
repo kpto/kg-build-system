@@ -193,97 +193,116 @@ function ConstitutionSceneView({
         </marker>
       </defs>
 
-      <g data-constitution-edges pointerEvents="none">
-        {scene.edges.map((edge) => {
-          const highlighted = incident.has(edge.id);
-          return (
-            <path
-              key={edge.id}
-              d={edge.path}
-              fill="none"
-              stroke={
-                highlighted
-                  ? "var(--color-selection-strong)"
-                  : "var(--color-selection)"
-              }
-              strokeWidth={highlighted ? 1.6 : 1}
-              opacity={selectedId && !highlighted ? 0.12 : 1}
-              markerEnd="url(#constitution-arrow)"
-              data-constitution-edge={edge.id}
-              data-active={highlighted || undefined}
+      <g
+        transform={`translate(${scene.offset.x} ${scene.offset.y})`}
+      >
+        <g data-constitution-frames pointerEvents="none">
+          {scene.frames.map((frame) => (
+            <rect
+              key={frame.id}
+              className={styles.constitutionFrame}
+              data-axis={frame.id}
+              x={frame.x}
+              y={frame.y}
+              width={frame.width}
+              height={frame.height}
+              rx={6}
             />
-          );
-        })}
-      </g>
+          ))}
+        </g>
 
-      {scene.seam ? (
-        <line
-          className={styles.constitutionSceneSeam}
-          x1={scene.seam.x}
-          y1={scene.seam.y1}
-          x2={scene.seam.x}
-          y2={scene.seam.y2}
-        />
-      ) : null}
-
-      <g data-constitution-nodes>
-        {scene.nodes.map((node) => (
-          <foreignObject
-            key={node.id}
-            x={node.x}
-            y={node.y}
-            width={node.width}
-            height={node.height}
-            opacity={selectedId && node.id !== selectedId ? 0.28 : 1}
-          >
-            <div
-              className={styles.constitutionSceneNode}
-              onClick={(event) => {
-                event.stopPropagation();
-                onSelect(node.id);
-              }}
-            >
-              <Box
-                node={node.node}
-                root={node.axis === "purpose"}
-                fulfilment={node.axis === "fulfilment"}
-                hoverable={node.hoverable}
-                text={node.text}
-                component={node.component}
-                bindingIndex={node.bindingIndex}
-                hovered={hoveredKey === boxKey(node.node)}
-                hoverCardId={hoverCardId}
-                onHover={onHover}
-                onLeave={onLeave}
+        <g data-constitution-edges pointerEvents="none">
+          {scene.edges.map((edge) => {
+            const highlighted = incident.has(edge.id);
+            return (
+              <path
+                key={edge.id}
+                d={edge.path}
+                fill="none"
+                stroke={
+                  highlighted
+                    ? "var(--color-selection-strong)"
+                    : "var(--color-selection)"
+                }
+                strokeWidth={highlighted ? 1.6 : 1}
+                opacity={selectedId && !highlighted ? 0.12 : 1}
+                markerEnd="url(#constitution-arrow)"
+                data-constitution-edge={edge.id}
+                data-active={highlighted || undefined}
               />
-            </div>
-          </foreignObject>
-        ))}
-      </g>
+            );
+          })}
+        </g>
 
-      <g pointerEvents="none">
-        {scene.labels.map((label) => (
-          <text
-            key={label.text}
-            className={styles.constitutionSceneLabel}
-            x={label.x}
-            y={label.y}
-            textAnchor="middle"
-          >
-            {label.text}
-          </text>
-        ))}
-        {scene.notes.map((note) => (
-          <text
-            key={note.text}
-            className={styles.constitutionSceneNote}
-            x={note.x}
-            y={note.y}
-            textAnchor="middle"
-          >
-            {note.text}
-          </text>
-        ))}
+        {scene.seam ? (
+          <line
+            className={styles.constitutionSceneSeam}
+            x1={scene.seam.x}
+            y1={scene.seam.y1}
+            x2={scene.seam.x}
+            y2={scene.seam.y2}
+          />
+        ) : null}
+
+        <g data-constitution-nodes>
+          {scene.nodes.map((node) => (
+            <foreignObject
+              key={node.id}
+              x={node.x}
+              y={node.y}
+              width={node.width}
+              height={node.height}
+              opacity={selectedId && node.id !== selectedId ? 0.28 : 1}
+            >
+              <div
+                className={styles.constitutionSceneNode}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onSelect(node.id);
+                }}
+              >
+                <Box
+                  node={node.node}
+                  root={node.axis === "purpose"}
+                  fulfilment={node.axis === "fulfilment"}
+                  hoverable={node.hoverable}
+                  text={node.text}
+                  component={node.component}
+                  bindingIndex={node.bindingIndex}
+                  hovered={hoveredKey === boxKey(node.node)}
+                  hoverCardId={hoverCardId}
+                  onHover={onHover}
+                  onLeave={onLeave}
+                />
+              </div>
+            </foreignObject>
+          ))}
+        </g>
+
+        <g pointerEvents="none">
+          {scene.labels.map((label) => (
+            <text
+              key={label.text}
+              className={styles.constitutionSceneLabel}
+              x={label.x}
+              y={label.y}
+              textAnchor="start"
+            >
+              {label.text}
+            </text>
+          ))}
+          {scene.notes.map((note) => (
+            <text
+              key={note.text}
+              className={styles.constitutionSceneNote}
+              x={note.x}
+              y={note.y}
+              textAnchor="middle"
+            >
+              {note.text}
+            </text>
+          ))}
+        </g>
       </g>
     </>
   );

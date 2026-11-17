@@ -55,12 +55,25 @@ export interface ConstitutionSceneNote {
   y: number;
 }
 
+/** One axis of a record's constitution, framed like a topology category. */
+export interface ConstitutionSceneFrame {
+  id: "graph" | "relation";
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export interface ConstitutionScene {
   nodes: ConstitutionSceneNode[];
   edges: ConstitutionSceneEdge[];
   labels: ConstitutionSceneLabel[];
   notes: ConstitutionSceneNote[];
   seam: { x: number; y1: number; y2: number } | null;
+  /** The two axis frames; a produced subject has none. */
+  frames: ConstitutionSceneFrame[];
+  /** The renderer translates the scene so frame padding stays visible. */
+  offset: { x: number; y: number };
   width: number;
   height: number;
 }
@@ -75,8 +88,10 @@ const NODE = {
 const COLUMN_GAP = 60;
 const BINDING_Y = 120;
 const STACK_GAP = 56;
-const LABEL_GAP = 24;
-const LABEL_HEIGHT = 16;
+const FRAME_PAD = 20;
+const FRAME_TOP = 28;
+const FRAME_LABEL_INSET = 12;
+const FRAME_LABEL_BASELINE = 16;
 const NOTE_GAP = 24;
 const NOTE_HEIGHT = 24;
 const EDGE_BEND = 48;
@@ -316,6 +331,21 @@ function bindingRelationEdges(
   return edges;
 }
 
+/** The padded bounds of one axis: a topology-style category frame. */
+function frameFor(
+  id: ConstitutionSceneFrame["id"],
+  members: ConstitutionSceneNode[],
+): ConstitutionSceneFrame | undefined {
+  if (!members.length) return undefined;
+  const minX = Math.min(...members.map((node) => node.x)) - FRAME_PAD;
+  const minY = Math.min(...members.map((node) => node.y)) - FRAME_TOP;
+  const maxX =
+    Math.max(...members.map((node) => node.x + node.width)) + FRAME_PAD;
+  const maxY =
+    Math.max(...members.map((node) => node.y + node.height)) + FRAME_PAD;
+  return { id, x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+}
+
 /** A subject whose constitution is its own purpose over its components. */
 function isComponentsSubject(kind: ConstitutionNode["kind"]): boolean {
   return (
@@ -446,11 +476,24 @@ function buildRecordScene(model: ConstitutionModel): ConstitutionScene {
   const bindingsBottom = bindings.length
     ? BINDING_Y + NODE.binding.height
     : purpose.y + purpose.height;
-  const relationBottom = layered
-    ? BINDING_Y + layered.height
-    : bindingsBottom;
   const regionWidth = layered ? layered.width : NODE.purpose.width;
   const regionCentre = regionX + regionWidth / 2;
+
+  const graphFrame = frameFor("graph", [purpose, ...graphNodes])!;
+  // The bindings are the meeting, not an axis; only provenance is framed.
+  const relationFrame = frameFor(
+    "relation",
+    positioned.filter((node) => node.axis === "relation"),
+  );
+  const frameBottom = Math.max(
+    graphFrame.y + graphFrame.height,
+    relationFrame ? relationFrame.y + relationFrame.height : 0,
+  );
+  // A frame owns its axis; translate the scene so its padding stays visible.
+  const offset = {
+    x: Math.max(0, -Math.min(graphFrame.x, relationFrame?.x ?? graphFrame.x)),
+    y: Math.max(0, -Math.min(graphFrame.y, relationFrame?.y ?? graphFrame.y)),
+  };
 
   if (!model.bindings.length) {
     notes.push({
@@ -459,46 +502,56 @@ function buildRecordScene(model: ConstitutionModel): ConstitutionScene {
       y: BINDING_Y - 8,
     });
   }
-  const relationLabelY = relationBottom + LABEL_GAP;
   if (!provenance.roots.length) {
     notes.push({
       text: "No relation is shown.",
       x: regionCentre,
-      y: relationLabelY + 20,
+      y: relationFrame
+        ? relationFrame.y + relationFrame.height - FRAME_PAD
+        : BINDING_Y + NODE.binding.height + 28,
     });
   }
 
   labels.push({
     text: "GRAPH",
-    x: purpose.width / 2,
-    y: graphBottom + LABEL_GAP,
+    x: graphFrame.x + FRAME_LABEL_INSET,
+    y: graphFrame.y + FRAME_LABEL_BASELINE,
   });
-  labels.push({
-    text: "RELATION",
-    x: regionCentre,
-    y: relationLabelY,
-  });
+  if (relationFrame) {
+    labels.push({
+      text: "RELATION",
+      x: relationFrame.x + FRAME_LABEL_INSET,
+      y: relationFrame.y + FRAME_LABEL_BASELINE,
+    });
+  }
 
   const seamX = (purpose.width + regionX) / 2;
   const seamY1 = bindingsBottom;
-  const seamY2 =
-    Math.max(graphBottom, relationBottom) +
-    LABEL_GAP +
-    (provenance.roots.length ? 8 : 40);
-  const height =
-    Math.max(
-      bindingsBottom,
-      graphBottom + LABEL_GAP + LABEL_HEIGHT,
-      relationLabelY + (provenance.roots.length ? 0 : LABEL_HEIGHT + 8),
-    ) + LABEL_GAP;
-  const width = Math.max(purpose.width, regionX + regionWidth);
+  const seamY2 = Math.max(bindingsBottom + 8, frameBottom);
+
+  const contentMaxX = Math.max(
+    graphFrame.x + graphFrame.width,
+    relationFrame ? relationFrame.x + relationFrame.width : -Infinity,
+    regionX + regionWidth,
+  );
+  const contentMaxY = Math.max(
+    frameBottom,
+    bindingsBottom,
+    ...notes.map((note) => note.y + NOTE_HEIGHT),
+  );
+  const width = contentMaxX + offset.x;
+  const height = contentMaxY + offset.y;
 
   return {
     nodes,
     edges,
     labels,
     notes,
-    seam: { x: seamX, y1: seamY1, y2: seamY2 },
+    seam: relationFrame
+      ? { x: seamX, y1: seamY1, y2: seamY2 }
+      : null,
+    frames: relationFrame ? [graphFrame, relationFrame] : [graphFrame],
+    offset,
     width,
     height,
   };
@@ -542,7 +595,17 @@ function buildComponentsScene(model: ConstitutionModel): ConstitutionScene {
       x: width / 2,
       y: NODE.purpose.height + NOTE_GAP,
     });
-    return { nodes, edges, labels: [], notes, seam: null, width, height };
+    return {
+      nodes,
+      edges,
+      labels: [],
+      notes,
+      seam: null,
+      frames: [],
+      offset: { x: 0, y: 0 },
+      width,
+      height,
+    };
   }
 
   const links: LayeredEdge[] = [];
@@ -581,6 +644,8 @@ function buildComponentsScene(model: ConstitutionModel): ConstitutionScene {
     labels: [],
     notes,
     seam: null,
+    frames: [],
+    offset: { x: 0, y: 0 },
     width: layered.width,
     height: layered.height,
   };

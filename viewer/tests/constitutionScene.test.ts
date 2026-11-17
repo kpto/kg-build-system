@@ -133,7 +133,45 @@ describe("constitution scene", () => {
     expect(estate.y).toBeGreaterThan(surveys.y);
   });
 
-  it("starts the seam below the fulfilment row and labels both subgraphs", () => {
+  it("frames each axis like a topology category", () => {
+    expect(scene.frames.map((frame) => frame.id)).toEqual([
+      "graph",
+      "relation",
+    ]);
+    const [graphFrame, relationFrame] = scene.frames;
+    const contains = (
+      frame: (typeof scene.frames)[number],
+      node: (typeof scene.nodes)[number],
+    ) =>
+      node.x >= frame.x &&
+      node.y >= frame.y &&
+      node.x + node.width <= frame.x + frame.width &&
+      node.y + node.height <= frame.y + frame.height;
+
+    expect(contains(graphFrame, byName("defect")[0])).toBe(true);
+    expect(contains(graphFrame, byName("fixture_graph")[0])).toBe(true);
+    expect(contains(relationFrame, byName("alpha")[0])).toBe(true);
+    expect(contains(relationFrame, byName("estate")[0])).toBe(true);
+    expect(contains(relationFrame, byName("alpha_binding")[0])).toBe(false);
+    expect(contains(graphFrame, byName("alpha_binding")[0])).toBe(false);
+    expect(contains(relationFrame, byName("defect")[0])).toBe(false);
+    expect(graphFrame.x + graphFrame.width).toBeLessThanOrEqual(
+      relationFrame.x,
+    );
+    expect(scene.offset.x).toBeGreaterThan(0);
+    expect(scene.offset.y).toBeGreaterThan(0);
+    for (const label of scene.labels) {
+      const frame = scene.frames.find(
+        (entry) =>
+          entry.id === (label.text === "GRAPH" ? "graph" : "relation"),
+      )!;
+      expect(label.x).toBeGreaterThan(frame.x);
+      expect(label.y).toBeGreaterThan(frame.y);
+      expect(label.y).toBeLessThan(frame.y + frame.height);
+    }
+  });
+
+  it("starts the seam below the fulfilment row and labels both axis frames", () => {
     const binding = byName("alpha_binding")[0];
     expect(scene.seam?.y1).toBe(binding.y + binding.height);
     expect(scene.labels.map((label) => label.text)).toEqual([
@@ -163,6 +201,8 @@ describe("constitution scene for a produced subject", () => {
     ]);
     expect(findEdge(sourceScene, "asset:estate", "purpose")).toBeTruthy();
     expect(sourceScene.labels).toEqual([]);
+    expect(sourceScene.frames).toEqual([]);
+    expect(sourceScene.offset).toEqual({ x: 0, y: 0 });
     expect(sourceScene.seam).toBeNull();
     const purpose = findBySceneId(sourceScene, "purpose");
     const asset = findBySceneId(sourceScene, "asset:estate");

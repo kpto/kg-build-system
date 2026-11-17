@@ -75,6 +75,29 @@
   opacity: 0.7;
 }
 
+.constitutionFrame {
+  fill: color-mix(
+    in srgb,
+    var(--frame-color, var(--color-line-strong)) 4%,
+    transparent
+  );
+  stroke: color-mix(
+    in srgb,
+    var(--frame-color, var(--color-line-strong)) 28%,
+    var(--color-line-soft)
+  );
+  stroke-width: var(--border-hairline);
+  stroke-dasharray: 2 5;
+}
+
+.constitutionFrame[data-axis="graph"] {
+  --frame-color: var(--color-concept-graph);
+}
+
+.constitutionFrame[data-axis="relation"] {
+  --frame-color: var(--color-concept-source);
+}
+
 .constitutionSceneLabel {
   fill: var(--color-faint);
   font-family: var(--font-mono);

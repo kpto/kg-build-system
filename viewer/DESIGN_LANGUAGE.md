@@ -97,7 +97,8 @@ A kind includes or omits a section; it never renames one for itself.
   own concept mark, never the graph mark.
   - A record shows one Fulfilment per binding, its graph ancestry and each
     binding's relation provenance. The bindings share one rank; the separator
-    begins below that row, and GRAPH and RELATION label the two subgraphs.
+    begins below that row, and each axis is enclosed by a dashed frame labelled
+    GRAPH or RELATION at its top-left.
   - A source relation shows its purpose over its asset alone; a derived relation
     its purpose over the source relations it scans and their assets. Neither
     carries a binding or a graph axis.
