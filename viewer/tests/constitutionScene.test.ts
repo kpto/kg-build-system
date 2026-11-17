@@ -133,9 +133,12 @@ describe("constitution scene", () => {
     expect(estate.y).toBeGreaterThan(surveys.y);
   });
 
-  it("encloses the binding nodes in one fulfilment frame", () => {
-    expect(scene.frames.map((frame) => frame.id)).toEqual(["fulfilment"]);
-    const [frame] = scene.frames;
+  it("frames the graph ancestry, the bindings and the relation provenance", () => {
+    expect(scene.frames.map((frame) => frame.id)).toEqual([
+      "graph",
+      "fulfilment",
+      "relation",
+    ]);
     const contains = (
       entry: (typeof scene.frames)[number],
       item: (typeof scene.nodes)[number],
@@ -144,33 +147,56 @@ describe("constitution scene", () => {
       item.y >= entry.y &&
       item.x + item.width <= entry.x + entry.width &&
       item.y + item.height <= entry.y + entry.height;
+    const frameFor = (id: (typeof scene.frames)[number]["id"]) =>
+      scene.frames.find((frame) => frame.id === id)!;
+    const graphFrame = frameFor("graph");
+    const fulfilmentFrame = frameFor("fulfilment");
+    const relationFrame = frameFor("relation");
+
+    expect(contains(graphFrame, byName("fixture_graph")[0])).toBe(true);
+    expect(contains(graphFrame, byName("defect")[0])).toBe(false);
+    expect(contains(graphFrame, byName("alpha_binding")[0])).toBe(false);
 
     for (const binding of scene.nodes.filter(
       (entry) => entry.axis === "binding",
     )) {
-      expect(contains(frame, binding)).toBe(true);
+      expect(contains(fulfilmentFrame, binding)).toBe(true);
     }
-    expect(contains(frame, byName("defect")[0])).toBe(false);
-    expect(contains(frame, byName("fixture_graph")[0])).toBe(false);
-    expect(contains(frame, byName("surveys")[0])).toBe(false);
+    expect(contains(fulfilmentFrame, byName("surveys")[0])).toBe(false);
+
+    expect(contains(relationFrame, byName("alpha")[0])).toBe(true);
+    expect(contains(relationFrame, byName("estate")[0])).toBe(true);
+    expect(contains(relationFrame, byName("alpha_binding")[0])).toBe(false);
+    expect(contains(relationFrame, byName("fixture_graph")[0])).toBe(false);
+
     expect(scene.offset.x).toBeGreaterThanOrEqual(0);
     expect(scene.offset.y).toBeGreaterThanOrEqual(0);
-    expect(scene.labels.map((label) => label.text)).toEqual(["FULFILMENT"]);
-    const [label] = scene.labels;
-    expect(label.x).toBeGreaterThan(frame.x);
-    expect(label.y).toBeGreaterThan(frame.y);
-    expect(label.y).toBeLessThan(frame.y + frame.height);
-  });
-
-  it("keeps the graph ancestry left of the relation provenance", () => {
-    const graph = byName("fixture_graph")[0];
-    for (const name of ["surveys", "estate", "alpha", "beta"]) {
-      expect(graph.x).toBeLessThan(byName(name)[0].x);
+    expect(scene.labels.map((label) => label.text)).toEqual([
+      "GRAPH",
+      "FULFILMENT",
+      "RELATION",
+    ]);
+    for (const label of scene.labels) {
+      const frame =
+        label.text === "GRAPH"
+          ? graphFrame
+          : label.text === "FULFILMENT"
+            ? fulfilmentFrame
+            : relationFrame;
+      expect(label.x).toBeGreaterThan(frame.x);
+      expect(label.y).toBeGreaterThan(frame.y);
+      expect(label.y).toBeLessThan(frame.y + frame.height);
     }
   });
 
-  it("labels the fulfilment group", () => {
-    expect(scene.labels.map((label) => label.text)).toEqual(["FULFILMENT"]);
+  it("keeps the frames disjoint", () => {
+    const [graphFrame, fulfilmentFrame, relationFrame] = scene.frames;
+    expect(graphFrame.x + graphFrame.width).toBeLessThanOrEqual(
+      fulfilmentFrame.x,
+    );
+    expect(fulfilmentFrame.y + fulfilmentFrame.height).toBeLessThanOrEqual(
+      relationFrame.y,
+    );
   });
 });
 

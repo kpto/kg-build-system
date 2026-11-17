@@ -17,7 +17,7 @@ the index rail is the only navigation between cards.
 | Order | Section | Question it answers | Content |
 | --- | --- | --- | --- |
 | 1 | **Meaning** | What is this for, and what does it exclude? | Purpose as the lead, then two labelled readings: contextless claims and the limitations that bound the purpose. Each group states its own count; the groups stack when the card is narrow. Legacy readings follow under **Earlier reading**. |
-| 2 | **Constitution** | What is this subject for, and how does it come to be? | One layered DAG on a pan/zoom canvas. A record shows Purpose, one box per binding inside the FULFILMENT frame, its graph ancestry on the left and each binding's relation provenance on the right; there is no separator or axis frame. A source relation shows its Purpose over its asset; a derived relation its Purpose over the source relations it scans and their assets; a binding its Purpose over the target record's purpose and identity and the relations it reads. An asset has no Constitution card: it is the origin. Every edge points from the supply to the consumer; a shared declaration is one node with one edge per consumer; ranks, ordering and edge routes are computed; the purpose box carries the subject's own concept mark. Each node clamps its purpose to two lines; hovering or focusing it reveals the full meaning, selecting it dims the rest, and its label opens its document. |
+| 2 | **Constitution** | What is this subject for, and how does it come to be? | One layered DAG on a pan/zoom canvas. A record shows its purpose at the root, its graph ancestry in the GRAPH frame on the left, one box per binding in the FULFILMENT frame, and each binding's relation provenance in the RELATION frame on the right; there is no separator. A source relation shows its Purpose over its asset; a derived relation its Purpose over the source relations it scans and their assets; a binding its Purpose over the target record's purpose and identity and the relations it reads. An asset has no Constitution card: it is the origin. Every edge points from the supply to the consumer; a shared declaration is one node with one edge per consumer; ranks, ordering and edge routes are computed; the purpose box carries the subject's own concept mark. Each node clamps its purpose to two lines; hovering or focusing it reveals the full meaning, selecting it dims the rest, and its label opens its document. |
 | 3 | **Members** | Which units belong to this subject? | One table grammar: name, type, meaning, source, count; the instance pill opens its document when one exists. |
 | 4 | **Connections** | Which records does this subject touch? | Endpoints of an edge, incident relations of a node, ports of a step. |
 | 5 | **Bindings** | Which binding fulfils this subject? | One row per binding: name, writes, identity, rows read. The binding pill opens the binding document. |
@@ -92,7 +92,7 @@ nothing is grouped or hidden.
 
 | Subject | How it comes to be | The card |
 | --- | --- | --- |
-| Node, edge, property, abstract category | its bindings, each meeting a relation at a grain and identity; the graph states what it is and where it sits | One DAG: purpose, one box per binding, the graph ancestry and each binding's relation provenance; the bindings are enclosed by the fulfilment frame |
+| Node, edge, property, abstract category | its bindings, each meeting a relation at a grain and identity; the graph states what it is and where it sits | One DAG: the purpose at the root, the graph ancestry in the GRAPH frame, one box per binding in the FULFILMENT frame, and each binding's relation provenance in the RELATION frame |
 | Source relation | its asset | Purpose over its asset alone; no bindings, no graph axis |
 | Derived relation | the source relations it scans, each from its asset | Purpose over those source relations and their assets; no bindings, no graph axis |
 | Binding | the meeting of a record and a relation | Purpose over the target record (purpose and identity only) and the relations it reads with their provenance |
@@ -119,10 +119,11 @@ purpose is not repeated as the binding's parent.
   target record and the relations it reads, a source relation's asset, a
   derived relation's scanned relations and their assets. A source relation or
   asset shared by several consumers is one node with one edge per consumer.
-- A record is one intact DAG with its graph ancestry on the left and its
-  relation provenance on the right; there is no separator and no axis frame. A
-  binding box is a binding, never the fulfilment itself. A relation or binding
-  subject has one production group and no frame.
+- A record is one intact DAG with its purpose at the root, its graph ancestry in
+  the GRAPH frame on the left, its bindings in the FULFILMENT frame, and its
+  relation provenance in the RELATION frame on the right; there is no
+  separator. A binding box is a binding, never the fulfilment itself. A
+  relation or binding subject has one production group and no frame.
 
 The card never invents a purpose, a relation or a binding. When a declaration
 states no meaning, the node says so; when a record has no binding, the card

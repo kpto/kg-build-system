@@ -83,8 +83,16 @@
   stroke-dasharray: 2 5;
 }
 
+.constitutionFrame[data-axis="graph"] {
+  --frame-color: var(--color-concept-graph);
+}
+
 .constitutionFrame[data-axis="fulfilment"] {
   --frame-color: var(--color-concept-binding);
+}
+
+.constitutionFrame[data-axis="relation"] {
+  --frame-color: var(--color-concept-source);
 }
 
 .constitutionSceneLabel {

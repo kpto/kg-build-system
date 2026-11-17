@@ -57,7 +57,7 @@ export interface ConstitutionSceneNote {
 
 /** The fulfilment group: the binding nodes framed together. */
 export interface ConstitutionSceneFrame {
-  id: "fulfilment";
+  id: "graph" | "fulfilment" | "relation";
   x: number;
   y: number;
   width: number;
@@ -69,7 +69,7 @@ export interface ConstitutionScene {
   edges: ConstitutionSceneEdge[];
   labels: ConstitutionSceneLabel[];
   notes: ConstitutionSceneNote[];
-  /** The fulfilment frame; a produced subject has none. */
+  /** The graph, fulfilment and relation frames; a produced subject has none. */
   frames: ConstitutionSceneFrame[];
   /** The renderer translates the scene so frame padding stays visible. */
   offset: { x: number; y: number };
@@ -84,7 +84,7 @@ const NODE = {
   relation: { width: 300, height: 104 },
 } as const;
 
-const FRAME_PAD = 20;
+const FRAME_PAD = 8;
 const FRAME_TOP = 28;
 const FRAME_LABEL_INSET = 12;
 const FRAME_LABEL_BASELINE = 16;
@@ -377,15 +377,40 @@ function buildRecordScene(model: ConstitutionModel): ConstitutionScene {
   });
 
   const bindingNodes = positioned.filter((node) => node.axis === "binding");
-  const frame = frameFor("fulfilment", bindingNodes);
-  const offset = frame
-    ? { x: Math.max(0, -frame.x), y: Math.max(0, -frame.y) }
-    : { x: 0, y: 0 };
-  if (frame) {
-    labels.push({
+  const axes = [
+    {
+      id: "graph" as const,
+      text: "GRAPH",
+      frame: frameFor(
+        "graph",
+        positioned.filter((node) => node.axis === "graph"),
+      ),
+    },
+    {
+      id: "fulfilment" as const,
       text: "FULFILMENT",
-      x: frame.x + FRAME_LABEL_INSET,
-      y: frame.y + FRAME_LABEL_BASELINE,
+      frame: frameFor("fulfilment", bindingNodes),
+    },
+    {
+      id: "relation" as const,
+      text: "RELATION",
+      frame: frameFor(
+        "relation",
+        positioned.filter((node) => node.axis === "relation"),
+      ),
+    },
+  ];
+  const frames = axes.flatMap((axis) => (axis.frame ? [axis.frame] : []));
+  const offset = {
+    x: Math.max(0, -Math.min(0, ...frames.map((frame) => frame.x))),
+    y: Math.max(0, -Math.min(0, ...frames.map((frame) => frame.y))),
+  };
+  for (const axis of axes) {
+    if (!axis.frame) continue;
+    labels.push({
+      text: axis.text,
+      x: axis.frame.x + FRAME_LABEL_INSET,
+      y: axis.frame.y + FRAME_LABEL_BASELINE,
     });
   }
 
@@ -400,9 +425,12 @@ function buildRecordScene(model: ConstitutionModel): ConstitutionScene {
     const last = bindingNodes.reduce((lower, node) =>
       node.y + node.height > lower.y + lower.height ? node : lower,
     );
+    const fulfilmentFrame = axes[1].frame;
     notes.push({
       text: "No relation is shown.",
-      x: frame ? frame.x + frame.width / 2 : last.x + last.width / 2,
+      x: fulfilmentFrame
+        ? fulfilmentFrame.x + fulfilmentFrame.width / 2
+        : last.x + last.width / 2,
       y: last.y + last.height + NOTE_GAP,
     });
   }
@@ -423,13 +451,13 @@ function buildRecordScene(model: ConstitutionModel): ConstitutionScene {
   );
   const contentMaxX = Math.max(
     nodeMaxX,
-    frame ? frame.x + frame.width : 0,
     noteMaxX,
+    ...frames.map((frame) => frame.x + frame.width),
   );
   const contentMaxY = Math.max(
     nodeMaxY,
-    frame ? frame.y + frame.height : 0,
     noteMaxY,
+    ...frames.map((frame) => frame.y + frame.height),
   );
 
   return {
@@ -437,7 +465,7 @@ function buildRecordScene(model: ConstitutionModel): ConstitutionScene {
     edges,
     labels,
     notes,
-    frames: frame ? [frame] : [],
+    frames,
     offset,
     width: contentMaxX + offset.x,
     height: contentMaxY + offset.y,
