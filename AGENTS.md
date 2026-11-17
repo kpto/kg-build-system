@@ -154,17 +154,17 @@ missing, not the code.
 - A visualisation opens at the lowest detail that still answers its first
   question; every further layer is revealed by a named control, and raw JSON is
   not a default surface.
-- A subject that carries purpose, fulfilment and provenance is one constitution:
-  purpose sits at the top left and fulfilment one row below on the right, joined
-  by an elbow that follows the offset and meets both edges. The graph and
-  relation axes are parallel lanes below, and the separator begins below the
-  lower of the two boxes. The axes are not a Cartesian plot; fulfilment is
-  neither axis.
+- A subject that carries purpose, fulfilment and provenance is one constitution,
+  read top to bottom: purpose, then the fulfilment that answers it, then the
+  graph and relation trees side by side. Every arrow points up to the level it
+  supports, and both tree arrows climb to the fulfilment; the separator begins
+  below fulfilment. The axes are not a Cartesian plot; fulfilment is neither
+  axis.
 - A repeated item renders its units compactly. A heading is structural, not per
   unit: a table cell or list row does not repeat the section chrome.
-- A card uses one vertical gap between stacked items. A connector that needs
-  more reach extends across the card and meets both endpoints; it does not
-  enlarge the gap between two items.
+- A card uses one vertical gap between stacked items. A connector sits in that
+  gap with the same clearance from the boxes it joins; a longer reach extends
+  the shaft, not the gap.
 - A connector's shaft and head meet at one point: place the head at the path
   endpoint, not near it, so a gap or rotation cannot separate them.
 - Present the design before an author workflow: a canonical view carries the
