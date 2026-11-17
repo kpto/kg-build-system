@@ -142,15 +142,17 @@ function Arrow({ height = 36 }: { height?: number }) {
 }
 
 /**
- * A connector that stretches to the gap it crosses. The shaft is an SVG line
- * that runs to the head's vertex, so a long reach never separates the two.
+ * A connector that stretches to the gap it crosses. The shaft is positioned
+ * behind the head and reaches its vertex, so a long reach never separates the
+ * two; the container has an intrinsic minimum, so it never inflates the row.
  */
 function SpanArrow() {
   return (
-    <svg className={styles.constitutionSpanArrow} width="14" aria-hidden>
-      <line x1="7" y1="100%" x2="7" y2="1" />
-      <path d="M2 7 L7 1 L12 7" />
-    </svg>
+    <span className={styles.constitutionSpanArrow} aria-hidden>
+      <svg className={styles.constitutionSpanHead} viewBox="0 0 14 8">
+        <path d="M2 7 L7 1 L12 7" />
+      </svg>
+    </span>
   );
 }
 function Branch({

@@ -91,7 +91,8 @@ A kind includes or omits a section; it never renames one for itself.
 - **Overview** is the tab banner: identity and one fact row. It is not a band.
 - **Constitution** places the subject's purpose at the top left over the graph
   tree and Fulfilment one row lower on the right over the relation tree; a
-  curved elbow rises from Fulfilment's top edge into Purpose's right edge. The
+  curved elbow rises from the centre of Fulfilment's top edge into Purpose's
+  right edge. The
   Graph tree is the record axis, its leading arrow spanning the offset row to
   Purpose; the Relation tree is the relation axis, its leading arrow climbing to
   Fulfilment. The binding is the meeting, never the parent of either axis: the

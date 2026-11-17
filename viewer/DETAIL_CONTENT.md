@@ -99,9 +99,9 @@ plot: every box points up to the level it supports.
   relation shows its asset. The current declaration is marked when the subject
   is a relation or asset.
 - **Fulfilment** is the top-right box, one row below Purpose. A curved elbow
-  rises from its top edge and enters Purpose's right edge. It is not part of
-  either axis: the graph tree hangs from Purpose and the relation tree from
-  Fulfilment, and both trees start on one line. The dashed separator begins
+  rises from the centre of its top edge and enters Purpose's right edge. It is
+  not part of either axis: the graph tree hangs from Purpose and the relation
+  tree from Fulfilment, and both trees start on one line. The dashed separator begins
   below Fulfilment and divides the two trees. Every stacked item uses the same
   vertical gap, and each arrow keeps that gap from the boxes it joins.
   Fulfilment states the binding count; identity fields and coverage appear when
