@@ -69,8 +69,6 @@ export interface ConstitutionModel {
   /** Relation-axis levels, ordered from the relation toward the asset. */
   relation: ConstitutionNode[];
   binding?: ConstitutionBinding;
-  /** The subject the full axis map reads. */
-  axis?: AxisSubject;
 }
 
 export interface ConstitutionSubjectLike {
@@ -398,6 +396,5 @@ export function constitutionModel(
     graph,
     relation,
     ...(binding ? { binding } : {}),
-    ...(axis ? { axis } : {}),
   };
 }

@@ -473,21 +473,15 @@ button.constitutionName:focus-visible {
 }
 
 .constitutionBranchLabel {
-  position: absolute;
-  top: 1px;
+  align-self: center;
+  margin-top: auto;
+  padding-top: 8px;
   color: var(--color-faint);
   font-family: var(--font-mono);
   font-size: 8.5px;
   letter-spacing: 0.06em;
+  text-align: center;
   text-transform: uppercase;
-}
-
-.constitutionBranch[data-side="graph"] .constitutionBranchLabel {
-  left: 0;
-}
-
-.constitutionBranch[data-side="relation"] .constitutionBranchLabel {
-  right: 0;
 }
 
 .constitutionStack {
@@ -515,34 +509,6 @@ button.constitutionName:focus-visible {
   color: var(--color-faint);
   font-size: 9.5px;
   line-height: 1.4;
-}
-
-.constitutionTools {
-  display: flex;
-  justify-content: center;
-  margin-top: 8px;
-}
-
-.constitutionMapToggle {
-  border: 1px solid var(--color-line-soft);
-  border-radius: 2px;
-  background: transparent;
-  padding: 2px 6px;
-  color: var(--color-selection);
-  font-family: var(--font-mono);
-  font-size: 8px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  cursor: pointer;
-}
-
-.constitutionMapToggle:hover {
-  border-color: var(--color-line-strong);
-}
-
-.constitutionMapToggle:focus-visible {
-  outline: 1px solid var(--color-accent);
-  outline-offset: 1px;
 }
 
 .constitutionNote {
@@ -594,9 +560,10 @@ button.constitutionName:focus-visible {
   }
 
   .constitutionBranchLabel {
-    position: static;
-    align-self: flex-start;
-    margin-bottom: 2px;
+    align-self: center;
+    margin-top: 0;
+    padding-top: 8px;
+    text-align: center;
   }
 
 }

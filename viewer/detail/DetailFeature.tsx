@@ -71,7 +71,7 @@ import {
   type DetailFact,
   type MemberRow,
 } from "./view/DetailChrome";
-import { FulfilmentMap, type AxisOpenTarget } from "./view/FulfilmentMap";
+import type { AxisOpenTarget } from "./view/FulfilmentMap";
 import {
   ExpressionTree,
   type ExpressionChain,
@@ -2107,24 +2107,6 @@ function overviewFacts(
   return facts;
 }
 
-function axisSubjectFor(model: ProofModel) {
-  switch (model.level) {
-    case "property":
-      return {
-        kind: "property" as const,
-        component: model.subject.component,
-        property: model.subject.property,
-      };
-    case "node":
-    case "edge":
-      return { kind: model.level, component: model.subject.component };
-    case "abstract":
-      return { kind: "abstract" as const, component: model.subject.component };
-    case "asset":
-      return { kind: "asset" as const, component: model.subject.component };
-  }
-}
-
 function SubjectDetailEditor(props: WorkspaceProps) {
   const index = props.state.index;
   const model = useProofModel(props);
@@ -2140,10 +2122,6 @@ function SubjectDetailEditor(props: WorkspaceProps) {
     () => constitutionModel(index, model.subject),
     [index, model.subject],
   );
-  const [axisMapOpen, setAxisMapOpen] = useState(false);
-  useEffect(() => {
-    setAxisMapOpen(false);
-  }, [model.level, model.subject.component, model.subject.property]);
   const provenance = useMemo(
     () => provenanceReferences(index, model),
     [model, index],
@@ -2308,22 +2286,7 @@ function SubjectDetailEditor(props: WorkspaceProps) {
       }`}
       testId="detail-constitution"
     >
-      <Constitution
-        model={constitution}
-        onOpen={openConstitution}
-        fullMapOpen={axisMapOpen}
-        onToggleFullMap={() => setAxisMapOpen((value) => !value)}
-      />
-      {axisMapOpen ? (
-        <div className={styles.constitutionMap}>
-          <FulfilmentMap
-            index={index}
-            subject={constitution.axis ?? axisSubjectFor(model)}
-            onOpen={openAxis}
-            defaultExpanded
-          />
-        </div>
-      ) : null}
+      <Constitution model={constitution} onOpen={openConstitution} />
     </DetailBand>
   );
   const meaningSection = (

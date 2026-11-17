@@ -2334,8 +2334,3 @@ button.memberRow:focus-visible {
   text-transform: uppercase;
 }
 
-.constitutionMap {
-  margin-top: 10px;
-  border-top: 1px solid var(--color-line-soft);
-  padding-top: 8px;
-}

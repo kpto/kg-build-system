@@ -90,8 +90,8 @@ A kind includes or omits a section; it never renames one for itself.
   gap. Each box states only its own purpose and clamps; arrows point up to the
   purpose it supports. Hovering or focusing a box reveals its full meaning in a
   portal card; a box label opens that level's document. A grouped branch shows
-  the first item and `+N`; **Full axis map** expands the same data into the
-  three-column records, fulfilment and relations view.
+  the first item and `+N`. The axis legend sits at the bottom centre of each
+  lane.
 - **Meaning** is the full meaning of the current subject: purpose, the
   limitations it owns, then contextless claims. It is a separate card from the
   Constitution, so a reader can see the two axes and the subject's complete

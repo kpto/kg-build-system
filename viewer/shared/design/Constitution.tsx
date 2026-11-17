@@ -15,8 +15,6 @@ import styles from "./design.module.css";
 export interface ConstitutionProps {
   model: ConstitutionModel;
   onOpen?(target: ConstitutionTarget): void;
-  fullMapOpen?: boolean;
-  onToggleFullMap?(): void;
 }
 
 const CARD_WIDTH = 440;
@@ -164,7 +162,6 @@ function Branch({
 }) {
   return (
     <div className={styles.constitutionBranch} data-side={side}>
-      <span className={styles.constitutionBranchLabel}>{label}</span>
       <div className={styles.constitutionStack}>
         {nodes.length ? (
           nodes.map((node) => (
@@ -184,6 +181,7 @@ function Branch({
           <p className={styles.constitutionEmpty}>{empty}</p>
         )}
       </div>
+      <span className={styles.constitutionBranchLabel}>{label}</span>
     </div>
   );
 }
@@ -195,12 +193,7 @@ function Branch({
  * graph chain at the bottom. Hovering or focusing a box reveals its full
  * meaning in a portal, because the band clips overflow.
  */
-export function Constitution({
-  model,
-  onOpen,
-  fullMapOpen = false,
-  onToggleFullMap,
-}: ConstitutionProps) {
+export function Constitution({ model, onOpen }: ConstitutionProps) {
   const [hovered, setHovered] = useState<HoveredBox | null>(null);
   const closeTimer = useRef<number | null>(null);
   const cardRef = useRef<HTMLElement | null>(null);
@@ -364,7 +357,6 @@ export function Constitution({
         </div>
 
         <div className={styles.constitutionBranch} data-side="relation">
-          <span className={styles.constitutionBranchLabel}>Relation</span>
           <div className={styles.constitutionStack}>
             <Arrow />
             {primaryRelation ? (
@@ -400,21 +392,10 @@ export function Constitution({
               </div>
             ) : null}
           </div>
+          <span className={styles.constitutionBranchLabel}>Relation</span>
         </div>
       </div>
 
-      <div className={styles.constitutionTools}>
-        {onToggleFullMap ? (
-          <button
-            type="button"
-            className={styles.constitutionMapToggle}
-            aria-expanded={fullMapOpen}
-            onClick={onToggleFullMap}
-          >
-            {fullMapOpen ? "Hide axis map" : "Full axis map"}
-          </button>
-        ) : null}
-      </div>
       <p className={styles.constitutionNote}>
         The graph asserts the purpose; the relation supplies the rows; the
         fulfilment states their meeting.

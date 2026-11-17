@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import { expressionPreview, logicalTypeName, operationName } from "@/lib/expressions";
 import {
@@ -35,7 +35,7 @@ import {
   type DetailFact,
   type MemberRow,
 } from "./view/DetailChrome";
-import { FulfilmentMap, type AxisOpenTarget } from "./view/FulfilmentMap";
+import type { AxisOpenTarget } from "./view/FulfilmentMap";
 import {
   ExpressionTree,
   type ExpressionChain,
@@ -304,10 +304,6 @@ export function DataItemEditor(props: WorkspaceProps) {
     () => constitutionModel(index, { level: kind, component: model.name }),
     [index, kind, model.name],
   );
-  const [axisMapOpen, setAxisMapOpen] = useState(false);
-  useEffect(() => {
-    setAxisMapOpen(false);
-  }, [kind, model.name]);
   const overviewSection = (
       <DetailBand
         concept={concept}
@@ -357,21 +353,7 @@ export function DataItemEditor(props: WorkspaceProps) {
               openAxis(target);
           }
         }}
-        fullMapOpen={axisMapOpen}
-        onToggleFullMap={() => setAxisMapOpen((value) => !value)}
       />
-      {axisMapOpen ? (
-        <div className={styles.constitutionMap}>
-          <FulfilmentMap
-            index={index}
-            subject={
-              constitution.axis ?? { kind, component: model.name }
-            }
-            onOpen={openAxis}
-            defaultExpanded
-          />
-        </div>
-      ) : null}
     </DetailBand>
   );
   const hasMeaning =

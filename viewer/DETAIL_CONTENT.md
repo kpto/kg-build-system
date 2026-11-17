@@ -16,7 +16,7 @@ includes by their immediate importance to a reader; it never renames one. A
 | Order | Section | Question it answers | Content |
 | --- | --- | --- | --- |
 | 1 | **Overview** | What is this, in one screen? | One fact grid: kind, labels, identity, owner or endpoints, counts and licence. |
-| 2 | **Constitution** | What does this subject assert, and how is it fulfilled? | Purpose and Fulfilment are the two top boxes, on opposite sides of the separator; a horizontal arrow runs from Fulfilment to Purpose. The Graph chain is below Purpose and ends at the graph purpose; the Relation chain is below Fulfilment. The separator divides the two axes. Arrows point up to the purpose each box supports; the relation's provenance branches sit below it. Each box clamps its purpose to two lines; hovering or focusing it reveals the full meaning, and a box label opens its document. The Fulfilment box states the binding count; identity fields and coverage appear when the box has room and always in the full axis map. A grouped branch shows the first item and `+N`; one control expands the full axis map. |
+| 2 | **Constitution** | What does this subject assert, and how is it fulfilled? | Purpose and Fulfilment are the two top boxes, on opposite sides of the separator; a horizontal arrow runs from Fulfilment to Purpose. The Graph chain is below Purpose and ends at the graph purpose; the Relation chain is below Fulfilment. The separator divides the two axes. The axis legend sits at the bottom centre of each lane. Arrows point up to the purpose each box supports; the relation's provenance branches sit below it. Each box clamps its purpose to two lines; hovering or focusing it reveals the full meaning, and a box label opens its document. The Fulfilment box states the binding count; identity fields and coverage appear when the box has room. A grouped branch shows the first item and `+N`. |
 | 3 | **Meaning** | What is this for, and what does it exclude? | The full meaning of the current subject: purpose, the limitations it owns, then contextless claims; compact counts in the header. |
 | 4 | **Sources** | Where does this value come from? | Assets, source relations and derived relations, as navigable references with counts. |
 | 5 | **Build steps** | How is this built? | The narrowed workflow graph of the steps that produce the subject. |
@@ -87,11 +87,10 @@ branches descend from it, and each box points up to the purpose it supports.
   relation tree sits below it. A horizontal arrow runs from Fulfilment to
   Purpose. Every stacked item uses the same vertical gap. Fulfilment states the
   binding count; identity fields and coverage appear when the box has room and
-  always in the full axis map. The graph asserts, the relation supplies, and
+  when the box has room. The graph asserts, the relation supplies, and
   the Fulfilment box states their meeting.
 - A branch with many records, relations or assets shows the first item and
-  `+N`, so the card stays compact. **Full axis map** expands the same data into
-  the three-column records / fulfilment / relations view.
+  `+N`, so the card stays compact.
 
 The card never invents a purpose, a relation or a binding. When a declaration
 states no meaning, the box says so; when no binding meets the two axes, the
@@ -120,5 +119,5 @@ label opens that level's document. The box itself is inspection only.
 - The section body is 8px above and 10px below its content; a flush body is
   used for a canvas or a table that owns its own padding.
 - A table shares one `grid-template-columns` between its head and every row.
-- At narrow width the Sources groups stack and the full axis map becomes one
-  column; nothing overflows horizontally.
+- At narrow width the Sources groups stack into one column; nothing overflows
+  horizontally.
