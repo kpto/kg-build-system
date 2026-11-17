@@ -155,11 +155,12 @@ missing, not the code.
   question; every further layer is revealed by a named control, and raw JSON is
   not a default surface.
 - A subject that carries purpose, fulfilment and provenance is one constitution
-  DAG: purpose and fulfilment are the two top nodes, the graph ancestry and the
-  relation provenance hang below them, every edge points from the supply to the
-  consumer, and a shared declaration is one node with one edge per consumer. The
-  separator begins below fulfilment; the binding is never the parent of either
-  axis, the axes are not a Cartesian plot, and fulfilment is neither axis.
+  DAG: purpose and one fulfilment per binding are the top consumers, the graph
+  ancestry and the relation provenance hang below them, every edge points from
+  the supply to the consumer, and a shared declaration is one node with one edge
+  per consumer. The separator begins below the fulfilment row; a binding is
+  never the parent of either axis, the axes are not a Cartesian plot, and
+  fulfilment is neither axis.
 - A repeated item renders its units compactly. A heading is structural, not per
   unit: a table cell or list row does not repeat the section chrome.
 - A card uses one vertical gap between stacked items. A connector sits in that
