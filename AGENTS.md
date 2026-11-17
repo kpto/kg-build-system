@@ -158,9 +158,12 @@ missing, not the code.
   purpose sits at the top left over the graph tree and fulfilment one row lower
   on the right over the relation tree, linked fulfilment-to-purpose by an elbow.
   The graph tree climbs to the purpose and the relation tree to the fulfilment;
-  the separator begins below fulfilment and divides the trees. The binding is
-  never the parent of either axis: the axes are not a Cartesian plot, and
-  fulfilment is neither axis.
+  the separator begins below fulfilment and divides the trees. The relation tree
+  shows every relation a binding reads, each derived relation with all its
+  scanned relations and each source relation with its asset under it; a chain is
+  never flattened into siblings or hidden behind a count. The binding is never
+  the parent of either axis: the axes are not a Cartesian plot, and fulfilment
+  is neither axis.
 - A repeated item renders its units compactly. A heading is structural, not per
   unit: a table cell or list row does not repeat the section chrome.
 - A card uses one vertical gap between stacked items. A connector sits in that
