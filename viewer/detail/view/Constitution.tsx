@@ -1,9 +1,17 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { createPortal } from "react-dom";
 
 import type { ConceptKind } from "@/lib/concepts";
+import { concepts } from "@/shared/ui/concepts";
 import { ConceptGlyph } from "@/shared/ui/ConceptMark";
 import { GraphCanvas } from "@/shared/ui/GraphCanvas";
 import { ConceptPill } from "./ConceptPill";
@@ -61,6 +69,7 @@ function Box({
 }) {
   const purpose = node.meaning.purpose;
   const body = text ?? purpose ?? "No purpose is stated.";
+  const concept = pillConcept(node.kind);
   return (
     <div
       className={cx(
@@ -69,6 +78,11 @@ function Box({
         fulfilment && styles.constitutionBoxFulfilment,
         node.current && styles.constitutionBoxCurrent,
       )}
+      style={
+        {
+          "--constitution-concept": concepts[concept].color,
+        } as CSSProperties
+      }
       data-root={root || undefined}
       data-fulfilment={fulfilment || undefined}
       data-current={node.current || undefined}

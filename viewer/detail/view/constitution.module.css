@@ -98,7 +98,11 @@
   gap: var(--space-inline);
   border: var(--border-hairline) solid var(--color-line-soft);
   border-radius: var(--radius-md);
-  background: var(--color-panel-raised);
+  background: color-mix(
+    in srgb,
+    var(--constitution-concept, var(--color-panel-raised)) 8%,
+    var(--color-panel-raised)
+  );
   padding: var(--space-group) var(--space-section);
   cursor: help;
   transition:
@@ -112,7 +116,7 @@
   max-height: 96px;
   background: color-mix(
     in srgb,
-    var(--color-selection) 5%,
+    var(--constitution-concept, var(--color-panel-raised)) 11%,
     var(--color-panel-raised)
   );
 }
@@ -129,7 +133,7 @@
 .constitutionBoxFulfilment {
   background: color-mix(
     in srgb,
-    var(--color-selection) 7%,
+    var(--constitution-concept, var(--color-panel-raised)) 10%,
     var(--color-panel-raised)
   );
 }
@@ -137,7 +141,7 @@
 .constitutionBoxCurrent {
   background: color-mix(
     in srgb,
-    var(--color-selection) 8%,
+    var(--constitution-concept, var(--color-panel-raised)) 14%,
     var(--color-panel-raised)
   );
   box-shadow: var(--shadow-selection);

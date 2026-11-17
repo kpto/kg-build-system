@@ -106,8 +106,10 @@ A kind includes or omits a section; it never renames one for itself.
     record's graph ancestry belongs to the record's own constitution.
   - An asset is the given source, so it has no Constitution card. A step is
     build machinery and has none either.
-  The scene supplies nodes, edges and any rank constraint; the layout computes
-  ranks, ordering and edge routes. The canvas opens fitted and pans and zooms;
+  Each box background is a tint of its own concept colour, so the layer reads
+  before its mark is inspected. The scene supplies nodes, edges and any rank
+  constraint; the layout computes ranks, ordering and edge routes. The canvas
+  opens fitted and pans and zooms;
   selecting a node dims every other node and non-incident link, empty space
   clears, hovering or focusing reveals the full meaning, and a node label opens
   its document.
