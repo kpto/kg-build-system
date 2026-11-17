@@ -30,11 +30,14 @@ export function useGraphViewport({
   width,
   height,
   minFitScale = 0.12,
+  fitKey,
 }: {
   width: number;
   height: number;
   /** The lowest scale Fit may choose; a readable floor keeps text legible. */
   minFitScale?: number;
+  /** Changes when the document changes; a new document opens fitted. */
+  fitKey?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -90,7 +93,7 @@ export function useGraphViewport({
 
   useEffect(() => {
     fitView();
-  }, [fitView]);
+  }, [fitView, fitKey]);
 
   useEffect(() => {
     const element = containerRef.current;
@@ -211,6 +214,7 @@ export function GraphCanvas({
   ariaLabel,
   onBackgroundClick,
   minFitScale = 0.12,
+  fitKey,
 }: {
   width: number;
   height: number;
@@ -222,6 +226,8 @@ export function GraphCanvas({
   /** The lowest scale Fit may choose. A caller with a readable floor keeps
    * text legible and lets the user pan rather than shrinking the whole scene. */
   minFitScale?: number;
+  /** Changes when the document changes; the new document opens fitted. */
+  fitKey?: string;
 }) {
   const {
     containerRef,
@@ -231,7 +237,7 @@ export function GraphCanvas({
     zoomBy,
     onPointerDown,
     shouldSuppressClick,
-  } = useGraphViewport({ width, height, minFitScale });
+  } = useGraphViewport({ width, height, minFitScale, fitKey });
 
   return (
     <div

@@ -100,9 +100,10 @@ A kind includes or omits a section; it never renames one for itself.
   supply the fulfilment; the separator begins below fulfilment and divides the
   subgraphs. The binding is never the parent of either axis, and fulfilment is
   neither axis. A grouped record keeps the first record and `+N`; the relation
-  provenance never groups. The canvas pans and zooms; selecting a node dims
-  every other node and non-incident link, empty space clears, hovering or
-  focusing reveals the full meaning, and a node label opens its document. The
+  provenance never groups. The canvas opens fitted and pans and zooms; selecting
+  a node dims every other node and non-incident link, empty space clears,
+  hovering or focusing reveals the full meaning, and a node label opens its
+  document. The
   GRAPH and RELATION labels sit below their subgraphs.
 - **Meaning** leads with the subject's purpose, then sets the contextless
   claims and the limitations that bound that purpose as two labelled readings.

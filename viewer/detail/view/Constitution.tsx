@@ -334,6 +334,14 @@ export function Constitution({ model }: ConstitutionProps) {
   const hoveredKey = hovered ? boxKey(hovered.node) : undefined;
 
   const scene = useMemo(() => buildConstitutionScene(model), [model]);
+  const fitKey = useMemo(
+    () =>
+      [
+        ...scene.nodes.map((node) => node.id),
+        ...scene.edges.map((edge) => edge.id),
+      ].join("|"),
+    [scene],
+  );
 
   const hoveredLeft = hovered
     ? Math.min(
@@ -355,6 +363,7 @@ export function Constitution({ model }: ConstitutionProps) {
         className={styles.constitutionCanvas}
         testId="constitution-graph"
         ariaLabel="Constitution graph"
+        fitKey={fitKey}
         onBackgroundClick={() => setSelectedId(undefined)}
       >
         <ConstitutionSceneView

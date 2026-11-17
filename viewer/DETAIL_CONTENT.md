@@ -115,9 +115,9 @@ computed, not hand-placed. The axes are parallel lanes, not a Cartesian plot.
 
 The card never invents a purpose, a relation or a binding. When a declaration
 states no meaning, the node says so; when no binding meets the two axes, the
-card says so. The canvas pans and zooms; hovering or focusing a node
-reveals its full meaning, selecting one dims every other node and keeps its
-incident edges, and a node label opens its document. The node itself is
+card says so. The canvas opens fitted and pans and zooms; hovering or focusing
+a node reveals its full meaning, selecting one dims every other node and keeps
+its incident edges, and a node label opens its document. The node itself is
 inspection only.
 
 ## One grammar per concept
@@ -149,5 +149,5 @@ inspection only.
   padding.
 - A table shares one `grid-template-columns` between its head and every row.
 - At narrow width the Meaning readings stack into one column, the Constitution
-  canvas pans and zooms, the index rail hides, and nothing overflows
-  horizontally.
+  canvas opens fitted and pans and zooms, the index rail hides, and nothing
+  overflows horizontally.
