@@ -222,6 +222,10 @@ missing, not the code.
   own composition. A token names a role, not a measured value: spacing has no
   numbered steps. A theme check rejects a raw value or a numbered spacing token
   in a component stylesheet.
+- Type flows through the shared role scale. A section header is larger and
+  bolder than its content; an uppercase caption is a label, not a section
+  header. A component selects a role; it does not invent a font size. A missing
+  size is a missing role, added to the scale rather than at the call site.
 - A component owns its stylesheet: the global file holds theme roles, base
   element behaviour and global utilities only. A parent passes context down; a
   child never styles an ancestor, and a component block never lives in the
