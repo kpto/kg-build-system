@@ -156,10 +156,10 @@ missing, not the code.
   not a default surface.
 - A constitution is the subject's production account: its own purpose at the
   top, the declarations that bring it into being below, and every edge from the
-  supply to the consumer. A record is one DAG with its graph ancestry on the
-  left, its relation provenance on the right, and one binding box per binding
-  between them; the bindings together are the fulfilment, enclosed by one
-  labelled frame, and no separator or axis frame divides the graph. A source
+  supply to the consumer. A record is one DAG: the purpose at the root, the
+  graph ancestry framed on the left, one box per binding in the
+  fulfilment frame, and the relation provenance framed on the right; no
+  separator divides the graph. A source
   relation shows only its asset; a derived relation only its scanned source
   relations and their assets; a binding shows the target record's purpose and
   identity and the relations it reads; an asset is the origin and has no card.
