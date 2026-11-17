@@ -1,0 +1,159 @@
+@layer components {
+  /* One surface grammar shared by every feature panel. */
+  .panel {
+    border: var(--border-hairline) solid var(--color-line-soft);
+    border-radius: var(--radius-md);
+    background-color: var(--color-panel);
+    overflow: hidden;
+  }
+
+  .panelHeader {
+    display: flex;
+    min-height: 28px;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-group);
+    padding: 0 var(--space-section);
+    border-bottom: var(--border-hairline) solid var(--color-line-soft);
+    background-color: var(--color-panel-raised);
+    color: var(--color-text);
+  }
+
+  /* Small type roles used inside panels. */
+  .label {
+    color: var(--color-faint);
+    font-size: var(--text-caption);
+    font-weight: var(--weight-bold);
+    letter-spacing: var(--tracking-widest);
+    text-transform: uppercase;
+  }
+
+  .meta {
+    color: var(--color-faint);
+    font-family: var(--font-mono);
+    font-size: var(--text-caption);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* A row is the unit of a list; a button row is the one that navigates. */
+  .row {
+    display: flex;
+    min-width: 0;
+    min-height: 24px;
+    align-items: center;
+    gap: var(--space-group);
+    padding: 0 var(--space-stack);
+    border-radius: var(--radius-sm);
+    color: var(--color-muted);
+  }
+
+  .rowButton {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    text-align: left;
+  }
+
+  .rowButton:hover {
+    background-color: var(--color-panel-soft);
+    color: var(--color-text);
+  }
+
+  .rowButton[data-active="true"] {
+    background-color: var(--color-panel-soft);
+    color: var(--color-text);
+    box-shadow: var(--shadow-rail-accent);
+  }
+
+  /* A label/value pair. */
+  .field {
+    display: grid;
+    min-width: 0;
+    padding: var(--space-inline) var(--space-section);
+    align-items: baseline;
+    gap: var(--space-section);
+    grid-template-columns: minmax(78px, max-content) minmax(0, 1fr);
+  }
+
+  .fieldLabel {
+    color: var(--color-faint);
+    font-size: var(--text-body);
+    font-weight: var(--weight-medium);
+  }
+
+  .fieldValue {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    color: var(--color-text);
+    font-family: var(--font-mono);
+    font-size: var(--text-body);
+  }
+
+  /* Controls: one quiet base, one field. */
+  .control {
+    display: inline-flex;
+    min-height: 24px;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-stack);
+    padding: 0 var(--space-section);
+    border: var(--border-hairline) solid var(--color-line-soft);
+    border-radius: var(--radius-sm);
+    background-color: var(--color-panel-raised);
+    color: var(--color-muted);
+    font-family: var(--font-mono);
+    font-size: var(--text-caption);
+    line-height: var(--leading-none);
+  }
+
+  .control:hover:not(:disabled) {
+    border-color: var(--color-line-strong);
+    color: var(--color-text);
+  }
+
+  .input {
+    width: 100%;
+    height: 24px;
+    padding: 0 var(--space-stack);
+    border: var(--border-hairline) solid var(--color-line);
+    border-radius: var(--radius-sm);
+    background-color: var(--color-inset);
+    color: var(--color-text);
+    font-family: var(--font-mono);
+    font-size: var(--text-body);
+    outline: none;
+  }
+
+  .input:focus {
+    border-color: var(--color-selection);
+  }
+
+  .empty {
+    margin: 0;
+    color: var(--color-faint);
+    font-size: var(--text-body);
+  }
+
+  .hint {
+    margin: 0;
+    color: var(--color-faint);
+    font-size: var(--text-caption);
+    line-height: var(--leading-relaxed);
+  }
+
+  .kbd {
+    display: inline-flex;
+    min-width: 16px;
+    height: 16px;
+    align-items: center;
+    justify-content: center;
+    padding: 0 var(--space-inline);
+    border: var(--border-hairline) solid var(--color-line);
+    border-radius: var(--radius-sm);
+    background-color: var(--color-panel-soft);
+    color: var(--color-muted);
+    font-family: var(--font-mono);
+    font-size: var(--text-caption);
+    line-height: var(--leading-none);
+  }
+}

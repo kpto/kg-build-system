@@ -183,6 +183,13 @@ A CSS module declares the keyframes it animates with. CSS Modules scopes the
 animation name, so a reference to a global keyframe would silently lose its
 animation.
 
+The generic primitive layer is `shared/ui/Primitives.tsx` with
+`shared/ui/primitives.module.css`: `Panel`, `PanelHeader`, `Label`, `Meta`,
+`Row`, `RowButton`, `Field`, `Control`, `Input`, `Select`, `Empty`, `Hint` and
+`Kbd`. A feature composes these before it declares a local panel, row, field or
+control style. The compound primitives — viewport, pill, concept mark and
+context menu — own their own modules.
+
 ## Interaction motion
 
 - Motion is feedback, not decoration. Hover, selection and press changes use

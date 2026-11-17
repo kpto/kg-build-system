@@ -24,6 +24,15 @@ import { effectiveLicenseForGraph, effectiveLicenseForModel } from "@/proof/lice
 import { buildProof } from "@/proof/model";
 import { ContextMenu } from "@/shared/ui/ContextMenu";
 import {
+  Control,
+  Empty,
+  Label,
+  Meta,
+  Panel,
+  PanelHeader,
+  RowButton,
+} from "@/shared/ui/Primitives";
+import {
   FulfilmentMap,
 } from "@/detail/view/FulfilmentMap";
 import { cx, groupPalette, theme } from "@/shared/ui/theme";
@@ -146,34 +155,26 @@ function PropertyRows({
 }) {
   const properties = entityProperties(props, entity);
   if (!properties.length) {
-    return <p className="text-[length:var(--text-base)] text-faint">No properties are declared.</p>;
+    return <Empty>No properties are declared.</Empty>;
   }
   return (
     <div className="grid gap-0.5" data-testid="topology-properties">
       {properties.map((property) => (
-        <button
+        <RowButton
           key={property.name}
-          type="button"
           onClick={() => props.actions.inspect(propertySelection(entity, property))}
           onContextMenu={(event) =>
             onContextMenu ? onContextMenu(property, event) : undefined
           }
-          className="flex min-h-6 w-full items-baseline justify-between gap-2 border border-transparent px-1 text-left hover:border-line-soft hover:bg-panel-soft/40"
+          className="justify-between"
           data-active={activeProperty === property.name ? "true" : undefined}
-          style={
-            activeProperty === property.name
-              ? { borderColor: "var(--color-accent)", color: "var(--color-text)" }
-              : undefined
-          }
           title={`Inspect ${entityComponentName(entity)}.${property.name}`}
         >
           <span className="truncate font-mono text-[length:var(--text-base)] text-text">
             {property.name}
           </span>
-          <span className="shrink-0 font-mono text-[length:var(--text-sm)] text-faint">
-            {logicalTypeName(property.logical_type)}
-          </span>
-        </button>
+          <Meta>{logicalTypeName(property.logical_type)}</Meta>
+        </RowButton>
       ))}
     </div>
   );
@@ -279,23 +280,19 @@ function FilterButton({
   title?: string;
 }) {
   return (
-    <button
-      type="button"
+    <Control
       aria-pressed={pressed}
       onClick={onClick}
       title={title}
       className={cx(
-        "inline-flex min-h-6 items-center gap-1 border px-1.5 py-0.5 font-mono text-[length:var(--text-base)] transition-colors",
         pressed
           ? "border-accent/70 bg-accent/15 text-accent-strong"
-          : "border-line-soft bg-panel-soft/40 text-muted hover:border-line-strong hover:text-text",
+          : "bg-panel-soft/40",
       )}
     >
       <span>{children}</span>
-      {count !== undefined ? (
-        <span className="text-[length:var(--text-sm)] text-faint tabular-nums">{count}</span>
-      ) : null}
-    </button>
+      {count !== undefined ? <Meta>{count}</Meta> : null}
+    </Control>
   );
 }
 
@@ -308,7 +305,7 @@ function FilterGroup({
 }) {
   return (
     <div className="space-y-1">
-      <p className="text-[length:var(--text-sm)] tracking-[0.08em] text-faint uppercase">{label}</p>
+      <Label className="block">{label}</Label>
       <div className="flex flex-wrap gap-1">{children}</div>
     </div>
   );
@@ -552,7 +549,7 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
           className="space-y-1.5 border-t border-line-soft pt-2"
           aria-label="Topology legend"
         >
-          <p className="text-[length:var(--text-sm)] tracking-[0.08em] text-faint uppercase">Legend</p>
+          <Label className="block">Legend</Label>
           <LegendRow
             color={theme.source}
             label="Concrete node"
@@ -588,7 +585,7 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
           className="space-y-1.5 border-t border-line-soft pt-2"
           aria-label="Topology layout"
         >
-          <p className="text-[length:var(--text-sm)] tracking-[0.08em] text-faint uppercase">Layout</p>
+          <Label className="block">Layout</Label>
           <div className="flex flex-wrap gap-1">
             <button
               type="button"
@@ -2065,18 +2062,17 @@ export function TopologyInspector({
 
 
   return (
-    <aside
+    <Panel
+      as="aside"
       className={cx(
         styles.inspector,
-        "absolute top-0 right-0 bottom-0 z-20 flex w-[336px] flex-col overflow-hidden border-l border-line bg-panel",
+        "absolute top-0 right-0 bottom-0 z-20 flex w-[336px] flex-col rounded-none border-0 border-l border-line",
       )}
       aria-label="Graph selection inspector"
       data-testid="topology-inspector"
     >
-      <header className="flex flex-none items-center justify-between gap-2 border-b border-line-soft bg-panel-raised px-2.5 py-1.5">
-        <span className="text-[length:var(--text-base)] font-semibold tracking-[0.08em] text-text uppercase">
-          Inspect
-        </span>
+      <PanelHeader as="header" className="flex-none">
+        <Label className="text-text">Inspect</Label>
         <button
           type="button"
           className="text-[length:var(--text-base)] text-faint hover:text-text"
@@ -2086,7 +2082,7 @@ export function TopologyInspector({
         >
           ×
         </button>
-      </header>
+      </PanelHeader>
 
       {!entity ? (
         <div className="thin-scrollbar min-h-0 flex-1 overflow-y-auto px-3 py-2">
@@ -2256,6 +2252,6 @@ export function TopologyInspector({
           onClose={() => setMenu(undefined)}
         />
       ) : null}
-    </aside>
+    </Panel>
   );
 }

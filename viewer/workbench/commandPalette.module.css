@@ -198,19 +198,5 @@
     color: var(--color-accent-strong);
   }
 
-  .kbd {
-    display: inline-flex;
-    min-width: 17px;
-    height: 16px;
-    align-items: center;
-    justify-content: center;
-    padding: 0 var(--space-inline);
-    border: var(--border-hairline) solid var(--color-line);
-    border-radius: var(--radius-sm);
-    background-color: var(--color-panel-soft);
-    color: var(--color-muted);
-    font-family: var(--font-mono);
-    font-size: var(--text-caption);
-    line-height: var(--leading-none);
-  }
+
 }

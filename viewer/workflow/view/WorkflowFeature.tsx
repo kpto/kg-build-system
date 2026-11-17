@@ -23,6 +23,7 @@ import type {
 import { stepKey } from "@/lib/indexes";
 import { DetailBand, DetailDocument, FactGrid } from "@/detail/view/DetailChrome";
 import { ContextMenu } from "@/shared/ui/ContextMenu";
+import { Control, Empty, Field, Hint, Input, Label, Meta, Select } from "@/shared/ui/Primitives";
 import { useGraphViewport } from "@/shared/ui/GraphCanvas";
 import { cx, groupPalette, theme } from "@/shared/ui/theme";
 import {
@@ -69,26 +70,23 @@ export function WorkflowControls({ state }: WorkspaceProps) {
     <div className="flex h-full flex-col" data-testid="workflow-controls">
       <div className="flex flex-none items-center gap-1.5 border-b border-line-soft p-2">
         <Search aria-hidden className="size-3 text-faint" />
-        <input
+        <Input
           value={ui.filters.query}
           onChange={(event) => store.setQuery(event.target.value)}
           placeholder="Filter workflow steps"
           aria-label="Filter workflow steps"
           spellCheck={false}
-          className="h-6 min-w-0 flex-1 border border-line bg-inset px-1.5 font-mono text-[length:var(--text-base)] text-text outline-none placeholder:text-faint focus:border-selection"
+          className="min-w-0 flex-1"
           data-testid="workflow-filter-query"
         />
       </div>
 
       <div className="thin-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto p-2">
         <label className="block">
-          <span className="mb-1 block text-[length:var(--text-sm)] font-semibold tracking-[0.08em] text-faint uppercase">
-            Component
-          </span>
-          <select
+          <Label className="mb-1 block">Component</Label>
+          <Select
             value={ui.filters.component}
             onChange={(event) => store.setComponent(event.target.value)}
-            className="h-6 w-full border border-line bg-inset px-1 font-mono text-[length:var(--text-base)] text-text outline-none focus:border-selection"
             data-testid="workflow-filter-component"
           >
             <option value="all">All components · {model.components.length}</option>
@@ -97,17 +95,14 @@ export function WorkflowControls({ state }: WorkspaceProps) {
                 {component}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
 
         <label className="block">
-          <span className="mb-1 block text-[length:var(--text-sm)] font-semibold tracking-[0.08em] text-faint uppercase">
-            Instruction
-          </span>
-          <select
+          <Label className="mb-1 block">Instruction</Label>
+          <Select
             value={ui.filters.kind}
             onChange={(event) => store.setKind(event.target.value)}
-            className="h-6 w-full border border-line bg-inset px-1 font-mono text-[length:var(--text-base)] text-text outline-none focus:border-selection"
             data-testid="workflow-filter-kind"
           >
             <option value="all">All instruction kinds</option>
@@ -116,31 +111,30 @@ export function WorkflowControls({ state }: WorkspaceProps) {
                 {kind.label} · {kind.count}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
 
-        <div className="flex items-center justify-between border-t border-line-soft pt-2 font-mono text-[length:var(--text-sm)] text-faint">
+        <Meta className="flex items-center justify-between border-t border-line-soft pt-2">
           <span>
             {rows.length} / {model.steps} steps
           </span>
           <span>{model.connections} connections</span>
-        </div>
+        </Meta>
 
-        <p className="text-[length:var(--text-sm)] leading-relaxed text-faint">
+        <Hint>
           Choosing a component selects it. Use Open step group in the view
           header to enter its step graph. Filters narrow that graph and dim the
           component overview; every step remains available in Explorer.
-        </p>
+        </Hint>
 
-        <button
-          type="button"
+        <Control
           onClick={() => store.resetFilters()}
-          className="flex w-full items-center justify-center gap-1.5 border border-line-soft px-2 py-1 font-mono text-[length:var(--text-sm)] text-muted hover:border-line-strong hover:text-text"
+          className="w-full"
           data-testid="workflow-reset"
         >
           <RotateCcw aria-hidden className="size-3" />
           Reset workflow filters
-        </button>
+        </Control>
       </div>
     </div>
   );
@@ -157,16 +151,7 @@ function Fact({
   label: string;
   children: ReactNode;
 }) {
-  return (
-    <div className="flex min-w-0 items-baseline gap-2">
-      <span className="w-24 shrink-0 text-[length:var(--text-xs)] font-semibold tracking-[0.07em] text-faint uppercase">
-        {label}
-      </span>
-      <span className="min-w-0 flex-1 truncate font-mono text-[length:var(--text-base)] text-text">
-        {children}
-      </span>
-    </div>
-  );
+  return <Field label={label} value={children} />;
 }
 
 function scalar(value: unknown): string {
@@ -182,9 +167,7 @@ function PayloadFacts({ step }: { step: WorkflowStep }) {
   const entries = Object.entries(step.instruction.payload ?? {});
   if (!entries.length) {
     return (
-      <p className="text-[length:var(--text-base)] text-faint">
-        This instruction carries no payload.
-      </p>
+      <Empty>This instruction carries no payload.</Empty>
     );
   }
   return (

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
 import { CircleDot, FileText, Search, X } from "lucide-react";
 
 import { searchIndex } from "@/lib/search";
+import { Kbd } from "@/shared/ui/Primitives";
 import { subjectKindLabel } from "@/lib/summary";
 import type { SearchKind, SearchRecord } from "@/lib/types";
 import { cx } from "@/shared/ui/theme";
@@ -299,14 +300,14 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
 
         <footer className={styles.paletteFooter}>
           <span>
-            <kbd className={styles.kbd}>↑</kbd>
-            <kbd className={styles.kbd}>↓</kbd> navigate
+            <Kbd>↑</Kbd>
+            <Kbd>↓</Kbd> navigate
           </span>
           <span>
-            <kbd className={styles.kbd}>Enter</kbd> open
+            <Kbd>Enter</Kbd> open
           </span>
           <span>
-            <kbd className={styles.kbd}>Esc</kbd> close
+            <Kbd>Esc</Kbd> close
           </span>
           <span className={styles.paletteCount}>{items.length} results</span>
         </footer>
