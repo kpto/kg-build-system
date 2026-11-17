@@ -235,6 +235,10 @@ missing, not the code.
 - A shared component or model needs a consumer in more than one feature. A
   domain component with one consumer belongs to that feature; a generic
   component with one consumer also belongs to that feature.
+- A concept's mark carries its type; do not repeat the type as visible text
+  beside it. A count appears once, in the region that owns the list.
+- A section header states its title. Its question is the accessible
+  description, and its count appears only while the section is collapsed.
 - Motion is feedback, not decoration: short ease-out transitions on transform and
   opacity, origin-aware entrances, and reduced motion removes movement.
 - End every change report with the rule-promotion result: none, refined or
