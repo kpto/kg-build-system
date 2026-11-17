@@ -161,9 +161,9 @@ missing, not the code.
   scanned source relations and their assets; a binding shows the target record's
   purpose and identity and the relations it reads; an asset is the origin and
   has no card. A shared declaration is one node with one edge per consumer; a
-  binding is never the parent of either side, fulfilment is neither axis, and
-  each box carries its own concept mark and concept-tinted background, never the
-  graph's.
+  binding is never the parent of either side, fulfilment is neither axis, each
+  box carries its own concept mark and concept-tinted background, and each axis
+  is enclosed by a labelled frame.
 - A DAG scene is laid out by a layered layout, not by fixed columns: the scene
   supplies nodes, edges and any rank constraint (such as one rank for every
   fulfilment), the layout computes the ranks, ordering and edge routes, and the
