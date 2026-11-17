@@ -112,9 +112,10 @@ label opens that level's document. The box itself is inspection only.
 ## Layout
 
 - A document is a stack of section cards inset 12px from the document edge and
-  separated by 8px. Each card has a 1px outline, a 3px radius and no drop
-  shadow. Every card is rendered by the one shared `DetailBand` frame; a detail
-  view does not declare its own card markup or surface.
+  separated by 8px. Each card is a shared `Panel` surface with the generic
+  panel radius and hairline outline, no drop shadow. Every card is rendered by
+  the one shared `DetailBand` feature primitive; a detail view does not declare
+  its own card markup or surface.
 - The header is sticky; the cards scroll.
 - The section body is 8px above and 10px below its content; a flush body is
   used for a canvas or a table that owns its own padding.

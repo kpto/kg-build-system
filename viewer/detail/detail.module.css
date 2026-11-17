@@ -1882,24 +1882,13 @@ button.expressionToggle:hover {
    the only place a section card outline, radius or surface is declared. */
 .band {
   min-width: 0;
-  overflow: hidden;
-  border: var(--border-hairline) solid var(--color-line);
-  border-radius: var(--radius-md);
-  background-color: var(--color-panel);
 }
 
 .bandHead {
-  display: flex;
   width: 100%;
-  min-height: 25px;
-  align-items: center;
-  gap: var(--space-stack);
-  padding: 0 var(--space-section);
   border: 0;
   border-bottom: var(--border-hairline) solid var(--color-line-soft);
   border-left: var(--border-heavy) solid transparent;
-  background-color: var(--color-panel-raised);
-  color: var(--color-text);
   text-align: left;
 }
 

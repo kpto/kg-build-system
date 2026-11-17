@@ -5,6 +5,8 @@ import { ChevronRight } from "lucide-react";
 
 import type { ConceptKind } from "@/lib/concepts";
 import { ConceptGlyph, ConceptMark } from "@/shared/ui/ConceptMark";
+import { Panel, PanelHeaderButton } from "@/shared/ui/Primitives";
+import { cx } from "@/shared/ui/theme";
 import styles from "../detail.module.css";
 
 /** The one logo rule for a section title; a view overrides it only when the
@@ -134,14 +136,14 @@ export function DetailBand({
 }: DetailBandProps) {
   const [open, setOpen] = useState(defaultOpen ?? priority === "primary");
   return (
-    <section
-      className={`${styles.band} ${className ?? ""}`}
+    <Panel
+      as="section"
+      className={cx(styles.band, className)}
       data-open={open}
       data-priority={priority}
       data-testid={testId}
     >
-      <button
-        type="button"
+      <PanelHeaderButton
         className={styles.bandHead}
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
@@ -156,13 +158,13 @@ export function DetailBand({
         {meta !== undefined ? (
           <span className={styles.bandMeta}>{meta}</span>
         ) : null}
-      </button>
+      </PanelHeaderButton>
       {open ? (
         <div className={flush ? styles.bandBodyFlush : styles.bandBody}>
           {children}
         </div>
       ) : null}
-    </section>
+    </Panel>
   );
 }
 

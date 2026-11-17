@@ -6,12 +6,17 @@ import type {
 import { cx } from "./theme";
 import styles from "./primitives.module.css";
 
+type DataAttributes = {
+  [key: `data-${string}`]: string | number | boolean | undefined;
+};
+
 /** A bordered feature surface. */
 export function Panel({
   as: Tag = "div",
   className,
   ...props
-}: ComponentPropsWithoutRef<"div"> & { as?: "div" | "aside" | "section" }) {
+}: ComponentPropsWithoutRef<"div"> &
+  DataAttributes & { as?: "div" | "aside" | "section" }) {
   return <Tag className={cx(styles.panel, className)} {...props} />;
 }
 
@@ -22,6 +27,21 @@ export function PanelHeader({
   ...props
 }: ComponentPropsWithoutRef<"div"> & { as?: "div" | "header" }) {
   return <Tag className={cx(styles.panelHeader, className)} {...props} />;
+}
+
+/** A panel header that is itself the collapse control. */
+export function PanelHeaderButton({
+  className,
+  type = "button",
+  ...props
+}: ComponentPropsWithoutRef<"button">) {
+  return (
+    <button
+      type={type}
+      className={cx(styles.panelHeader, className)}
+      {...props}
+    />
+  );
 }
 
 /** A small uppercase field label. */
