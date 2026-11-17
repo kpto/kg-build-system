@@ -244,6 +244,9 @@ missing, not the code.
   follow the scroll position.
 - Every tab uses one banner for identity, overview and view actions. A detail
   body starts at its first section, not an Overview band.
+- A record detail leads with meaning and then states its constitution, members,
+  connections and bindings. The binding document carries the expression and
+  build steps; a record reaches them through its bindings.
 - Motion is feedback, not decoration: short ease-out transitions on transform and
   opacity, origin-aware entrances, and reduced motion removes movement.
 - End every change report with the rule-promotion result: none, refined or
