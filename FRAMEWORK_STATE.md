@@ -5,7 +5,7 @@ implementation.
 
 ## Verification
 
-- **363 tests**, **1957 subtests**.
+- **455 tests**, **2065 subtests**.
 - Pyright: **0 errors**.
 - `./docs/build.sh`: passes.
 - The reference build passes.

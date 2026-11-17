@@ -15,15 +15,24 @@ from .row_sources import (
     DerivedRowSource, GroupByKeys, JoinHow, OrderByKey, RelationRowSource,
     RowSource, RowSourceProvider, StageRowSource,
 )
-from .shapes import ShapeField
+from .row_operations import (
+    Grain, RelationOperation, RelationOperationSpec,
+)
+from .shapes import (
+    FullJoinedShape, GroupedShape, InnerJoinedShape, LeftJoinedShape,
+    RightJoinedShape, ShapeField,
+)
 
 __all__ = [
     "ComputedStruct", "Contract", "DeclaredValue", "Definition",
-    "DerivedRowSource", "Field", "FieldDefinition", "JoinHow",
-    "GroupByKeys", "OrderByKey",
+    "DerivedRowSource", "Field", "FieldDefinition", "FullJoinedShape",
+    "GroupedShape", "InnerJoinedShape", "JoinHow",
+    "GroupByKeys", "Grain", "LeftJoinedShape", "OrderByKey",
     "NullableComputedField", "ScalarValue", "DerivedRelation", "DerivedRelationMeta",
-    "DerivedRelationOptions", "RelationRowSource", "RowSource",
-    "RowSourceProvider", "ShapeField", "Stage", "StageMeta", "StageOptions",
+    "DerivedRelationOptions", "RelationOperation", "RelationOperationSpec",
+    "RelationRowSource", "RowSource",
+    "RowSourceProvider", "RightJoinedShape", "ShapeField", "Stage",
+    "StageMeta", "StageOptions",
     "StageRowSource", "Struct", "StructOptions", "StructOptionsTemplate",
     "StructTemplate", "SourceRelation", "SourceRelationGroup",
     "SourceRelationGroupOptions", "SourceRelationOptions",

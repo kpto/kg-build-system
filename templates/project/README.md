@@ -26,9 +26,11 @@ project/                 the package; the declaration tree
   relation/source/       asset-backed relations
   relation/derived/      published computed relations and private stages
   binding/               the fulfilment between a relation and a record
+  expression/            project-local value operations: spec and typed handle
+  modules/               project-local planners, executors, emitters, relation operations and resources
   data/                  the fixture source
   manifest.py            the blueprint and workflow declarations
-tests/                   the philosophy gate and the smoke test
+tests/                   the philosophy gate, the smoke test and the example tests
 ```
 
 Each directory has a `README.md` directive. Read it before adding a file there.
@@ -47,10 +49,86 @@ relations and bindings all say “replace it”. The order is:
 5. Replace the records in `graph/` and the graph declaration.
 6. Replace the bindings in `binding/`.
 7. Delete `data/items.json` and add your source.
-8. Run `uv run pytest`.
+8. If the format is not parquet, json or csv, add an input adapter in
+   `modules/` (see below).
+9. Run `uv run pytest`.
 
 `kbs init` will copy this template; an empty variant will start without the
 fixture when you prefer to write the first slice directly.
+
+## Adapt an input
+
+The shipped source planner reads `parquet`, `json` and `csv`. For another input,
+add a project-local module under `project/modules/`: a planner with no-input
+steps and an executor that decodes the input and registers the relation.
+`hello_world.py` is the minimal pair and `tests/test_input_adapter.py` runs it.
+Read `project/modules/README.md` for the rule and the composition.
+
+The adapter preserves the source model. It is a decoder, not a transformer: it
+decodes and casts to the types the declarations already state; it does not join,
+filter, translate identifiers, deduplicate, aggregate, expand an array or change
+the grain. If the bytes do not match the declared relation, it fails rather than
+repairing the schema. A rule that changes what a row means belongs in a derived
+relation, a stage, a binding or a later planner. Keep the adapter as thin as the
+format allows: one step and one relation.
+
+## Extend an expression
+
+A value operation is one row in, one value out; it does not change the row count
+or the grain. Add it in `project/expression/` as an `OperationSpec` plus a typed
+`Operation` handle. Add its engine emitter in `project/modules/`, and compose the
+language and engine in `manifest.py`.
+
+Both authoring forms use the same handle:
+
+```python
+from project.expression.hello import hello
+
+first = hello(row.item_label.default_to("Untitled item"))
+second = row.item_label.default_to("Untitled item").custom_op(hello)
+```
+
+The fixture's `hello` operation is wired into the item binding, so
+`tests/test_hello_expression.py` proves both forms and the build. Read
+`project/expression/README.md` for the rule. There is no `register_operation`
+and no registry; the operation set is part of the expressions language
+composition.
+
+A row effect, a grain change or a relation aggregate is not an expression
+operation. Use a `DerivedRelation`, a `Stage`, or a relation operation.
+
+## Extend a relation
+
+A calculation that changes the row count or shape is a **relation operation**.
+It takes one input row source, declares an output shape and a grain, and supplies
+an engine `RowSourceEmitter`:
+
+```python
+class CountRow(Shape):
+    count: Selection[int]
+
+COUNT_ROWS = RelationOperationSpec(
+    name="count_rows", output=CountRow, grain="one_total",
+)
+count_rows = RelationOperation(COUNT_ROWS)
+```
+
+`project/modules/count_rows.py` is the minimal global count. Compose its
+emitter into the engine and the engine into the toolchain:
+
+```python
+engine = DuckDbSqlEmitter(
+    instruction_emitter=(
+        DuckDbInstructionEmitter().with_row_sources(CountRowsEmitter())
+    ),
+)
+toolchain = default_toolchain(engine=engine)
+```
+
+The output is plan-local until a `DerivedRelation` or `Stage` publishes it with a
+matching grain. `tests/test_relation_operation.py` proves the count executes.
+The relation operation is not wired into the conformance fixture workflow; it is
+an extension example.
 
 ## The gate
 

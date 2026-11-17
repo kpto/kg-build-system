@@ -5,19 +5,23 @@ from collections.abc import Mapping, Sequence
 from typing import Any, cast
 
 from kg_build_system.distribution.languages.annotations.service.internal import annotation_from_document, annotation_to_document
+from kg_build_system.distribution.languages.expressions.model.internal.dto import OperationParameterDTO
 from kg_build_system.distribution.languages.expressions.service.internal.dto.codec import expression_from_document, expression_to_document
 from kg_build_system.distribution.model.public.refs import (
     AssetRef, FieldRef, RelationRef, ref_from_document, ref_to_document,
 )
-from kg_build_system.kernel.service.internal.types import type_from_document, type_to_document
+from kg_build_system.distribution.languages.data.model.public.shapes import ShapeField
+from kg_build_system.kernel.model.internal.json import FrozenObject, freeze_json
+from kg_build_system.kernel.service.internal.types import type_from_dto, type_from_document, type_to_document, type_to_dto
 from ...model.internal.dto.blueprint_dto import (
     ColumnDTO, DataPartDTO, DefinitionDTO, DerivedRelationDTO,
     FieldDefinitionDTO, SourceRelationDTO, RowDistinctDTO,
-    RowFilterDTO, RowGroupByDTO, RowJoinDTO, RowOrderByDTO, RowScanDTO,
-    RowSourcePlanDTO, RowUnionDTO, RowUnnestDTO, StructDTO,
+    RowFilterDTO, RowGroupByDTO, RowJoinDTO, RowOperationDTO, RowOrderByDTO,
+    RowScanDTO, RowSourcePlanDTO, RowUnionDTO, RowUnnestDTO, StructDTO,
 )
 
 _JOIN_MODES = {"inner", "left", "right", "full"}
+_GRAINS = {"one_per_input_row", "one_per_group", "one_total"}
 
 
 def _object(value: Any, context: str) -> Mapping[str, Any]:
@@ -130,6 +134,35 @@ def _optional_field_definition(
     return None if document is None else _decode_field_definition(document)
 
 
+def _thaw_json(value: Any) -> Any:
+    if isinstance(value, FrozenObject):
+        return {key: _thaw_json(item) for key, item in value.items}
+    if isinstance(value, tuple):
+        return [_thaw_json(item) for item in value]
+    return value
+
+
+def _encode_shape_field(field: ShapeField) -> dict[str, Any]:
+    return {
+        "attribute": field.attribute,
+        "name": field.name,
+        "logical_type": type_to_document(type_to_dto(field.logical_type)),
+    }
+
+
+def _decode_shape_field(value: Any) -> ShapeField:
+    document = _object(value, "shape field")
+    return ShapeField(
+        attribute=_text(document, "attribute"),
+        name=_text(document, "name"),
+        logical_type=type_from_dto(
+            type_from_document(
+                _object(document.get("logical_type"), "logical_type")
+            )
+        ),
+    )
+
+
 # ---------------------------------------------------------------------------
 # Row plans
 
@@ -188,6 +221,18 @@ def _encode_plan(plan: RowSourcePlanDTO) -> dict[str, Any]:
             "input": _encode_plan(plan.input),
             "field": plan.field,
             "expression": expression_to_document(plan.expression),
+        }
+    if isinstance(plan, RowOperationDTO):
+        return {
+            "kind": "operation",
+            "operation": plan.operation,
+            "input": _encode_plan(plan.input),
+            "parameters": [
+                {"name": parameter.name, "value": _thaw_json(parameter.value)}
+                for parameter in plan.parameters
+            ],
+            "output": [_encode_shape_field(field) for field in plan.output],
+            "grain": plan.grain,
         }
     raise TypeError(f"unsupported row-source plan {plan!r}")
 
@@ -262,6 +307,23 @@ def _decode_plan(value: Mapping[str, Any]) -> RowSourcePlanDTO:
             expression_from_document(
                 _object(value.get("expression"), "unnest expression")
             ),
+        )
+    if kind == "operation":
+        grain = value.get("grain")
+        if grain not in _GRAINS:
+            raise ValueError(f"unknown row operation grain {grain!r}")
+        parameters = []
+        for item in _array(value.get("parameters", ()), "operation parameters"):
+            document = _object(item, "operation parameter")
+            parameters.append(OperationParameterDTO(
+                _text(document, "name"), freeze_json(document.get("value")),
+            ))
+        return RowOperationDTO(
+            operation=_text(value, "operation"),
+            input=_decode_plan(_object(value.get("input"), "row-source input")),
+            parameters=tuple(parameters),
+            output=_items(value, "output", _decode_shape_field),
+            grain=cast(Any, grain),
         )
     raise ValueError(f"unknown row-source plan kind {kind!r}")
 

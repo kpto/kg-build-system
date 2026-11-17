@@ -5,6 +5,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from ....model.internal.dto.blueprint_dto import ExpressionDTO
+from ....model.internal.dto.operation_dto import ExpressionsPartDTO
 
 
 def expression_to_document(expression: ExpressionDTO) -> dict[str, Any]:
@@ -51,4 +52,52 @@ def expression_from_document(value: Mapping[str, Any]) -> ExpressionDTO:
     return decode(value)
 
 
-__all__ = ["expression_from_document", "expression_to_document"]
+def expressions_part_to_document(part: ExpressionsPartDTO) -> dict[str, Any]:
+    """Encode the expressions language part as its canonical document.
+
+    Example:
+        ```python
+        from kg_build_system.distribution.languages.expressions.model.internal import (
+            ExpressionsPartDTO,
+        )
+        from kg_build_system.distribution.languages.expressions.service.internal import (
+            expressions_part_to_document,
+        )
+
+        document = expressions_part_to_document(ExpressionsPartDTO())
+        assert document == {"operations": []}
+        ```
+    """
+    from ..._private.dto_codec import (
+        expressions_part_to_document as encode,
+    )
+
+    return encode(part)
+
+
+def expressions_part_from_document(
+    value: Mapping[str, Any],
+) -> ExpressionsPartDTO:
+    """Decode the expressions language part from its canonical document.
+
+    Example:
+        ```python
+        from kg_build_system.distribution.languages.expressions.service.internal import (
+            expressions_part_from_document,
+        )
+
+        part = expressions_part_from_document({"operations": []})
+        assert part.operations == ()
+        ```
+    """
+    from ..._private.dto_codec import (
+        expressions_part_from_document as decode,
+    )
+
+    return decode(value)
+
+
+__all__ = [
+    "expression_from_document", "expression_to_document",
+    "expressions_part_from_document", "expressions_part_to_document",
+]

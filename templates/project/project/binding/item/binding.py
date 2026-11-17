@@ -10,6 +10,7 @@ from kg_build_system import (
     node_binding,
 )
 
+from project.expression.hello import hello
 from project.graph.item.node import ItemNode
 from project.relation.source.items import Items
 
@@ -19,7 +20,10 @@ item_binding = node_binding(
     rows=Items.row_source(),
     bind=lambda row: NodeValues(
         build_key=row.item_id.alter_rows().drop_null(),
-        properties=ItemNode(label=row.item_label.default_to("Untitled item")),
+        properties=ItemNode(
+            label=row.item_label.default_to("Untitled item"),
+            greeting=hello(row.item_label.default_to("Untitled item")),
+        ),
     ),
     name="fixture_item",
     options=BindingOptions(

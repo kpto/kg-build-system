@@ -33,7 +33,7 @@ evidence:
 - **R4.** A `Declaration` MUST NOT carry a key. `compute_key` MUST derive it, and a `Symbol` MUST carry key, kind, value, and references.
 - **R5.** `transcribe` MUST run once per reachable declaration, dependencies first, and its produced key MUST equal the indexed key.
 - **R6.** The linker MUST refuse an unknown reference and a reference cycle.
-- **R7.** `GraphBlueprint` MUST have exactly five fields: `graph`, `data`, `assets`, `bindings`, and `graph_declaration`. The declaration field MUST be optional. The data part MUST expose `source_relations` and `derived_relations`; a stage MUST be recorded in `derived_relations` with internal visibility and no meaning.
+- **R7.** `GraphBlueprint` MUST have exactly six fields: `graph`, `data`, `assets`, `bindings`, `operations`, and `graph_declaration`. The declaration field MUST be optional. The data part MUST expose `source_relations` and `derived_relations`; a stage MUST be recorded in `derived_relations` with internal visibility and no meaning. The operations part MUST publish every discovered expression operation declaration.
 - **R8.** Every cross-symbol field MUST be a typed ref encoded as `[language, role, *key]`. A bare cross-symbol string MUST NOT appear.
 - **R9.** A codec round trip MUST be judged by canonical document equality, not source text equality. Decoding MUST NOT validate the blueprint.
 - **R10.** `blueprint_to_source` MUST render in the order graph declaration, asset, topology, data, binding. The data fragment MUST render each source relation, each derived relation and the private stages of that relation.

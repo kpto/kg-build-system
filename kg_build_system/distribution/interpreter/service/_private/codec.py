@@ -11,6 +11,9 @@ from typing import Any, Mapping
 from kg_build_system.distribution.languages.asset.service.internal.codec import assets_from_document, assets_to_document
 from kg_build_system.distribution.languages.binding.service.internal.codec import binding_from_document, binding_to_document
 from kg_build_system.distribution.languages.data.service.internal.codec import data_from_document, data_to_document
+from kg_build_system.distribution.languages.expressions.service.internal.dto.codec import (
+    expressions_part_from_document, expressions_part_to_document,
+)
 from kg_build_system.distribution.languages.graph.service.internal import (
     graph_declaration_from_document,
     graph_declaration_to_document,
@@ -23,8 +26,9 @@ def blueprint_to_document(blueprint: GraphBlueprint) -> dict[str, Any]:
     """Encode a blueprint into its canonical JSON-compatible document.
 
     The document has one member per layer codec: ``graph_declaration`` when the
-    project has a graph declaration, then ``graph``, ``data``, ``assets`` and
-    ``bindings``. The graph declaration member is omitted when absent.
+    project has a graph declaration, then ``graph``, ``data``, ``assets``,
+    ``bindings`` and ``operations``. The graph declaration member is omitted when
+    absent.
     """
     document: dict[str, Any] = {}
     if blueprint.graph_declaration is not None:
@@ -37,6 +41,7 @@ def blueprint_to_document(blueprint: GraphBlueprint) -> dict[str, Any]:
     document["bindings"] = [
         binding_to_document(binding) for binding in blueprint.bindings
     ]
+    document["operations"] = expressions_part_to_document(blueprint.operations)
     return document
 
 
@@ -45,7 +50,8 @@ def blueprint_from_document(value: Mapping[str, Any]) -> GraphBlueprint:
 
     The layer codecs reconstruct their own DTOs; the blueprint only wraps them.
     A document without ``graph_declaration`` remains valid and decodes to
-    ``None``.
+    ``None``. A document without ``operations`` decodes to the empty expressions
+    part.
     """
     graph = graph_from_document(value["graph"])
     data = data_from_document(value["data"])
@@ -57,12 +63,14 @@ def blueprint_from_document(value: Mapping[str, Any]) -> GraphBlueprint:
         None if declaration_document is None
         else graph_declaration_from_document(declaration_document)
     )
+    operations = expressions_part_from_document(value.get("operations", {}))
     return GraphBlueprint(
         graph=graph,
         data=data,
         assets=assets,
         bindings=bindings,
         graph_declaration=graph_declaration,
+        operations=operations,
     )
 
 

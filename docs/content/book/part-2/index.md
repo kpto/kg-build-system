@@ -47,6 +47,13 @@ deciding how to produce it. The supplied operations are a baseline, not a domain
 vocabulary; the work is to state the model, not to write a sequence of steps that
 happens to produce data.
 
+Project-local extension is expected. A domain value operation is an
+`OperationSpec` plus a typed handle in `expression/`; a grain-changing operation
+is a `RelationOperationSpec` plus a `RowSourceEmitter` in `modules/`; a new
+physical input is a source adapter; a new pass over records is a planner and
+executor module. The [Extension reference](/appendix/reference/extension) states
+the exact surfaces, and the template carries a runnable example of each lane.
+
 Four habits set the direction.
 
 **Start from meaning.** A source describes bytes. A node, an edge and a claim

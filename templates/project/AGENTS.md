@@ -61,7 +61,9 @@ what the graph asserts                   what the domain contains
 
 1. `START-HERE.md` — the intention interview.
 2. `README.md` — the project and the fixture.
-3. `graph/README.md`, `relation/README.md`, `binding/README.md` — the axes.
+3. `graph/README.md`, `relation/README.md`, `binding/README.md`,
+   `expression/README.md`, `modules/README.md` — the axes and the extension
+   lanes.
 4. `tests/test_philosophy.py` — the gate you must pass.
 5. The kg-build-system book for the long argument.
 
@@ -81,6 +83,17 @@ what the graph asserts                   what the domain contains
   `property()`, `NodeOptions` and `StructOptions` refuse a missing meaning.
 - A binding's `name` is a display handle. It is excluded from the binding
   identity digest, so renaming a binding does not change what it declares.
+- A source adapter preserves the source's schema, null assumptions, grain and
+  identity; it decodes and casts only. A join, filter, identity translation,
+  deduplication, aggregation or array expansion belongs in a derived relation,
+  a stage, a binding or a later planner.
+- A project-local value operation is an `OperationSpec` plus a typed `Operation`
+  handle in `expression/`; its engine emitter is in `modules/`; the language is
+  composed in `manifest.py`. There is no operation registry. A row effect, a
+  grain change or a relation aggregate is not an expression operation.
+- A relation operation is one input row source, one declared output shape and one
+  grain; its `RowSourceEmitter` is in `modules/`. Its output is plan-local until
+  a `DerivedRelation` or `Stage` publishes it with a matching grain.
 
 The stranger test: could a reviewer who has not seen the code say what a
 declaration is for, what it asserts and what it excludes? If not, the meaning is

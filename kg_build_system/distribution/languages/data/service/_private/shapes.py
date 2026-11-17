@@ -5,11 +5,12 @@ import json
 import sys
 from collections.abc import Sequence
 from hashlib import sha256
-from typing import Any, TypeVar, cast
+from typing import Any, TypeVar, cast, get_args, get_origin, get_type_hints
 
-from kg_build_system.distribution.languages.expressions.model.internal import Traversal; from kg_build_system.distribution.languages.expressions.service.internal import field_reference
+from kg_build_system.distribution.languages.expressions.model.internal import Traversal; from kg_build_system.distribution.languages.expressions.model.public import Selection
+from kg_build_system.distribution.languages.expressions.service.internal import field_reference
 from kg_build_system.distribution.languages.expressions.service.internal import select_member, wrap_expression
-from kg_build_system.kernel.model.public.types import ArrayType, LogicalType, NullableType, Shape, Struct, StructType; from kg_build_system.kernel.service.internal.types import type_from_dto, type_to_document, type_to_dto
+from kg_build_system.kernel.model.public.types import ArrayType, LogicalType, NullableType, Shape, Struct, StructType; from kg_build_system.kernel.service.internal.types import normalize_type, type_from_dto, type_to_document, type_to_dto
 from kg_build_system.kernel.model.internal.types.dto import ArrayTypeDTO, CustomTypeDTO, LogicalTypeDTO, NullableTypeDTO, StructTypeDTO, UnitTypeDTO
 from ...model.public.fields import Field, FieldMetadata
 from ...model.public.shapes import ShapeField
@@ -202,6 +203,32 @@ def derived_relation_attrs(shape: type[Shape]) -> dict[str, Any]:
     return attrs
 
 
+def _annotated_shape_fields(shape: type[Shape]) -> tuple[ShapeField, ...]:
+    """Read a declared shape whose members are class-level ``Selection`` annotations."""
+    hints = get_type_hints(shape, include_extras=True)
+    fields: list[ShapeField] = []
+    for attribute, annotation in hints.items():
+        if attribute.startswith("_"):
+            continue
+        if get_origin(annotation) is not Selection:
+            raise TypeError(
+                f"{shape.__name__}.{attribute} must be a Selection[T] annotation"
+            )
+        arguments = get_args(annotation)
+        if len(arguments) != 1:
+            raise TypeError(
+                f"{shape.__name__}.{attribute} must be a Selection[T] annotation"
+            )
+        fields.append(ShapeField(
+            attribute, attribute, normalize_type(arguments[0]),
+        ))
+    if not fields:
+        raise TypeError(
+            f"{shape.__name__} declares no shape members"
+        )
+    return tuple(fields)
+
+
 def shape_fields(shape: type[Shape]) -> tuple[ShapeField, ...]:
     """The members of a shape, whether declared or generated."""
     recorded = vars(shape).get("_kg_row_source_fields")
@@ -227,6 +254,8 @@ def shape_fields(shape: type[Shape]) -> tuple[ShapeField, ...]:
             )
             for attribute, field in fields.items()
         )
+    if getattr(shape, "__annotations__", None):
+        return _annotated_shape_fields(shape)
     raise TypeError(f"{shape.__name__} is not a row shape with readable fields")
 
 

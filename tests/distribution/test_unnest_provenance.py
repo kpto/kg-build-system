@@ -13,8 +13,11 @@ from kg_build_system import (
     DerivedRelationOptions,
     Field,
     Meaning,
+    Nullable,
     Omitted,
     Purpose,
+    Selection,
+    Shape,
     SourceRelation,
     Struct,
     computed_field,
@@ -37,7 +40,12 @@ class Parent(SourceRelation[TestEstate]):
     items: Field[Array[Item | None]] = field(meaning=Omitted)
 
 
-items = Parent.row_source().unnest(lambda row: row.items)
+class ParentItemShape(Shape):
+    item_id: Selection[Nullable[str]]
+    items: Selection[Nullable[Item]]
+
+
+items = Parent.row_source().unnest(lambda row: row.items, out=ParentItemShape)
 
 
 class ParentItem(DerivedRelation(items)):

@@ -4,6 +4,9 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Any
 
+from kg_build_system.distribution.languages.data.model.internal.dto import (
+    DataPartDTO,
+)
 from kg_build_system.kernel import (
     Declaration,
     Key,
@@ -125,9 +128,14 @@ class BindingLanguage(Language):
         return symbol_for_declaration(declaration, context)
 
     def render(
-        self, symbol: Any, context: RenderContext,
+        self, symbol: Any, context: RenderContext, *,
+        data: DataPartDTO | None = None,
+        operations: Any = None,
     ) -> SourceFragment:
         """Render a binding symbol, fragment or whole binding part to source.
+
+        ``data`` supplies the row members a grouped or unnested binding plan
+        needs when its generated shape is declared.
 
         Example:
             ```python
@@ -141,7 +149,9 @@ class BindingLanguage(Language):
             isinstance(item, (NodeBindingDTO, EdgeBindingDTO)) for item in value
         ):
             raise TypeError("a binding render requires symbols or binding DTOs")
-        return render_binding_source(value, context)
+        return render_binding_source(
+            value, context, data=data, operations=operations,
+        )
 
 
 __all__ = ["BindingLanguage"]

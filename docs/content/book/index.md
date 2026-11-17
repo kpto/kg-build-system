@@ -119,6 +119,7 @@ For a task, the parts also work as routes:
 | Compose a producer or consumer | [10. A workflow is a chain of reactions](/book/part-2/07-composition) |
 | Populate a record from rows | [11. Binding as fulfilment](/book/part-2/08-binding) |
 | Add a capability | [18. The kernel and the extension surface](/book/part-4/01-the-kernel-and-extension) |
+| Extend a project before the kernel | [Extension reference](/appendix/reference/extension) |
 | Judge a change | [20. Architecture and tests](/book/part-4/03-architecture-and-tests) |
 
 The appendices hold the exact material: [specifications](/appendix/spec/index),

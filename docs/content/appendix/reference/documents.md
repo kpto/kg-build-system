@@ -25,11 +25,28 @@ A build has three canonical documents: the blueprint in memory, the workflow pla
 
 | Artifact | Produced by | Top-level members |
 | --- | --- | --- |
-| Blueprint document | `create_blueprint`; the blueprint itself is not written by `execute`. | `graph`, `data`, `assets`, `bindings`, optional `graph_declaration`. |
+| Blueprint document | `create_blueprint`; the blueprint itself is not written by `execute`. | `graph`, `data`, `assets`, `bindings`, `operations`, optional `graph_declaration`. |
 | Workflow plan document | `compile`; `execute` writes it before the run starts. | `components`, `steps`, `connections`, `provenance`. |
 | Report document | `execute`; written after the run. | `published_artifacts`, `recovered_failures`, `unresolved_failures`, `provenance`. |
 
 The blueprint has `graph` and `data` as objects, and `assets` and `bindings` as arrays. Every typed reference is a `[language, role, *key segments]` array: a field is `["data", "field", "sites.site_name"]`, a node is `["topology", "node", "site"]`, an asset is `["asset", "asset", "estate"]`, and an operation is `["expressions", "operation", "default_to"]`. A data part holds `SourceRelationDTO` and `DerivedRelationDTO` values; a relation's contract is stored as `definition` and `meaning`, and the `meaning` member is a `MeaningDTO`.
+
+`operations` is an `ExpressionsPartDTO` with an `operations` array. Each `OperationDTO` states the operation's name, arity, positional argument declarations, named parameter declarations, static result type and row effect:
+
+```json
+{
+  "name": "severity_rank",
+  "arity": 1,
+  "arguments": [
+    {"expected": {"kind": "unit", "name": "str"}, "description": "severity label"}
+  ],
+  "parameters": [],
+  "result_type": {"kind": "unit", "name": "int"},
+  "row_effect": "preserve"
+}
+```
+
+`arity` is a number for an exact count or `[minimum, maximum]` with `null` for unbounded. `expected` and `result_type` are explicitly `null` when the specification resolves them from the call; the operation expression's own `logical_type` remains the actual result. Callable validators, result resolvers, row-effect scope and predicate index are not serialised. A document without `operations` decodes to an empty part.
 
 ## Details
 
@@ -41,6 +58,7 @@ The blueprint has `graph` and `data` as objects, and `assets` and `bindings` as 
 | `data` | Object with `structs`, `source_relations` and `derived_relations` arrays. Each declaration carries `name`, `columns` and `annotations`; a source relation carries `asset` and an optional `definition` with its `meaning`; a derived relation carries `row_source`, `definition`, `meaning` and `visibility`; a stage is a derived relation with `visibility="internal"` and no meaning. |
 | `assets` | Array of asset objects: `name`, `website`, `version`, `layout`, `profile`, `governance`, `annotations`, optional `meaning`. |
 | `bindings` | Array of node or edge bindings. A binding carries `kind`, its target ref, `identity`, `properties`, `rows`, `annotations`, `meaning` and `mode`. |
+| `operations` | Object with an `operations` array. Each operation carries `name`, `arity`, `arguments`, `parameters`, `result_type` and `row_effect`. |
 | `graph_declaration` | Optional object with `name` and `meaning` carrying a required purpose. Omitted when the project has no graph declaration. |
 
 ```json

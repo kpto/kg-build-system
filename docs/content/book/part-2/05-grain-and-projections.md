@@ -118,22 +118,32 @@ the rule that a row has one grain.
 
 ## Grouping collects rows; it does not compute
 
-`group_by(by=...)` produces one row per key tuple. `by` may return one key
-selection, a mapping of names to selections, or `(name, selection)` pairs. Key
-names must be public Python identifiers and unique within the group, and keys must
-be scalar:
+`group_by(keys=..., by=...)` produces one row per key tuple. `keys` declares the
+present key shape; `by` may return one key selection, a mapping of names to
+selections, or `(name, selection)` pairs. Key names must be public Python
+identifiers, unique within the group, and exactly the members of `keys`; keys
+must be scalar:
 
 ```python
+from kg_build_system import Selection, Shape
+
+
+class SiteKey(Shape):
+    site_id: Selection[str]
+
+
 by_site = EquipmentSourceRelation.row_source().group_by(
+    keys=SiteKey,
     by=lambda unit: {"site_id": unit.site_id},
 )
-site_id = by_site.shape.by.extract(lambda key: key.site_id)
-members = by_site.shape.members
+site_id = by_site.shape.by.extract(lambda key: key.site_id)  # Selection[str]
+members = by_site.shape.members                                # Selection[Array[EquipmentSourceRelation]]
 ```
 
 Rows whose key tuple contains a null are dropped before grouping, so every
-generated `by` member is present. The shape is `{by, members}`. `members` is a
-present array of record mirrors of the input row; its order is unspecified.
+generated `by` member is present. The shape is `GroupedShape[S, K]`, with
+`{by, members}`. `members` is a present array of record mirrors of the input row;
+its order is unspecified.
 
 The key record and the member array are the whole row. A group is not an input row
 with extra columns, and it is not a count with a label. The key is a record of the
@@ -222,19 +232,37 @@ substitute for either.
 
 ## Unnest changes the grain to one row per item
 
-`unnest(selector)` reads one direct array field and produces one row per item. It
-keeps every other field and narrows the selected member to the item:
+`unnest(selector, out=...)` reads one direct array field and produces one row per
+item. It keeps every other field and narrows the selected member to the item.
+The output shape is declared because one named member changes type:
 
 ```python
-scored_sites = SitesSourceRelation.row_source().unnest(
-    lambda site: site.priority_scores
+from kg_build_system import (
+    Array, Field, Nullable, Omitted, Selection, Shape, SourceRelation, field,
 )
-score = scored_sites.shape.priority_scores
+
+
+class SiteScores(SourceRelation[Estate]):
+    site_id: Field[str] = field(meaning=Omitted)
+    scores: Field[Array[int]] = field(meaning=Omitted)
+
+
+class ScoredSite(Shape):
+    site_id: Selection[Nullable[str]]
+    scores: Selection[int]
+
+
+scored_sites = SiteScores.row_source().unnest(
+    lambda site: site.scores,
+    out=ScoredSite,
+)
+score = scored_sites.shape.scores  # Selection[int]
 ```
 
 A null or empty array produces no rows. The selector must read a declared field,
 not a computed expression; `unnest` is a relation-level operation and needs a
-member of the input shape. Read the narrowed member through `.shape`.
+member of the input shape. The runtime validates `out` against every generated
+member, external name and logical type.
 
 This is a grain decision, not a formatting choice. Before the expansion, one row
 is one site and the scores are an array. After it, one row is one site-and-score

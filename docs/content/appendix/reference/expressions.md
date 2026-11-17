@@ -34,6 +34,66 @@ There is no expression family and no `.expression`, `.value` or `.model` accesso
 
 Canonical types such as `STR`, `INT`, `NullableType` and `ArrayType` are on [Types](/appendix/reference/types); declared value types are on [Declarations](/appendix/reference/declarations). The authoring model is on [Select values](/book/part-2/04-values-and-nullability), the binding rules on the [Selection spec](/appendix/spec/selection), and the subject index entry for [Selection](/appendix/subjects/selection). The row plan that carries a selection is on [Row sources](/appendix/reference/row-sources); naming a plan is on [Derived relations](/appendix/reference/derived-relations).
 
+### Project operations
+
+A project can add a value operation without editing the framework. The operation is one `OperationSpec` plus a typed `Operation` handle:
+
+```python
+from kg_build_system import (
+    INT, STR, ArgumentSpec, Operation, OperationSpec, Selection,
+)
+
+SEVERITY_RANK = OperationSpec(
+    name="severity_rank",
+    arity=1,
+    arguments=(ArgumentSpec(expected=STR),),
+    result_type=INT,
+)
+severity_rank: Operation[
+    [Selection[str]], int,
+] = Operation(SEVERITY_RANK)
+```
+
+Both authoring forms use the same handle:
+
+```python
+severity_rank(row.condition_rating.alter_rows().drop_null())
+row.condition_rating.alter_rows().drop_null().custom_op(severity_rank)
+```
+
+The language publishes the spec and the engine supplies the emitter. Compose both in the project's manifest:
+
+```python
+from kg_build_system import DEFAULT_OPERATIONS, default_languages, default_toolchain
+from kg_build_system.distribution import (
+    DuckDbInstructionEmitter, DuckDbSqlEmitter, ExpressionsLanguage,
+)
+
+expressions = ExpressionsLanguage((*DEFAULT_OPERATIONS, SEVERITY_RANK))
+languages = default_languages(expressions=expressions)
+engine = DuckDbSqlEmitter(
+    instruction_emitter=(
+        DuckDbInstructionEmitter().with_operators(SeverityRankEmitter())
+    ),
+)
+toolchain = default_toolchain(languages=languages, engine=engine)
+```
+
+| Name | Meaning |
+| --- | --- |
+| `OperationSpec` | The operation's name, arity, argument rules, parameters and result type. |
+| `ArgumentSpec` / `ParameterSpec` | One positional argument's type rule; one named parameter's rule. |
+| `Operation` | A typed callable handle over one spec; its type parameters are the arguments and result. |
+| `DEFAULT_OPERATIONS` | The distribution's baseline operation set. |
+| `ExpressionsLanguage(operations=...)` | The language composition that publishes an operation set. |
+| `default_languages(expressions=...)` / `default_toolchain(languages=...)` | Composition helpers that replace the expressions language. |
+
+There is no `register_operation` and no global registry. An operation not in the language's operation set is an unknown reference at link time. The source round trip normalises the call to `operation('name', ...)`; recreate the blueprint under the same language composition.
+
+The blueprint publishes the language's operation declarations under its top-level `operations` part. Each `OperationDTO` states the name, arity, argument declarations, parameter declarations, static result type and row effect. The expression node still carries the actual `logical_type`; the declaration is the signature, the node is the instance. `expected` and `result_type` are `null` when the spec resolves them from the call. The viewer uses the declaration to show `severity_rank(str) -> int` and its argument description, and falls back to the node's actual type when a declaration is absent.
+
+An operation is a **value operation**: one row in, one value out, with no row effect. A row effect, a grain change or an aggregate is not an expression operation. Use `alter_rows()` for a row effect, a `Stage`/`DerivedRelation` for a relation shape, or a relation operation for a grain-changing algorithm.
+
 ## Details
 
 ### Source and computed access

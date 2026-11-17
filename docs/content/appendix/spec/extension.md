@@ -35,6 +35,10 @@ evidence:
 - **R7.** A `ResourceProvider` MUST receive events through `on_event`, MUST publish resources on `PipelineStarted`, and MUST dispose them on `PipelineFinished` or `PipelineHalted`.
 - **R8.** A custom engine MUST implement the neutral `SqlEmitter` protocol. Core planners MUST consume that protocol and MUST NOT import a DuckDB module.
 - **R9.** The Python executor SHOULD run only trusted targets: `("python", "cpython")` imports `{module, qualname}` in the host process and provides no isolation, timeout, or retry.
+- **R10.** A project-local value operation MUST be an `OperationSpec` plus a typed `Operation` handle in `expression/`; its engine emitter MUST be a module; the operation set MUST be composed into `ExpressionsLanguage(operations=...)`. There MUST be no operation registry or `register_operation`. A value operation MUST be row-preserving; a row effect, grain change or aggregate is not a value operation.
+- **R11.** A project-local relation operation MUST be a `RelationOperationSpec` plus a `RelationOperation` and a `RowSourceEmitter`; its output MUST declare an output shape and one grain (`one_per_input_row`, `one_per_group` or `one_total`). Its output MUST remain plan-local until a `Stage` or `DerivedRelation` publishes it with a matching grain.
+- **R12.** The blueprint MUST publish expression operation declarations in its top-level `operations` part with name, arity, argument declarations, parameter declarations, static result type and row effect. `expected` and `result_type` MUST be explicit `null` when resolved from the call. A document without `operations` MUST decode to an empty part.
+- **R13.** Project-local extension MUST be attempted before a kernel change: a source adapter or planner/executor module in `modules/`, a value operation in `expression/`, a relation operation in `modules/`. A source adapter MUST preserve the source schema, null assumptions, grain and identity; it decodes and casts only and does not carry domain joins, filters, identity translation, deduplication, aggregation or array expansion.
 
 ## Evidence
 

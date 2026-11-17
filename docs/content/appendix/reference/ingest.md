@@ -109,6 +109,14 @@ Rules:
 
 `default_toolchain` adds one `DuckDbSourcePlanner` before the core planners unless a supplied planner already reports `component_id == "duckdb"`. Another format is supported by another ordinary module planner with its own instruction kind. There is no adapter registry.
 
+**A project source adapter.**
+
+A format outside the generic planner is a project module: one planner and one executor with an exact instruction kind. It is not an adapter interface and there is no registry entry. The planner emits one no-input step per relation; the step output is `CoreArtifactTypes.table(<SourceRelation name>)`. `asset_tables(blueprint)` returns each relation with its logical name, plan name, columns and asset layout. The executor decodes the input, casts it to the declared logical types, registers the relation under the plan relation name (`AssetTable.relation`, not the logical name) and returns the relation reference. The existing core readers then consume the `core/data/table` artifact, so no declaration or binding changes.
+
+The adapter preserves the source model: the schema, column meanings, nullability assumptions, grain and identity the declarations already state. It decodes and casts only. It MUST NOT join, filter rows for a domain reason, translate identifiers, deduplicate, aggregate, expand an array or change the grain. Those are domain decisions and belong in a derived relation, a stage, a binding or a later planner. If the bytes do not match the declared relation, the adapter fails; it does not repair the schema, fill a missing value or drop a row. Keep it as thin as the format requires: one step, one relation output and one exact kind.
+
+The project template's `project/modules/hello_world.py` is the minimal pair: a planner with no inputs and one relation output, and an executor that registers a one-row DuckDB relation and returns its reference. Its test adds one consumer step and reads the relation at that step.
+
 **Readers and formats.**
 
 | `format` or `kind` | Reader | Accepts |

@@ -20,6 +20,7 @@ from kg_build_system import (
     Nullable,
     Omitted,
     Purpose,
+    Shape,
     SourceRelation,
     computed_field,
     create_blueprint,
@@ -50,6 +51,9 @@ from kg_build_system.distribution.languages.expressions.model.internal import (
     ExpressionDTO,
     LookupExpressionDTO,
     OperationExpressionDTO,
+)
+from kg_build_system.distribution.languages.expressions.model.public import (
+    Selection,
 )
 from kg_build_system.distribution.languages.expressions.service.internal import (
     as_expression,
@@ -89,6 +93,13 @@ class Site(SourceRelation[TestEstate]):
     region_id: Field[str] = field(name="region_id", meaning=Omitted)
     tags: Field[Array[str]] = field(name="tags", meaning=Omitted)
     labels: Field[Array[str]] = field(name="labels", meaning=Omitted)
+
+
+class TaggedSite(Shape):
+    site_id: Selection[Nullable[str]]
+    region_id: Selection[Nullable[str]]
+    tags: Selection[str]
+    labels: Selection[Nullable[Array[str]]]
 
 
 class RegionDerivedRelation(DerivedRelation(Region.row_source())):
@@ -268,7 +279,7 @@ class ZipTests(unittest.TestCase):
 
 class UnnestTests(unittest.TestCase):
     def test_unnest_narrows_the_selected_field_to_its_item_shape(self) -> None:
-        source = Site.row_source().unnest(lambda site: site.tags)
+        source = Site.row_source().unnest(lambda site: site.tags, out=TaggedSite)
 
         fields = {
             item.name: item.logical_type
@@ -278,7 +289,7 @@ class UnnestTests(unittest.TestCase):
         self.assertIn("site_id", fields)
 
     def test_unnest_plan_round_trips_and_carries_its_expression(self) -> None:
-        source = Site.row_source().unnest(lambda site: site.tags)
+        source = Site.row_source().unnest(lambda site: site.tags, out=TaggedSite)
         plan = row_source_plan_dto(source)
         self.assertIsInstance(plan, RowUnnestDTO)
         self.assertEqual(plan.field, "tags")
@@ -296,7 +307,7 @@ class UnnestTests(unittest.TestCase):
         self.assertEqual(restored.derived_relations[0].row_source, plan)
 
     def test_unnest_executes_one_row_per_item_and_none_for_empty(self) -> None:
-        source = Site.row_source().unnest(lambda site: site.tags)
+        source = Site.row_source().unnest(lambda site: site.tags, out=TaggedSite)
         plan = row_source_plan_dto(source)
         self.assertIsInstance(plan, RowUnnestDTO)
         assert isinstance(plan, RowUnnestDTO)
@@ -331,8 +342,8 @@ class BlueprintSourceRoundTripTests(unittest.TestCase):
 from kg_build_system import (
     Array, Asset, AssetAuthority, AssetOptions, AssetProfile, Claim, Contract,
     Definition, Field, DerivedRelation, DerivedRelationOptions, Meaning,
-    Omitted, Purpose, SourceRelation, SourceRelationOptions, computed_field,
-    field,
+    Nullable, Omitted, Purpose, Selection, Shape, SourceRelation,
+    SourceRelationOptions, computed_field, field,
 )
 
 class Estate(Asset):
@@ -363,7 +374,13 @@ def contract(identity):
         meaning=Meaning(purpose=Purpose("Read one row for the round trip.")),
     )
 
-class Tagged(DerivedRelation(Site.row_source().unnest(lambda row: row.tags))):
+class TaggedShape(Shape):
+    site_id: Selection[Nullable[str]]
+    region_id: Selection[Nullable[str]]
+    tags: Selection[str]
+    labels: Selection[Nullable[Array[str]]]
+
+class Tagged(DerivedRelation(Site.row_source().unnest(lambda row: row.tags, out=TaggedShape))):
     options = DerivedRelationOptions(
         name="tagged", contract=contract("site_id"),
     )

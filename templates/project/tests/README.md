@@ -10,7 +10,8 @@ blueprint to refuse those shapes.
 
 ## Mission
 
-Own `test_philosophy.py` and the smoke test. Do not own declarations.
+Own `test_philosophy.py`, the smoke test and the input-adapter contract test. Do
+not own declarations.
 
 ## Execution
 
@@ -18,6 +19,12 @@ Own `test_philosophy.py` and the smoke test. Do not own declarations.
   derived contracts, binding purposes and the graph purpose.
 - `test_project.py` MUST prove the blueprint and plan compile and the fixture
   builds.
+- `test_input_adapter.py` MUST prove the hello-world adapter has one no-input
+  step, provides the declared relation and reads back its one row.
+- `test_hello_expression.py` MUST prove both authoring forms of a project value
+  operation and its use in the fixture build.
+- `test_relation_operation.py` MUST prove a project relation operation compiles,
+  executes and publishes through a matching `DerivedRelation`.
 - A rule MUST have a test. A test MUST NOT only repeat a declaration's text.
 
 ## Support

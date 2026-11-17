@@ -7,13 +7,14 @@ language packages; the blueprint only references them.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from kg_build_system.distribution.languages.asset.model.internal.dto import (
     AssetPartDTO,
 )
 from kg_build_system.distribution.languages.binding.model.internal.dto.blueprint_dto import BindingDTO
 from kg_build_system.distribution.languages.data.model.internal.dto.blueprint_dto import DataPartDTO
+from kg_build_system.distribution.languages.expressions.model.internal.dto.operation_dto import ExpressionsPartDTO
 from kg_build_system.distribution.languages.graph.model.internal.dto import GraphDeclarationDTO
 from kg_build_system.distribution.languages.topology.model.internal.dto.blueprint_dto import GraphPartDTO
 
@@ -26,7 +27,8 @@ class GraphBlueprint:
     graph meaning; it is ``None`` when the project has not adopted the graph
     language. ``graph`` is the topology, ``data`` holds structs, relations and
     derived relations, ``assets`` holds the logical source-data units relations name,
-    and ``bindings`` target graph components. The value is frozen and carries no
+    ``bindings`` target graph components and ``operations`` declares the value
+    operations the expression trees refer to. The value is frozen and carries no
     owner, service or Python authoring path.
 
     Example:
@@ -45,6 +47,7 @@ class GraphBlueprint:
     assets: AssetPartDTO
     bindings: tuple[BindingDTO, ...]
     graph_declaration: GraphDeclarationDTO | None = None
+    operations: ExpressionsPartDTO = field(default_factory=ExpressionsPartDTO)
 
 
 __all__ = ["GraphBlueprint"]

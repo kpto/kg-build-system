@@ -41,7 +41,7 @@ evidence:
 - **R11.** Meaning MUST remain separate from annotations. An annotation MUST NOT become a limitation, and a label MUST NOT stand in for a meaning.
 - **R12.** A category meaning MUST stay local to the category and MUST NOT flow to a child declaration. Child meaning MUST be attached explicitly.
 - **R13.** Every unit text MUST be non-empty.
-- **R14.** The graph declaration MUST become the optional fifth blueprint field `graph_declaration`, carrying a `MeaningDTO` with the same document shape as every other declaration. A project with no graph declaration MUST publish `graph_declaration` as `None`.
+- **R14.** The graph declaration MUST become the optional top-level blueprint field `graph_declaration`, carrying a `MeaningDTO` with the same document shape as every other declaration. A project with no graph declaration MUST publish `graph_declaration` as `None`.
 - **R15.** A unit's text MUST answer the question its type owns. A definition, identity, grain, cardinality or measurement MUST be a claim; a prohibition, absence, exclusion or inference ceiling MUST be a limitation; an expected use MUST be a purpose.
 - **R16.** A limitation MUST state the boundary, not the measurement that motivates it. When the measurement is authored, it MUST be a claim beside the same purpose or declaration.
 - **R17.** A declaration with no positive use MUST carry claims only. A purpose MUST NOT be authored to satisfy the shape. Two declarations MAY share a purpose text only when their expected use is identical; a different subject or operation MUST have a different purpose.

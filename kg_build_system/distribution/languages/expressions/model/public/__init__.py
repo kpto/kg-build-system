@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from .pair import Pair
-from .selection import NullableSelection, Selection
+from .selection import NullableSelection, OperationHandle, Selection
 from .selections.effects import (
     ArrayRowEffects, NullableArrayRowEffects, NullableRowEffects, RowEffects,
 )
@@ -10,5 +10,5 @@ from .values import LiteralValue
 
 __all__ = [
     "ArrayRowEffects", "NullableArrayRowEffects", "NullableRowEffects",
-    "LiteralValue", "NullableSelection", "Pair", "RowEffects", "Selection",
+    "LiteralValue", "NullableSelection", "OperationHandle", "Pair", "RowEffects", "Selection",
 ]

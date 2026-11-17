@@ -103,8 +103,6 @@ def expression_references(expression: ExpressionDTO) -> tuple[SymbolRef, ...]:
         references = expression_references(dto)
         ```
     """
-    from ..internal.operations import DEFAULT_OPERATIONS
-
     references: list[SymbolRef] = []
     for node in walk_expression_dto(expression):
         if isinstance(node, FieldReferenceDTO):
@@ -113,8 +111,7 @@ def expression_references(expression: ExpressionDTO) -> tuple[SymbolRef, ...]:
         elif isinstance(node, LookupExpressionDTO):
             references.append(node.relation.symbol)
         elif isinstance(node, OperationExpressionDTO):
-            if node.operator.name in DEFAULT_OPERATIONS:
-                references.append(node.operator.symbol)
+            references.append(node.operator.symbol)
     return tuple(dict.fromkeys(references))
 
 

@@ -54,7 +54,7 @@ def derive_union(source: Any, other: Any, *, all: bool = True) -> Any:
 
 def derive_join(
     source: Any, other: Any, *,
-    on: Callable[[Any, Any], tuple[Any, Any]],
+    on: Callable[[Any, Any], tuple[Any, Any] | Selection[bool]],
     how: str = "inner",
 ) -> Any:
     """Equi-join two value row sources on one key expression from each side."""
@@ -63,20 +63,32 @@ def derive_join(
     return derive(source, other, on=on, how=how)
 
 
-def derive_group_by(source: Any, *, by: Callable[[Any], Any]) -> Any:
+def derive_group_by(
+    source: Any, *, keys: type[Any], by: Callable[[Any], Any],
+) -> Any:
     """Group rows by named key expressions; null keys are dropped."""
     from .._private.rows import derive_group_by as derive
 
-    return derive(source, by=by)
+    return derive(source, keys=keys, by=by)
+
+
+def derive_relation_operation(
+    source: Any, operation: Any, **parameters: Any,
+) -> Any:
+    """Compose one project relation operation over one input row source."""
+    from .._private.rows import derive_relation_operation as derive
+
+    return derive(source, operation, **parameters)
 
 
 def derive_unnest(
-    source: Any, selector: Callable[[Any], Selection[Any]],
+    source: Any, selector: Callable[[Any], Selection[Any]], *,
+    out: type[Any],
 ) -> Any:
     """Expand one array member into rows, narrowing that member to its item."""
     from .._private.rows import derive_unnest as derive
 
-    return derive(source, selector)
+    return derive(source, selector, out=out)
 
 
 def derive_distinct(source: Any) -> Any:
@@ -164,8 +176,9 @@ def shape_context(shape: type[Any]) -> Any:
 
 __all__ = [
     "as_row_source", "declaration_source_name", "derive_distinct",
-    "derive_group_by", "derive_join", "derive_order_by", "derive_row_source",
-    "derive_union", "derive_where", "plan_expressions", "plan_fields",
+    "derive_group_by", "derive_join", "derive_order_by",
+    "derive_relation_operation", "derive_row_source", "derive_union",
+    "derive_where", "plan_expressions", "plan_fields",
     "plan_inputs", "plan_scan_sources", "plan_shape_source_name",
     "retarget_expression_dto", "row_source_key", "row_source_plan_dto",
     "shape_context",

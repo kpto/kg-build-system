@@ -16,8 +16,8 @@ from kg_build_system.kernel.service.internal.types import type_to_dto
 from ...model.internal.dto.blueprint_dto import (
     ColumnDTO, DataPartDTO, DefinitionDTO, DerivedRelationDTO,
     FieldDefinitionDTO, SourceRelationDTO, RowDistinctDTO,
-    RowFilterDTO, RowGroupByDTO, RowJoinDTO, RowOrderByDTO, RowScanDTO,
-    RowSourcePlanDTO, RowUnionDTO, StructDTO,
+    RowFilterDTO, RowGroupByDTO, RowJoinDTO, RowOperationDTO, RowOrderByDTO,
+    RowScanDTO, RowSourcePlanDTO, RowUnionDTO, StructDTO,
 )
 from ...model.public.row_sources import RowSource
 from .declarations import DeclarationSpec, is_source_relation_group, derived_relation_row_source
@@ -176,7 +176,7 @@ def _derived_relation(item: type[Any], spec: DeclarationSpec) -> DerivedRelation
         row_source
         if isinstance(row_source, (
             RowScanDTO, RowFilterDTO, RowUnionDTO, RowJoinDTO,
-            RowGroupByDTO, RowDistinctDTO, RowOrderByDTO,
+            RowGroupByDTO, RowDistinctDTO, RowOrderByDTO, RowOperationDTO,
         ))
         else row_source_plan_dto(row_source)
     )

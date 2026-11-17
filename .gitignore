@@ -12,7 +12,7 @@ reference_project/build/
 .uv-cache/
 
 # Documentation build
-site/
+/site/
 
 # Documentation site
 docs/node_modules/

@@ -63,6 +63,29 @@ pkg/
                        planning, engines, runtime
 ```
 
+## Extension is expected
+
+The default distribution is one composition of the kernel, not the framework's
+boundary. A project extends it before it changes the kernel:
+
+- **Value operation**: an `OperationSpec` plus a typed `Operation` handle in
+  `expression/`; an engine emitter in `modules/`; the expressions language is
+  composed with the operation set in `manifest.py`.
+- **Relation operation**: a `RelationOperationSpec` plus a `RelationOperation`
+  and a `RowSourceEmitter` in `modules/`; its output is plan-local until a
+  `Stage`/`DerivedRelation` publishes it with a matching grain.
+- **Source adapter**: a source planner and executor in `modules/`; it decodes
+  and preserves the source schema, null assumptions, grain and identity.
+- **Planner and executor module**: a new pass over records or a new artifact,
+  composed in `manifest.py`.
+
+The six kernel protocols — `Language`, `Linker`, `Planner`, `StepExecutor`,
+`ResourceProvider` and `Runtime` — are for a different composition. The exact
+surfaces are in
+[docs/content/appendix/reference/extension.md](docs/content/appendix/reference/extension.md).
+The template carries a runnable value operation, input adapter and relation
+operation in `templates/project/`.
+
 ## Authoring model
 
 - `Selection[T]` is the single authoring type; `NullableSelection[T]` is the
@@ -126,7 +149,7 @@ uv run pyright
 ./docs/check.sh && ./docs/build.sh
 ```
 
-Current verification: 363 tests passed, 1957 subtests; pyright 0 errors; the reference build passes; the Open Targets project is external; the
+Current verification: 455 tests passed, 2065 subtests; pyright 0 errors; the reference build passes; the Open Targets project is external; the
 Quartz documentation build passes.
 
 The framework is experimental; the guide describes the current model, not a

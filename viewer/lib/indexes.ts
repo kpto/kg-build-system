@@ -9,6 +9,7 @@ import type {
   IndexedBinding,
   NormalizedConnection,
   OpeningRef,
+  OperationDTO,
   ProjectionDTO,
   PropertyLookupEntry,
   Ref,
@@ -701,6 +702,10 @@ export function buildViewerIndex(snapshot: ViewerSnapshot): ViewerIndex {
   const structByName = new Map(
     (blueprint.data?.structs ?? []).map((struct) => [struct.name, struct] as const),
   );
+  const operationsByName = new Map<string, OperationDTO>();
+  for (const operation of blueprint.operations?.operations ?? []) {
+    operationsByName.set(operation.name, operation);
+  }
   const dataEntityByName = new Map<string, RelationDTO | ProjectionDTO | StructDTO>();
   for (const relation of
     blueprint.data?.source_relations ?? blueprint.data?.relations ?? [])
@@ -753,6 +758,7 @@ export function buildViewerIndex(snapshot: ViewerSnapshot): ViewerIndex {
     relationByName,
     projectionByName,
     structByName,
+    operationsByName,
     dataEntityByName,
     fieldsByKey,
     assetsByName,

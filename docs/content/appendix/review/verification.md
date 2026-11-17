@@ -46,9 +46,9 @@ Two generated blocks carry the measurement. `status` runs the suite and pyright 
 <!-- BEGIN GENERATED:status -->
 | Measure | Value |
 | --- | --- |
-| Test suite | 393 tests, 1972 subtests, 8.76s — passes |
+| Test suite | 455 tests, 2065 subtests, 7.86s — passes |
 | Static types | 0 errors |
-| Source | `5ad1fd3` (2026-11-15) |
+| Source | `65778ec` (2026-11-17) |
 | Docs build | `./docs/build.sh` from the repository root |
 <!-- END GENERATED:status -->
 
@@ -68,7 +68,7 @@ Known doc/code drift measured at the source HEAD in the status block:
 | Doc claim | Measured in source |
 | --- | --- |
 | 259 tests and 1,858 subtests | 388 tests and 1,967 subtests |
-| `GraphBlueprint` has four fields | Five fields, including `graph_declaration` |
+| `GraphBlueprint` has four fields | Six fields, including `operations` and `graph_declaration` |
 | The linker order sometimes omits graph | `expressions`, `asset`, `data`, `topology`, `binding`, `graph` |
 | The default languages sometimes omit graph | The default includes `GraphLanguage` |
 | Codecs uniformly omit absent members | Asset governance and binding `rows` write explicit `null` |

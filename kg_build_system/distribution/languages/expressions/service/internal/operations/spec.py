@@ -88,6 +88,13 @@ class RowEffectSpec:
         types: tuple[LogicalType, ...],
         parameters: Mapping[str, Any],
     ) -> RowSemantics:
+        """Resolve the row effect this operation declares.
+
+        Example:
+            ```python
+            semantics = effect.semantics(nodes, types, parameters)
+            ```
+        """
         from ..._private.operations import resolve_row_effect_spec
 
         return resolve_row_effect_spec(self, nodes, types, parameters)
@@ -124,12 +131,25 @@ class OperationSpec:
             raise ValueError("operation parameter names must be non-empty")
 
     def accepts_arity(self, count: int) -> bool:
+        """Return whether a call with ``count`` positional arguments is valid.
+
+        Example:
+            ```python
+            assert spec.accepts_arity(1)
+            ```
+        """
         from ..._private.operations import accepts_arity
 
         return accepts_arity(self, count)
 
     def result(self, types: tuple[LogicalType, ...], parameters: Mapping[str, Any]) -> LogicalType:
-        """Resolve the result logical type for one argument type tuple."""
+        """Resolve the result logical type for one argument type tuple.
+
+        Example:
+            ```python
+            logical_type = spec.result(types, parameters)
+            ```
+        """
         from ..._private.operations import resolve_result
 
         return resolve_result(self, types, parameters)
@@ -140,7 +160,13 @@ class OperationSpec:
         types: tuple[LogicalType, ...],
         parameters: Mapping[str, Any],
     ) -> RowSemantics:
-        """Resolve the local row effect declared by this operation."""
+        """Resolve the local row effect declared by this operation.
+
+        Example:
+            ```python
+            row_semantics = spec.semantics(nodes, types, parameters)
+            ```
+        """
         from ..._private.operations import resolve_semantics
 
         return resolve_semantics(self, nodes, types, parameters)
@@ -151,7 +177,13 @@ class OperationSpec:
         result_type: LogicalType | None = None,
         **parameters: Any,
     ) -> "ValueExpression[Any]":
-        """Build a typed authoring expression, validating the call first."""
+        """Build a typed authoring expression, validating the call first.
+
+        Example:
+            ```python
+            expression = spec.apply(selection)
+            ```
+        """
         from ..._private.operations import apply
 
         return apply(self, *arguments, result_type=result_type, **parameters)
@@ -190,21 +222,63 @@ class OperationRegistry:
     def get(
         self, name: str, default: OperationSpec | None = None,
     ) -> OperationSpec | None:
+        """Return one spec by name, or ``default`` when it is absent.
+
+        Example:
+            ```python
+            spec = registry.get("add")
+            ```
+        """
         return self.by_name.get(name, default)
 
     def keys(self) -> tuple[str, ...]:
+        """Return every operation name in declaration order.
+
+        Example:
+            ```python
+            names = registry.keys()
+            ```
+        """
         return tuple(spec.name for spec in self.specs)
 
     def values(self) -> tuple[OperationSpec, ...]:
+        """Return every operation specification in declaration order.
+
+        Example:
+            ```python
+            specs = registry.values()
+            ```
+        """
         return self.specs
 
     def items(self) -> tuple[tuple[str, OperationSpec], ...]:
+        """Return every name and specification pair.
+
+        Example:
+            ```python
+            pairs = registry.items()
+            ```
+        """
         return tuple((spec.name, spec) for spec in self.specs)
 
     def names(self) -> tuple[str, ...]:
+        """Return every operation name in declaration order.
+
+        Example:
+            ```python
+            names = registry.names()
+            ```
+        """
         return tuple(spec.name for spec in self.specs)
 
     def register(self, *specs: OperationSpec) -> "OperationRegistry":
+        """Return a new registry with the supplied specs appended.
+
+        Example:
+            ```python
+            extended = registry.register(custom_spec)
+            ```
+        """
         return OperationRegistry((*self.specs, *specs))
 
 

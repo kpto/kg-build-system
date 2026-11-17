@@ -40,6 +40,7 @@ project/
       binding.py
       <predicate>__<target>.py
   pipeline/            # optional machinery, not a declaration layer
+  expression/          # optional value operations, not a relation layer
   modules/             # optional machinery, not a declaration layer
   build.py
 ```
@@ -52,10 +53,13 @@ project/
 | `relation/derived/` | One package per `DerivedRelation`; `relation.py` publishes, `_stage_*.py` composes | `relation/source/`, `asset/`, the framework. |
 | `binding/` | One node or edge binding per file, grouped by the source node | `relation/`, `graph/`, the framework. |
 | `pipeline/` | Optional: run configuration, output targets and monitors | Every declaration directory. |
-| `modules/` | Optional: project-local planners, executors and resources | The framework only; never the project's declarations. |
+| `expression/` | Optional: project-local `OperationSpec` declarations and typed `Operation` handles | The framework only. |
+| `modules/` | Optional: project-local planners, executors, engine emitters, relation-operation specs and resources, including an input adaptor | The framework only; never the project's declarations. |
 | `build.py` | The composition root: `create_blueprint` and `compile` | Every declaration directory. |
 
 A binding directory mirrors the graph node it binds. `graph/site/has_unit__unit.py` declares the edge from `Site` to `Unit`; `binding/site/has_unit__unit.py` binds that edge. The node's own binding is `binding/site/binding.py`. A reader can move between the record and its fulfilment without searching the project.
+
+`expression/` and `modules/` are the project-local extension lanes. Project-local extension is expected before a kernel change: a value operation in `expression/`, a relation operation, source adapter or planner/executor module in `modules/`, and the composition in `manifest.py`. The exact surfaces are in the [Extension reference](/appendix/reference/extension).
 
 ### Composition: `manifest.py`
 
@@ -247,7 +251,8 @@ The arrow points from the consumer to the supplier:
 - `relation/` imports `asset/`; it does not import `graph/` or `binding/`.
 - `binding/` imports `relation/` and `graph/`; it is the only declaration directory that reads both axes.
 - `graph/` imports neither `relation/` nor `binding/`. A node or edge that names a source relation has moved the design onto the relation axis.
-- `modules/` imports the framework only. A project-local planner reads the blueprint, not the project's declaration modules.
+- `modules/` imports the framework only. A project-local planner reads the blueprint, not the project's declaration modules. A source adaptor preserves the source's schema, null assumptions, grain and identity; it decodes and casts only, and a join, filter, identity translation, deduplication, aggregation or array expansion belongs after the relation.
+- `expression/` imports the framework only. A relation or binding may import an `Operation` handle from it. `modules/` does not import it; the engine emitter is keyed by the operation name.
 - `pipeline/` and `build.py` import the declaration directories; they are composition, not declarations.
 
 The direction is a model rule, not a style preference. A `graph/` import of `relation/` lets a source shape a record; a `relation/` import of `graph/` lets a record shape a domain relation. Both collapse the two axes into one.
@@ -280,6 +285,8 @@ The test uses the import graph and the declaration values, not a text search. It
   name a value only when it is a declaration or several declarations share it.
 - `graph/` imports neither `relation/` nor `binding/`; `binding/` is the only declaration directory that imports both axes.
 - `modules/` extends the framework and does not import the project's declarations.
+- A project value operation is an `OperationSpec` plus a typed `Operation` handle in `expression/`; its engine emitter is a module; the expressions language is composed with the operation set in `manifest.py`. There is no operation registry, and a row effect or aggregate is not an expression operation.
+- A project relation operation is a `RelationOperationSpec` plus a `RowSourceEmitter` in `modules/`; it is plan-local, does not publish a relation, and a `Stage`/`DerivedRelation` publishes its output with a matching grain.
 - Do not split one declaration for a line count; split it when it makes more than one decision.
 
 ## Limits
