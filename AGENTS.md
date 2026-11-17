@@ -226,6 +226,10 @@ missing, not the code.
   bolder than its content; an uppercase caption is a label, not a section
   header. A component selects a role; it does not invent a font size. A missing
   size is a missing role, added to the scale rather than at the call site.
+- Spacing sits on one 4px grid; a smaller role binds and a larger role
+  separates, and numeric utilities share the same base. A border is hairline
+  unless it carries emphasis; a radius is a control, panel or overlay role, and
+  a nested surface takes the step below its container.
 - A component owns its stylesheet: the global file holds theme roles, base
   element behaviour and global utilities only. A parent passes context down; a
   child never styles an ancestor, and a component block never lives in the
