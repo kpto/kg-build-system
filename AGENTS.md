@@ -154,6 +154,10 @@ missing, not the code.
 - A visualisation opens at the lowest detail that still answers its first
   question; every further layer is revealed by a named control, and raw JSON is
   not a default surface.
+- A subject that carries purpose, fulfilment and provenance is one constitution:
+  purpose at the root, the graph and relation axes below it, the binding as the
+  seam between them. The axes are parallel lanes, not a Cartesian plot; only
+  the binding states their meeting.
 - A repeated item renders its units compactly. A heading is structural, not per
   unit: a table cell or list row does not repeat the section chrome.
 - Present the design before an author workflow: a canonical view carries the
