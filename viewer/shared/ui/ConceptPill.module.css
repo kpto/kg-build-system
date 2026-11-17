@@ -4,8 +4,8 @@
   min-width: 0;
   height: 18px;
   align-items: center;
-  gap: var(--space-4);
-  padding: 0 var(--space-8) 0 var(--space-5);
+  gap: var(--space-inline);
+  padding: 0 var(--space-group) 0 var(--space-stack);
   border: var(--border-hairline) solid
     color-mix(in srgb, var(--concept-color) 34%, var(--color-line-soft));
   border-radius: var(--radius-pill);
@@ -16,7 +16,7 @@
   );
   color: var(--color-text);
   font-family: var(--font-mono);
-  font-size: var(--text-sm);
+  font-size: var(--text-caption);
   font-weight: var(--weight-regular);
   line-height: var(--leading-none);
   vertical-align: middle;
@@ -29,9 +29,9 @@
 
 .md {
   height: 21px;
-  gap: var(--space-5);
-  padding: 0 var(--space-9) 0 var(--space-6);
-  font-size: var(--text-base);
+  gap: var(--space-stack);
+  padding: 0 var(--space-section) 0 var(--space-stack);
+  font-size: var(--text-body);
 }
 
 .mark {
@@ -70,12 +70,12 @@
 button.pill {
   cursor: pointer;
   font-family: var(--font-mono);
-  font-size: var(--text-sm);
+  font-size: var(--text-caption);
   text-align: left;
 }
 
 button.md {
-  font-size: var(--text-base);
+  font-size: var(--text-body);
 }
 
 button.pill:hover {

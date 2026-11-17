@@ -149,8 +149,8 @@ component because it describes that component's composition, not the system.
 | State | `--color-critical*`, `--color-high`, `--color-medium`, `--color-low`, `--color-accepted`, `--color-open`, `--color-rejected` | verdicts and severity |
 | Layer | `--color-asset`, `--color-source`, `--color-transform`, `--color-binding`, `--color-post`, `--color-target`, `--color-group-*` | data lanes |
 | Concept | `--color-concept-*` | the 13 concept marks and reference pills |
-| Type | `--text-*`, `--leading-*`, `--tracking-*`, `--weight-*` | size, line height, tracking, weight |
-| Space | `--space-*` | gap, padding and margin |
+| Type | `--text-micro` … `--text-hero`, `--leading-*`, `--tracking-*`, `--weight-*` | role, line height, tracking, weight |
+| Space | `--space-hairline`, `--space-inline`, `--space-stack`, `--space-group`, `--space-section`, `--space-panel`, `--space-region`, `--space-page` | gap, padding and margin by role |
 | Shape | `--border-*`, `--radius-*` | hairline and heavy strokes, corner radii |
 | Depth | `--shadow-*` | popover, panel, modal, inset and selection rails |
 | Motion | `--motion-*`, `--ease-*` | durations and easing |
@@ -159,7 +159,8 @@ component because it describes that component's composition, not the system.
 Every component stylesheet is checked by `scripts/check-theme.mjs`; `npm test`
 runs that check before the unit tests. A raw colour, type size, radius, spacing
 value, weight, tracking, layer or motion duration in a component fails the
-build. `app/globals.css` is the only file allowed to declare raw values, and it
+build. Spacing has no numbered tokens: a gap states its role in the
+composition, not a pixel step. `app/globals.css` is the only file allowed to declare raw values, and it
 may do so only in an `@theme` token line.
 
 ## Interaction motion

@@ -67,10 +67,15 @@ for (const file of css) {
   const name = relative(root, file);
   const source = readFileSync(file, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
   for (const [index, line] of source.split("\n").entries()) {
+    if (/--space-[0-9]/.test(line)) {
+      errors.push(
+        `${name}:${index + 1}: a numbered spacing token; use a spacing role\n  ${line.trim()}`,
+      );
+    }
     if (/^\s*--[a-z0-9-]+\s*:/.test(line)) continue;
     const checks = [
       [rawColor, "a raw colour; use a --color-* token"],
-      [spacing, "a raw spacing value; use a --space-* token"],
+      [spacing, "a raw spacing value; use a spacing role"],
       [typeSize, "a raw font size; use a --text-* token"],
       [radius, "a raw radius; use a --radius-* token"],
       [tracking, "a raw tracking value; use a --tracking-* token"],

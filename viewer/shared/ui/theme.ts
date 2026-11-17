@@ -83,52 +83,29 @@ export const theme = {
 /** The literal page colour for metadata that cannot read a CSS variable. */
 export const themeColor = "#1d1d1d";
 
-/** Type scale; use a token name rather than a local pixel value. */
+/** Type roles, not measurements; use a role rather than a local size. */
 export const type = {
-  "3xs": "var(--text-3xs)",
-  "2xs": "var(--text-2xs)",
-  xs: "var(--text-xs)",
-  sm: "var(--text-sm)",
-  md: "var(--text-md)",
-  base: "var(--text-base)",
-  lg: "var(--text-lg)",
-  xl: "var(--text-xl)",
-  "2xl": "var(--text-2xl)",
-  "3xl": "var(--text-3xl)",
+  micro: "var(--text-micro)",
+  caption: "var(--text-caption)",
+  body: "var(--text-body)",
+  label: "var(--text-label)",
+  title: "var(--text-title)",
+  heading: "var(--text-heading)",
+  display: "var(--text-display)",
+  hero: "var(--text-hero)",
   root: "var(--text-root)",
-  "4xl": "var(--text-4xl)",
-  "5xl": "var(--text-5xl)",
-  "6xl": "var(--text-6xl)",
-  "7xl": "var(--text-7xl)",
-  "8xl": "var(--text-8xl)",
 } as const;
 
 /** The one spacing scale for gaps, padding and margins. */
 export const space = {
-  1: "var(--space-1)",
-  2: "var(--space-2)",
-  3: "var(--space-3)",
-  4: "var(--space-4)",
-  5: "var(--space-5)",
-  6: "var(--space-6)",
-  7: "var(--space-7)",
-  8: "var(--space-8)",
-  9: "var(--space-9)",
-  10: "var(--space-10)",
-  11: "var(--space-11)",
-  12: "var(--space-12)",
-  13: "var(--space-13)",
-  14: "var(--space-14)",
-  15: "var(--space-15)",
-  16: "var(--space-16)",
-  17: "var(--space-17)",
-  18: "var(--space-18)",
-  20: "var(--space-20)",
-  24: "var(--space-24)",
-  26: "var(--space-26)",
-  28: "var(--space-28)",
-  32: "var(--space-32)",
-  36: "var(--space-36)",
+  hairline: "var(--space-hairline)",
+  inline: "var(--space-inline)",
+  stack: "var(--space-stack)",
+  group: "var(--space-group)",
+  section: "var(--space-section)",
+  panel: "var(--space-panel)",
+  region: "var(--space-region)",
+  page: "var(--space-page)",
 } as const;
 
 export const border = {
@@ -137,11 +114,8 @@ export const border = {
 } as const;
 
 export const radius = {
-  none: "var(--radius-none)",
   sm: "var(--radius-sm)",
   md: "var(--radius-md)",
-  lg: "var(--radius-lg)",
-  xl: "var(--radius-xl)",
   pill: "var(--radius-pill)",
 } as const;
 
@@ -158,8 +132,6 @@ export const shadow = {
 
 export const motion = {
   fast: "var(--motion-fast)",
-  snap: "var(--motion-snap)",
-  quick: "var(--motion-quick)",
   base: "var(--motion-base)",
   slow: "var(--motion-slow)",
   long: "var(--motion-long)",
@@ -173,12 +145,10 @@ export const motion = {
 export const z = {
   raised: "var(--z-raised)",
   sticky: "var(--z-sticky)",
-  header: "var(--z-header)",
   overlay: "var(--z-overlay)",
   modal: "var(--z-modal)",
   tooltip: "var(--z-tooltip)",
   top: "var(--z-top)",
-  grain: "var(--z-grain)",
 } as const;
 
 export const severityColor = {
