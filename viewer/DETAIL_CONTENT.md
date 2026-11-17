@@ -16,7 +16,7 @@ includes by their immediate importance to a reader; it never renames one. A
 | Order | Section | Question it answers | Content |
 | --- | --- | --- | --- |
 | 1 | **Overview** | What is this, in one screen? | One fact grid: kind, labels, identity, owner or endpoints, counts and licence. |
-| 2 | **Constitution** | What does this subject assert, and how is it fulfilled? | One wide purpose at the top; the Graph chain on the left and the Relation chain on the right. The Fulfilment box sits directly under the purpose, the relation under it, and the relation's provenance branches below. Arrows point up to the level each box is accountable to. The dashed centre is the axis divide, not a binding. Each box clamps its purpose to two lines; hovering or focusing it reveals the full meaning, and a box label opens its document. The Fulfilment box states the binding count, identity fields and coverage. A grouped branch shows the first item and `+N`; one control expands the full axis map. |
+| 2 | **Constitution** | What does this subject assert, and how is it fulfilled? | One wide purpose at the top; the Graph chain on the left and the Relation chain on the right. The Fulfilment box sits directly under the purpose, the relation under it, and the relation's provenance branches below. Arrows point up to the level each box is accountable to. The dashed centre is the axis divide, not a binding. Each box clamps its purpose to two lines; hovering or focusing it reveals the full meaning, and a box label opens its document. The Fulfilment box states the binding count; identity fields and coverage appear when the column has room and always in the full axis map. A grouped branch shows the first item and `+N`; one control expands the full axis map. |
 | 3 | **Meaning** | What is this for, and what does it exclude? | The full meaning of the current subject: purpose, the limitations it owns, then contextless claims; compact counts in the header. |
 | 4 | **Sources** | Where does this value come from? | Assets, source relations and derived relations, as navigable references with counts. |
 | 5 | **Build steps** | How is this built? | The narrowed workflow graph of the steps that produce the subject. |
@@ -86,8 +86,9 @@ to.
   its scanned source relation and its asset; a source relation shows its asset.
   The current declaration is marked when the subject is a relation or asset.
 - **Fulfilment** is a box on the relation side, not the dashed centre. It
-  states the binding count, identity fields and coverage. The dashed centre is
-  the axis divide. The graph asserts, the relation supplies, and the
+  states the binding count; identity fields and coverage appear when the
+  column has room and always in the full axis map. The dashed centre is the
+  axis divide. The graph asserts, the relation supplies, and the
   Fulfilment box states their meeting.
 - A branch with many records, relations or assets shows the first item and
   `+N`, so the card stays compact. **Full axis map** expands the same data into
