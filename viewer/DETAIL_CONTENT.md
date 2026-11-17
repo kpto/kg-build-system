@@ -130,8 +130,10 @@ label opens that level's document. The box itself is inspection only.
 - The banner and the left index are static. The deck scrolls horizontally; each
   card body scrolls vertically.
 - The card title sits above the body at the top-left, in the heading role. The
-  body starts below it with the group gap; a flush body is used for a canvas or
-  a table that owns its own padding.
+  body starts below it with the region gap and is inset from the title's left
+  edge by the page role, so the title reads as a label rather than the first
+  content line. A flush body is used for a canvas or a table that owns its own
+  padding.
 - A table shares one `grid-template-columns` between its head and every row.
 - At narrow width the Meaning readings stack into one column, the index rail
   hides, and nothing overflows horizontally.

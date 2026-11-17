@@ -1755,7 +1755,7 @@ button.expressionToggle:hover {
   min-height: 0;
   flex: 1;
   overflow-y: auto;
-  padding-top: var(--space-group);
+  padding: var(--space-region) 0 0 var(--space-page);
 }
 
 .bandNote {
