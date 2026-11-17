@@ -109,6 +109,16 @@ describe("constitution scene", () => {
     ).toHaveLength(1);
   });
 
+  it("routes each binding to the purpose as an angled line", () => {
+    for (const binding of scene.edges.filter(
+      (entry) => entry.source.startsWith("binding:") && entry.target === "purpose",
+    )) {
+      expect(binding.path).toContain("L");
+      expect(binding.path).not.toContain("C");
+      expect(binding.head).toBeDefined();
+    }
+  });
+
   it("supplies each binding from its own relation and answers the purpose", () => {
     expect(edge("projection:alpha", "binding:0")).toBeTruthy();
     expect(edge("projection:beta", "binding:1")).toBeTruthy();

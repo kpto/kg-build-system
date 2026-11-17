@@ -41,6 +41,8 @@ export interface ConstitutionSceneEdge {
   source: string;
   target: string;
   path: string;
+  /** The arrowhead tip and direction, in scene coordinates. */
+  head?: { x: number; y: number; angle: number };
 }
 
 export interface ConstitutionSceneLabel {
@@ -278,26 +280,23 @@ function bindingRelationEdges(
 }
 
 /**
- * A binding sits beside the purpose. Its edge leaves the binding from the top
- * and arcs over the row, entering the purpose's right edge at its own point so
- * it never crosses another binding box.
+ * A binding sits beside the purpose. Its edge rises from the binding top into
+ * its own lane, angles across the row and enters the purpose's right edge at a
+ * distinct point, so no segment crosses another binding box.
  */
 function bindingToPurposePath(
   binding: ConstitutionSceneNode,
   purpose: ConstitutionSceneNode,
   entryY: number,
+  laneY: number,
 ): string {
   const startX = binding.x + binding.width / 2;
   const startY = binding.y;
   const endX = purpose.x + purpose.width;
-  const rise = Math.max(
-    32,
-    Math.min(96, startY - (purpose.y + purpose.height) + 24),
-  );
-  const bend = 28;
-  return `M ${startX} ${startY} C ${startX} ${startY - rise} ${
+  const bend = 24;
+  return `M ${startX} ${startY} L ${startX} ${laneY} L ${
     endX + bend
-  } ${entryY} ${endX} ${entryY}`;
+  } ${entryY} L ${endX} ${entryY}`;
 }
 
 /** The ancestry supplies the purpose from below, in the same column. */
@@ -308,6 +307,23 @@ function ancestryToPurposePath(
   return `M ${ancestor.x + ancestor.width / 2} ${ancestor.y} L ${
     purpose.x + purpose.width / 2
   } ${purpose.y + purpose.height}`;
+}
+
+/** The last segment gives the arrowhead tip and direction. */
+function edgeHead(
+  path: string,
+): ConstitutionSceneEdge["head"] | undefined {
+  const values = path.match(/-?\d+(?:\.\d+)?/g)?.map(Number);
+  if (!values || values.length < 4) return undefined;
+  const x1 = values[values.length - 4];
+  const y1 = values[values.length - 3];
+  const x2 = values[values.length - 2];
+  const y2 = values[values.length - 1];
+  return {
+    x: x2,
+    y: y2,
+    angle: (Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI,
+  };
 }
 
 /** The padded bounds of one group: a topology-style category frame. */
@@ -415,6 +431,7 @@ function buildRecordScene(model: ConstitutionModel): ConstitutionScene {
     (left, right) => left.x - right.x,
   );
   const entryY = new Map<string, number>();
+  const laneY = new Map<string, number>();
   sortedBindings.forEach((binding, index) => {
     const top = purposePositioned.y + 16;
     const bottom =
@@ -424,6 +441,7 @@ function buildRecordScene(model: ConstitutionModel): ConstitutionScene {
         ? (bottom - top) / (sortedBindings.length - 1)
         : 0;
     entryY.set(binding.id, bottom - index * step);
+    laneY.set(binding.id, binding.y - 36 - index * 8);
   });
   links.forEach((edge) => {
     const source = positionedById.get(edge.source);
@@ -437,6 +455,7 @@ function buildRecordScene(model: ConstitutionModel): ConstitutionScene {
               purposePositioned,
               entryY.get(source.id) ??
                 purposePositioned.y + purposePositioned.height / 2,
+              laneY.get(source.id) ?? source.y - 36,
             )
           : ancestryToPurposePath(source, purposePositioned)
         : layered.paths.get(`${edge.source}->${edge.target}`);
@@ -446,6 +465,7 @@ function buildRecordScene(model: ConstitutionModel): ConstitutionScene {
       source: edge.source,
       target: edge.target,
       path,
+      head: edgeHead(path),
     });
   });
   const axes = [
@@ -622,6 +642,7 @@ function buildComponentsScene(model: ConstitutionModel): ConstitutionScene {
       source: edge.source,
       target: edge.target,
       path,
+      head: edgeHead(path),
     });
   });
 

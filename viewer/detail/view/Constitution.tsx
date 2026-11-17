@@ -173,26 +173,6 @@ function ConstitutionSceneView({
 
   return (
     <>
-      <defs>
-        <marker
-          id="constitution-arrow"
-          viewBox="0 0 8 8"
-          refX="8"
-          refY="4"
-          markerWidth="8"
-          markerHeight="8"
-          orient="auto"
-          markerUnits="userSpaceOnUse"
-        >
-          <path
-            d="M 0 0 L 8 4 L 0 8"
-            fill="none"
-            stroke="var(--color-selection)"
-            strokeWidth="1"
-          />
-        </marker>
-      </defs>
-
       <g
         transform={`translate(${scene.offset.x} ${scene.offset.y})`}
       >
@@ -214,22 +194,31 @@ function ConstitutionSceneView({
         <g data-constitution-edges pointerEvents="none">
           {scene.edges.map((edge) => {
             const highlighted = incident.has(edge.id);
+            const stroke = highlighted
+              ? "var(--color-selection-strong)"
+              : "var(--color-selection)";
             return (
-              <path
+              <g
                 key={edge.id}
-                d={edge.path}
-                fill="none"
-                stroke={
-                  highlighted
-                    ? "var(--color-selection-strong)"
-                    : "var(--color-selection)"
-                }
-                strokeWidth={highlighted ? 1.6 : 1}
                 opacity={selectedId && !highlighted ? 0.12 : 1}
-                markerEnd="url(#constitution-arrow)"
-                data-constitution-edge={edge.id}
-                data-active={highlighted || undefined}
-              />
+              >
+                <path
+                  d={edge.path}
+                  fill="none"
+                  stroke={stroke}
+                  strokeWidth={highlighted ? 1.6 : 1}
+                  data-constitution-edge={edge.id}
+                  data-active={highlighted || undefined}
+                />
+                {edge.head ? (
+                  <polygon
+                    points="-10,-5 0,0 -10,5"
+                    transform={`translate(${edge.head.x} ${edge.head.y}) rotate(${edge.head.angle})`}
+                    fill={stroke}
+                    data-constitution-head={edge.id}
+                  />
+                ) : null}
+              </g>
             );
           })}
         </g>
