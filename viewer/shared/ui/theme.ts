@@ -79,7 +79,6 @@ export const type = {
   body: "var(--text-body)",
   label: "var(--text-label)",
   title: "var(--text-title)",
-  section: "var(--text-section)",
   heading: "var(--text-heading)",
   display: "var(--text-display)",
 } as const;

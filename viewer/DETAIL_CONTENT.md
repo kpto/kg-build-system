@@ -22,8 +22,8 @@ the index rail is the only navigation between cards.
 | 4 | **Connections** | Which records does this subject touch? | Endpoints of an edge, incident relations of a node, ports of a step. |
 | 5 | **Bindings** | Which binding fulfils this subject? | One row per binding: name, writes, identity, rows read. The binding pill opens the binding document. |
 
-A card header sits inside the card at its top-left: the card's concept mark and
-structural title, never a separate banner bar. The question in the reader's
+A card title sits above the card body at its top-left: the card's concept mark
+and structural title, never a banner bar or a card surface. The question in the reader's
 language becomes the card's accessible label, not a visible line, and the
 header carries no count: the body owns the items it shows. Every card gets a
 logo; the title-to-concept mapping lives once beside `DetailBand`.
@@ -121,16 +121,17 @@ label opens that level's document. The box itself is inspection only.
 
 ## Layout
 
-- A document is a horizontal deck of borderless section cards. Each card fills
+- A document is a horizontal deck of flat section cards. Each card fills
   the available body height and is narrower than the deck so the next card's
   edge stays visible as the cue for more content. Cards are separated by the
-  group spacing. Every card is rendered by the one shared `DetailBand` feature
-  primitive; a detail view does not declare its own card markup or surface.
+  group spacing and have no border or background. Every card is rendered by the
+  one shared `DetailBand` feature primitive; a detail view does not declare its
+  own card markup or surface.
 - The banner and the left index are static. The deck scrolls horizontally; each
   card body scrolls vertically.
-- The card title sits at the top-left inside the card surface. The card body
-  starts below it with the group gap; a flush body is used for a canvas or a
-  table that owns its own padding.
+- The card title sits above the body at the top-left, in the heading role. The
+  body starts below it with the group gap; a flush body is used for a canvas or
+  a table that owns its own padding.
 - A table shares one `grid-template-columns` between its head and every row.
 - At narrow width the Meaning readings stack into one column, the index rail
   hides, and nothing overflows horizontally.

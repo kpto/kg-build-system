@@ -180,13 +180,12 @@ The scale is global: a size states a role, not a component.
 | `--text-body` | 13px | dense secondary text and table values |
 | `--text-label` | 14px | default UI, controls, inputs, claims and limitations |
 | `--text-title` | 16px | purpose lead, emphasized values, brand and palette titles |
-| `--text-section` | 18px | card and section headings |
-| `--text-heading` | 22px | banner and page titles |
+| `--text-heading` | 22px | banner, page and card titles |
 | `--text-display` | 26px | gate and empty-document hero |
 
 `--text-root` keeps the rem geometry at 12px; `--text-xs`/`sm`/`base`/`lg`/`xl`
 resolve to the same roles, so a Tailwind length and a component token agree. A
-section header is `--text-section`, bold and sentence case. A side-bar
+section header is `--text-heading`, bold and sentence case. A side-bar
 navigation header is `--text-title`, also sentence case. An uppercase
 `--text-caption` is a label, not a section header. A component selects a role;
 it does not invent a size. A missing size is a missing role, added here rather
@@ -203,7 +202,7 @@ Spacing is one 4px grid; 2px is the optical hairline.
 | `--space-inline` | 4px | icon and inline relationships |
 | `--space-stack` | 8px | tightly related lines |
 | `--space-group` | 12px | related groups and the gap between cards |
-| `--space-section` | 16px | card padding and section internal |
+| `--space-section` | 16px | deck and panel inset, section internal |
 | `--space-panel` | 24px | panel and field separation |
 | `--space-region` | 32px | document body and large block separation |
 | `--space-page` | 48px | page-level layout |
@@ -272,14 +271,13 @@ control style. The compound primitives — viewport, pill, concept mark and
 context menu — own their own modules.
 
 An item-detail card is not a generic primitive. `DetailBand` is the detail
-feature's one card primitive: it composes the borderless `Panel` surface and
-adds an in-card header at the top-left with the concept mark and title. The
-card question is the section's accessible label, not a visible line. Cards are
-static; the detail body never folds them. A view may not re-declare a card
-surface or header; those belong to `DetailBand`.
+feature's one card primitive: it composes the flat `Panel` and places the card
+title above the body at the top-left, with the concept mark. The card question
+is the section's accessible label, not a visible line. Cards are static and
+backgroundless; the detail body never folds them. A view may not re-declare a
+card surface, header or title; those belong to `DetailBand`.
 
-A detail body pairs one left index pane with a horizontal deck of borderless
-cards. The index is a static view: it centres its tiles in the pane, lists the
+A detail body pairs one left index pane with a horizontal deck of flat cards. The index is a static view: it centres its tiles in the pane, lists the
 top-level cards in reading order and does not track the scroll position; the
 tile group carries one side line. Each card fills the deck height, carries its
 title at the top-left and leaves the next card's edge visible. The deck owns

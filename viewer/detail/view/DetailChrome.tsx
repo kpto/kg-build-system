@@ -207,7 +207,7 @@ export function DetailBand({
       id={id}
       className={cx(styles.band, className)}
       aria-label={question ? `${title}: ${question}` : title}
-      data-plain
+      data-flat
       data-detail-band
       data-detail-title={title}
       data-detail-concept={mark}
