@@ -459,7 +459,7 @@ button.constitutionName:focus-visible {
   color: var(--color-selection);
 }
 
-.constitutionCurve svg {
+.constitutionCurveLine {
   display: block;
   overflow: visible;
   width: 100%;

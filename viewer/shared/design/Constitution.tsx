@@ -144,7 +144,11 @@ function Arrow({ height = 36 }: { height?: number }) {
 function CurvedArrow({ from, to }: { from: number; to: number }) {
   return (
     <div className={styles.constitutionCurve} aria-hidden>
-      <svg viewBox="0 0 100 36" preserveAspectRatio="none">
+      <svg
+        className={styles.constitutionCurveLine}
+        viewBox="0 0 100 36"
+        preserveAspectRatio="none"
+      >
         <path d={`M ${from} 36 C ${from} 18, ${to} 18, ${to} 0`} />
       </svg>
       <svg
