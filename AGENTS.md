@@ -162,7 +162,8 @@ missing, not the code.
   purpose and identity and the relations it reads; an asset is the origin and
   has no card. A shared declaration is one node with one edge per consumer; a
   binding is never the parent of either side, fulfilment is neither axis, and
-  the purpose box carries the subject's own concept mark, never the graph mark.
+  each box carries its own concept mark and concept-tinted background, never the
+  graph's.
 - A DAG scene is laid out by a layered layout, not by fixed columns: the scene
   supplies nodes, edges and any rank constraint (such as one rank for every
   fulfilment), the layout computes the ranks, ordering and edge routes, and the
