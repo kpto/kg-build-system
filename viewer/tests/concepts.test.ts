@@ -1,0 +1,45 @@
+import { describe, expect, it } from "vitest";
+
+import type { ConceptKind } from "../lib/concepts";
+import { concepts } from "../shared/ui/concepts";
+
+const kinds: ConceptKind[] = [
+  "graph",
+  "abstract",
+  "node",
+  "edge",
+  "property",
+  "asset",
+  "table",
+  "projection",
+  "field",
+  "binding",
+  "workflow",
+  "step",
+  "semantics",
+];
+
+describe("concept catalogue", () => {
+  it("defines a mark, label and colour for every layer", () => {
+    expect(Object.keys(concepts).sort()).toEqual([...kinds].sort());
+    for (const kind of kinds) {
+      const definition = concepts[kind];
+      expect(definition.label.length).toBeGreaterThan(0);
+      expect(definition.color).toMatch(/^var\(--color-concept-/);
+      expect(definition.mark).toBeTruthy();
+    }
+  });
+
+  it("gives every layer a distinct colour", () => {
+    const colours = kinds.map((kind) => concepts[kind].color);
+    expect(new Set(colours).size).toBe(kinds.length);
+  });
+
+  it("names the layers by their role", () => {
+    expect(concepts.graph.label).toBe("Graph");
+    expect(concepts.table.label).toBe("Source relation");
+    expect(concepts.projection.label).toBe("Derived relation");
+    expect(concepts.semantics.label).toBe("Meaning");
+    expect(concepts.binding.label).toBe("Binding");
+  });
+});

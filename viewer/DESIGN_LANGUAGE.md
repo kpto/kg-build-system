@@ -109,16 +109,20 @@ A kind may state an absence instead of omitting a section. A step has no design
 meaning and no release source, and it says so; it is build machinery.
 
 A detail document banner leads with the kind's mark from the one concept
-registry, and the tab names the document. Graph and Workflow are working
+catalogue, and the tab names the document. Graph and Workflow are working
 surfaces: they have no detail banner and share one visualisation frame. Its
 25px header names the view and its extent and carries the view's own actions;
 every graph surface shares one bottom-left navigation cluster.
 
-One concept registry supplies the mark and representative colour for graph,
-workflow, node, edge, property, asset, source relation, derived relation,
-abstract category and step. A banner, a tab, a section reference and a
-membership row read the same registry, so an asset is the same green database
-mark wherever it appears.
+One concept catalogue in `shared/ui/concepts.tsx` supplies the mark and
+representative colour for every layer: graph, abstract category, node, edge,
+property, asset, source relation, derived relation, field, binding, workflow,
+step and meaning. A banner, a tab, a section reference, an expression row and a
+membership row read the same catalogue, so an asset is the same green cylinder
+mark wherever it appears. The marks share one grammar — a 24 px grid, a 1.6 px
+stroke and round joins — and the concept's one filled element takes a 24% tint
+when it is active. Colour is a second cue; the silhouette and the label carry
+the distinction alone.
 
 ## Interaction motion
 

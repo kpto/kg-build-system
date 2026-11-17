@@ -56,6 +56,21 @@
   --color-group-9: #6f8fae;
   --color-group-10: #b07f5f;
 
+  /* Concept catalogue: one categorical map for every layer's mark. */
+  --color-concept-graph: #377eb8;
+  --color-concept-abstract: #984ea3;
+  --color-concept-node: #ffff33;
+  --color-concept-edge: #e41a1c;
+  --color-concept-property: #1b9e77;
+  --color-concept-asset: #4daf4a;
+  --color-concept-source: #ff7f00;
+  --color-concept-derived: #f781bf;
+  --color-concept-field: #66a61e;
+  --color-concept-binding: #e6ab02;
+  --color-concept-workflow: #d95f02;
+  --color-concept-step: #a6761d;
+  --color-concept-meaning: #bab0ac;
+
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
   --font-mono: "SFMono-Regular", ui-monospace, Menlo, Monaco, Consolas, monospace;
 
@@ -2309,4 +2324,34 @@
   :where(button, [role="button"], summary):not(svg *):not(:disabled):active {
     transform: none;
   }
+}
+
+/* Concept marks: one grammar for every layer. The caller sets the box size;
+   the active element fills at 24% so selection does not change the silhouette. */
+.layer-mark {
+  display: block;
+  flex: none;
+  overflow: visible;
+}
+
+.layer-mark .layer-mark-fill {
+  fill: none;
+  stroke: currentColor;
+  transition:
+    fill var(--motion-fast) var(--ease-instrument),
+    fill-opacity var(--motion-fast) var(--ease-instrument);
+}
+
+.layer-mark .layer-mark-plain {
+  fill: none;
+  stroke: none;
+  transition:
+    fill var(--motion-fast) var(--ease-instrument),
+    fill-opacity var(--motion-fast) var(--ease-instrument);
+}
+
+.layer-mark[data-active] .layer-mark-fill,
+.layer-mark[data-active] .layer-mark-plain {
+  fill: currentColor;
+  fill-opacity: 0.24;
 }

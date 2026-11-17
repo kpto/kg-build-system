@@ -328,6 +328,13 @@
   text-transform: uppercase;
 }
 
+.constitutionMark {
+  width: 10px;
+  height: 10px;
+  flex: none;
+  align-self: center;
+}
+
 .constitutionName {
   overflow: hidden;
   min-width: 0;

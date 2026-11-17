@@ -18,7 +18,8 @@ export type ConceptKind =
   | "abstract"
   | "step"
   | "semantics"
-  | "field";
+  | "field"
+  | "binding";
 
 /** One named reference to a concept, with the asset document that owns it. */
 /** The document a concept reference opens. */

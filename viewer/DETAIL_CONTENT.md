@@ -25,7 +25,7 @@ includes by their immediate importance to a reader; it never renames one. A
 | 8 | **Connections** | Which records does this subject touch? | Endpoints of an edge, incident relations of a node, ports of a step. |
 | 9 | **Bindings** | Which binding fulfils this subject? | One row per binding: name, writes, identity, rows read. |
 
-A section header carries four things only: the section's concept logo, the
+A section header carries four things only: the section's concept mark, the
 structural title, the question in the reader's language, and one noun-bearing
 count. Every card gets a logo; the title-to-concept mapping lives once beside
 `DetailBand`.

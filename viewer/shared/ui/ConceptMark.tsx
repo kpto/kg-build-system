@@ -1,38 +1,46 @@
 import type { CSSProperties } from "react";
 
 import type { ConceptKind } from "@/lib/concepts";
-import { concepts } from "./concepts";
+import { concepts, LayerMark } from "./concepts";
 
-/** A small concept glyph; colour is the concept's representative colour. */
+/**
+ * A small concept glyph; the mark and colour come from the concept catalogue.
+ * Use `active` for a current or selected concept.
+ */
 export function ConceptGlyph({
   concept,
   className,
+  active = false,
 }: {
   concept: ConceptKind;
   className?: string;
+  active?: boolean;
 }) {
   const definition = concepts[concept];
-  const Icon = definition.icon;
   return (
-    <Icon
-      aria-hidden
+    <LayerMark
+      concept={concept}
       className={className}
+      active={active}
       style={{ color: definition.color }}
-      data-concept={concept}
     />
   );
 }
 
-/** A large concept mark for a detail banner: the kind's logo in its colour. */
+/**
+ * A large concept mark for a detail banner: the kind's mark in its colour.
+ * The parent sets the box and the sizes; the catalogue supplies the mark.
+ */
 export function ConceptMark({
   concept,
   className,
+  active = false,
 }: {
   concept: ConceptKind;
   className?: string;
+  active?: boolean;
 }) {
   const definition = concepts[concept];
-  const Icon = definition.icon;
   return (
     <span
       className={className}
@@ -46,7 +54,7 @@ export function ConceptMark({
         } as CSSProperties
       }
     >
-      <Icon aria-hidden />
+      <LayerMark concept={concept} active={active} />
     </span>
   );
 }

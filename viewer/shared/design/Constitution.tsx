@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { ConceptGlyph } from "@/shared/ui/ConceptMark";
 import { cx } from "@/shared/ui/theme";
 import { DesignMeaning } from "./DesignMeaning";
 import type {
@@ -92,6 +93,9 @@ function Box({
       aria-describedby={hoverable && hovered ? hoverCardId : undefined}
     >
       <div className={styles.constitutionMeta}>
+        {fulfilment ? (
+          <ConceptGlyph concept="binding" className={styles.constitutionMark} />
+        ) : null}
         <span className={styles.constitutionKind}>{node.label}</span>
         {open && onOpen ? (
           <button

@@ -47,6 +47,19 @@ export const theme = {
   group8: "var(--color-group-8)",
   group9: "var(--color-group-9)",
   group10: "var(--color-group-10)",
+  conceptGraph: "var(--color-concept-graph)",
+  conceptAbstract: "var(--color-concept-abstract)",
+  conceptNode: "var(--color-concept-node)",
+  conceptEdge: "var(--color-concept-edge)",
+  conceptProperty: "var(--color-concept-property)",
+  conceptAsset: "var(--color-concept-asset)",
+  conceptSource: "var(--color-concept-source)",
+  conceptDerived: "var(--color-concept-derived)",
+  conceptField: "var(--color-concept-field)",
+  conceptBinding: "var(--color-concept-binding)",
+  conceptWorkflow: "var(--color-concept-workflow)",
+  conceptStep: "var(--color-concept-step)",
+  conceptMeaning: "var(--color-concept-meaning)",
 } as const;
 
 export const severityColor = {
