@@ -95,9 +95,9 @@ A kind includes or omits a section; it never renames one for itself.
   consumer; a declaration shared by several consumers is one node with one edge
   per consumer, never a copy or a count. The purpose box carries the subject's
   own concept mark, never the graph mark.
-  - A record is one intact DAG: the purpose is the root, the graph ancestry is
-    framed on the left, the bindings are together in the FULFILMENT frame, and
-    the relation provenance is framed on the right. There is no separator.
+  - A record is one intact DAG: the purpose and graph ancestry are framed on the
+    left, the bindings are together in the FULFILMENT frame, and the relation
+    provenance is framed on the right. There is no separator.
   - A source relation shows its purpose over its asset alone; a derived relation
     its purpose over the source relations it scans and their assets. Neither
     carries a binding or a graph axis.

@@ -154,7 +154,7 @@ describe("constitution scene", () => {
     const relationFrame = frameFor("relation");
 
     expect(contains(graphFrame, byName("fixture_graph")[0])).toBe(true);
-    expect(contains(graphFrame, byName("defect")[0])).toBe(false);
+    expect(contains(graphFrame, byName("defect")[0])).toBe(true);
     expect(contains(graphFrame, byName("alpha_binding")[0])).toBe(false);
 
     for (const binding of scene.nodes.filter(

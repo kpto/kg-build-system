@@ -277,6 +277,34 @@ function bindingRelationEdges(
   return edges;
 }
 
+/** A binding sits beside the purpose; its edge enters the purpose's right edge. */
+function bindingToPurposePath(
+  binding: ConstitutionSceneNode,
+  purpose: ConstitutionSceneNode,
+): string {
+  const startX = binding.x;
+  const startY = binding.y + binding.height / 2;
+  const endX = purpose.x + purpose.width;
+  const endY = Math.min(
+    Math.max(startY, purpose.y + 16),
+    purpose.y + purpose.height - 16,
+  );
+  const bend = 18;
+  return `M ${startX} ${startY} C ${startX - bend} ${startY} ${
+    endX + bend
+  } ${endY} ${endX} ${endY}`;
+}
+
+/** The ancestry supplies the purpose from below, in the same column. */
+function ancestryToPurposePath(
+  ancestor: ConstitutionSceneNode,
+  purpose: ConstitutionSceneNode,
+): string {
+  return `M ${ancestor.x + ancestor.width / 2} ${ancestor.y} L ${
+    purpose.x + purpose.width / 2
+  } ${purpose.y + purpose.height}`;
+}
+
 /** The padded bounds of one group: a topology-style category frame. */
 function frameFor(
   id: ConstitutionSceneFrame["id"],
@@ -363,17 +391,37 @@ function buildRecordScene(model: ConstitutionModel): ConstitutionScene {
     ...node,
     ...(layered.positions.get(node.id) ?? { x: 0, y: 0 }),
   }));
+  const purposePositioned = positioned.find(
+    (node) => node.id === purpose.id,
+  )!;
+  const graphLeft = Math.min(
+    ...positioned
+      .filter((node) => node.axis === "graph")
+      .map((node) => node.x),
+    purposePositioned.x,
+  );
+  purposePositioned.x = graphLeft;
   nodes.push(...positioned);
+  const positionedById = new Map(
+    positioned.map((node) => [node.id, node]),
+  );
   links.forEach((edge) => {
-    const path = layered.paths.get(`${edge.source}->${edge.target}`);
-    if (path) {
-      edges.push({
-        id: `${edge.source}->${edge.target}`,
-        source: edge.source,
-        target: edge.target,
-        path,
-      });
-    }
+    const source = positionedById.get(edge.source);
+    const target = positionedById.get(edge.target);
+    if (!source || !target) return;
+    const path =
+      edge.target === purpose.id
+        ? source.axis === "binding"
+          ? bindingToPurposePath(source, purposePositioned)
+          : ancestryToPurposePath(source, purposePositioned)
+        : layered.paths.get(`${edge.source}->${edge.target}`);
+    if (!path) return;
+    edges.push({
+      id: `${edge.source}->${edge.target}`,
+      source: edge.source,
+      target: edge.target,
+      path,
+    });
   });
 
   const bindingNodes = positioned.filter((node) => node.axis === "binding");
@@ -383,7 +431,9 @@ function buildRecordScene(model: ConstitutionModel): ConstitutionScene {
       text: "GRAPH",
       frame: frameFor(
         "graph",
-        positioned.filter((node) => node.axis === "graph"),
+        positioned.filter(
+          (node) => node.axis === "purpose" || node.axis === "graph",
+        ),
       ),
     },
     {
