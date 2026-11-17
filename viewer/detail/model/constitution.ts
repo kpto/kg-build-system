@@ -5,9 +5,10 @@
  * The current subject's purpose is the root. The graph branch holds its
  * ancestry below, from the immediate parent down to the graph purpose; the
  * relation branch holds the provenance that supplies it, from the relation
- * down to the asset. The fulfilment box is the top right box, opposite the
- * purpose, with a horizontal link to it. A level keeps its own meaning, so the
- * two branches show derivation and supply, never inherited text.
+ * down to the asset. The fulfilment box sits one row lower on the right, linked
+ * to the purpose; the graph tree hangs from the purpose and the relation tree
+ * from the fulfilment. A level keeps its own meaning, so the two branches show
+ * derivation and supply, never inherited text.
  */
 
 import {

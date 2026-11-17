@@ -89,17 +89,17 @@ Meaning → Expression → Build steps
 A kind includes or omits a section; it never renames one for itself.
 
 - **Overview** is the tab banner: identity and one fact row. It is not a band.
-- **Constitution** reads in three sub-views, top to bottom: the current
-  subject's purpose, the Fulfilment that answers it, then the graph and relation
-  trees side by side. An arrow points up from Fulfilment to Purpose; each tree's
-  leading arrow points up to Fulfilment, and the dashed separator begins below
-  Fulfilment, between the two trees. The Graph tree is the record axis, ordered
-  from the subject's immediate parent down to the graph purpose; the Relation
-  tree is the relation axis, carrying its provenance branches below its
-  relation. Fulfilment is not a relation declaration. Every stacked item uses
-  the same vertical gap, and each arrow keeps that gap from the boxes it joins.
-  Each box states only its own purpose and clamps; arrows point up to the level
-  it supports. Hovering or focusing a box reveals its full meaning in a portal
+- **Constitution** places the subject's purpose at the top left over the graph
+  tree and Fulfilment one row lower on the right over the relation tree; a
+  curved elbow rises from Fulfilment's top edge into Purpose's right edge. The
+  Graph tree is the record axis, its leading arrow spanning the offset row to
+  Purpose; the Relation tree is the relation axis, its leading arrow climbing to
+  Fulfilment. The binding is the meeting, never the parent of either axis: the
+  separator begins below Fulfilment, and the two trees start on one line.
+  Fulfilment is not a relation declaration. Every stacked item uses the same
+  vertical gap, and each arrow keeps that gap from the boxes it joins. Each box
+  states only its own purpose and clamps; arrows point up to the level it
+  supports. Hovering or focusing a box reveals its full meaning in a portal
   card; a box label opens that level's document. A grouped branch shows the
   first item and `+N`. The axis legend sits below its own lane's content,
   centred; proximity keeps it with that lane even when the other lane is

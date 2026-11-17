@@ -140,6 +140,19 @@ function Arrow({ height = 36 }: { height?: number }) {
     </svg>
   );
 }
+
+/**
+ * A connector that stretches to the gap it crosses. The shaft is an SVG line
+ * that runs to the head's vertex, so a long reach never separates the two.
+ */
+function SpanArrow() {
+  return (
+    <svg className={styles.constitutionSpanArrow} width="14" aria-hidden>
+      <line x1="7" y1="100%" x2="7" y2="1" />
+      <path d="M2 7 L7 1 L12 7" />
+    </svg>
+  );
+}
 function Branch({
   side,
   label,
@@ -163,9 +176,9 @@ function Branch({
     <div className={styles.constitutionBranch} data-side={side}>
       <div className={styles.constitutionStack}>
         {nodes.length ? (
-          nodes.map((node) => (
+          nodes.map((node, index) => (
             <Fragment key={boxKey(node)}>
-              <Arrow />
+              {index ? <Arrow /> : null}
               <Box
                 node={node}
                 hovered={hoveredKey === boxKey(node)}
@@ -185,10 +198,12 @@ function Branch({
 }
 
 /**
- * The subject as a constitution, read top to bottom: the subject's purpose,
- * the fulfilment that answers it, then the graph and relation axes side by
- * side. Every arrow points up to the level it supports. Hovering or focusing a
- * box reveals its full meaning in a portal, because the band clips overflow.
+ * The subject as a constitution: purpose at the top left over the graph tree,
+ * fulfilment one row lower on the right over the relation tree, linked by an
+ * elbow that rises from fulfilment's top edge into purpose's right edge. Both
+ * trees start on one line, and every arrow points up to the level it supports.
+ * Hovering or focusing a box reveals its full meaning in a portal, because the
+ * band clips overflow.
  */
 export function Constitution({ model }: ConstitutionProps) {
   const [hovered, setHovered] = useState<HoveredBox | null>(null);
@@ -281,39 +296,52 @@ export function Constitution({ model }: ConstitutionProps) {
 
   return (
     <div className={styles.constitution} aria-label="Constitution">
-      <div className={styles.constitutionPurpose}>
-        <Box
-          node={model.purpose}
-          root
-          hovered={hoveredKey === boxKey(model.purpose)}
-          hoverCardId={hoverCardId}
-          onHover={openHover}
-          onLeave={scheduleClose}
-        />
-      </div>
+      <div className={styles.constitutionTop}>
+        <div className={styles.constitutionPurpose}>
+          <Box
+            node={model.purpose}
+            root
+            hovered={hoveredKey === boxKey(model.purpose)}
+            hoverCardId={hoverCardId}
+            onHover={openHover}
+            onLeave={scheduleClose}
+          />
+        </div>
 
-      <span className={styles.constitutionLink}>
-        <Arrow />
-      </span>
+        <span className={styles.constitutionSpan} aria-hidden>
+          <SpanArrow />
+        </span>
 
-      <div className={styles.constitutionFulfilment}>
-        <Box
-          node={
-            bindingNode ?? {
-              kind: "binding",
-              name: "no binding",
-              label: "Fulfilment",
-              meaning: { claims: [], limitations: [], frames: [] },
+        <div className={styles.constitutionFulfilment}>
+          <Box
+            node={
+              bindingNode ?? {
+                kind: "binding",
+                name: "no binding",
+                label: "Fulfilment",
+                meaning: { claims: [], limitations: [], frames: [] },
+              }
             }
-          }
-          fulfilment
-          hoverable={bindingHoverable}
-          text={bindingText}
-          hovered={hoveredKey === bindingKey}
-          hoverCardId={hoverCardId}
-          onHover={openHover}
-          onLeave={scheduleClose}
-        />
+            fulfilment
+            hoverable={bindingHoverable}
+            text={bindingText}
+            hovered={hoveredKey === bindingKey}
+            hoverCardId={hoverCardId}
+            onHover={openHover}
+            onLeave={scheduleClose}
+          />
+          <span className={styles.constitutionRelationArrow} aria-hidden>
+            <SpanArrow />
+          </span>
+        </div>
+
+        <span className={styles.constitutionCurveCell} aria-hidden>
+          <span className={styles.constitutionCurve}>
+            <svg className={styles.constitutionCurveHead} viewBox="0 0 12 12">
+              <path d="M10 2 L2 6 L10 10" />
+            </svg>
+          </span>
+        </span>
       </div>
 
       <div className={styles.constitutionAxes}>
@@ -334,7 +362,6 @@ export function Constitution({ model }: ConstitutionProps) {
 
         <div className={styles.constitutionBranch} data-side="relation">
           <div className={styles.constitutionStack}>
-            <Arrow />
             {primaryRelation ? (
               <Box
                 node={primaryRelation}
@@ -342,7 +369,7 @@ export function Constitution({ model }: ConstitutionProps) {
                 hoverCardId={hoverCardId}
                 onHover={openHover}
                 onLeave={scheduleClose}
-                    />
+              />
             ) : (
               <p className={styles.constitutionEmpty}>No relation is shown.</p>
             )}
@@ -360,7 +387,7 @@ export function Constitution({ model }: ConstitutionProps) {
                       hoverCardId={hoverCardId}
                       onHover={openHover}
                       onLeave={scheduleClose}
-                                />
+                    />
                   </div>
                 ))}
               </div>
