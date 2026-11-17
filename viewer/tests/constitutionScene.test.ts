@@ -47,6 +47,7 @@ const sceneModel: ConstitutionModel = {
     {
       index: 0,
       name: "alpha_binding",
+      component: "defect",
       relations: ["alpha"],
       purpose: "Alpha binding.",
       meaning,
@@ -54,6 +55,7 @@ const sceneModel: ConstitutionModel = {
     {
       index: 1,
       name: "beta_binding",
+      component: "defect",
       relations: ["beta"],
       purpose: "Beta binding.",
       meaning,
@@ -61,6 +63,7 @@ const sceneModel: ConstitutionModel = {
     {
       index: 2,
       name: "gamma_binding",
+      component: "defect",
       relations: ["surveys"],
       purpose: "Gamma binding.",
       meaning,
@@ -83,6 +86,8 @@ describe("constitution scene", () => {
     expect(byName("beta_binding")).toHaveLength(1);
     expect(byName("gamma_binding")).toHaveLength(1);
     expect(byName("alpha_binding")[0].text).toBe("Alpha binding.");
+    expect(byName("alpha_binding")[0].component).toBe("defect");
+    expect(byName("alpha_binding")[0].bindingIndex).toBe(0);
     expect(byName("beta_binding")[0].text).toBe("Beta binding.");
     expect(byName("gamma_binding")[0].text).toBe("Gamma binding.");
   });

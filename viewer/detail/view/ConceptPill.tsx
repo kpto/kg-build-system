@@ -22,7 +22,7 @@ export interface ConceptPillProps {
   title?: string;
   active?: boolean;
   className?: string;
-  size?: "sm" | "md";
+  size?: "sm" | "md" | "lg";
 }
 
 /**
@@ -47,7 +47,12 @@ export function ConceptPill({
   const navigation = useConceptNavigation();
   const definition = concepts[concept];
   const style = { "--concept-color": definition.color } as CSSProperties;
-  const classes = [styles.pill, size === "md" && styles.md, className]
+  const classes = [
+    styles.pill,
+    size === "md" && styles.md,
+    size === "lg" && styles.lg,
+    className,
+  ]
     .filter(Boolean)
     .join(" ");
   const target: ConceptTarget = {

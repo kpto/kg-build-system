@@ -74,6 +74,8 @@ export interface ConstitutionBinding {
   index: number;
   /** The binding's display handle; a binding name is not its identity. */
   name: string;
+  /** The record the binding writes, so its pill can open that document. */
+  component: string;
   /** The relations this binding's row source reads. */
   relations: string[];
   purpose?: string;
@@ -439,6 +441,7 @@ function bindingSummaries(
   return bindings.map((binding) => ({
     index: binding.index,
     name: binding.debugName ?? `binding #${binding.index}`,
+    component: binding.target,
     relations: binding.relations,
     purpose: binding.purpose,
     meaning: bindingMeaning(index, binding),

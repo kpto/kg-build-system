@@ -12,7 +12,6 @@ import { createPortal } from "react-dom";
 
 import type { ConceptKind } from "@/lib/concepts";
 import { concepts } from "@/shared/ui/concepts";
-import { ConceptGlyph } from "@/shared/ui/ConceptMark";
 import { GraphCanvas } from "@/shared/ui/GraphCanvas";
 import { ConceptPill } from "./ConceptPill";
 import { cx } from "@/shared/ui/theme";
@@ -52,6 +51,8 @@ function Box({
   fulfilment = false,
   hoverable = true,
   text,
+  component,
+  bindingIndex,
   hovered,
   hoverCardId,
   onHover,
@@ -62,6 +63,8 @@ function Box({
   fulfilment?: boolean;
   hoverable?: boolean;
   text?: string;
+  component?: string;
+  bindingIndex?: number;
   hovered: boolean;
   hoverCardId: string;
   onHover(node: ConstitutionNode, element: HTMLElement): void;
@@ -107,21 +110,14 @@ function Box({
       aria-describedby={hoverable && hovered ? hoverCardId : undefined}
     >
       <div className={styles.constitutionMeta}>
-        {fulfilment ? (
-          <ConceptGlyph concept="binding" className={styles.constitutionMark} />
-        ) : null}
-        {root || fulfilment ? (
-          <span className={styles.constitutionKind}>{node.label}</span>
-        ) : null}
-        {fulfilment ? (
-          <span className={styles.constitutionName}>{node.name}</span>
-        ) : (
-          <ConceptPill
-            concept={pillConcept(node.kind)}
-            name={node.name}
-            active={node.current}
-          />
-        )}
+        <ConceptPill
+          concept={fulfilment ? "binding" : pillConcept(node.kind)}
+          name={node.name}
+          {...(component ? { component } : {})}
+          {...(bindingIndex !== undefined ? { bindingIndex } : {})}
+          size="lg"
+          active={node.current}
+        />
         {node.current ? (
           <span className={styles.constitutionTag} data-current>
             current
@@ -253,6 +249,8 @@ function ConstitutionSceneView({
                 fulfilment={node.axis === "fulfilment"}
                 hoverable={node.hoverable}
                 text={node.text}
+                component={node.component}
+                bindingIndex={node.bindingIndex}
                 hovered={hoveredKey === boxKey(node.node)}
                 hoverCardId={hoverCardId}
                 onHover={onHover}

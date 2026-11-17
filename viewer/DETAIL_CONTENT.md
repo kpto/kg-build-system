@@ -83,9 +83,12 @@ A constitution states how one subject comes to be. The subject's purpose is the
 top node, the declarations that produce it hang below, and every edge points
 from the supply to the consumer. The purpose box carries the subject's own
 concept mark, never the graph mark, and each box background is a tint of its
-own concept colour. The card is one layered DAG: a declaration shared by several
-consumers is one node with one edge per consumer, ranks, ordering and edge
-routes are computed, and nothing is grouped or hidden.
+own concept colour. The concept pill is the box header: it uses the title role
+and sits one stack gap above the purpose, closer than the box padding, so the
+header and its body read as one group while the rank gap separates boxes. The
+card is one layered DAG: a declaration shared by several consumers is one node
+with one edge per consumer, ranks, ordering and edge routes are computed, and
+nothing is grouped or hidden.
 
 | Subject | How it comes to be | The card |
 | --- | --- | --- |

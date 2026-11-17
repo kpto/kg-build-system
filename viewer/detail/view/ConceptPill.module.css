@@ -34,6 +34,15 @@
   font-size: var(--text-body);
 }
 
+/* A header pill: the instance name leads the block it belongs to. */
+.lg {
+  height: 28px;
+  gap: var(--space-stack);
+  padding: 0 var(--space-section) 0 var(--space-group);
+  font-size: var(--text-title);
+  font-weight: var(--weight-medium);
+}
+
 .mark {
   width: 10px;
   height: 10px;
@@ -43,6 +52,11 @@
 .md .mark {
   width: 12px;
   height: 12px;
+}
+
+.lg .mark {
+  width: 14px;
+  height: 14px;
 }
 
 .divider {
@@ -61,6 +75,10 @@
   height: 10px;
 }
 
+.lg .divider {
+  height: 12px;
+}
+
 .name {
   min-width: 0;
   overflow: hidden;
@@ -76,6 +94,10 @@ button.pill {
 
 button.md {
   font-size: var(--text-body);
+}
+
+button.lg {
+  font-size: var(--text-title);
 }
 
 button.pill:hover {

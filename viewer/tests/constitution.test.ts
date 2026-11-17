@@ -52,6 +52,7 @@ describe("constitution", () => {
       "estate",
     ]);
     expect(model.bindings).toHaveLength(1);
+    expect(model.bindings[0].component).toBe("defect");
     expect(model.bindings[0].meaning.claims[0]?.text).toContain(
       "projects the survey title",
     );

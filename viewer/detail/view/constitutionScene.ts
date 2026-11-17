@@ -27,6 +27,9 @@ export interface ConstitutionSceneNode {
   /** The binding's purpose, shown instead of the node's own purpose. */
   text?: string;
   hoverable?: boolean;
+  /** The pill's owner and binding identity for navigation. */
+  component?: string;
+  bindingIndex?: number;
   x: number;
   y: number;
   width: number;
@@ -63,10 +66,10 @@ export interface ConstitutionScene {
 }
 
 const NODE = {
-  purpose: { width: 440, height: 96 },
-  binding: { width: 300, height: 84 },
-  graph: { width: 440, height: 84 },
-  relation: { width: 300, height: 84 },
+  purpose: { width: 440, height: 108 },
+  binding: { width: 300, height: 104 },
+  graph: { width: 440, height: 104 },
+  relation: { width: 300, height: 104 },
 } as const;
 
 const COLUMN_GAP = 60;
@@ -266,6 +269,8 @@ function bindingNode(binding: ConstitutionBinding): ConstitutionSceneNode {
     id: `binding:${binding.index}`,
     axis: "fulfilment",
     node,
+    component: binding.component,
+    bindingIndex: binding.index,
     text: binding.purpose ?? binding.meaning.purpose ?? "No purpose is stated.",
     hoverable: Boolean(
       binding.meaning.purpose ||
