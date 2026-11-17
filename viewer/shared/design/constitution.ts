@@ -4,9 +4,9 @@
  *
  * The purpose is the root. The graph branch holds the record-axis purposes
  * that narrow it; the relation branch holds the provenance that supplies it,
- * from the relation down to the asset. The binding is the seam between them.
- * A level keeps its own meaning, so the two branches show derivation and
- * supply, never inherited text.
+ * from the relation down to the asset. The fulfilment box sits between the
+ * purpose and the relation tree. A level keeps its own meaning, so the two
+ * branches show derivation and supply, never inherited text.
  */
 
 import {
@@ -50,7 +50,7 @@ export interface ConstitutionNode {
   open?: ConstitutionTarget;
 }
 
-/** The binding seam: what meets the two axes, summarised. */
+/** The fulfilment box: what meets the two axes, summarised. */
 export interface ConstitutionBinding {
   count: number;
   identity: string[];
@@ -311,8 +311,8 @@ function bindingSummary(
  *
  * A record subject is rooted in the graph purpose and walks its record axis; a
  * relation or asset subject is rooted in its own purpose and lists the records
- * it fulfils. Both cases carry the relation axis and the binding seam, so the
- * two axes are read together rather than in separate cards.
+ * it fulfils. Both cases carry the relation tree and its fulfilment box, so
+ * the two axes are read together rather than in separate cards.
  */
 export function constitutionModel(
   index: ViewerIndex,

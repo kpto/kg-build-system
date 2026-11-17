@@ -80,15 +80,16 @@ A kind includes or omits a section; it never renames one for itself.
 
 - **Overview** is one fact grid: kind, labels, identity, owner or endpoints,
   counts and licence.
-- **Constitution** is the two-axis tree. The purpose is the root; the Graph
-  branch is the record axis, ordered from category to component to property; the
-  Relation branch is the relation axis, ordered from the relation to the asset.
-  The dashed centre is the binding seam, not a third axis. Each box states only
-  its own purpose and clamps; arrows point up to the level it is accountable to.
-  Hovering or focusing a box reveals its full meaning in a portal card; a box
-  label opens that level's document. A grouped branch shows the first item and
-  `+N`; **Full axis map** expands the same data into the three-column records,
-  fulfilment and relations view.
+- **Constitution** is the two-axis tree. The wide purpose is the root; the
+  Graph branch is the record axis, ordered from category to component to
+  property; the Relation branch is the relation axis. The Fulfilment box sits
+  directly under the purpose, the relation under it, and the relation's
+  provenance branches below. The dashed centre is the axis divide. Each box
+  states only its own purpose and clamps; arrows point up to the level it is
+  accountable to. Hovering or focusing a box reveals its full meaning in a
+  portal card; a box label opens that level's document. A grouped branch shows
+  the first item and `+N`; **Full axis map** expands the same data into the
+  three-column records, fulfilment and relations view.
 - **Meaning** is the full meaning of the current subject: purpose, the
   limitations it owns, then contextless claims. It is a separate card from the
   Constitution, so a reader can see the two axes and the subject's complete

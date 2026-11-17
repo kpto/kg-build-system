@@ -33,9 +33,16 @@ function plural(count: number, noun: string): string {
   return `${count} ${noun.endsWith("y") ? `${noun.slice(0, -1)}ies` : `${noun}s`}`;
 }
 
+function boxKey(node: ConstitutionNode): string {
+  return `${node.kind}:${node.name}`;
+}
+
 function Box({
   node,
   root = false,
+  fulfilment = false,
+  hoverable = true,
+  text,
   hovered,
   hoverCardId,
   onHover,
@@ -44,6 +51,9 @@ function Box({
 }: {
   node: ConstitutionNode;
   root?: boolean;
+  fulfilment?: boolean;
+  hoverable?: boolean;
+  text?: string;
   hovered: boolean;
   hoverCardId: string;
   onHover(node: ConstitutionNode, element: HTMLElement): void;
@@ -51,23 +61,38 @@ function Box({
   onOpen?(target: ConstitutionTarget): void;
 }) {
   const purpose = node.meaning.purpose;
+  const body = text ?? purpose ?? "No purpose is stated.";
   const open = node.open && !node.current ? node.open : undefined;
   return (
     <div
       className={cx(
         styles.constitutionBox,
         root && styles.constitutionBoxRoot,
+        fulfilment && styles.constitutionBoxFulfilment,
         node.current && styles.constitutionBoxCurrent,
       )}
       data-root={root || undefined}
+      data-fulfilment={fulfilment || undefined}
       data-current={node.current || undefined}
-      tabIndex={0}
-      onMouseEnter={(event) => onHover(node, event.currentTarget)}
-      onMouseLeave={onLeave}
-      onFocus={(event) => onHover(node, event.currentTarget)}
-      onBlur={onLeave}
-      aria-label={`${node.label} ${node.name}: full meaning`}
-      aria-describedby={hovered ? hoverCardId : undefined}
+      tabIndex={hoverable ? 0 : undefined}
+      onMouseEnter={
+        hoverable
+          ? (event) => onHover(node, event.currentTarget)
+          : undefined
+      }
+      onMouseLeave={hoverable ? onLeave : undefined}
+      onFocus={
+        hoverable
+          ? (event) => onHover(node, event.currentTarget)
+          : undefined
+      }
+      onBlur={hoverable ? onLeave : undefined}
+      aria-label={
+        hoverable
+          ? `${node.label} ${node.name}: full meaning`
+          : undefined
+      }
+      aria-describedby={hoverable && hovered ? hoverCardId : undefined}
     >
       <div className={styles.constitutionMeta}>
         <span className={styles.constitutionKind}>{node.label}</span>
@@ -94,12 +119,20 @@ function Box({
       <span
         className={cx(
           styles.constitutionText,
-          !purpose && styles.constitutionMissing,
+          !purpose && !text && styles.constitutionMissing,
         )}
       >
-        {purpose ?? "No purpose is stated."}
+        {body}
       </span>
     </div>
+  );
+}
+
+function Arrow() {
+  return (
+    <span className={styles.constitutionArrow} aria-hidden>
+      <ArrowUp size={13} strokeWidth={1.8} />
+    </span>
   );
 }
 
@@ -129,24 +162,19 @@ function Branch({
       <span className={styles.constitutionBranchLabel}>{label}</span>
       <div className={styles.constitutionStack}>
         {nodes.length ? (
-          nodes.map((node) => {
-            const key = `${node.kind}:${node.name}`;
-            return (
-              <Fragment key={key}>
-                <span className={styles.constitutionArrow} aria-hidden>
-                  <ArrowUp size={13} strokeWidth={1.8} />
-                </span>
-                <Box
-                  node={node}
-                  hovered={hoveredKey === key}
-                  hoverCardId={hoverCardId}
-                  onHover={onHover}
-                  onLeave={onLeave}
-                  onOpen={onOpen}
-                />
-              </Fragment>
-            );
-          })
+          nodes.map((node) => (
+            <Fragment key={boxKey(node)}>
+              <Arrow />
+              <Box
+                node={node}
+                hovered={hoveredKey === boxKey(node)}
+                hoverCardId={hoverCardId}
+                onHover={onHover}
+                onLeave={onLeave}
+                onOpen={onOpen}
+              />
+            </Fragment>
+          ))
         ) : (
           <p className={styles.constitutionEmpty}>{empty}</p>
         )}
@@ -156,13 +184,14 @@ function Branch({
 }
 
 /**
- * The subject as a constitution: one purpose at the root, the graph and
- * relation axes descending from it, and the binding seam between them.
+ * The subject as a constitution: one purpose across the top, the graph and
+ * relation axes below it, and the binding as the relation side's fulfilment.
  *
- * The two branches are read as a tree, not as a Cartesian plot: each level
- * points up to the level it is accountable to, and the dashed centre states
- * that a binding is what lets one axis meet the other. Hovering or focusing a
- * box reveals its full meaning in a portal, because the band clips overflow.
+ * The graph chain reads upward to the purpose. On the relation side the
+ * fulfilment box sits directly under the purpose, the relation under it, and
+ * the relation's provenance branches below the relation. The dashed centre is
+ * the axis divide, not a third axis. Hovering or focusing a box reveals its
+ * full meaning in a portal, because the band clips overflow.
  */
 export function Constitution({
   model,
@@ -215,9 +244,52 @@ export function Constitution({
     setHovered({ node, rect: element.getBoundingClientRect() });
   };
 
-  const hoveredKey = hovered
-    ? `${hovered.node.kind}:${hovered.node.name}`
+  const hoveredKey = hovered ? boxKey(hovered.node) : undefined;
+
+  const binding = model.binding;
+  const bindingNode: ConstitutionNode | undefined = binding
+    ? {
+        kind: "binding",
+        name: plural(binding.count, "binding"),
+        label: "Fulfilment",
+        meaning: binding.meaning,
+        detail:
+          binding.count === 1
+            ? [
+                binding.identity.length
+                  ? `${binding.identity.length} ${
+                      binding.identity.length === 1
+                        ? "identity field"
+                        : "identity fields"
+                    }`
+                  : "",
+                binding.properties ? plural(binding.properties, "property") : "",
+              ]
+                .filter(Boolean)
+                .join(" · ") || undefined
+            : undefined,
+      }
     : undefined;
+  const bindingKey = bindingNode ? boxKey(bindingNode) : "binding:no binding";
+  const bindingText = binding
+    ? binding.count === 1
+      ? (binding.purpose ?? "No purpose is stated.")
+      : `${plural(binding.count, "binding")}${
+          binding.identity.length
+            ? ` · identity ${binding.identity.join(", ")}`
+            : ""
+        }`
+    : "No binding meets these two axes.";
+  const bindingHoverable = Boolean(
+    binding &&
+      binding.count === 1 &&
+      (binding.meaning.purpose ||
+        binding.meaning.claims.length ||
+        binding.meaning.limitations.length ||
+        (binding.meaning.frames?.length ?? 0)),
+  );
+
+  const [primaryRelation, ...childRelations] = model.relation;
   const hoveredLeft = hovered
     ? Math.min(
         Math.max(12, hovered.rect.left),
@@ -230,17 +302,13 @@ export function Constitution({
       : hovered.rect.bottom + 8
     : 0;
 
-  const binding = model.binding;
-
   return (
     <div className={styles.constitution} aria-label="Constitution">
       <div className={styles.constitutionRoot}>
         <Box
           node={model.purpose}
           root
-          hovered={
-            hoveredKey === `${model.purpose.kind}:${model.purpose.name}`
-          }
+          hovered={hoveredKey === boxKey(model.purpose)}
           hoverCardId={hoverCardId}
           onHover={openHover}
           onLeave={scheduleClose}
@@ -260,61 +328,85 @@ export function Constitution({
           onLeave={scheduleClose}
           onOpen={onOpen}
         />
+
         <div className={styles.constitutionSeam} aria-hidden>
           <span className={styles.constitutionSeamLine} />
         </div>
-        <Branch
-          side="relation"
-          label="Relation"
-          nodes={model.relation}
-          empty="No relation is shown."
-          hoveredKey={hoveredKey}
-          hoverCardId={hoverCardId}
-          onHover={openHover}
-          onLeave={scheduleClose}
-          onOpen={onOpen}
-        />
+
+        <div className={styles.constitutionBranch} data-side="relation">
+          <span className={styles.constitutionBranchLabel}>Relation</span>
+          <div className={styles.constitutionStack}>
+            <Arrow />
+            <Box
+              node={
+                bindingNode ?? {
+                  kind: "binding",
+                  name: "no binding",
+                  label: "Fulfilment",
+                  meaning: { claims: [], limitations: [], frames: [] },
+                }
+              }
+              fulfilment
+              hoverable={bindingHoverable}
+              text={bindingText}
+              hovered={hoveredKey === bindingKey}
+              hoverCardId={hoverCardId}
+              onHover={openHover}
+              onLeave={scheduleClose}
+              onOpen={onOpen}
+            />
+            {primaryRelation ? (
+              <>
+                <Arrow />
+                <Box
+                  node={primaryRelation}
+                  hovered={hoveredKey === boxKey(primaryRelation)}
+                  hoverCardId={hoverCardId}
+                  onHover={openHover}
+                  onLeave={scheduleClose}
+                  onOpen={onOpen}
+                />
+              </>
+            ) : null}
+            {childRelations.length ? (
+              <div
+                className={styles.constitutionChildren}
+                data-count={childRelations.length}
+              >
+                {childRelations.map((node) => (
+                  <div className={styles.constitutionChild} key={boxKey(node)}>
+                    <Arrow />
+                    <Box
+                      node={node}
+                      hovered={hoveredKey === boxKey(node)}
+                      hoverCardId={hoverCardId}
+                      onHover={openHover}
+                      onLeave={scheduleClose}
+                      onOpen={onOpen}
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        </div>
       </div>
 
-      <div
-        className={styles.constitutionBinding}
-        data-empty={binding ? undefined : true}
-      >
-        <span className={styles.constitutionBindingLabel}>Fulfilment</span>
-        {binding ? (
-          <>
-            <span className={styles.constitutionBindingText}>
-              {plural(binding.count, "binding")}
-              {binding.identity.length
-                ? ` · identity ${binding.identity.join(", ")}`
-                : ""}
-              {binding.count === 1 && binding.properties
-                ? ` · ${plural(binding.properties, "property")}`
-                : ""}
-            </span>
-            {onToggleFullMap ? (
-              <button
-                type="button"
-                className={styles.constitutionMapToggle}
-                aria-expanded={fullMapOpen}
-                onClick={onToggleFullMap}
-              >
-                {fullMapOpen ? "Hide axis map" : "Full axis map"}
-              </button>
-            ) : null}
-          </>
-        ) : (
-          <span className={styles.constitutionBindingText}>
-            No binding meets these two axes.
-          </span>
-        )}
+      <div className={styles.constitutionTools}>
+        {onToggleFullMap ? (
+          <button
+            type="button"
+            className={styles.constitutionMapToggle}
+            aria-expanded={fullMapOpen}
+            onClick={onToggleFullMap}
+          >
+            {fullMapOpen ? "Hide axis map" : "Full axis map"}
+          </button>
+        ) : null}
       </div>
-      {binding?.purpose ? (
-        <p className={styles.constitutionBindingPurpose}>{binding.purpose}</p>
-      ) : null}
       <p className={styles.constitutionNote}>
         The graph asserts the purpose; the relation supplies the rows; the
-        binding states their meeting.
+        fulfilment states their meeting.
       </p>
 
       {hovered

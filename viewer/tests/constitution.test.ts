@@ -23,7 +23,7 @@ const hierarchyIndex = buildViewerIndex(
 );
 
 describe("constitution", () => {
-  it("reads the graph branch, relation branch and binding seam for a node", () => {
+  it("reads the graph branch, relation branch and fulfilment box for a node", () => {
     const model = constitutionModel(hierarchyIndex, {
       level: "node",
       component: "defect",

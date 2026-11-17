@@ -16,7 +16,7 @@ includes by their immediate importance to a reader; it never renames one. A
 | Order | Section | Question it answers | Content |
 | --- | --- | --- | --- |
 | 1 | **Overview** | What is this, in one screen? | One fact grid: kind, labels, identity, owner or endpoints, counts and licence. |
-| 2 | **Constitution** | What does this subject assert, and how is it fulfilled? | One purpose at the root; the graph branch below it, from category to component to property; the relation branch from the binding's relation to the asset; the dashed binding seam between them. Each box shows only its own purpose, clamped to two lines; hovering or focusing it reveals the full meaning, and a box label opens its document. The binding footer states identity and coverage. A grouped branch shows the first item and `+N`; one control expands the full axis map. |
+| 2 | **Constitution** | What does this subject assert, and how is it fulfilled? | One wide purpose at the top; the Graph chain on the left and the Relation chain on the right. The Fulfilment box sits directly under the purpose, the relation under it, and the relation's provenance branches below. Arrows point up to the level each box is accountable to. The dashed centre is the axis divide, not a binding. Each box clamps its purpose to two lines; hovering or focusing it reveals the full meaning, and a box label opens its document. The Fulfilment box states the binding count, identity fields and coverage. A grouped branch shows the first item and `+N`; one control expands the full axis map. |
 | 3 | **Meaning** | What is this for, and what does it exclude? | The full meaning of the current subject: purpose, the limitations it owns, then contextless claims; compact counts in the header. |
 | 4 | **Sources** | Where does this value come from? | Assets, source relations and derived relations, as navigable references with counts. |
 | 5 | **Build steps** | How is this built? | The narrowed workflow graph of the steps that produce the subject. |
@@ -48,7 +48,7 @@ and start collapsed. The card's `data-priority` attribute records the class.
 
 `field` and `binding` are not document kinds. A field belongs to its owner's
 Members table; a binding belongs to its record's Bindings table and to the
-Constitution seam.
+Constitution's fulfilment box.
 
 ## Provenance and lineage are two visualisations
 
@@ -72,7 +72,7 @@ tree, not a Cartesian plot: the purpose is the root, the graph and relation
 branches descend from it, and each box points up to the level it is accountable
 to.
 
-- **Purpose** is the one root: the graph purpose. A record subject walks its
+- **Purpose** is the wide root: the graph purpose. A record subject walks its
   record axis below it; a relation or asset subject lists the records it
   fulfils. A relation's own purpose stays on the relation box and is not
   promoted into the root, because a relation purpose is a peer of the graph
@@ -80,21 +80,23 @@ to.
 - **Graph** is the record axis: category → component → property, ordered from
   the broadest level to the current subject. Each box states its own purpose;
   the current box is tinted and marked.
-- **Relation** is the relation axis: the relation a binding reads, then the
-  asset it reads from. A derived relation places the scanned source relation
-  between itself and the asset. The current declaration is marked when the
-  subject is a relation or asset.
-- **Fulfilment** is the dashed centre seam, not a third axis. It states the
-  binding count, identity and coverage. The graph asserts, the relation
-  supplies, and the binding states their meeting.
+- **Relation** is the relation axis. The Fulfilment box sits directly under the
+  purpose; the relation sits under the Fulfilment box; the relation's
+  provenance branches sit under the relation. A derived relation splits into
+  its scanned source relation and its asset; a source relation shows its asset.
+  The current declaration is marked when the subject is a relation or asset.
+- **Fulfilment** is a box on the relation side, not the dashed centre. It
+  states the binding count, identity fields and coverage. The dashed centre is
+  the axis divide. The graph asserts, the relation supplies, and the
+  Fulfilment box states their meeting.
 - A branch with many records, relations or assets shows the first item and
   `+N`, so the card stays compact. **Full axis map** expands the same data into
   the three-column records / fulfilment / relations view.
 
 The card never invents a purpose, a relation or a binding. When a declaration
 states no meaning, the box says so; when no binding meets the two axes, the
-seam says so. Hovering a box reveals its full meaning; clicking a box label
-opens that level's document. The box itself is inspection only.
+Fulfilment box says so. Hovering a box reveals its full meaning; clicking a box
+label opens that level's document. The box itself is inspection only.
 
 ## One grammar per concept
 

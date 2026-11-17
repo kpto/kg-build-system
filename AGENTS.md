@@ -155,9 +155,9 @@ missing, not the code.
   question; every further layer is revealed by a named control, and raw JSON is
   not a default surface.
 - A subject that carries purpose, fulfilment and provenance is one constitution:
-  purpose at the root, the graph and relation axes below it, the binding as the
-  seam between them. The axes are parallel lanes, not a Cartesian plot; only
-  the binding states their meeting.
+  purpose at the root, the graph and relation axes below it, and fulfilment as
+  the relation side's box above the relation tree. The axes are parallel lanes,
+  not a Cartesian plot; only fulfilment states their meeting.
 - A repeated item renders its units compactly. A heading is structural, not per
   unit: a table cell or list row does not repeat the section chrome.
 - Present the design before an author workflow: a canonical view carries the
