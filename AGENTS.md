@@ -219,7 +219,9 @@ missing, not the code.
   truncates its name rather than wrapping.
 - A component reads the shared design language for colour, type, space, shape,
   depth, motion and layer order; it declares only geometry that belongs to its
-  own composition. A theme check rejects a raw value in a component stylesheet.
+  own composition. A token names a role, not a measured value: spacing has no
+  numbered steps. A theme check rejects a raw value or a numbered spacing token
+  in a component stylesheet.
 - Motion is feedback, not decoration: short ease-out transitions on transform and
   opacity, origin-aware entrances, and reduced motion removes movement.
 - End every change report with the rule-promotion result: none, refined or
