@@ -1,17 +1,15 @@
 """The relational catalog and the derived iteration timeline.
 
-The catalog has four kinds::
+The package models a knowledge graph project as typed entities:
 
-    revision -> evaluation -> finding -> change design -> revision
+    revision -> evaluation_run -> result -> finding -> design -> revision
 
-A revision links the designs it closes, each with the role it had at that
-revision; a design links the findings that motivated it and the designs it
-supersedes. The reverse links (``superseded_by``, ``revision_links``) are
-derived here, never stored twice.
+Findings and proposals are supporting entities referenced by a change design.
+They are not iteration rows. The timeline is derived from event files, with a
+legacy projection from the object files when no event log exists.
 
-The timeline is the append-only event chain. When a notebook has no event log,
-the object files are projected into the same event shape so an older notebook
-still reads.
+The catalog is loaded from the tracked ``kgkit/`` directory; there is no
+database.
 """
 
 from __future__ import annotations
@@ -22,14 +20,24 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from . import designs as design_records
 from .config import Project, load_project
 
-KIND_ORDER = ("revision", "evaluation", "finding", "change_design")
+KIND_ORDER = (
+    "revision",
+    "evaluation_design",
+    "evaluation_run",
+    "result",
+    "finding",
+    "proposal",
+    "change_design",
+)
 KIND_LABELS = {
     "revision": "Revision",
-    "evaluation": "Evaluation",
+    "evaluation_design": "Evaluation design",
+    "evaluation_run": "Evaluation run",
+    "result": "Result",
     "finding": "Finding",
+    "proposal": "Proposal",
     "change_design": "Design",
 }
 
@@ -42,6 +50,22 @@ def _json(path: Path) -> dict[str, Any]:
     except (OSError, json.JSONDecodeError):
         return {}
     return value if isinstance(value, dict) else {}
+
+
+def _json_list(path: Path) -> list[Any]:
+    if not path.is_file():
+        return []
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+    if isinstance(value, list):
+        return value
+    if isinstance(value, dict):
+        for key in ("items", "rows", "entries", "designs"):
+            if isinstance(value.get(key), list):
+                return value[key]
+    return []
 
 
 def _dict(value: Any) -> dict[str, Any]:
@@ -67,6 +91,12 @@ def _timestamp(value: Any, path: Path) -> str:
 def _slug(value: str) -> str:
     cleaned = re.sub(r"[^A-Za-z0-9]+", "-", value.strip()).strip("-").upper()
     return cleaned or "UNKNOWN"
+
+
+def _unique(used: dict[str, int], identifier: str) -> str:
+    count = used.get(identifier, 0) + 1
+    used[identifier] = count
+    return identifier if count == 1 else f"{identifier}-{count}"
 
 
 def _display(value: Any) -> str:
@@ -97,6 +127,279 @@ def _metrics(pairs: list[tuple[str, Any]]) -> list[dict[str, Any]]:
     return rows
 
 
+def _report_paths(project: Project) -> list[Path]:
+    paths: list[Path] = []
+    for path in project.paths(project.config.get("evaluation_reports")):
+        if path.is_file():
+            paths.append(path)
+    eval_dir = project.path("eval")
+    if eval_dir.is_dir():
+        for path in sorted(eval_dir.glob("*.json")):
+            if any(path.resolve() == item.resolve() for item in paths):
+                continue
+            data = _json(path)
+            if data.get("format") == "kg-eval-report" or (
+                "mode" in data and "suites" in data
+            ):
+                paths.append(path)
+    result: list[Path] = []
+    seen: set[str] = set()
+    for path in paths:
+        key = str(path.resolve())
+        if key not in seen:
+            seen.add(key)
+            result.append(path)
+    return result
+
+
+def _audit_metrics(project: Project) -> dict[str, Any]:
+    reports = _report_paths(project)
+    if not reports:
+        return {}
+    report = _json(reports[0])
+    suites = _dict(report.get("suites"))
+    return _dict(_dict(suites.get("audit")).get("metrics"))
+
+
+def _revision_rows(project: Project) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    configured = project.path(str(project.config.get("revisions") or "revisions"))
+    paths = sorted(configured.glob("*.json")) if configured.is_dir() else (
+        [configured] if configured.is_file() else []
+    )
+    audit = _audit_metrics(project)
+    for path in paths:
+        data = _json(path)
+        evaluation = _dict(data.get("evaluation"))
+        counts = _dict(data.get("counts"))
+        recorded = _dict(data.get("graph"))
+        metrics: list[tuple[str, Any]] = []
+        for name, key in (
+            ("nodes", "nodes"),
+            ("edges", "edges"),
+            ("evidence_rows", "evidence_rows"),
+        ):
+            value = recorded.get(key)
+            if value is None:
+                value = audit.get(
+                    {"nodes": "node_count", "edges": "edge_count"}.get(name, "record_count")
+                )
+            if value is not None:
+                metrics.append((name, value))
+        if evaluation:
+            metrics.extend(
+                [
+                    ("suites_passed", evaluation.get("passed")),
+                    ("suites_total", evaluation.get("suites")),
+                ]
+            )
+        source_rows = sum(
+            value for value in counts.values() if isinstance(value, (int, float))
+        )
+        if source_rows:
+            metrics.append(("source_rows", source_rows))
+        message = str(data.get("message") or "").strip()
+        if not message:
+            legacy_title = str(data.get("title") or f"Graph revision {path.stem}")
+            legacy_summary = str(data.get("summary") or "")
+            message = legacy_title + (f"\n\n{legacy_summary}" if legacy_summary else "")
+        lines = message.splitlines()
+        subject_index = next((index for index, line in enumerate(lines) if line.strip()), 0)
+        subject = lines[subject_index].strip() if lines else f"Graph revision {path.stem}"
+        body = "\n".join(lines[subject_index + 1:]).strip()
+        rows.append(
+            {
+                "id": f"KG-{path.stem}",
+                "title": subject,
+                "summary": body,
+                "message": message,
+                "created": _timestamp(data.get("recorded_at"), path),
+                "source": project.relative(path),
+                "fingerprint": str(data.get("revision") or path.stem),
+                "version": str(
+                    data.get("version")
+                    or data.get("tool_version")
+                    or data.get("producer_version")
+                    or ""
+                ),
+                "manifest": str(data.get("manifest") or ""),
+                "metrics": _metrics(metrics),
+                "produced_by": data.get("produced_by_change_design_id")
+                or data.get("produced_by"),
+            }
+        )
+    views = _view_files(project)
+    for row in rows:
+        view = views.get(str(row["id"]))
+        row["view_file"] = view["file"] if view else ""
+        row["view_saved_at"] = view["saved_at"] if view else ""
+    return rows
+
+
+def _evaluation_design_rows(project: Project) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    design_path = project.path(str(project.config.get("eval_design") or "eval/design.json"))
+    design = _json(design_path)
+    design_created = _timestamp(design.get("recorded_at"), design_path)
+    design_source = project.relative(design_path)
+    for value in _list(design.get("modes")):
+        mode = _dict(value)
+        name = str(mode.get("name") or "").strip()
+        if not name:
+            continue
+        identifier = f"ED-{_slug(name)}"
+        if identifier in seen:
+            continue
+        seen.add(identifier)
+        runs = [str(item) for item in _list(mode.get("runs"))]
+        skips = [str(item) for item in _list(mode.get("skips"))]
+        summary = str(mode.get("note") or "")
+        if not summary:
+            summary = (
+                f"Runs {', '.join(runs)}." if runs else "Evaluation design."
+            )
+        rows.append(
+            {
+                "id": identifier,
+                "title": f"{name.replace('_', ' ').title()} evaluation design",
+                "summary": summary,
+                "created": design_created,
+                "source": design_source,
+                "mode": name,
+                "runs": runs,
+                "skips": skips,
+            }
+        )
+    for report_path in _report_paths(project):
+        report = _json(report_path)
+        name = str(report.get("mode") or report_path.stem).strip()
+        identifier = f"ED-{_slug(name)}"
+        if not name or identifier in seen:
+            continue
+        seen.add(identifier)
+        rows.append(
+            {
+                "id": identifier,
+                "title": f"{name.replace('_', ' ').title()} evaluation design",
+                "summary": "Evaluation design discovered from an evaluation report.",
+                "created": _stamp(report_path),
+                "source": project.relative(report_path),
+                "mode": name,
+                "runs": [],
+                "skips": [],
+            }
+        )
+    return rows
+
+
+def _suite_status(suites: dict[str, Any]) -> str:
+    statuses = [str(_dict(value).get("status") or "") for value in suites.values()]
+    if "failed" in statuses:
+        return "failed"
+    if "passed" in statuses:
+        return "passed"
+    if statuses and all(status == "skipped" for status in statuses):
+        return "skipped"
+    return "unknown"
+
+
+def _revision_id_for(
+    revisions: list[dict[str, Any]], fingerprint: str
+) -> str | None:
+    if not fingerprint:
+        return None
+    if fingerprint.startswith("KG-"):
+        identifier = fingerprint
+    else:
+        identifier = f"KG-{fingerprint}"
+    for row in revisions:
+        if row["id"] == identifier or row["fingerprint"] == fingerprint:
+            return str(row["id"])
+    return None
+
+
+def _evaluation_rows(
+    project: Project,
+    revisions: list[dict[str, Any]],
+    designs: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    runs: list[dict[str, Any]] = []
+    results: list[dict[str, Any]] = []
+    design_by_mode = {row["mode"]: row for row in designs}
+    used_runs: dict[str, int] = {}
+    used_results: dict[str, int] = {}
+    for report_path in _report_paths(project):
+        report = _json(report_path)
+        if not report:
+            continue
+        mode = str(report.get("mode") or report_path.stem).strip()
+        summary = _dict(report.get("summary"))
+        suites = _dict(report.get("suites"))
+        status = str(summary.get("status") or _suite_status(suites))
+        revision_info = _dict(report.get("revision"))
+        fingerprint = str(
+            revision_info.get("blueprint_fingerprint")
+            or revision_info.get("revision")
+            or ""
+        )
+        revision_id = _revision_id_for(revisions, fingerprint)
+        design = design_by_mode.get(mode)
+        design_id = design["id"] if design else f"ED-{_slug(mode)}"
+        created = _stamp(report_path)
+        run_id = _unique(used_runs, f"EV-{_slug(mode)}")
+        result_id = _unique(used_results, f"ER-{_slug(mode)}")
+        passed = summary.get("passed")
+        total = summary.get("suites")
+        summary_text = (
+            f"{passed}/{total} suites passed"
+            if passed is not None and total is not None
+            else status
+        )
+        runs.append(
+            {
+                "id": run_id,
+                "title": f"{mode.replace('_', ' ').title()} evaluation",
+                "summary": summary_text,
+                "created": created,
+                "source": project.relative(report_path),
+                "revision_id": revision_id,
+                "evaluation_design_id": design_id,
+                "status": status,
+            }
+        )
+        metric_pairs: list[tuple[str, Any]] = []
+        for name, key in (
+            ("suites_passed", "passed"),
+            ("suites_total", "suites"),
+            ("suites_failed", "failed"),
+            ("suites_skipped", "skipped"),
+        ):
+            if summary.get(key) is not None:
+                metric_pairs.append((name, summary.get(key)))
+        audit = _dict(_dict(suites.get("audit")).get("metrics"))
+        for name, key in (
+            ("nodes", "node_count"),
+            ("edges", "edge_count"),
+            ("evidence_rows", "record_count"),
+        ):
+            if audit.get(key) is not None:
+                metric_pairs.append((name, audit.get(key)))
+        results.append(
+            {
+                "id": result_id,
+                "title": f"{mode.replace('_', ' ').title()} result",
+                "summary": summary_text,
+                "created": created,
+                "source": project.relative(report_path),
+                "evaluation_run_id": run_id,
+                "report": project.relative(report_path),
+                "metrics": _metrics(metric_pairs),
+            }
+        )
+    return runs, results
+
+
 def _read_objects(path: Path) -> list[dict[str, Any]]:
     """Read a directory of one-object JSON files, or a legacy JSONL/JSON file."""
     if path.is_dir():
@@ -125,128 +428,13 @@ def _read_objects(path: Path) -> list[dict[str, Any]]:
     return []
 
 
-def _records(project: Project, key: str, default: str) -> list[dict[str, Any]]:
-    return [
-        data
-        for data in _read_objects(project.path(str(project.config.get(key) or default)))
-        if data.get("id")
-    ]
-
-
-def _role_links(value: Any, key: str, default_role: str) -> list[tuple[str, str]]:
-    links: list[tuple[str, str]] = []
-    for item in _list(value):
-        if isinstance(item, str):
-            links.append((item, default_role))
-        elif isinstance(item, dict) and item.get(key):
-            links.append((str(item[key]), str(item.get("role") or default_role)))
-    return links
-
-
-def _revisions_path(project: Project) -> str:
-    return str(project.config.get("revisions") or "kgkit/records/revisions")
-
-
-def _revision_rows(project: Project) -> list[dict[str, Any]]:
-    rows: list[dict[str, Any]] = []
-    configured = project.path(_revisions_path(project))
-    paths = sorted(configured.glob("*.json")) if configured.is_dir() else (
-        [configured] if configured.is_file() else []
-    )
-    for path in paths:
-        data = _json(path)
-        counts = _dict(data.get("counts"))
-        message = str(data.get("message") or "").strip()
-        if not message:
-            legacy_title = str(data.get("title") or f"Graph revision {path.stem}")
-            legacy_summary = str(data.get("summary") or "")
-            message = legacy_title + (f"\n\n{legacy_summary}" if legacy_summary else "")
-        lines = message.splitlines()
-        subject_index = next((index for index, line in enumerate(lines) if line.strip()), 0)
-        subject = lines[subject_index].strip() if lines else f"Graph revision {path.stem}"
-        body = "\n".join(lines[subject_index + 1:]).strip()
-        design_links = _role_links(data.get("designs"), "design_id", "adopted")
-        produced_by = str(data.get("produced_by") or data.get("produced_by_change_design_id") or "")
-        if not design_links and produced_by:
-            design_links = [(produced_by, "adopted")]
-        snapshot = _dict(data.get("snapshot"))
-        snapshot_file = str(snapshot.get("file") or "")
-        metrics: list[tuple[str, Any]] = []
-        for name, key in (
-            ("nodes", "nodes"),
-            ("edges", "edges"),
-            ("evidence_rows", "evidence_rows"),
-        ):
-            if counts.get(key) is not None:
-                metrics.append((name, counts.get(key)))
-        evaluation = _dict(data.get("evaluation"))
-        metrics.extend(
-            [
-                ("suites_passed", evaluation.get("passed")),
-                ("suites_total", evaluation.get("suites")),
-            ]
-        )
-        rows.append(
-            {
-                "id": f"KG-{path.stem}",
-                "title": subject,
-                "summary": body,
-                "message": message,
-                "created": _timestamp(data.get("recorded_at"), path),
-                "source": project.relative(path),
-                "fingerprint": str(
-                    data.get("blueprint_fingerprint") or data.get("revision") or path.stem
-                ),
-                "version": str(
-                    data.get("version")
-                    or data.get("tool_version")
-                    or data.get("producer_version")
-                    or ""
-                ),
-                "manifest": str(data.get("manifest") or ""),
-                "event_id": str(data.get("event") or ""),
-                "metrics": _metrics(metrics),
-                "designs": design_links,
-                "produced_by": produced_by,
-                "evaluations": [str(item) for item in _list(data.get("evaluations"))],
-                "view_file": snapshot_file if (project.snapshots_dir / snapshot_file).is_file() else "",
-                "view_saved_at": str(snapshot.get("created_at") or ""),
-            }
-        )
-    return rows
-
-
-def _evaluation_rows(project: Project) -> list[dict[str, Any]]:
-    rows: list[dict[str, Any]] = []
-    for data in _records(project, "evaluations", "kgkit/records/evaluations"):
-        status = str(data.get("status") or "unknown")
-        metrics = [
-            (str(item.get("name") or ""), item.get("value"))
-            for item in _list(data.get("metrics"))
-            if isinstance(item, dict)
-        ]
-        rows.append(
-            {
-                "id": str(data["id"]),
-                "title": f"{str(data.get('mode') or 'evaluation').replace('_', ' ').title()} evaluation",
-                "summary": f"{status}" + (f" · {data.get('mode')}" if data.get("mode") else ""),
-                "created": str(data.get("created") or ""),
-                "source": str(data.get("report") or ""),
-                "mode": str(data.get("mode") or ""),
-                "status": status,
-                "report": str(data.get("report") or ""),
-                "revision_id": str(data.get("revision_id") or ""),
-                "metrics": _metrics(metrics),
-            }
-        )
-    return rows
-
-
 def _finding_rows(project: Project) -> list[dict[str, Any]]:
     path = project.path(str(project.config.get("findings") or "kgkit/records/findings"))
     rows: list[dict[str, Any]] = []
     for data in _read_objects(path):
         if not data.get("id"):
+            continue
+        if str(data.get("layer") or "") == "proposal":
             continue
         rows.append(
             {
@@ -257,71 +445,166 @@ def _finding_rows(project: Project) -> list[dict[str, Any]]:
                 "source": project.relative(path),
                 "layer": str(data.get("layer") or ""),
                 "observation": str(data.get("observation") or ""),
-                "decision": str(data.get("decision") or ""),
                 "metric": str(data.get("metric") or ""),
-                "results": _role_links(data.get("results"), "id", "evidence"),
+                "state": str(data.get("state") or "proposed"),
+                "note": str(data.get("decision") or ""),
+                "results": _evidence_links(data.get("results")),
             }
         )
     return rows
 
 
-def _change_design_rows(
-    project: Project, revisions: list[dict[str, Any]]
-) -> list[dict[str, Any]]:
+def _evidence_links(value: Any) -> list[tuple[str, str]]:
+    links: list[tuple[str, str]] = []
+    for item in _list(value):
+        if isinstance(item, str):
+            links.append((item, "evidence"))
+        elif isinstance(item, dict) and item.get("id"):
+            links.append((str(item["id"]), str(item.get("role") or "evidence")))
+    return links
+
+
+def _proposal_rows(project: Project) -> list[dict[str, Any]]:
+    path = project.path(str(project.config.get("proposals") or "kgkit/records/proposals"))
     rows: list[dict[str, Any]] = []
-    designs = design_records.read_designs(project)
-    for design in designs:
-        identifier = str(design["id"])
-        links = [
-            (str(item.get("design_id")), str(item.get("role") or "related"))
-            for item in _list(design.get("design_links"))
-            if isinstance(item, dict) and item.get("design_id")
-        ]
-        superseded_by = [
-            other["id"]
-            for other in designs
-            if any(
-                item.get("design_id") == identifier and item.get("role") == "supersedes"
-                for item in _list(other.get("design_links"))
-            )
-        ]
-        revision_links = [
-            {"revision_id": revision["id"], "role": role}
-            for revision in revisions
-            for design_id, role in revision["designs"]
-            if design_id == identifier
-        ]
+    for data in _read_objects(path):
+        if not data.get("id"):
+            continue
+        if path.is_dir() and str(data.get("layer") or "") not in {"", "proposal"}:
+            continue
+        source = str(data["id"])
+        suffix = source.rsplit("-", 1)[-1] if "-" in source else _slug(source)
+        identifier = source if source.upper().startswith("P-") else f"P-{suffix}"
         rows.append(
             {
                 "id": identifier,
-                "title": str(design.get("title") or identifier),
-                "summary": str(design.get("summary") or ""),
-                "created": _timestamp(design.get("created"), design_records.designs_dir(project)),
-                "source": project.relative(
-                    design_records.designs_dir(project) / f"{identifier}.json"
-                ),
-                "state": str(design.get("state") or "proposed"),
-                "findings": [
-                    (identifier, role)
-                    for identifier, role in _role_links(
-                        design.get("findings"), "id", "motivated_by"
-                    )
-                ],
-                "design_links": links,
-                "superseded_by": superseded_by,
-                "revision_links": revision_links,
+                "title": f"{source} · proposal",
+                "summary": str(data.get("observation") or ""),
+                "created": _timestamp(data.get("opened"), path),
+                "source": project.relative(path),
+                "subject": str(data.get("subject") or ""),
+                "instruction": str(data.get("instruction") or data.get("observation") or ""),
+                "state": str(data.get("state") or "proposed"),
+                "note": str(data.get("decision") or ""),
+                "source_row_id": source,
             }
         )
     return rows
 
 
-def _load_rows(project: Project) -> dict[str, list[dict[str, Any]]]:
+def _design_state(value: str) -> str:
+    return {
+        "accepted": "adopted",
+        "adopted": "adopted",
+        "rejected": "rejected",
+        "closed": "adopted",
+    }.get(value, "proposed")
+
+
+def _change_design_rows(
+    project: Project, proposals: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    path = project.path(str(project.config.get("change_designs") or "kgkit/designs"))
+    rows: list[dict[str, Any]] = []
+    values = _read_objects(path)
+    if values:
+        for index, entry in enumerate(values):
+            identifier = str(entry.get("id") or f"CD-{index + 1:04d}")
+            rows.append(
+                {
+                    "id": identifier,
+                    "title": str(entry.get("title") or identifier),
+                    "summary": str(entry.get("summary") or ""),
+                    "created": _timestamp(entry.get("created"), path),
+                    "source": project.relative(path),
+                    "state": str(entry.get("state") or "proposed"),
+                    "findings": _role_links(entry.get("findings"), "motivated_by"),
+                    "proposals": _role_links(entry.get("proposals"), "from_proposal"),
+                }
+            )
+        return rows
+    for proposal in proposals:
+        suffix = proposal["id"].removeprefix("P-")
+        rows.append(
+            {
+                "id": f"CD-{suffix}",
+                "title": f"Design from {proposal['source_row_id']}",
+                "summary": proposal["instruction"],
+                "created": proposal["created"],
+                "source": proposal["source"],
+                "state": _design_state(proposal["state"]),
+                "findings": [],
+                "proposals": [(proposal["id"], "from_proposal")],
+            }
+        )
+    return rows
+
+
+def _role_links(value: Any, default_role: str) -> list[tuple[str, str]]:
+    links: list[tuple[str, str]] = []
+    for item in _list(value):
+        if isinstance(item, str):
+            links.append((item, default_role))
+        elif isinstance(item, dict) and item.get("id"):
+            links.append((str(item["id"]), str(item.get("role") or default_role)))
+    return links
+
+
+def _view_files(project: Project) -> dict[str, dict[str, str]]:
+    """Map a revision id to the latest captured viewer file for that revision.
+
+    A capture is an artifact written by ``import_snapshot`` when the graph is
+    edited. The database does not model it as an entity; the revision event owns
+    the view.
+    """
+    directory = project.snapshots_dir
+    views: dict[str, dict[str, str]] = {}
+    for meta_path in directory.glob("*.meta.json"):
+        meta = _json(meta_path)
+        revision = str(meta.get("revision") or "").strip()
+        file = str(meta.get("snapshot_file") or "").strip()
+        if not revision or not file:
+            continue
+        path = directory / file
+        if not path.is_file():
+            continue
+        revision_id = revision if revision.startswith("KG-") else f"KG-{revision}"
+        saved_at = _timestamp(meta.get("saved_at"), path)
+        previous = views.get(revision_id)
+        if previous is None or saved_at > previous["saved_at"]:
+            views[revision_id] = {
+                "file": file,
+                "saved_at": saved_at,
+                "source": project.relative(path),
+            }
+    return views
+
+
+def _event_rows(project: Project) -> list[dict[str, Any]]:
+    path = project.path(str(project.config.get("events") or "kgkit/records/events"))
+    events: list[dict[str, Any]] = []
+    for data in _read_objects(path):
+        if not data.get("id"):
+            continue
+        events.append(data)
+    return events
+
+
+def _load_rows(project: Project) -> dict[str, Any]:
     revisions = _revision_rows(project)
+    designs = _evaluation_design_rows(project)
+    runs, results = _evaluation_rows(project, revisions, designs)
+    findings = _finding_rows(project)
+    proposals = _proposal_rows(project)
+    changes = _change_design_rows(project, proposals)
     return {
         "revision": revisions,
-        "evaluation": _evaluation_rows(project),
-        "finding": _finding_rows(project),
-        "change_design": _change_design_rows(project, revisions),
+        "evaluation_design": designs,
+        "evaluation_run": runs,
+        "result": results,
+        "finding": findings,
+        "proposal": proposals,
+        "change_design": changes,
     }
 
 
@@ -332,7 +615,7 @@ def _link(rows: list[dict[str, Any]], identifier: str, role: str, kind: str) -> 
     return None
 
 
-def _links_for(kind: str, row: dict[str, Any], rows: dict[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
+def _links_for(kind: str, row: dict[str, Any], rows: dict[str, Any]) -> list[dict[str, Any]]:
     links: list[dict[str, Any]] = []
 
     def add(target_id: str | None, target_kind: str, role: str) -> None:
@@ -343,195 +626,149 @@ def _links_for(kind: str, row: dict[str, Any], rows: dict[str, list[dict[str, An
             links.append(link)
 
     if kind == "revision":
-        for design_id, role in row.get("designs", []):
-            add(design_id, "change_design", role)
-        for evaluation_id in row.get("evaluations", []):
-            add(evaluation_id, "evaluation", "evaluated_by")
-    elif kind == "evaluation":
+        add(row.get("produced_by"), "change_design", "produced_by")
+        for run in rows["evaluation_run"]:
+            if run.get("revision_id") == row["id"]:
+                add(run["id"], "evaluation_run", "evaluated_by")
+    elif kind == "evaluation_design":
+        for run in rows["evaluation_run"]:
+            if run.get("evaluation_design_id") == row["id"]:
+                add(run["id"], "evaluation_run", "tested_by")
+    elif kind == "evaluation_run":
         add(row.get("revision_id"), "revision", "on_revision")
+        add(row.get("evaluation_design_id"), "evaluation_design", "uses_design")
+        for result in rows["result"]:
+            if result.get("evaluation_run_id") == row["id"]:
+                add(result["id"], "result", "produced_result")
+    elif kind == "result":
+        add(row.get("evaluation_run_id"), "evaluation_run", "from_run")
+        for finding in rows["finding"]:
+            if any(item[0] == row["id"] for item in finding.get("results", [])):
+                add(finding["id"], "finding", "supports_finding")
     elif kind == "finding":
+        for result_id, role in row.get("results", []):
+            add(result_id, "result", role)
         for design in rows["change_design"]:
             for finding_id, role in design.get("findings", []):
                 if finding_id == row["id"]:
                     add(design["id"], "change_design", role)
+    elif kind == "proposal":
+        for design in rows["change_design"]:
+            for proposal_id, role in design.get("proposals", []):
+                if proposal_id == row["id"]:
+                    add(design["id"], "change_design", role)
     elif kind == "change_design":
         for finding_id, role in row.get("findings", []):
             add(finding_id, "finding", role)
-        for design_id, role in row.get("design_links", []):
-            add(design_id, "change_design", role)
-        for link in row.get("revision_links", []):
-            add(link["revision_id"], "revision", link["role"])
+        for proposal_id, role in row.get("proposals", []):
+            add(proposal_id, "proposal", role)
+        for revision in rows["revision"]:
+            if revision.get("produced_by") == row["id"]:
+                add(revision["id"], "revision", "produced")
     return links
 
 
 def _fields_for(kind: str, row: dict[str, Any]) -> list[dict[str, Any]]:
     if kind == "revision":
-        fields = [
+        return [
             _field("Version", row.get("version") or "not reported"),
             _field("Manifest", (row.get("manifest") or "")[:12] or "not reported", "code"),
-            _field("Fingerprint", row.get("fingerprint") or "", "code"),
-            _field("Designs", ", ".join(f"{item[0]} ({item[1]})" for item in row.get("designs", []))),
-            _field("Snapshot", row.get("view_file") or "not captured", "code"),
-        ]
-        fields.extend(
-            _field(
-                metric["name"].replace("_", " ").title(),
-                _display(metric["value"]) if metric["value"] is not None else metric["value_text"],
-                "metric",
-            )
-            for metric in row.get("metrics", [])
-        )
-        return fields
-    if kind == "evaluation":
-        status = str(row.get("status") or "")
-        tone = "accepted" if status == "passed" else "rejected" if status == "failed" else "pending"
-        return [
-            _field("Status", status, "pill", tone),
-            _field("Mode", row.get("mode") or ""),
-            _field("Report", row.get("report") or "not reported", "code"),
+            _field("View", row.get("view_file") or "not captured", "code"),
             *[
-                _field(
-                    metric["name"].replace("_", " ").title(),
-                    _display(metric["value"]) if metric["value"] is not None else metric["value_text"],
-                    "metric",
-                )
+                _field(metric["name"].replace("_", " ").title(), _display(metric["value"]) if metric["value"] is not None else metric["value_text"], "metric")
                 for metric in row.get("metrics", [])
             ],
         ]
+    if kind == "evaluation_design":
+        return [_field("Mode", row.get("mode", ""))]
+    if kind == "evaluation_run":
+        status = str(row.get("status") or "")
+        return [_field("Status", status, "pill", "accepted" if status == "passed" else "rejected")]
+    if kind == "result":
+        fields = [_field("Report", row.get("report") or "not reported", "code")]
+        fields.extend(
+            _field(metric["name"].replace("_", " ").title(), _display(metric["value"]) if metric["value"] is not None else metric["value_text"], "metric")
+            for metric in row.get("metrics", [])
+        )
+        return fields
     if kind == "finding":
+        state = str(row.get("state") or "proposed")
+        tone = {"accepted": "accepted", "closed": "accepted", "rejected": "rejected", "proposed": "pending"}.get(state, "neutral")
         return [
+            _field("State", state, "pill", tone),
             _field("Layer", row.get("layer") or "unspecified"),
-            _field("Decision", row.get("decision") or ""),
+            _field("Decision", row.get("note") or ""),
             _field("Metric", row.get("metric") or "", "metric"),
+        ]
+    if kind == "proposal":
+        state = str(row.get("state") or "proposed")
+        tone = "accepted" if state == "accepted" else "rejected" if state == "rejected" else "pending"
+        return [
+            _field("State", state, "pill", tone),
+            _field("Subject", row.get("subject") or ""),
+            _field("Instruction", row.get("instruction") or ""),
+            _field("Source row", row.get("source_row_id") or "", "code"),
         ]
     if kind == "change_design":
         state = str(row.get("state") or "proposed")
-        tone = {
-            "adopted": "accepted",
-            "superseded": "pending",
-            "abandoned": "rejected",
-        }.get(state, "pending")
-        return [
-            _field("State", state, "pill", tone),
-            _field("Supersedes", ", ".join(item[0] for item in row.get("design_links", []) if item[1] == "supersedes")),
-            _field("Superseded by", ", ".join(row.get("superseded_by", []))),
-            _field("Revisions", ", ".join(link["revision_id"] for link in row.get("revision_links", []))),
-        ]
+        tone = "accepted" if state == "adopted" else "rejected" if state == "rejected" else "pending"
+        return [_field("State", state, "pill", tone)]
     return []
 
 
-def _event_title(kind: str, payload: dict[str, Any], fallback: str) -> str:
-    if kind in {"design_proposed", "design_adopted", "design_superseded", "design_abandoned"}:
-        design = _dict(payload.get("design"))
-        return str(design.get("title") or design.get("id") or fallback)
-    if kind == "finding_added":
-        finding = _dict(payload.get("finding"))
-        return str(finding.get("observation") or finding.get("id") or fallback)
-    if kind == "evaluation_added":
-        evaluation = _dict(payload.get("evaluation"))
-        mode = str(evaluation.get("mode") or "evaluation").replace("_", " ").title()
-        return f"{mode} evaluation · {evaluation.get('status') or 'unknown'}"
-    if kind == "revision_added":
-        revision = _dict(payload.get("revision"))
-        message = str(revision.get("message") or "").strip()
-        first = next((line.strip() for line in message.splitlines() if line.strip()), "")
-        return first or str(revision.get("revision") or fallback)
-    return fallback
-
-
-def _synth_events(rows: dict[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
-    """Project object files into the event shape for a notebook with no log."""
+def _synth_events(rows: dict[str, Any]) -> list[dict[str, Any]]:
     events: list[dict[str, Any]] = []
-    for row in rows["finding"]:
+    for row in rows["revision"]:
         events.append(
             {
-                "id": str(row["id"]),
-                "kind": "finding_added",
-                "at": row["created"],
-                "refs": [{"kind": "finding", "id": row["id"]}],
-                "payload": {"finding": row},
+                "id": row["id"],
+                "type": "kg_edited",
+                "timestamp": row["created"],
+                "title": row["title"],
+                "entity_id": row["id"],
+                "entity_kind": "revision",
+                "revision_id": row["id"],
+                "view_file": row.get("view_file") or None,
+            }
+        )
+    for row in rows["evaluation_run"]:
+        events.append(
+            {
+                "id": row["id"],
+                "type": "evaluation_run",
+                "timestamp": row["created"],
+                "title": row["title"],
+                "entity_id": row["id"],
+                "entity_kind": "evaluation_run",
+                "revision_id": row.get("revision_id"),
+                "evaluation_design_id": row.get("evaluation_design_id"),
             }
         )
     for row in rows["change_design"]:
         events.append(
             {
-                "id": str(row["id"]),
-                "kind": "design_proposed",
-                "at": row["created"],
-                "refs": [{"kind": "change_design", "id": row["id"]}],
-                "payload": {"design": row},
-            }
-        )
-    for row in rows["evaluation"]:
-        events.append(
-            {
-                "id": str(row["id"]),
-                "kind": "evaluation_added",
-                "at": row["created"],
-                "refs": [{"kind": "evaluation", "id": row["id"]}],
-                "payload": {"evaluation": row},
-            }
-        )
-    for row in rows["revision"]:
-        refs = [{"kind": "revision", "id": row["id"]}]
-        refs.extend({"kind": "change_design", "id": item[0]} for item in row["designs"])
-        refs.extend({"kind": "evaluation", "id": item} for item in row["evaluations"])
-        events.append(
-            {
                 "id": row["id"],
-                "kind": "revision_added",
-                "at": row["created"],
-                "refs": refs,
-                "payload": {"revision": row},
+                "type": "design_proposed",
+                "timestamp": row["created"],
+                "title": row["title"],
+                "entity_id": row["id"],
+                "entity_kind": "change_design",
+                "change_design_id": row["id"],
             }
         )
+        if row.get("state") == "adopted":
+            events.append(
+                {
+                    "id": f"{row['id']}:adopted",
+                    "type": "design_adopted",
+                    "timestamp": row["created"],
+                    "title": "Design adopted",
+                    "entity_id": row["id"],
+                    "entity_kind": "change_design",
+                    "change_design_id": row["id"],
+                }
+            )
     return events
-
-
-def _chain(project: Project) -> list[dict[str, Any]]:
-    from .events import read_events
-
-    events = read_events(project)
-    return events or _synth_events(_load_rows(project))
-
-
-def timeline(project: Project | None = None) -> list[dict[str, Any]]:
-    project = project or load_project()
-    revisions = {row["id"]: row for row in _revision_rows(project)}
-    rows: list[dict[str, Any]] = []
-    for event in _chain(project):
-        kind = str(event.get("kind") or "event")
-        refs = [
-            {"kind": str(ref.get("kind") or ""), "id": str(ref.get("id") or "")}
-            for ref in _list(event.get("refs"))
-            if isinstance(ref, dict) and ref.get("id")
-        ]
-        if not refs and event.get("entity_id"):
-            refs = [{"kind": str(event.get("entity_kind") or ""), "id": str(event["entity_id"])}]
-        revision_id = next((ref["id"] for ref in refs if ref["kind"] == "revision"), "")
-        revision = revisions.get(revision_id) or {}
-        evaluation = _dict(_dict(event.get("payload")).get("evaluation"))
-        if not revision_id and evaluation.get("revision_id"):
-            revision_id = str(evaluation["revision_id"])
-            revision = revisions.get(revision_id) or {}
-        payload = _dict(event.get("payload"))
-        timestamp = str(event.get("at") or event.get("timestamp") or "")
-        rows.append(
-            {
-                "id": str(event.get("id") or ""),
-                "type": kind,
-                "timestamp": timestamp,
-                "title": _event_title(kind, payload, str(event.get("title") or event.get("id") or "")),
-                **({"message": revision["message"]} if revision.get("message") else {}),
-                "refs": refs,
-                "entity_id": refs[0]["id"] if refs else "",
-                "entity_kind": refs[0]["kind"] if refs else "",
-                "revision_id": revision_id or None,
-                "view_file": revision.get("view_file") or None,
-                "prev": list(event.get("prev") or []),
-            }
-        )
-    return sorted(rows, key=lambda row: (str(row["timestamp"]), str(row["id"])))
 
 
 def catalog(project: Project | None = None) -> list[dict[str, Any]]:
@@ -553,48 +790,64 @@ def catalog(project: Project | None = None) -> list[dict[str, Any]]:
                     "links": _links_for(kind, row, rows),
                     **({"view_file": row["view_file"]} if kind == "revision" and row.get("view_file") else {}),
                     **({"message": row["message"]} if kind == "revision" and row.get("message") else {}),
-                    **({"event_id": row["event_id"]} if kind == "revision" and row.get("event_id") else {}),
-                    **({"state": row["state"]} if kind == "change_design" else {}),
                 }
             )
     return sorted(objects, key=lambda item: (rank.get(item["kind"], 9), item["id"]))
 
 
-def views(project: Project | None = None) -> list[dict[str, Any]]:
-    """The viewer timeline: the latest compilation and past revision snapshots."""
-
+def timeline(project: Project | None = None) -> list[dict[str, Any]]:
     project = project or load_project()
-    current = project.snapshots_dir / "current.snapshot.json"
-    rows: list[dict[str, Any]] = [
-        {
-            "kind": "current",
-            "label": "Current compilation",
-            "file": current.name if current.is_file() else "",
-            "created": _stamp(current) if current.is_file() else "",
+    events = _event_rows(project)
+    stored = None
+    if not events:
+        stored = _load_rows(project)
+        events = _synth_events(stored)
+    revisions = {
+        row["id"]: row
+        for row in (stored["revision"] if stored else _revision_rows(project))
+    }
+    views = _view_files(project)
+    rows: list[dict[str, Any]] = []
+    for event in events:
+        revision_key = str(event.get("revision_id") or event.get("revision") or "")
+        if revision_key and not revision_key.startswith("KG-"):
+            revision_key = f"KG-{revision_key}"
+        captured = views.get(revision_key, {}).get("file") if revision_key else None
+        title = event.get("title") or event.get("id")
+        message = None
+        if event.get("entity_kind") == "revision":
+            revision = revisions.get(revision_key) or revisions.get(
+                str(event.get("entity_id") or "")
+            )
+            if revision:
+                if revision.get("title"):
+                    title = revision["title"]
+                message = revision.get("message")
+        row = {
+            "id": event.get("id"),
+            "type": event.get("kind") or event.get("type") or "event",
+            "timestamp": event.get("at") or event.get("timestamp") or "",
+            "title": title,
+            **({"message": message} if message else {}),
+            "entity_id": event.get("entity_id"),
+            "entity_kind": event.get("entity_kind"),
+            "revision_id": event.get("revision_id") or event.get("revision"),
+            "evaluation_design_id": event.get("evaluation_design_id"),
+            "result_id": event.get("result_id"),
+            "change_design_id": event.get("change_design_id"),
+            "view_file": event.get("view_file") or captured,
+            "prev": list(event.get("prev") or []),
+            "temporary": bool(event.get("temporary")),
         }
-    ]
-    revisions = [row for row in _revision_rows(project) if row.get("view_file")]
-    for row in sorted(revisions, key=lambda item: item["created"], reverse=True):
-        rows.append(
-            {
-                "kind": "revision",
-                "label": row["id"],
-                "revision": row["id"],
-                "file": row["view_file"],
-                "created": row.get("view_saved_at") or row["created"],
-            }
-        )
-    return rows
+        rows.append(row)
+    return sorted(rows, key=lambda row: (str(row["timestamp"]), str(row["id"])))
 
 
 def view_file_for(project: Project, revision: str) -> Path | None:
-    identifier = revision.removeprefix("KG-")
-    path = project.path(_revisions_path(project)) / f"{identifier}.json"
-    record = _json(path)
-    file = str(_dict(record.get("snapshot")).get("file") or "")
-    if not file:
+    view = _view_files(project).get(revision)
+    if not view:
         return None
-    candidate = (project.snapshots_dir / file).resolve()
+    candidate = (project.snapshots_dir / view["file"]).resolve()
     root = project.snapshots_dir.resolve()
     if root not in candidate.parents:
         return None
@@ -611,17 +864,6 @@ def graph(project: Project | None = None) -> dict[str, Any]:
         "project": project.name,
         "objects": catalog(project),
         "timeline": timeline(project),
-        "views": views(project),
     }
 
 
-__all__ = [
-    "KIND_LABELS",
-    "KIND_ORDER",
-    "catalog",
-    "graph",
-    "known_ids",
-    "timeline",
-    "view_file_for",
-    "views",
-]

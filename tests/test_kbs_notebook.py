@@ -4,44 +4,47 @@ import json
 import sys
 import threading
 
-from http.server import ThreadingHTTPServer
-from pathlib import Path
-from urllib.request import urlopen
-
 import pytest
 
-from kg_build_system.kgkit import (
-    designs,
-    evaluations,
-    events,
-    findings,
-    ledger,
-    project_commands,
-    relations,
-    revisions,
-)
-from kg_build_system.kgkit.cli import main
-from kg_build_system.kgkit.config import DEFAULT_CONFIG, load_project, write_config_file
+from pathlib import Path
+from http.server import ThreadingHTTPServer
+from urllib.request import urlopen
+
+from kg_build_system.kgkit import ledger, project_commands, relations, revisions
+from kg_build_system.kgkit.config import load_project, write_config_file
 from kg_build_system.kgkit.console import _asset, make_handler
 from kg_build_system.kgkit.snapshot import import_snapshot
 
 
-def _project(root: Path):
-    (root / "build").mkdir(parents=True)
+def _project(root: Path) -> Path:
     (root / "kgkit" / "eval").mkdir(parents=True)
-    (root / "build" / "workflow_plan.json").write_text(
+    (root / "data" / "snapshots").mkdir(parents=True)
+    for name in ("events", "revisions", "findings", "proposals", "designs", "documents", "views"):
+        (root / "kgkit" / "records" / name).mkdir(parents=True)
+    (root / "kgkit" / "records" / "revisions" / "abc123.json").write_text(
         json.dumps(
             {
-                "format": "kg-viewer-snapshot",
-                "version": 1,
-                "name": "demo",
-                "title": "Demo compilation",
-                "workflow": {
-                    "components": [],
-                    "steps": [],
-                    "connections": [],
-                    "provenance": {},
-                },
+                "revision": "abc123",
+                "recorded_at": "2026-11-16T10:00:00+00:00",
+                "manifest": "deadbeefcafe",
+                "counts": {"nodes": 3, "edges": 2},
+                "evaluation": {"passed": 1, "suites": 1},
+                "version": "1.0",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (root / "kgkit" / "eval" / "design.json").write_text(
+        json.dumps(
+            {
+                "modes": [
+                    {
+                        "name": "quick",
+                        "report": "kgkit/eval/quick.json",
+                        "runs": ["audit"],
+                        "note": "A quick check.",
+                    }
+                ]
             }
         ),
         encoding="utf-8",
@@ -63,215 +66,107 @@ def _project(root: Path):
         ),
         encoding="utf-8",
     )
-    project = load_project(root).ensure(write_config=True)
-    write_config_file(project)
-    return load_project(root)
-
-
-def _facts(root: Path, payload: dict) -> None:
-    script = root / "facts.py"
-    script.write_text(
-        "import json\n" + f"print(json.dumps({payload!r}))\n", encoding="utf-8"
+    (root / "kgkit" / "records" / "findings" / "F-0001.json").write_text(
+        json.dumps(
+            {
+                "id": "F-0001",
+                "opened": "2026-11-16T10:01:00+00:00",
+                "layer": "design",
+                "observation": "A finding.",
+                "decision": "accepted",
+                "metric": "m",
+                "state": "accepted",
+            }
+        ),
+        encoding="utf-8",
     )
-    project = load_project(root)
-    project.config["commands"] = {"revision_facts": f"{sys.executable} {script}"}
-    write_config_file(project)
-
-
-def _adopted(root: Path, title: str = "First slice") -> dict:
-    project = load_project(root)
-    design = designs.propose(project, title=title, summary="The first change.")
-    designs.set_state(project, design["id"], "adopted")
-    return designs.read_design(load_project(root), design["id"]) or {}
-
-
-def _finding(root: Path, observation: str = "A finding.") -> dict:
-    return findings.add(
-        load_project(root),
-        layer="design",
-        observation=observation,
-        evidence="kgkit/eval/quick.json",
-        decision="Change the model.",
-        metric="audit passes",
+    (root / "kgkit" / "records" / "proposals" / "P-0002.json").write_text(
+        json.dumps(
+            {
+                "id": "P-0002",
+                "opened": "2026-11-16T10:02:00+00:00",
+                "layer": "proposal",
+                "subject": "node:disease",
+                "observation": "Try this change.",
+                "state": "proposed",
+            }
+        ),
+        encoding="utf-8",
     )
-
-
-def _escalate(root: Path, designs_value: list[dict], revision: str = "abc123") -> None:
-    _facts(
-        root,
-        {
-            "ok": True,
-            "revision": revision,
-            "manifest": "m1",
-            "counts": {"nodes": 3, "edges": 2},
-            "designs": designs_value,
-        },
+    (root / "data" / "snapshots" / "current.snapshot.json").write_text(
+        json.dumps(
+            {
+                "format": "kg-viewer-snapshot",
+                "version": 1,
+                "name": "demo",
+                "title": "Demo snapshot",
+                "blueprint": {
+                    "graph": {"nodes": [], "edges": []},
+                    "data": {"structs": [], "relations": [], "projections": []},
+                    "assets": [],
+                    "bindings": [],
+                },
+                "workflow": {
+                    "components": [],
+                    "steps": [],
+                    "connections": [],
+                    "provenance": None,
+                },
+            }
+        ),
+        encoding="utf-8",
     )
+    return root
 
 
-def test_init_creates_the_notebook_without_proposals(tmp_path: Path) -> None:
-    project = load_project(tmp_path).ensure(write_config=True)
+def test_init_creates_the_project_data_directory(tmp_path: Path) -> None:
+    _project(tmp_path)
+    project = load_project(tmp_path)
+    project.ensure(write_config=True)
     assert (tmp_path / "kgkit" / "config.json").is_file()
-    for name in ("revisions", "events", "findings", "designs", "evaluations"):
-        assert (tmp_path / "kgkit" / "records" / name).is_dir()
-    assert "proposals" not in DEFAULT_CONFIG
+    assert (tmp_path / "kgkit" / "records" / "revisions").is_dir()
+    assert (tmp_path / "kgkit" / "records" / "events").is_dir()
     assert not (tmp_path / ".kgkit").exists()
-    assert not (tmp_path / "kgkit" / "records" / "relations.db").exists()
 
 
-def test_finding_is_added_once_and_appends_one_event(tmp_path: Path) -> None:
+def test_catalog_and_timeline_are_derived_from_project_artifacts(tmp_path: Path) -> None:
     _project(tmp_path)
-    finding = _finding(tmp_path)
-    assert finding["id"] == "F-0001"
-    assert finding["last_event"] == "evt-0001"
-    chain = events.read_events(load_project(tmp_path))
-    assert [event["kind"] for event in chain] == ["finding_added"]
-    assert chain[0]["refs"] == [{"kind": "finding", "id": "F-0001"}]
-    assert not hasattr(ledger, "update_state")
-    assert ledger.validate_ledger(findings.findings_dir(load_project(tmp_path)))["rows"] == 1
-
-
-def test_design_links_are_stored_once_and_reverse_is_derived(tmp_path: Path) -> None:
-    _project(tmp_path)
-    older = designs.propose(load_project(tmp_path), title="Older design")
-    designs.set_state(load_project(tmp_path), older["id"], "adopted")
-    newer = designs.propose(load_project(tmp_path), title="Newer design")
-    designs.link(load_project(tmp_path), newer["id"], older["id"], "supersedes")
-    designs.set_state(load_project(tmp_path), older["id"], "superseded", by=newer["id"])
-
-    project = load_project(tmp_path)
-    stored = designs.read_design(project, newer["id"]) or {}
-    assert stored["design_links"] == [{"design_id": older["id"], "role": "supersedes"}]
-    rows = {row["id"]: row for row in relations._change_design_rows(project, [])}
-    assert rows[older["id"]]["superseded_by"] == [newer["id"]]
-    assert rows[newer["id"]]["superseded_by"] == []
-
-
-def test_superseding_requires_an_explicit_link(tmp_path: Path) -> None:
-    _project(tmp_path)
-    older = designs.propose(load_project(tmp_path), title="Older design")
-    newer = designs.propose(load_project(tmp_path), title="Newer design")
-    with pytest.raises(ValueError, match="does not link"):
-        designs.set_state(load_project(tmp_path), older["id"], "superseded", by=newer["id"])
-
-
-def test_revision_refuses_while_a_design_is_proposed(tmp_path: Path) -> None:
-    _project(tmp_path)
-    adopted = _adopted(tmp_path)
-    designs.propose(load_project(tmp_path), title="Open question")
-    _escalate(tmp_path, [{"design_id": adopted["id"], "role": "adopted"}])
-    result = revisions.record_revision(load_project(tmp_path))
-    assert result["ok"] is False
-    assert "CD-0002 is proposed" in result["error"]
-    assert not list((tmp_path / "kgkit" / "records" / "revisions").glob("*.json"))
-
-
-def test_revision_refuses_without_an_adopted_design(tmp_path: Path) -> None:
-    _project(tmp_path)
-    design = designs.propose(load_project(tmp_path), title="Abandoned start")
-    designs.set_state(load_project(tmp_path), design["id"], "abandoned")
-    _escalate(tmp_path, [{"design_id": design["id"], "role": "abandoned"}])
-    result = revisions.record_revision(load_project(tmp_path))
-    assert result["ok"] is False
-    assert "no adopted design" in result["error"]
-
-
-def test_revision_links_every_resolved_design_and_creates_its_snapshot(
-    tmp_path: Path,
-) -> None:
-    _project(tmp_path)
-    finding = _finding(tmp_path)
-    first = designs.propose(
-        load_project(tmp_path), title="Site model", summary="The record model.", findings=[finding["id"]]
-    )
-    designs.set_state(load_project(tmp_path), first["id"], "adopted")
-    second = designs.propose(load_project(tmp_path), title="Station signals")
-    designs.set_state(load_project(tmp_path), second["id"], "adopted")
-    older = designs.propose(load_project(tmp_path), title="First attempt")
-    designs.link(load_project(tmp_path), first["id"], older["id"], "supersedes")
-    designs.set_state(load_project(tmp_path), older["id"], "superseded", by=first["id"])
-    dropped = designs.propose(load_project(tmp_path), title="Rejected idea")
-    designs.set_state(load_project(tmp_path), dropped["id"], "abandoned")
-    evaluation = evaluations.add(load_project(tmp_path), report="kgkit/eval/quick.json")
-    _escalate(
-        tmp_path,
-        [
-            {"design_id": first["id"], "role": "adopted"},
-            {"design_id": second["id"], "role": "adopted"},
-            {"design_id": older["id"], "role": "superseded"},
-            {"design_id": dropped["id"], "role": "abandoned"},
-        ],
-    )
-    result = revisions.record_revision(load_project(tmp_path), message="Site condition slice")
-    assert result["ok"] is True, result
-    record = json.loads(Path(result["path"]).read_text(encoding="utf-8"))
-    assert record["designs"] == [
-        {"design_id": first["id"], "role": "adopted"},
-        {"design_id": second["id"], "role": "adopted"},
-        {"design_id": older["id"], "role": "superseded"},
-        {"design_id": dropped["id"], "role": "abandoned"},
-    ]
-    assert record["evaluations"] == [evaluation["id"]]
-    assert record["evaluation"]["status"] == "passed"
-    snapshot = Path(load_project(tmp_path).snapshots_dir) / record["snapshot"]["file"]
-    assert snapshot.is_file()
-    assert record["snapshot"]["source"].endswith("workflow_plan.json")
-
     payload = relations.graph(load_project(tmp_path))
-    revision = next(row for row in payload["objects"] if row["id"] == "KG-abc123")
-    assert revision["view_file"] == record["snapshot"]["file"]
-    assert revision["event_id"] == record["event"] == Path(result["event"]).stem
-    roles = {(link["id"], link["role"]) for link in revision["links"]}
-    assert (first["id"], "adopted") in roles
-    assert (older["id"], "superseded") in roles
-    kinds = [event["type"] for event in payload["timeline"]]
-    assert "revision_added" in kinds
-    assert "snapshot_captured" not in kinds
-    event = next(item for item in payload["timeline"] if item["type"] == "revision_added")
-    refs = {(ref["kind"], ref["id"]) for ref in event["refs"]}
-    assert ("revision", "KG-abc123") in refs
-    assert ("change_design", first["id"]) in refs
-    assert ("change_design", second["id"]) in refs
-    assert ("evaluation", evaluation["id"]) in refs
-
-    views = payload["views"]
-    assert views[0]["kind"] == "current"
-    assert views[0]["file"] == "current.snapshot.json"
-    assert any(view.get("revision") == "KG-abc123" for view in views)
+    ids = {row["id"] for row in payload["objects"]}
+    assert {"KG-abc123", "ED-QUICK", "EV-QUICK", "ER-QUICK", "F-0001", "P-0002"} <= ids
+    assert all(row["created"] for row in payload["objects"])
+    assert any(row["type"] == "kg_edited" for row in payload["timeline"])
+    assert any(row["type"] == "evaluation_run" for row in payload["timeline"])
+    assert any(row["type"] == "design_proposed" for row in payload["timeline"])
 
 
-def test_revision_refuses_a_role_that_disagrees_with_the_notebook(
-    tmp_path: Path,
-) -> None:
-    _project(tmp_path)
-    design = _adopted(tmp_path)
-    _escalate(tmp_path, [{"design_id": design["id"], "role": "superseded"}])
-    result = revisions.record_revision(load_project(tmp_path))
-    assert result["ok"] is False
-    assert "names it superseded" in result["error"]
-
-
-def test_a_linked_design_is_immutable(tmp_path: Path) -> None:
-    _project(tmp_path)
-    design = _adopted(tmp_path)
-    _escalate(tmp_path, [{"design_id": design["id"], "role": "adopted"}])
-    assert revisions.record_revision(load_project(tmp_path))["ok"] is True
-    with pytest.raises(ValueError, match="linked to KG-abc123"):
-        designs.set_state(load_project(tmp_path), design["id"], "abandoned")
-
-
-def test_snapshot_import_keeps_the_current_compilation_and_no_snapshot_event(
-    tmp_path: Path,
-) -> None:
+def test_snapshot_import_attaches_the_view_to_the_revision(tmp_path: Path) -> None:
     _project(tmp_path)
     project = load_project(tmp_path)
-    result = import_snapshot(project)
+    result = import_snapshot(
+        project,
+        source="data/snapshots/current.snapshot.json",
+        revision="abc123",
+    )
     assert Path(result["snapshot"]).is_file()
     assert Path(result["snapshot_history"]).is_file()
-    assert Path(result["snapshot_history"]).name.endswith(".snapshot.json")
+    assert Path(result["snapshot_history"]).name != result["snapshot_file"]
     payload = relations.graph(project)
     assert not [row for row in payload["objects"] if row["kind"] == "snapshot"]
-    assert payload["views"][0]["file"] == "current.snapshot.json"
+    revision = next(row for row in payload["objects"] if row["id"] == "KG-abc123")
+    assert revision["view_file"].endswith(".snapshot.json")
+    assert not any(row["type"] == "snapshot_saved" for row in payload["timeline"])
+    edited = next(row for row in payload["timeline"] if row["type"] == "kg_edited")
+    assert edited["view_file"] == revision["view_file"]
+
+
+def test_state_is_file_based_under_kgkit(tmp_path: Path) -> None:
+    _project(tmp_path)
+    project = load_project(tmp_path)
+    relations.graph(project)
+    assert project.data_dir.name == "kgkit"
+    assert (project.data_dir / "records" / "revisions" / "abc123.json").is_file()
+    assert not (project.data_dir / "relations.db").exists()
 
 
 def test_console_assets_are_present_and_scoped() -> None:
@@ -281,12 +176,14 @@ def test_console_assets_are_present_and_scoped() -> None:
     assert _asset("/etc/passwd") is None
 
 
-def test_console_serves_the_current_view_and_a_revision_snapshot(tmp_path: Path) -> None:
+def test_console_serves_current_and_revision_views(tmp_path: Path) -> None:
     _project(tmp_path)
-    design = _adopted(tmp_path)
-    _escalate(tmp_path, [{"design_id": design["id"], "role": "adopted"}])
-    assert revisions.record_revision(load_project(tmp_path))["ok"] is True
     project = load_project(tmp_path)
+    import_snapshot(
+        project,
+        source="data/snapshots/current.snapshot.json",
+        revision="abc123",
+    )
     server = ThreadingHTTPServer(
         ("127.0.0.1", 0),
         make_handler(project, "http://127.0.0.1:3000/?embed=1"),
@@ -301,12 +198,11 @@ def test_console_serves_the_current_view_and_a_revision_snapshot(tmp_path: Path)
         with urlopen(f"{base}/api/config") as response:
             config = json.load(response)
         assert config["viewerUrl"].endswith("embed=1")
-        with urlopen(f"{base}/api/revision-view?revision=KG-abc123") as response:
+        with urlopen(
+            f"{base}/api/revision-view?revision=KG-abc123"
+        ) as response:
             archived = json.load(response)
         assert archived["name"] == current["name"]
-        with urlopen(f"{base}/api/relations") as response:
-            payload = json.load(response)
-        assert payload["views"][0]["kind"] == "current"
     finally:
         server.shutdown()
         server.server_close()
@@ -319,14 +215,14 @@ def test_sql_query_is_gone() -> None:
 
 def test_configured_project_commands_are_parsed(tmp_path: Path) -> None:
     _project(tmp_path)
-    script = tmp_path / "status.py"
+    script = tmp_path / "facts.py"
     script.write_text(
         "import json\n"
         "print(json.dumps({'ok': True, 'revision': 'rev1', 'manifest': 'm1', "
         "'counts': {'nodes': 3}, 'blueprint': {'nodes': 3}}))\n",
         encoding="utf-8",
     )
-    project = load_project(tmp_path)
+    project = load_project(tmp_path).ensure()
     project.config["commands"] = {"status": f"{sys.executable} {script}"}
     write_config_file(project)
     result = project_commands.run(load_project(tmp_path), "status")
@@ -334,12 +230,39 @@ def test_configured_project_commands_are_parsed(tmp_path: Path) -> None:
     assert result["blueprint"]["nodes"] == 3
 
 
-def test_cli_designs_and_revisions_use_the_same_gate(tmp_path: Path, capsys) -> None:
+def test_revision_record_uses_project_facts_and_the_report(tmp_path: Path) -> None:
     _project(tmp_path)
-    assert main(["design", "new", "--root", str(tmp_path), "--title", "First slice"]) == 0
-    assert main(["design", "adopt", "--root", str(tmp_path), "--id", "CD-0001"]) == 0
-    _escalate(tmp_path, [{"design_id": "CD-0001", "role": "adopted"}])
-    assert main(["revisions", "record", "--root", str(tmp_path), "--message", "Slice"]) == 0
-    assert (tmp_path / "kgkit" / "records" / "revisions" / "abc123.json").is_file()
-    assert main(["revisions", "list", "--root", str(tmp_path), "--json"]) == 0
-    assert "abc123" in capsys.readouterr().out
+    script = tmp_path / "facts.py"
+    script.write_text(
+        "import json\n"
+        "print(json.dumps({'ok': True, 'revision': 'rev1', 'manifest': 'm1', "
+        "'counts': {'nodes': 3}, 'version': '1.0'}))\n",
+        encoding="utf-8",
+    )
+    project = load_project(tmp_path).ensure()
+    project.config["commands"] = {"revision_facts": f"{sys.executable} {script}"}
+    write_config_file(project)
+    result = revisions.record_revision(load_project(tmp_path))
+    assert result["ok"] is True
+    record = json.loads(Path(result["path"]).read_text(encoding="utf-8"))
+    assert record["revision"] == "rev1"
+    assert record["evaluation"]["status"] == "passed"
+
+
+def test_ledger_accepts_and_updates_a_finding(tmp_path: Path) -> None:
+    path = tmp_path / "findings.jsonl"
+    row = {
+        "id": "F-0001",
+        "opened": "2026-11-16T10:00:00+00:00",
+        "layer": "design",
+        "observation": "The graph is stale.",
+        "evidence": "data/build/graph.jsonl",
+        "decision": "Rebuild it.",
+        "metric": "audit passes",
+        "state": "proposed",
+    }
+    assert ledger.append_finding(path, row)["status"] == "accepted"
+    assert ledger.next_id(ledger.read_ledger(path)[0]) == "F-0002"
+    updated = ledger.update_state(path, "F-0001", "accepted", note="Gate moved.")
+    assert updated["status"] == "accepted"
+    assert updated["row"]["decision"] == "Gate moved."

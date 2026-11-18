@@ -1,9 +1,9 @@
-"""The notebook command line, invoked as ``kbs notebook``.
+"""Command line entry point for the KG kit.
 
-The package owns the project surface: the relation catalog, the design gate,
-evaluations, revisions, snapshots, findings and the console. Project operations
-are declared as ``commands`` in ``kgkit/config.json``; the notebook runs them and
-passes their JSON through, so the console and a shell use the same contract.
+The package owns the generic surface: the relation catalog, snapshots, the
+console, the findings ledger and revision pins. Project operations are declared
+as ``commands`` in ``kgkit/config.json``; ``kgkit`` runs them and passes their
+JSON through, so the console and a shell use the same contract.
 """
 
 from __future__ import annotations
@@ -11,10 +11,9 @@ from __future__ import annotations
 import argparse
 import json
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
 
-from . import designs, evaluations, findings, ledger, project_commands, relations, revisions
+from . import ledger, project_commands, relations, revisions
 from .config import DATA_DIR_NAME, Project, load_project, write_config_file
 from .snapshot import import_snapshot
 
@@ -75,6 +74,7 @@ def command_status(args: argparse.Namespace) -> dict[str, Any]:
     summary = {**_summary(project, payload), "views": len(views)}
     status = project_commands.run(project, "status")
     if status and "error" not in status:
+        # The project owns the graph status; the package adds its own state.
         return {**summary, **status}
     return summary
 
@@ -140,123 +140,95 @@ def command_audit(args: argparse.Namespace) -> dict[str, Any]:
     return _project_operation(args, "audit")
 
 
-def _newest_report(project: Project) -> Path | None:
-    candidates = [
-        path
-        for path in project.paths(project.config.get("evaluation_reports"))
-        if path.is_file()
-    ]
-    if not candidates:
-        return None
-    return max(candidates, key=lambda path: path.stat().st_mtime)
-
-
 def command_eval(args: argparse.Namespace) -> dict[str, Any]:
     mode = "--full" if args.full else "--quick"
-    project = load_project(args.root)
-    result = project_commands.run(project, "eval", mode=mode)
-    if result.get("ok") is False:
-        return result
-    report = _newest_report(project)
-    if report is None:
-        return {**result, "evaluation": None, "warning": "the project wrote no evaluation report"}
-    evaluation = evaluations.add(project, report=report)
-    return {**result, "evaluation": evaluation}
+    return _project_operation(args, "eval", mode=mode)
+
+
+def _ledger_path(project: Project):
+    return project.path(str(project.config.get("findings") or "kgkit/records/findings"))
+
+
+def _proposal_path(project: Project):
+    return project.path(str(project.config.get("proposals") or "kgkit/records/proposals"))
 
 
 def command_findings(args: argparse.Namespace) -> dict[str, Any]:
     project = load_project(args.root)
+    path = _proposal_path(project) if args.layer == "proposal" else _ledger_path(project)
     if args.action == "list":
-        rows, errors = findings.list_findings(project)
+        rows, errors = ledger.read_ledger(path)
+        if args.state:
+            rows = [row for row in rows if row.get("state") == args.state]
         return {"ok": True, "count": len(rows), "findings": rows, "errors": errors}
-    try:
-        result = findings.add(
-            project,
-            layer=args.layer or "unspecified",
-            observation=args.observation or "",
-            evidence=args.evidence or "",
-            decision=args.decision or "",
-            metric=args.metric or "",
-        )
-    except ValueError as exc:
-        return {"ok": False, "error": str(exc)}
-    return {"ok": True, "finding": result}
-
-
-def command_design_new(args: argparse.Namespace) -> dict[str, Any]:
-    project = load_project(args.root)
-    try:
-        design = designs.propose(
-            project,
-            title=args.title,
-            summary=args.summary or "",
-            findings=args.finding or (),
-            supersedes=args.supersedes or (),
-            related=args.related or (),
-        )
-    except ValueError as exc:
-        return {"ok": False, "error": str(exc)}
-    return {"ok": True, "design": design}
-
-
-def command_design_list(args: argparse.Namespace) -> dict[str, Any]:
-    project = load_project(args.root)
-    rows = designs.read_designs(project)
-    return {"ok": True, "count": len(rows), "designs": rows, "gate": designs.gate(project)}
-
-
-def command_design_show(args: argparse.Namespace) -> dict[str, Any]:
-    project = load_project(args.root)
-    design = designs.read_design(project, args.id)
-    if design is None:
-        return {"ok": False, "error": f"design {args.id} does not exist"}
-    payload = relations.graph(project)
-    row = next((item for item in payload["objects"] if item["id"] == args.id), None)
-    return {
-        "ok": True,
-        "design": design,
-        "catalog": row,
-        "revision_links": revisions.linked_revisions(project, args.id),
+    if args.action != "add":
+        return {"ok": False, "error": f"unknown findings action {args.action}"}
+    if not args.observation:
+        return {"ok": False, "error": "--observation is required"}
+    rows, _errors = ledger.read_ledger(path) if path.exists() else ([], [])
+    row = {
+        "id": ledger.next_id(rows),
+        "opened": datetime.now(UTC).isoformat(timespec="seconds"),
+        "layer": args.layer or "unspecified",
+        "observation": args.observation,
+        "evidence": args.evidence or "",
+        "decision": args.decision or "",
+        "metric": args.metric or "",
+        "state": args.state or "proposed",
     }
+    result = ledger.append_finding(path, row)
+    if result["status"] != "accepted":
+        return {"ok": False, "error": "; ".join(result["errors"]), "finding": row}
+    return {"ok": True, "finding": row}
 
 
-def command_design_resolve(args: argparse.Namespace) -> dict[str, Any]:
+def command_propose(args: argparse.Namespace) -> dict[str, Any]:
     project = load_project(args.root)
-    try:
-        design = designs.set_state(
-            project, args.id, args.target_state, by=getattr(args, "by", None)
-        )
-    except ValueError as exc:
-        return {"ok": False, "error": str(exc)}
-    return {"ok": True, "design": design}
+    path = _proposal_path(project)
+    rows, _errors = ledger.read_ledger(path) if path.exists() else ([], [])
+    row = {
+        "id": ledger.next_id(rows),
+        "opened": datetime.now(UTC).isoformat(timespec="seconds"),
+        "layer": "proposal",
+        "subject": args.subject or "",
+        "observation": args.instruction,
+        "evidence": args.evidence or "",
+        "decision": "",
+        "metric": args.metric or "",
+        "state": "proposed",
+    }
+    result = ledger.append_finding(path, row)
+    if result["status"] != "accepted":
+        return {"ok": False, "error": "; ".join(result["errors"]), "proposal": row}
+    return {"ok": True, "proposal": row}
 
 
-def command_design_link(args: argparse.Namespace) -> dict[str, Any]:
+def command_proposal(args: argparse.Namespace) -> dict[str, Any]:
     project = load_project(args.root)
-    try:
-        design = designs.link(project, args.source, args.target, args.role)
-    except ValueError as exc:
-        return {"ok": False, "error": str(exc)}
-    return {"ok": True, "design": design}
+    rows, _errors = ledger.read_ledger(_proposal_path(project))
+    for row in rows:
+        if row.get("id") == args.id:
+            return {"ok": True, "proposal": row}
+    return {"ok": False, "error": f"proposal {args.id} not found"}
 
 
-def command_evaluations(args: argparse.Namespace) -> dict[str, Any]:
+def command_decide(args: argparse.Namespace) -> dict[str, Any]:
     project = load_project(args.root)
-    if args.action == "list":
-        rows = evaluations.read_evaluations(project)
-        return {"ok": True, "count": len(rows), "evaluations": rows}
-    try:
-        evaluation = evaluations.add(
-            project,
-            report=args.source,
-            mode=args.mode,
-            status=args.status,
-            revision=args.revision,
-            design=args.design,
-        )
-    except (FileNotFoundError, ValueError, json.JSONDecodeError) as exc:
-        return {"ok": False, "error": str(exc)}
-    return {"ok": True, "evaluation": evaluation}
+    if args.close:
+        state = "closed"
+    elif args.reject:
+        state = "rejected"
+    else:
+        state = "accepted"
+    path = _ledger_path(project)
+    if path.is_dir() and not (path / f"{args.id}.json").is_file():
+        candidate = _proposal_path(project)
+        if (candidate / f"{args.id}.json").is_file():
+            path = candidate
+    result = ledger.update_state(path, args.id, state, note=args.note)
+    if result["status"] != "accepted":
+        return {"ok": False, "error": "; ".join(result["errors"])}
+    return {"ok": True, "proposal": result["row"]}
 
 
 def command_revisions(args: argparse.Namespace) -> dict[str, Any]:
@@ -273,8 +245,8 @@ def command_compare(args: argparse.Namespace) -> dict[str, Any]:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="kbs notebook",
-        description="The project notebook: designs, findings, evaluations, revisions and the console.",
+        prog="kgkit",
+        description="A relational console and project command surface for knowledge graph projects.",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -286,11 +258,11 @@ def build_parser() -> argparse.ArgumentParser:
         )
         command.add_argument("--json", action="store_true", help="print JSON")
 
-    init = sub.add_parser("init", help="create the notebook and configure the project")
+    init = sub.add_parser("init", help="create kgkit and configure the project")
     root_argument(init)
     init.set_defaults(handler=command_init)
 
-    status = sub.add_parser("status", help="show graph and notebook state")
+    status = sub.add_parser("status", help="show graph and project state")
     root_argument(status)
     status.set_defaults(handler=command_status)
 
@@ -300,7 +272,8 @@ def build_parser() -> argparse.ArgumentParser:
     rel.add_argument("--json", action="store_true")
     rel.set_defaults(handler=command_relations)
 
-    snapshot = sub.add_parser("snapshot", help="import the latest compiled viewer snapshot")
+
+    snapshot = sub.add_parser("snapshot", help="import a compiled viewer snapshot")
     snapshot.add_argument("--root", default=".")
     snapshot.add_argument("--from", dest="source", help="snapshot, workflow plan or blueprint file")
     snapshot.add_argument("--command", help="command that produces the snapshot")
@@ -309,7 +282,7 @@ def build_parser() -> argparse.ArgumentParser:
     snapshot.add_argument("--json", action="store_true")
     snapshot.set_defaults(handler=command_snapshot)
 
-    console = sub.add_parser("console", help="serve the standalone notebook console")
+    console = sub.add_parser("console", help="serve the standalone relational console")
     console.add_argument("--root", default=".")
     console.add_argument("--host", default="127.0.0.1")
     console.add_argument("--port", type=int, default=8787)
@@ -326,74 +299,47 @@ def build_parser() -> argparse.ArgumentParser:
         root_argument(command)
         command.set_defaults(handler=handler)
 
-    evaluate = sub.add_parser("eval", help="run the project evaluation and record it")
+    evaluate = sub.add_parser("eval", help="run the project evaluation")
     root_argument(evaluate)
     mode = evaluate.add_mutually_exclusive_group()
     mode.add_argument("--quick", action="store_true")
     mode.add_argument("--full", action="store_true")
     evaluate.set_defaults(handler=command_eval)
 
-    finding = sub.add_parser("findings", help="append or list design findings")
-    finding.add_argument("action", choices=["add", "list"])
-    finding.add_argument("--root", default=".")
-    finding.add_argument("--json", action="store_true")
-    finding.add_argument("--layer")
-    finding.add_argument("--observation")
-    finding.add_argument("--evidence")
-    finding.add_argument("--decision")
-    finding.add_argument("--metric")
-    finding.set_defaults(handler=command_findings)
+    findings = sub.add_parser("findings", help="append or list design findings")
+    findings.add_argument("action", choices=["add", "list"])
+    findings.add_argument("--root", default=".")
+    findings.add_argument("--json", action="store_true")
+    findings.add_argument("--layer")
+    findings.add_argument("--observation")
+    findings.add_argument("--evidence")
+    findings.add_argument("--decision")
+    findings.add_argument("--metric")
+    findings.add_argument("--state")
+    findings.set_defaults(handler=command_findings)
 
-    design = sub.add_parser("design", help="propose and resolve change designs")
-    design_sub = design.add_subparsers(dest="action", required=True)
+    propose = sub.add_parser("propose", help="record a design proposal")
+    root_argument(propose)
+    propose.add_argument("--subject", required=True)
+    propose.add_argument("--instruction", required=True)
+    propose.add_argument("--evidence")
+    propose.add_argument("--metric")
+    propose.set_defaults(handler=command_propose)
 
-    new = design_sub.add_parser("new", help="propose a change design")
-    root_argument(new)
-    new.add_argument("--title", required=True)
-    new.add_argument("--summary")
-    new.add_argument("--finding", action="append", help="finding id that motivates the design")
-    new.add_argument("--supersedes", action="append", help="design id this design supersedes")
-    new.add_argument("--related", action="append", help="related design id")
-    new.set_defaults(handler=command_design_new)
+    proposal = sub.add_parser("proposal", help="read one proposal")
+    root_argument(proposal)
+    proposal.add_argument("--id", required=True)
+    proposal.set_defaults(handler=command_proposal)
 
-    listing = design_sub.add_parser("list", help="list designs and the revise gate")
-    root_argument(listing)
-    listing.set_defaults(handler=command_design_list)
-
-    show = design_sub.add_parser("show", help="show one design, its links and revisions")
-    root_argument(show)
-    show.add_argument("--id", required=True)
-    show.set_defaults(handler=command_design_show)
-
-    for name, state in (("adopt", "adopted"), ("abandon", "abandoned")):
-        resolve = design_sub.add_parser(name, help=f"resolve a design as {state}")
-        root_argument(resolve)
-        resolve.add_argument("--id", required=True)
-        resolve.set_defaults(handler=command_design_resolve, target_state=state)
-
-    supersede = design_sub.add_parser("supersede", help="resolve a design as superseded")
-    root_argument(supersede)
-    supersede.add_argument("--id", required=True)
-    supersede.add_argument("--by", required=True, help="the design that supersedes it")
-    supersede.set_defaults(handler=command_design_resolve, target_state="superseded")
-
-    link = design_sub.add_parser("link", help="link one design to another")
-    root_argument(link)
-    link.add_argument("--from", dest="source", required=True)
-    link.add_argument("--to", dest="target", required=True)
-    link.add_argument("--role", choices=list(designs.LINK_ROLES), required=True)
-    link.set_defaults(handler=command_design_link)
-
-    evaluation = sub.add_parser("evaluations", help="add or list evaluations")
-    evaluation.add_argument("action", choices=["add", "list"])
-    evaluation.add_argument("--root", default=".")
-    evaluation.add_argument("--json", action="store_true")
-    evaluation.add_argument("--from", dest="source", help="project evaluation report")
-    evaluation.add_argument("--mode")
-    evaluation.add_argument("--status")
-    evaluation.add_argument("--revision")
-    evaluation.add_argument("--design")
-    evaluation.set_defaults(handler=command_evaluations)
+    decide = sub.add_parser("decide", help="accept or reject a proposal")
+    root_argument(decide)
+    decide.add_argument("--id", required=True)
+    decision = decide.add_mutually_exclusive_group()
+    decision.add_argument("--accept", action="store_true")
+    decision.add_argument("--reject", action="store_true")
+    decision.add_argument("--close", action="store_true")
+    decide.add_argument("--note")
+    decide.set_defaults(handler=command_decide)
 
     rev = sub.add_parser("revisions", help="record or list revisions")
     rev.add_argument("action", choices=["record", "list"])
@@ -431,9 +377,9 @@ def main(argv: list[str] | None = None) -> int:
         "build",
         "audit",
         "eval",
-        "findings",
-        "design",
-        "evaluations",
+        "propose",
+        "proposal",
+        "decide",
         "revisions",
         "compare",
     }:

@@ -1,19 +1,16 @@
-"""The append-only findings ledger.
+"""Append-only findings ledger helpers.
 
-A finding is added once: it records an observation, the evidence that supports
-it, and the decision it motivates. There is no finding state machine and no
-proposal layer; a later interpretation is a new finding or a design decision.
-
-The ledger is one JSON object per line, or one object per file in a directory.
-These functions do not print and do not parse arguments; the CLI and the console
-call them directly.
+The ledger is one JSON object per line. A row is accepted only when every
+required field is present, ``state`` is one of the four named states and the
+identifier has not already been used. These functions do not print and do not
+depend on argument parsing; the CLI and the console call them directly.
 
 Example:
     ```python
-    from kg_build_system.kgkit.ledger import append_finding
+    from kg_build_system.kgkit.ledger import append_finding, validate_finding
 
     result = append_finding(Path("kgkit/records/findings"), row)
-    assert result["status"] == "accepted"
+    assert result["status"] in {"accepted", "rejected"}
     ```
 """
 
@@ -32,7 +29,9 @@ REQUIRED_FIELDS = (
     "evidence",
     "decision",
     "metric",
+    "state",
 )
+VALID_STATES = ("proposed", "accepted", "rejected", "closed")
 
 
 def _non_empty_text(value: Any) -> bool:
@@ -66,6 +65,7 @@ def validate_finding(
             errors.append(f"missing field: {field}")
     if errors:
         return errors
+
     if not _non_empty_text(row.get("id")):
         errors.append("id must be a non-empty string")
     elif existing_ids and str(row["id"]) in set(existing_ids):
@@ -76,15 +76,21 @@ def validate_finding(
         errors.append("layer must be a non-empty string")
     if not _non_empty_text(row.get("observation")):
         errors.append("observation must be a non-empty string")
-    if not _non_empty_text(row.get("decision")):
+    # A proposal is advice, not a decision: its decision is empty until it is
+    # accepted or rejected, and its evidence may be absent.
+    is_proposal = str(row.get("layer") or "") == "proposal"
+    if not is_proposal and not _non_empty_text(row.get("decision")):
         errors.append("decision must be a non-empty string")
     evidence = row.get("evidence")
-    if (
+    if not is_proposal and (
         evidence is None
         or (isinstance(evidence, str) and not evidence.strip())
         or (isinstance(evidence, (list, tuple, dict)) and len(evidence) == 0)
     ):
         errors.append("evidence must be non-empty")
+    state = row.get("state")
+    if state not in VALID_STATES:
+        errors.append("state must be one of " + ", ".join(VALID_STATES))
     metric = row.get("metric")
     if not isinstance(metric, (str, int, float, list, tuple, dict)) and metric is not None:
         errors.append("metric must be a string, number, list, object or null")
@@ -128,7 +134,9 @@ def read_ledger(path: Path) -> tuple[list[dict[str, Any]], list[str]]:
             row = dict(value)
             row_errors = validate_finding(row)
             if row_errors:
-                errors.extend(f"{path.name}:{lineno}: {message}" for message in row_errors)
+                errors.extend(
+                    f"{path.name}:{lineno}: {message}" for message in row_errors
+                )
             rows.append(row)
     seen: set[str] = set()
     for row in rows:
@@ -142,14 +150,15 @@ def read_ledger(path: Path) -> tuple[list[dict[str, Any]], list[str]]:
 
 def validate_ledger(path: Path) -> dict[str, Any]:
     rows, errors = read_ledger(path)
-    by_layer: dict[str, int] = {}
+    by_state = {state: 0 for state in VALID_STATES}
     for row in rows:
-        layer = str(row.get("layer") or "unspecified")
-        by_layer[layer] = by_layer.get(layer, 0) + 1
+        state = row.get("state")
+        if state in by_state:
+            by_state[state] += 1
     return {
         "status": "passed" if not errors else "failed",
         "rows": len(rows),
-        "by_layer": by_layer,
+        "by_state": by_state,
         "errors": errors,
     }
 
@@ -178,7 +187,9 @@ def append_finding(
 
     rows, read_errors = read_ledger(path) if path.exists() else ([], [])
     ids = list(existing_ids or [])
-    ids.extend(str(item["id"]) for item in rows if isinstance(item.get("id"), str))
+    ids.extend(
+        str(item["id"]) for item in rows if isinstance(item.get("id"), str)
+    )
     candidate = dict(row)
     errors = validate_finding(candidate, existing_ids=ids)
     if errors:
@@ -198,14 +209,56 @@ def append_finding(
         line = json.dumps(candidate, sort_keys=True, ensure_ascii=False)
         with path.open("a", encoding="utf-8") as handle:
             handle.write(line + "\n")
-    return {"status": "accepted", "errors": [], "row": candidate}
+    return {
+        "status": "accepted",
+        "errors": [],
+        "row": candidate,
+    }
+
+
+def update_state(
+    path: Path,
+    identifier: str,
+    state: str,
+    *,
+    note: str | None = None,
+) -> dict[str, Any]:
+    """Update one row's state and decision in place."""
+
+    if state not in VALID_STATES:
+        return {
+            "status": "rejected",
+            "errors": [f"state must be one of {', '.join(VALID_STATES)}"],
+        }
+    rows, errors = read_ledger(path)
+    if errors:
+        return {"status": "rejected", "errors": errors}
+    for row in rows:
+        if row.get("id") != identifier:
+            continue
+        row["state"] = state
+        if note:
+            row["decision"] = note
+        if path.is_dir():
+            (path / f"{identifier}.json").write_text(
+                json.dumps(row, indent=1, sort_keys=True) + "\n", encoding="utf-8"
+            )
+        else:
+            path.write_text(
+                "".join(json.dumps(item, sort_keys=True) + "\n" for item in rows),
+                encoding="utf-8",
+            )
+        return {"status": "accepted", "row": row}
+    return {"status": "rejected", "errors": [f"finding {identifier} not found"]}
 
 
 __all__ = [
     "REQUIRED_FIELDS",
+    "VALID_STATES",
     "append_finding",
     "next_id",
     "read_ledger",
+    "update_state",
     "validate_finding",
     "validate_ledger",
 ]

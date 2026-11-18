@@ -20,14 +20,13 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "revisions": "kgkit/records/revisions",
     "events": "kgkit/records/events",
     "findings": "kgkit/records/findings",
+    "proposals": "kgkit/records/proposals",
     "change_designs": "kgkit/records/designs",
-    "evaluations": "kgkit/records/evaluations",
     "documents": "kgkit/records/documents",
     "views": "kgkit/records/views",
     "eval_design": "kgkit/eval/design.json",
     "evaluation_reports": ["kgkit/eval/report.json", "kgkit/eval/quick.json"],
     "snapshot_sources": [
-        "build/workflow_plan.json",
         "data/snapshots/current.snapshot.json",
         "viewer/public/data/current.snapshot.json",
         "data/build/workflow_plan.json",
@@ -104,7 +103,7 @@ class Project:
         self.data_dir.mkdir(parents=True, exist_ok=True)
         (self.data_dir / "records").mkdir(parents=True, exist_ok=True)
         self.snapshots_dir.mkdir(parents=True, exist_ok=True)
-        for key in ("events", "revisions", "findings", "change_designs", "evaluations", "documents"):
+        for key in ("events", "revisions", "findings", "proposals", "change_designs", "documents"):
             self.path(str(self.config.get(key) or f"kgkit/records/{key}")).mkdir(parents=True, exist_ok=True)
         if write_config and not self.config_path.exists():
             write_config_file(self)

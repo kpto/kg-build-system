@@ -5,8 +5,11 @@
     { id: "viewer", label: "Viewer", icon: "eye", group: "Read" },
     { id: "iteration", label: "Iteration", icon: "loop", group: "Loop" },
     { id: "revisions", label: "Revisions", icon: "graph", kind: "revision", group: "Loop" },
-    { id: "evaluations", label: "Evaluations", icon: "play", kind: "evaluation", group: "Evaluate" },
+    { id: "eval_designs", label: "Eval designs", icon: "design", kind: "evaluation_design", group: "Evaluate" },
+    { id: "eval_runs", label: "Eval runs", icon: "play", kind: "evaluation_run", group: "Evaluate" },
+    { id: "results", label: "Results", icon: "chart", kind: "result", group: "Evaluate" },
     { id: "findings", label: "Findings", icon: "check", kind: "finding", group: "Change" },
+    { id: "proposals", label: "Proposals", icon: "bulb", kind: "proposal", group: "Change" },
     { id: "designs", label: "Designs", icon: "doc", kind: "change_design", group: "Change" },
   ];
 
@@ -25,8 +28,11 @@
   };
   const KIND_TAB = {
     revision: "revisions",
-    evaluation: "evaluations",
+    evaluation_design: "eval_designs",
+    evaluation_run: "eval_runs",
+    result: "results",
     finding: "findings",
+    proposal: "proposals",
     change_design: "designs",
   };
 
@@ -35,7 +41,6 @@
   const state = {
     objects: [],
     timeline: [],
-    views: [],
     active: "viewer",
     viewerUrl: "http://127.0.0.1:3000/?embed=1",
     project: "",
@@ -93,16 +98,18 @@
   }
 
   function timelineLinks(row) {
-    const refs = Array.isArray(row.refs) && row.refs.length
-      ? row.refs
-      : row.entity_id ? [{ id: row.entity_id, kind: row.entity_kind || "" }] : [];
-    return refs.map((ref) => linkChip(ref.id, ref.kind, "")).join("");
+    const links = [];
+    if (row.evaluation_design_id) links.push(linkChip(row.evaluation_design_id, "evaluation_design", "eval design"));
+    if (row.result_id) links.push(linkChip(row.result_id, "result", "result"));
+    if (row.change_design_id && row.entity_kind !== "change_design") links.push(linkChip(row.change_design_id, "change_design", "design"));
+    if (row.entity_id) links.push(linkChip(row.entity_id, row.entity_kind || "", ""));
+    return links.join("");
   }
 
   function objectCard(object) {
     const fields = (object.fields || []).map((field) => `<dt>${esc(field.label)}</dt><dd>${fieldHtml(field)}</dd>`).join("");
     const links = (object.links || []).map((link) => linkChip(link.id, link.kind, link.role)).join("");
-    const events = state.timeline.filter((row) => row.entity_id === object.id || (row.refs || []).some((ref) => ref.id === object.id)).slice().reverse();
+    const events = state.timeline.filter((row) => row.entity_id === object.id).slice().reverse();
     const backlinks = events.map((row) => `<button type="button" class="kg-event-ref" data-event-id="${esc(row.id)}">${esc(row.id)}</button>`).join("");
     return `<article class="kg-object" id="${slug(object.id)}" data-object-id="${esc(object.id)}">
       <div class="kg-object-head">${chip(object.kind || "object", "info")}<code class="kg-object-id">${esc(object.id)}</code></div>
@@ -130,7 +137,7 @@
   };
   const LANE_PALETTE = ["var(--kg-lane-0)", "var(--kg-lane-1)", "var(--kg-lane-2)", "var(--kg-lane-3)"];
   const laneColor = (lane) => LANE_PALETTE[lane % LANE_PALETTE.length];
-  const TYPE_PALETTE = ["revision-added", "evaluation-added", "design-proposed", "design-adopted", "design-superseded", "design-abandoned", "finding-added"];
+  const TYPE_PALETTE = ["kg-edited", "evaluation-run", "design-proposed", "design-adopted", "design-rejected"];
   const typeColor = (type) => {
     const slug = String(type || "").replaceAll("_", "-");
     return `var(--kg-type-${TYPE_PALETTE.includes(slug) ? slug : "default"})`;
@@ -245,13 +252,12 @@
   }
 
   function selectRevision(id) {
-    const next = id || null;
-    if (state.revisionId === next) return;
-    state.revisionId = next;
+    if (!id || state.revisionId === id) return;
+    state.revisionId = id;
     state.subject = null;
     document.querySelectorAll(".kg-revision-item").forEach((item) => {
       const button = item.querySelector("[data-revision-id]");
-      const selected = (button?.dataset.revisionId || null) === next;
+      const selected = button?.dataset.revisionId === id;
       item.classList.toggle("kg-revision-item-selected", selected);
       button?.setAttribute("aria-selected", selected ? "true" : "false");
     });
@@ -261,15 +267,6 @@
 
   function renderRevisionTimeline() {
     const revisions = revisionObjects();
-    const current = (state.views || []).find((view) => view.kind === "current");
-    const currentItem = `<div class="kg-revision-item${state.revisionId ? "" : " kg-revision-item-selected"}">
-      <button type="button" role="tab" class="kg-revision-main" data-revision-id="" aria-selected="${state.revisionId ? "false" : "true"}" title="Show the latest compilation">
-        <span class="kg-revision-time">latest</span>
-        <span class="kg-revision-title">Current compilation</span>
-        <span class="kg-revision-meta">${current?.file ? "snapshot present" : "no snapshot yet"}</span>
-        <span class="kg-revision-id">current</span>
-      </button>
-    </div>`;
     const items = revisions.map((object) => {
       const selected = state.revisionId === object.id;
       const hasView = Boolean(object.view_file);
@@ -286,13 +283,12 @@
           <span class="kg-revision-meta">${esc(meta)}</span>
           <span class="kg-revision-id">${esc(object.id)}</span>
         </button>
-        <button type="button" class="kg-revision-event" data-event-id="${esc(object.event_id || object.id)}" title="Show this revision event in Iteration">event</button>
+        <button type="button" class="kg-revision-event" data-event-id="${esc(object.id)}" title="Show this revision event in Iteration">event</button>
       </div>`;
     }).join("");
     return `<div class="kg-revision-timeline" role="tablist" aria-label="Graph revisions">
-      ${currentItem}
       ${items}
-      ${revisions.length ? "" : '<p class="kg-revision-empty">No revisions yet. A revision closes a resolved design set.</p>'}
+      ${revisions.length ? "" : '<p class="kg-revision-empty">No revisions yet. Record a KG edit first.</p>'}
     </div>`;
   }
 
@@ -302,6 +298,8 @@
       ? renderRevisionTimeline()
       : `<div class="kg-subject ${state.subject ? "" : "kg-subject-empty"}"><span class="kg-label">Subject</span><code id="subject">${esc(state.subject || "none selected")}</code>${state.revisionId ? '<span class="kg-mode-note">revision view</span>' : ""}</div>
         <div class="kg-actions">
+          <button class="kg-button" disabled title="This console is read-only">Explain</button>
+          <button class="kg-button" disabled title="This console is read-only">Propose change</button>
         </div>`;
     return `<div class="kg-viewer">
       <div class="kg-viewer-tools">
@@ -626,7 +624,10 @@
       const relations = await relationsResponse.json();
       state.objects = relations.objects || [];
       state.timeline = relations.timeline || [];
-      state.views = relations.views || [];
+      if (!state.revisionId) {
+        const latest = revisionObjects().find((object) => object.view_file);
+        if (latest) state.revisionId = latest.id;
+      }
       const config = await configResponse.json();
       if (config.viewerUrl) state.viewerUrl = config.viewerUrl;
       if (config.project) {
