@@ -687,6 +687,8 @@ missing, not the code.
   explicit.
 - A model has no reference to an owner or a wider context and stores no identity
   that can be derived.
+- A relationship is stored once, in the direction that states it; the reverse
+  relationship is derived from it, never stored beside it.
 - Anaemic is about behaviour; amnesic is about ownership and identity. Both are
   deliberate.
 - A second type that differs only in which members are required is a validation
