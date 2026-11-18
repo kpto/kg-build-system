@@ -29,6 +29,7 @@ sources:
 | [Expressions](/appendix/reference/expressions) | The Selection surface, row effects, operations and errors. |
 | [Row sources](/appendix/reference/row-sources) | row_source, where, join, group_by, union, distinct, order_by and unnest. |
 | [Extension](/appendix/reference/extension) | Project-local value operations, relation operations, source adapters and the kernel protocols. |
+| [Project notebook and console](/appendix/reference/kgkit) | The kgkit notebook, revision timeline and separate console that embeds the design viewer. |
 | [Derived relations](/appendix/reference/derived-relations) | Contracts, pinned sources, computed fields, stages and outputs. |
 | [Topology](/appendix/reference/topology) | Node, Edge, properties, templates, categories and endpoints. |
 | [Bindings](/appendix/reference/bindings) | node_binding, edge_binding, fulfilment, keys, properties and endpoints. |

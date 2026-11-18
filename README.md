@@ -86,6 +86,25 @@ surfaces are in
 The template carries a runnable value operation, input adapter and relation
 operation in `templates/project/`.
 
+## Project notebook and console
+
+`kgkit` is the project operation and notebook surface in this repository. It is a
+separate top-level package and `kgkit` command:
+
+```console
+uv run kgkit init
+uv run kgkit console
+```
+
+The console is its own page and server. It embeds the design viewer by URL
+(`viewer_url` in `kgkit/config.json`, usually `kbs view --embed`) and exchanges
+snapshots over the embed bridge; it does not bundle or serve a second design
+viewer. The notebook (`kgkit/records/`) holds revisions, events, findings,
+proposals, change designs, documents and captured views. Project-specific
+`ops/` and `eval/` commands run as JSON commands from the manifest config.
+
+See [Project notebook and console](docs/content/appendix/reference/kgkit.md).
+
 ## Authoring model
 
 - `Selection[T]` is the single authoring type; `NullableSelection[T]` is the
