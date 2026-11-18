@@ -22,7 +22,6 @@ dependencies = [
 
 [project.scripts]
 kbs = "kg_build_system.cli:main"
-kgkit = "kgkit.cli:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -37,7 +36,6 @@ dev = [
 [tool.pyright]
 include = [
     "kg_build_system",
-    "kgkit",
     "tests/typecheck/authoring.py",
     "tests/typecheck/authoring_negative.py",
     "tests/typecheck/operations.py",
@@ -55,7 +53,7 @@ strict = [
 reportMissingTypeStubs = false
 
 [tool.hatch.build.targets.wheel]
-packages = ["kg_build_system", "kgkit"]
+packages = ["kg_build_system"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "templates/project" = "kg_build_system/templates/project"

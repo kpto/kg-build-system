@@ -7,7 +7,7 @@ depend on argument parsing; the CLI and the console call them directly.
 
 Example:
     ```python
-    from kgkit.ledger import append_finding, validate_finding
+    from kg_build_system.kgkit.ledger import append_finding, validate_finding
 
     result = append_finding(Path("kgkit/records/findings"), row)
     assert result["status"] in {"accepted", "rejected"}

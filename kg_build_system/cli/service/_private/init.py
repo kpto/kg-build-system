@@ -9,6 +9,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from kg_build_system.kgkit.config import load_project
+
 
 def _source_template() -> Path | None:
     """The template in a source checkout, if the CLI is running from one."""
@@ -101,6 +103,7 @@ def run_init(arguments: argparse.Namespace) -> int:
         ),
     )
     _rewrite_pyproject(target)
+    load_project(target).ensure(write_config=True)
     print(f"Initialised a kg-build-system project in {target}")
     print("Next:")
     print(f"  cd {target}")

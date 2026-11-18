@@ -23,6 +23,7 @@ class InitCommandTests(unittest.TestCase):
             self.assertTrue((target / "START-HERE.md").is_file())
             self.assertTrue((target / "project" / "manifest.py").is_file())
             self.assertTrue((target / "tests" / "test_philosophy.py").is_file())
+            self.assertTrue((target / "kgkit" / "config.json").is_file())
             self.assertFalse((target / "uv.lock").exists())
             pyproject = (target / "pyproject.toml").read_text()
             self.assertIn("kg-build-system = { path = ", pyproject)

@@ -88,18 +88,18 @@ operation in `templates/project/`.
 
 ## Project notebook and console
 
-`kgkit` is the project operation and notebook surface in this repository. It is a
-separate top-level package and `kgkit` command:
+`kgkit` is the project operation and notebook surface, integrated into the
+`kg_build_system` distribution. It is reached through `kbs`:
 
 ```console
-uv run kgkit init
-uv run kgkit console
+uv run kbs notebook init
+uv run kbs console
 ```
 
 The console is its own page and server. It embeds the design viewer by URL
 (`viewer_url` in `kgkit/config.json`, usually `kbs view --embed`) and exchanges
 snapshots over the embed bridge; it does not bundle or serve a second design
-viewer. The notebook (`kgkit/records/`) holds revisions, events, findings,
+viewer. `kbs view` remains the separate design viewer. The notebook (`kgkit/records/`) holds revisions, events, findings,
 proposals, change designs, documents and captured views. Project-specific
 `ops/` and `eval/` commands run as JSON commands from the manifest config.
 

@@ -16,6 +16,7 @@ from kg_build_system.generation.code_generation.service.internal import (
 from .init import add_init_command
 from .manifest_command import add_manifest_commands
 from .view import add_view_command
+from kg_build_system.kgkit.cli import main as notebook_main
 
 
 def _configure_logging() -> None:
@@ -38,6 +39,33 @@ def _parser() -> argparse.ArgumentParser:
     add_init_command(commands)
     add_manifest_commands(commands)
     add_view_command(commands)
+
+    notebook = commands.add_parser(
+        "notebook", help="run a kgkit notebook or console command",
+    )
+    notebook.add_argument(
+        "args", nargs=argparse.REMAINDER,
+        help="a kgkit command and its arguments, for example: status --json",
+    )
+    notebook.set_defaults(
+        command_handler=lambda arguments: notebook_main(arguments.args),
+    )
+
+    console = commands.add_parser(
+        "console", help="serve the kgkit notebook console",
+    )
+    console.add_argument("--root", default=".")
+    console.add_argument("--host", default="127.0.0.1")
+    console.add_argument("--port", type=int, default=8787)
+    console.add_argument("--viewer-url", default="")
+    console.add_argument("--json", action="store_true")
+    console.set_defaults(
+        command_handler=lambda arguments: notebook_main([
+            "console", "--root", arguments.root, "--host", arguments.host,
+            "--port", str(arguments.port), "--viewer-url",
+            arguments.viewer_url,
+        ] + (["--json"] if arguments.json else [])),
+    )
     return parser
 
 

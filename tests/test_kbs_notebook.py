@@ -10,10 +10,10 @@ from pathlib import Path
 from http.server import ThreadingHTTPServer
 from urllib.request import urlopen
 
-from kgkit import ledger, project_commands, relations, revisions
-from kgkit.config import load_project, write_config_file
-from kgkit.console import _asset, make_handler
-from kgkit.snapshot import import_snapshot
+from kg_build_system.kgkit import ledger, project_commands, relations, revisions
+from kg_build_system.kgkit.config import load_project, write_config_file
+from kg_build_system.kgkit.console import _asset, make_handler
+from kg_build_system.kgkit.snapshot import import_snapshot
 
 
 def _project(root: Path) -> Path:
