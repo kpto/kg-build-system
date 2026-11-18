@@ -22,7 +22,7 @@ export const DETAIL_SECTION_KINDS = [
   "bindings",
   "branches",
   "expression",
-  "buildSteps",
+  "involvedSteps",
   "ports",
   "payload",
   "sources",
@@ -54,7 +54,7 @@ export const DETAIL_SECTION_BY_TITLE: Record<string, DetailSectionKind> = {
   Bindings: "bindings",
   Branches: "branches",
   Expression: "expression",
-  "Build steps": "buildSteps",
+  "Involved steps": "involvedSteps",
   Ports: "ports",
   Payload: "payload",
   Sources: "sources",
@@ -165,8 +165,8 @@ export const detailMarks: Record<DetailSectionKind, DetailMarkDefinition> = {
       </>
     ),
   },
-  buildSteps: {
-    label: "Build steps",
+  involvedSteps: {
+    label: "Involved steps",
     box: DETAIL_MARK_BOX,
     mark: (
       <>

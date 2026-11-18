@@ -24,6 +24,7 @@ import {
   DetailDocument,
   type DetailFact,
 } from "./view/DetailChrome";
+import { InvolvedSteps } from "./view/InvolvedSteps";
 import styles from "./detail.module.css";
 
 export function GraphEditor(props: WorkspaceProps): JSX.Element {
@@ -120,6 +121,8 @@ export function GraphEditor(props: WorkspaceProps): JSX.Element {
           ))}
         </ul>
       </DetailBand>
+
+      <InvolvedSteps index={index} selection={selection} />
     </DetailDocument>
   );
 }

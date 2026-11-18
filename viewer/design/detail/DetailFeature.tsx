@@ -4,9 +4,9 @@
  * Detail document view: one design subject read in full.
  *
  * Every record detail renders the same band order: Meaning, Constitution,
- * Properties, Connections and Bindings. The binding document carries the
- * Expression and Build steps. A kind includes or omits a band; it never
- * invents a second section grammar. The content contract is
+ * Properties, Connections and Bindings. The binding document also carries the
+ * Expression, and every kind ends with Involved steps. A kind includes or omits
+ * a band; it never invents a second section grammar. The content contract is
  * `DETAIL_CONTENT.md`.
  */
 
@@ -75,6 +75,7 @@ import { DataItemEditor } from "./DataItemFeature";
 import { BindingEditor } from "./BindingFeature";
 import { CollectionEditor } from "./CollectionFeature";
 import { GraphEditor } from "./GraphFeature";
+import { InvolvedSteps } from "./view/InvolvedSteps";
 import { COLLECTIONS, type CollectionId } from "@/workbench/collections";
 import { ContextMenu } from "@/shared/ui/ContextMenu";
 import { laneColor } from "@/shared/ui/theme";
@@ -2084,6 +2085,11 @@ function SubjectDetailEditor(props: WorkspaceProps) {
       {contributionSection}
       {kindSection}
       {bindingsSection}
+      <InvolvedSteps
+        index={index}
+        selection={selection}
+        model={model}
+      />
     </DetailDocument>
   );
 }

@@ -83,14 +83,14 @@ Every item detail view follows one content contract, stated in
 
 ```text
 Banner: Overview
-Constitution → Meaning → Contribution → Properties → Connections → Bindings
+Constitution → Meaning → Contribution → Properties → Connections → Bindings → Involved steps
 ```
 
 A binding document is the one exception to the record order:
 
 ```text
 Banner: Overview
-Constitution → Contribution → Meaning → Expression → Build steps
+Constitution → Contribution → Meaning → Expression → Involved steps
 ```
 
 A kind includes or omits a section; it never renames one for itself.
@@ -178,11 +178,12 @@ opens a document. A workflow component header behaves the same way.
   Each group carries its own count, and the groups stack when the card is
   narrow. It is a separate card from the Constitution, so a reader can see the
   two axes and the subject's complete meaning in turn.
-- **Expression** and **Build steps** belong to the binding document, not to the
-  record detail. Expression shows the identity and property chains the binding
-  writes; Build steps shows the plan around that binding. The record reaches
-  them through its Bindings table and the Constitution's binding node. The
-  binding banner states the rows read, so Sources is not a separate card.
+- **Expression** belongs to the binding document, not to the record detail. It
+  shows the identity and property chains the binding writes. **Involved steps**
+  closes every view kind and lists the workflow steps that participate, in plan
+  order. The record reaches the binding through its Bindings table and the
+  Constitution's binding node. The binding banner states the rows read, so
+  Sources is not a separate card.
 - **Properties** for a node or edge and **Fields** for a relation are one table
   grammar for properties, columns, fields, descendants and openings. The
   instance pill opens its document when one exists.
@@ -192,9 +193,9 @@ opens a document. A workflow component header behaves the same way.
 - **Bindings** states which binding fulfils the subject; its pill opens the
   binding document.
 - A binding document leads with its **Constitution**, then its **Meaning**
-  (when the binding carries one), its **Expression** and its **Build steps**.
+  (when the binding carries one), its **Expression** and its **Involved steps**.
   The Constitution is the binding's purpose over the target record and the
-  relations it reads.
+  relations it reads. The same Involved steps card closes every kind.
 
 A section that does not apply to the kind is omitted, not shown as a card that
 says so. A subject with no purpose, claim or limitation has no Meaning card; a

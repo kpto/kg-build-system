@@ -21,6 +21,7 @@ import { attachedMeaning } from "@/shared/design/meaning";
 import { ConceptGlyph } from "@/shared/ui/ConceptMark";
 import { AssetPill, FieldPill } from "@/detail/view/ConceptPill";
 import { activeDocument, documentSelection, type WorkspaceProps } from "@/workbench/types";
+import { InvolvedSteps } from "./view/InvolvedSteps";
 import {
   DetailBand,
   DetailDocument,
@@ -178,6 +179,7 @@ export function DataItemEditor(props: WorkspaceProps) {
       {meaningSection}
       {membersSection}
       {contributionSection}
+      <InvolvedSteps index={index} selection={selection} />
     </DetailDocument>
   );
 }

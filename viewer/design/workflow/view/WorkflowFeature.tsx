@@ -25,6 +25,7 @@ import {
   ViewportNav,
 } from "@/shared/ui/Viewport";
 import { activeDocument, type WorkspaceProps } from "@/workbench/types";
+import { InvolvedSteps } from "@/detail/view/InvolvedSteps";
 import {
   buildWorkflowComponentMap,
   buildWorkflowModel,
@@ -372,6 +373,16 @@ function StepDetail({
           </div>
         </DetailBand>
       ) : null}
+
+      <InvolvedSteps
+        index={index}
+        selection={{
+          kind: "step",
+          component: step.id[0],
+          name: step.id[1],
+          stepId: step.id,
+        }}
+      />
     </DetailDocument>
   );
 }

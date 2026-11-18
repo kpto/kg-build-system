@@ -21,6 +21,7 @@ import {
   type CollectionItem,
   type CollectionRef,
 } from "./model/collection";
+import { InvolvedSteps } from "./view/InvolvedSteps";
 import {
   DetailBand,
   DetailDocument,
@@ -161,6 +162,11 @@ export function CollectionEditor(props: WorkspaceProps) {
           ))}
         </ul>
       </DetailBand>
+
+      <InvolvedSteps
+        index={props.state.index}
+        selection={selection}
+      />
     </DetailDocument>
   );
 }

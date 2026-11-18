@@ -38,7 +38,7 @@ import {
   ExpressionTree,
   type ExpressionChain,
 } from "./view/ExpressionTree";
-import { WorkflowProvenanceGraph } from "./view/WorkflowProvenanceGraph";
+import { InvolvedSteps } from "./view/InvolvedSteps";
 
 const EMPTY_REFERENCES: ProvenanceReferences = {
   assets: [],
@@ -304,19 +304,10 @@ export function BindingEditor(props: WorkspaceProps) {
         </DetailBand>
       )}
 
-      <WorkflowProvenanceGraph
+      <InvolvedSteps
         index={index}
+        selection={selection}
         rows={rows}
-        onOpenStep={(row) =>
-          props.actions.openTab({
-            selection: {
-              kind: "step",
-              component: row.component,
-              name: row.name,
-              stepId: row.id,
-            },
-          })
-        }
       />
     </DetailDocument>
   );

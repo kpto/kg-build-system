@@ -2142,6 +2142,63 @@ button.memberRow:focus-visible {
   line-height: var(--leading-relaxed);
 }
 
+.involvedCount {
+  margin: 0 0 var(--space-stack);
+  color: var(--color-faint);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+}
+
+.involvedWide {
+  display: block;
+}
+
+.involvedNarrow {
+  display: none;
+}
+
+.involvedRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--space-hairline) var(--space-group);
+  padding: var(--space-stack) 0;
+  border-bottom: var(--border-hairline) solid var(--color-line-soft);
+}
+
+.involvedRow:last-child {
+  border-bottom: 0;
+}
+
+.involvedLinks {
+  color: var(--color-faint);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+.involvedMeta {
+  grid-column: 1 / -1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-faint);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 840px) {
+  .involvedWide {
+    display: none;
+  }
+
+  .involvedNarrow {
+    display: flex;
+    flex-direction: column;
+  }
+}
+
 .coverageList {
   display: flex;
   margin: 0;
