@@ -275,12 +275,13 @@ missing, not the code.
   the abstract purple; there is no separate abstract category mark. A count
   appears once, in the region that owns the list.
 - A detail document is a horizontal deck of flat cards inside one page margin.
-  The deck fills the height left by the margin, and one card fills the deck
-  width and height. The card states its title above the body at the top-left in
-  the heading role; the next card is off-screen, never a clipped sliver under
-  the page margin. The page margin is larger than the gap between cards, so the
-  document reads as one group. The card has no border, background or radius;
-  the deck owns horizontal scroll and the last card snaps to the deck start.
+  The deck fills the height left by the margin. When the deck has room, one card
+  fills the height and leaves a readable next-card peek: the next card's title
+  is the cue, not a clipped sliver. When the deck is too narrow for that peek,
+  one card fills the deck and the next card stays off-screen. The page margin
+  is larger than the gap between cards, so the document reads as one group. The
+  card has no border, background or radius; the deck owns horizontal scroll and
+  the last card snaps to the deck start.
   The card body owns vertical scroll, except a graph or tree viewport, which
   fills the body and owns that scroll; a compact list or lane may cap its
   height. The index is the only card navigation and does not follow the scroll
