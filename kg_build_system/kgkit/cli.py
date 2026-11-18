@@ -187,7 +187,7 @@ def command_propose(args: argparse.Namespace) -> dict[str, Any]:
     path = _proposal_path(project)
     rows, _errors = ledger.read_ledger(path) if path.exists() else ([], [])
     row = {
-        "id": ledger.next_id(rows),
+        "id": ledger.next_id(rows, prefix="P"),
         "opened": datetime.now(UTC).isoformat(timespec="seconds"),
         "layer": "proposal",
         "subject": args.subject or "",

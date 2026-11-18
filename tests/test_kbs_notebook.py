@@ -12,6 +12,7 @@ from urllib.request import urlopen
 
 from kg_build_system.kgkit import ledger, project_commands, relations, revisions
 from kg_build_system.kgkit.config import load_project, write_config_file
+from kg_build_system.kgkit.cli import main
 from kg_build_system.kgkit.console import _asset, make_handler
 from kg_build_system.kgkit.snapshot import import_snapshot
 
@@ -266,3 +267,15 @@ def test_ledger_accepts_and_updates_a_finding(tmp_path: Path) -> None:
     updated = ledger.update_state(path, "F-0001", "accepted", note="Gate moved.")
     assert updated["status"] == "accepted"
     assert updated["row"]["decision"] == "Gate moved."
+
+
+def test_propose_gets_a_proposal_id_and_decide_resolves_it(tmp_path: Path) -> None:
+    root = tmp_path / "notebook"
+    load_project(root).ensure(write_config=True)
+    assert main(["propose", "--root", str(root), "--subject", "node:disease",
+                 "--instruction", "Add a station-level signal."]) == 0
+    path = root / "kgkit" / "records" / "proposals" / "P-0001.json"
+    assert path.is_file()
+    assert main(["decide", "--root", str(root), "--id", "P-0001", "--accept"]) == 0
+    row = json.loads(path.read_text(encoding="utf-8"))
+    assert row["state"] == "accepted"
