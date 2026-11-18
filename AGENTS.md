@@ -193,6 +193,8 @@ missing, not the code.
   inspected entity. An entity keeps the Properties tab even when it declares
   none, so the empty state is visible. A property list in an inspector uses the
   shared property pill, and the pill opens the property document.
+- A record card names its members by the subject's vocabulary: Properties for a
+  node or edge, Fields for a relation.
 - A repeated item renders its units compactly. A heading is structural, not per
   unit: a table cell or list row does not repeat the section chrome. A member
   table fits the column it is in; a cell truncates or wraps rather than forcing
