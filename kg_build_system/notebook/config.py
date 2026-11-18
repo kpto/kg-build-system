@@ -1,6 +1,6 @@
 """Project discovery and the package's per-project data directory.
 
-Every runtime artifact this package writes lives under ``<project>/kgkit``:
+Every runtime artifact this package writes lives under ``<project>/notebook``:
 snapshots and the project config. The
 project keeps owning its own source, build and evaluation files; the package
 only reads them.
@@ -13,19 +13,19 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-DATA_DIR_NAME = "kgkit"
+DATA_DIR_NAME = "notebook"
 
 DEFAULT_CONFIG: dict[str, Any] = {
     "project": "",
-    "revisions": "kgkit/records/revisions",
-    "events": "kgkit/records/events",
-    "findings": "kgkit/records/findings",
-    "proposals": "kgkit/records/proposals",
-    "change_designs": "kgkit/records/designs",
-    "documents": "kgkit/records/documents",
-    "views": "kgkit/records/views",
-    "eval_design": "kgkit/eval/design.json",
-    "evaluation_reports": ["kgkit/eval/report.json", "kgkit/eval/quick.json"],
+    "revisions": "notebook/records/revisions",
+    "events": "notebook/records/events",
+    "findings": "notebook/records/findings",
+    "proposals": "notebook/records/proposals",
+    "change_designs": "notebook/records/designs",
+    "documents": "notebook/records/documents",
+    "views": "notebook/records/views",
+    "eval_design": "notebook/eval/design.json",
+    "evaluation_reports": ["notebook/eval/report.json", "notebook/eval/quick.json"],
     "snapshot_sources": [
         "data/snapshots/current.snapshot.json",
         "viewer/public/data/current.snapshot.json",
@@ -57,7 +57,7 @@ def _merge(defaults: dict[str, Any], value: dict[str, Any]) -> dict[str, Any]:
 
 @dataclass(frozen=True)
 class Project:
-    """One knowledge graph project and its private ``kgkit`` data."""
+    """One knowledge graph project and its private ``notebook`` data."""
 
     root: Path
     config: dict[str, Any]
@@ -72,7 +72,7 @@ class Project:
 
     @property
     def snapshots_dir(self) -> Path:
-        configured = self.path(str(self.config.get("views") or "kgkit/records/views"))
+        configured = self.path(str(self.config.get("views") or "notebook/records/views"))
         if configured.exists():
             return configured
         legacy = self.data_dir / "views"
@@ -104,7 +104,7 @@ class Project:
         (self.data_dir / "records").mkdir(parents=True, exist_ok=True)
         self.snapshots_dir.mkdir(parents=True, exist_ok=True)
         for key in ("events", "revisions", "findings", "proposals", "change_designs", "documents"):
-            self.path(str(self.config.get(key) or f"kgkit/records/{key}")).mkdir(parents=True, exist_ok=True)
+            self.path(str(self.config.get(key) or f"notebook/records/{key}")).mkdir(parents=True, exist_ok=True)
         if write_config and not self.config_path.exists():
             write_config_file(self)
         return self

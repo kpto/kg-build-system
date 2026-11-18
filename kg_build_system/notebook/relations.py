@@ -8,7 +8,7 @@ Findings and proposals are supporting entities referenced by a change design.
 They are not iteration rows. The timeline is derived from event files, with a
 legacy projection from the object files when no event log exists.
 
-The catalog is loaded from the tracked ``kgkit/`` directory; there is no
+The catalog is loaded from the tracked ``notebook/`` directory; there is no
 database.
 """
 
@@ -429,7 +429,7 @@ def _read_objects(path: Path) -> list[dict[str, Any]]:
 
 
 def _finding_rows(project: Project) -> list[dict[str, Any]]:
-    path = project.path(str(project.config.get("findings") or "kgkit/records/findings"))
+    path = project.path(str(project.config.get("findings") or "notebook/records/findings"))
     rows: list[dict[str, Any]] = []
     for data in _read_objects(path):
         if not data.get("id"):
@@ -465,7 +465,7 @@ def _evidence_links(value: Any) -> list[tuple[str, str]]:
 
 
 def _proposal_rows(project: Project) -> list[dict[str, Any]]:
-    path = project.path(str(project.config.get("proposals") or "kgkit/records/proposals"))
+    path = project.path(str(project.config.get("proposals") or "notebook/records/proposals"))
     rows: list[dict[str, Any]] = []
     for data in _read_objects(path):
         if not data.get("id"):
@@ -504,7 +504,7 @@ def _design_state(value: str) -> str:
 def _change_design_rows(
     project: Project, proposals: list[dict[str, Any]]
 ) -> list[dict[str, Any]]:
-    path = project.path(str(project.config.get("change_designs") or "kgkit/designs"))
+    path = project.path(str(project.config.get("change_designs") or "notebook/designs"))
     rows: list[dict[str, Any]] = []
     values = _read_objects(path)
     if values:
@@ -581,7 +581,7 @@ def _view_files(project: Project) -> dict[str, dict[str, str]]:
 
 
 def _event_rows(project: Project) -> list[dict[str, Any]]:
-    path = project.path(str(project.config.get("events") or "kgkit/records/events"))
+    path = project.path(str(project.config.get("events") or "notebook/records/events"))
     events: list[dict[str, Any]] = []
     for data in _read_objects(path):
         if not data.get("id"):

@@ -80,7 +80,7 @@ def _view_file(project: Project, revision: str) -> str | None:
 
 
 def _event_heads(project: Project) -> list[str]:
-    directory = project.path(str(project.config.get("events") or "kgkit/records/events"))
+    directory = project.path(str(project.config.get("events") or "notebook/records/events"))
     if not directory.is_dir():
         return []
     events = [_json(path) for path in sorted(directory.glob("*.json"))]
@@ -127,7 +127,7 @@ def record_revision(project: Project, message: str | None = None) -> dict[str, A
             "heads": heads,
         }
     path.write_text(json.dumps(facts, indent=1, sort_keys=True) + "\n", encoding="utf-8")
-    events = project.path(str(project.config.get("events") or "kgkit/records/events"))
+    events = project.path(str(project.config.get("events") or "notebook/records/events"))
     events.mkdir(parents=True, exist_ok=True)
     event_id = f"evt-{revision}"
     event = {

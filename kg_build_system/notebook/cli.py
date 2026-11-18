@@ -2,7 +2,7 @@
 
 The notebook records the project's findings, proposals, change designs,
 revisions and captured views. Project operations are declared as ``commands`` in
-``kgkit/config.json``; the notebook runs them and passes their JSON through, so
+``notebook/config.json``; the notebook runs them and passes their JSON through, so
 the console and a shell use the same contract.
 
 The same command table is mounted in two places: ``kbs notebook`` from the main
@@ -284,11 +284,11 @@ def command_eval(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def _ledger_path(project: Project):
-    return project.path(str(project.config.get("findings") or "kgkit/records/findings"))
+    return project.path(str(project.config.get("findings") or "notebook/records/findings"))
 
 
 def _proposal_path(project: Project):
-    return project.path(str(project.config.get("proposals") or "kgkit/records/proposals"))
+    return project.path(str(project.config.get("proposals") or "notebook/records/proposals"))
 
 
 def command_findings(args: argparse.Namespace) -> dict[str, Any]:
@@ -499,8 +499,8 @@ def build_parser() -> argparse.ArgumentParser:
             "views for the project, and read the notebook catalog."
         ),
         epilog=(
-            "The notebook lives in ./kgkit. A project command is a JSON contract "
-            "declared under 'commands' in kgkit/config.json."
+            "The notebook lives in ./notebook. A project command is a JSON contract "
+            "declared under 'commands' in notebook/config.json."
         ),
     )
     sub = parser.add_subparsers(dest="command", required=True)

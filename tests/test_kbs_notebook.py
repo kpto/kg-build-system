@@ -10,19 +10,19 @@ from pathlib import Path
 from http.server import ThreadingHTTPServer
 from urllib.request import urlopen
 
-from kg_build_system.kgkit import ledger, project_commands, relations, revisions
-from kg_build_system.kgkit.config import load_project, write_config_file
-from kg_build_system.kgkit.cli import main
-from kg_build_system.kgkit.console import _asset, make_handler
-from kg_build_system.kgkit.snapshot import import_snapshot
+from kg_build_system.notebook import ledger, project_commands, relations, revisions
+from kg_build_system.notebook.config import load_project, write_config_file
+from kg_build_system.notebook.cli import main
+from kg_build_system.notebook.console import _asset, make_handler
+from kg_build_system.notebook.snapshot import import_snapshot
 
 
 def _project(root: Path) -> Path:
-    (root / "kgkit" / "eval").mkdir(parents=True)
+    (root / "notebook" / "eval").mkdir(parents=True)
     (root / "data" / "snapshots").mkdir(parents=True)
     for name in ("events", "revisions", "findings", "proposals", "designs", "documents", "views"):
-        (root / "kgkit" / "records" / name).mkdir(parents=True)
-    (root / "kgkit" / "records" / "revisions" / "abc123.json").write_text(
+        (root / "notebook" / "records" / name).mkdir(parents=True)
+    (root / "notebook" / "records" / "revisions" / "abc123.json").write_text(
         json.dumps(
             {
                 "revision": "abc123",
@@ -35,13 +35,13 @@ def _project(root: Path) -> Path:
         ),
         encoding="utf-8",
     )
-    (root / "kgkit" / "eval" / "design.json").write_text(
+    (root / "notebook" / "eval" / "design.json").write_text(
         json.dumps(
             {
                 "modes": [
                     {
                         "name": "quick",
-                        "report": "kgkit/eval/quick.json",
+                        "report": "notebook/eval/quick.json",
                         "runs": ["audit"],
                         "note": "A quick check.",
                     }
@@ -50,7 +50,7 @@ def _project(root: Path) -> Path:
         ),
         encoding="utf-8",
     )
-    (root / "kgkit" / "eval" / "quick.json").write_text(
+    (root / "notebook" / "eval" / "quick.json").write_text(
         json.dumps(
             {
                 "format": "kg-eval-report",
@@ -67,7 +67,7 @@ def _project(root: Path) -> Path:
         ),
         encoding="utf-8",
     )
-    (root / "kgkit" / "records" / "findings" / "F-0001.json").write_text(
+    (root / "notebook" / "records" / "findings" / "F-0001.json").write_text(
         json.dumps(
             {
                 "id": "F-0001",
@@ -81,7 +81,7 @@ def _project(root: Path) -> Path:
         ),
         encoding="utf-8",
     )
-    (root / "kgkit" / "records" / "proposals" / "P-0002.json").write_text(
+    (root / "notebook" / "records" / "proposals" / "P-0002.json").write_text(
         json.dumps(
             {
                 "id": "P-0002",
@@ -124,10 +124,10 @@ def test_init_creates_the_project_data_directory(tmp_path: Path) -> None:
     _project(tmp_path)
     project = load_project(tmp_path)
     project.ensure(write_config=True)
-    assert (tmp_path / "kgkit" / "config.json").is_file()
-    assert (tmp_path / "kgkit" / "records" / "revisions").is_dir()
-    assert (tmp_path / "kgkit" / "records" / "events").is_dir()
-    assert not (tmp_path / ".kgkit").exists()
+    assert (tmp_path / "notebook" / "config.json").is_file()
+    assert (tmp_path / "notebook" / "records" / "revisions").is_dir()
+    assert (tmp_path / "notebook" / "records" / "events").is_dir()
+    assert not (tmp_path / ".notebook").exists()
 
 
 def test_catalog_and_timeline_are_derived_from_project_artifacts(tmp_path: Path) -> None:
@@ -161,11 +161,11 @@ def test_snapshot_import_attaches_the_view_to_the_revision(tmp_path: Path) -> No
     assert edited["view_file"] == revision["view_file"]
 
 
-def test_state_is_file_based_under_kgkit(tmp_path: Path) -> None:
+def test_state_is_file_based_under_notebook(tmp_path: Path) -> None:
     _project(tmp_path)
     project = load_project(tmp_path)
     relations.graph(project)
-    assert project.data_dir.name == "kgkit"
+    assert project.data_dir.name == "notebook"
     assert (project.data_dir / "records" / "revisions" / "abc123.json").is_file()
     assert not (project.data_dir / "relations.db").exists()
 
@@ -274,7 +274,7 @@ def test_propose_gets_a_proposal_id_and_decide_resolves_it(tmp_path: Path) -> No
     load_project(root).ensure(write_config=True)
     assert main(["propose", "--root", str(root), "--subject", "node:disease",
                  "--instruction", "Add a station-level signal."]) == 0
-    path = root / "kgkit" / "records" / "proposals" / "P-0001.json"
+    path = root / "notebook" / "records" / "proposals" / "P-0001.json"
     assert path.is_file()
     assert main(["decide", "--root", str(root), "--id", "P-0001", "--accept"]) == 0
     row = json.loads(path.read_text(encoding="utf-8"))

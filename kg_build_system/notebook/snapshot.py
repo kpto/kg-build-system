@@ -3,7 +3,7 @@
 The package does not know how a project builds its graph. It owns the snapshot
 format: it can wrap a workflow document into ``kg-viewer-snapshot`` and write the
 current file plus a timestamped archive, and it can import a snapshot the project
-produced into ``kgkit/records/views``. There is no database.
+produced into ``notebook/records/views``. There is no database.
 """
 
 from __future__ import annotations
@@ -87,7 +87,7 @@ def import_snapshot(
     if source_path is None or not source_path.is_file():
         raise FileNotFoundError(
             "no snapshot source found; pass --from <file> or set snapshot_command "
-            "in kgkit/config.json"
+            "in notebook/config.json"
         )
     payload = _read_json(source_path)
     if not _is_snapshot(payload):

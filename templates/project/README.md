@@ -58,7 +58,7 @@ project/                 the package; the declaration tree
   modules/               project-local planners, executors, adapters and emitters
   manifest.py            the blueprint and workflow declarations
 tests/                   the philosophy gate and the build smoke test
-kgkit/                   the project notebook and console config
+notebook/                   the project notebook and console config
 ```
 
 Each directory has a `README.md` directive. The key words MUST, MUST NOT, SHOULD,
@@ -81,7 +81,7 @@ not to supply an answer.
 
 ## The notebook
 
-`kgkit/` is the project notebook created by `kbs init`. Record findings and
+`notebook/` is the project notebook created by `kbs init`. Record findings and
 proposals there, capture revisions, and serve the project console:
 
 ```console

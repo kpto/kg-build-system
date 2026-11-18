@@ -1,13 +1,13 @@
-"""Run project-defined commands from ``kgkit/config.json``.
+"""Run project-defined commands from ``notebook/config.json``.
 
 The package owns the generic surface: relations, snapshots, the console and the
 ledger. A project owns how its graph is validated, built, audited and
 evaluated. ``commands`` maps a name to one shell command; the command must
 print one JSON object and return a non-zero exit code when it fails.
 
-The project workspace (``<project>/kgkit``) is prepended to ``PYTHONPATH`` so a
-project can keep its operations in ``kgkit/ops`` and its evaluation in
-``kgkit/eval`` without packaging either as an application.
+The project workspace (``<project>/notebook``) is prepended to ``PYTHONPATH`` so a
+project can keep its operations in ``notebook/ops`` and its evaluation in
+``notebook/eval`` without packaging either as an application.
 
 Example:
     ```json

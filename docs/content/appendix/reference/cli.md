@@ -35,7 +35,7 @@ perspective: reference
 | `kbs generate ...` | Generate or check edit-time declaration products. |
 | `kbs view ...` | Serve the bundled design viewer for a plan, blueprint or snapshot. |
 
-The project notebook and console are a separate surface: [Project notebook and console](/appendix/reference/kgkit).
+The project notebook and console are a separate surface: [Project notebook and console](/appendix/reference/notebook).
 
 ## `kbs generate`
 

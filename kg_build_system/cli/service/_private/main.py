@@ -12,7 +12,7 @@ from typing import Any, Sequence, cast
 from kg_build_system.generation.code_generation.service.internal import (
     add_generate_command,
 )
-from kg_build_system.kgkit.cli import add_notebook_commands
+from kg_build_system.notebook.cli import add_notebook_commands
 
 from .init import add_init_command
 from .manifest_command import add_manifest_commands
@@ -33,8 +33,8 @@ def _configure_logging() -> None:
 
 
 def _run_console(arguments: argparse.Namespace) -> int:
-    from kg_build_system.kgkit.config import load_project
-    from kg_build_system.kgkit.console import DEFAULT_VIEWER_URL, serve
+    from kg_build_system.notebook.config import load_project
+    from kg_build_system.notebook.console import DEFAULT_VIEWER_URL, serve
 
     project = load_project(arguments.project)
     viewer_url = (
@@ -72,8 +72,8 @@ def _parser() -> argparse.ArgumentParser:
             "views for the project, and read the notebook catalog."
         ),
         epilog=(
-            "The notebook lives in ./kgkit. A project command is a JSON contract "
-            "declared under 'commands' in kgkit/config.json."
+            "The notebook lives in ./notebook. A project command is a JSON contract "
+            "declared under 'commands' in notebook/config.json."
         ),
     )
     notebook_sub = notebook.add_subparsers(dest="command", required=True)

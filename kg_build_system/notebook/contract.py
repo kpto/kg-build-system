@@ -7,7 +7,7 @@ asset, and the emitted graph has no duplicate keys, no dangling endpoints and no
 uncovered records.
 
 The functions take the objects the project already has. They import nothing from
-the build framework, so ``kgkit`` keeps its empty dependency list.
+the build framework, so ``notebook`` keeps its empty dependency list.
 """
 
 from __future__ import annotations

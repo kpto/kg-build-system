@@ -5,8 +5,8 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
-from kg_build_system.kgkit.contract import audit_graph, document_revision, validate_blueprint
-from kg_build_system.kgkit.snapshot import write_snapshot_document
+from kg_build_system.notebook.contract import audit_graph, document_revision, validate_blueprint
+from kg_build_system.notebook.snapshot import write_snapshot_document
 
 
 def _meaning(value: str = "stated") -> SimpleNamespace:

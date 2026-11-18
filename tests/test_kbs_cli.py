@@ -22,16 +22,14 @@ def test_top_level_help_describes_one_product(capsys) -> None:
     out = " ".join(capsys.readouterr().out.split())
     assert "record findings, proposals, designs, evaluations and revisions" in out
     assert "serve the project console; it embeds the design viewer" in out
-    assert "kgkit notebook" not in out
 
 
-def test_notebook_help_lists_its_commands(tmp_path: Path, capsys) -> None:
+def test_notebook_help_lists_its_commands(capsys) -> None:
     with pytest.raises(SystemExit) as stopped:
         kbs_main(["notebook", "--help"])
     assert stopped.value.code == 0
     out = capsys.readouterr().out
     assert "usage: kbs notebook" in out
-    assert "usage: kgkit" not in out
     assert "==SUPPRESS==" not in out
     for command in ("repair", "status", "relations", "findings", "propose", "revisions"):
         assert command in out
@@ -53,7 +51,7 @@ def test_notebook_status_uses_one_directory_flag(tmp_path: Path, capsys) -> None
     assert kbs_main(["notebook", "status", "--project", str(root), "--json"]) == 0
     payload = json.loads(capsys.readouterr().out)
     assert payload["ok"] is True
-    assert payload["notebook"] == str(root / "kgkit")
+    assert payload["notebook"] == str(root / "notebook")
 
     assert kbs_main(["notebook", "status", "--root", str(root), "--json"]) == 0
     assert json.loads(capsys.readouterr().out)["project"] == root.name
@@ -65,7 +63,7 @@ def test_human_output_has_no_machine_status_line(tmp_path: Path, capsys) -> None
     assert kbs_main(["notebook", "status", "--project", str(root)]) == 0
     out = capsys.readouterr().out
     assert not any(line.startswith("ok:") for line in out.splitlines())
-    assert f"notebook: {root / 'kgkit'}" in out
+    assert f"notebook: {root / 'notebook'}" in out
     assert "kinds:" in out
 
 
