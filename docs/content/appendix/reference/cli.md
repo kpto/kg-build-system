@@ -65,8 +65,8 @@ kbs generate --project . --watch --debounce 500
 
 `kbs view` serves the bundled design viewer for one project artifact. A wheel
 ships the static viewer build under `kg_build_system/viewer_dist`; a source
-checkout serves `viewer/design/out`. The command starts one local HTTP server: the
-viewer at `/`, the snapshot at `/snapshot`, and opens the viewer. Node is not
+checkout serves `viewer/design/out`. The command starts one local HTTP server:
+the viewer at `/`, the snapshot at `/snapshot`, and opens the viewer. Node is not
 required at runtime.
 
 | Flag | Effect |
@@ -76,63 +76,12 @@ required at runtime.
 | `--host ADDRESS` | Bind address; defaults to `127.0.0.1`. |
 | `--port PORT` | Port to serve on; defaults to `8001`. |
 | `--no-open` | Do not open a browser. |
-| `--dev` | Also publish the snapshot API in `.kbs/viewer.json` for a separately started Next dev sidecar. The previous file is restored, or removed if there was none, on exit. |
-| `--embed` | Serve the empty bundled viewer for an embedding host. No snapshot is read, `/snapshot` returns 404, and the host opens a snapshot over the message bridge. |
 
 `kbs view` serves the snapshot at `/snapshot`. It never falls back to a bundled
 sample: with no `--snapshot` and no `build/workflow_plan.json`, it exits with an
 error and asks for a plan.
 
-The command does not start Next and knows nothing about the viewer source. With
-`--dev` it writes one minimal discovery record beside the project:
-
-```text
-<working-directory>/.kbs/viewer.json
-{"api": "http://127.0.0.1:<port>"}
-```
-
-The record is restored to its previous value on exit or Ctrl+C, or removed if
-there was none. A developer starts the Next dev sidecar separately and points
-it at that file:
-
-```console
-# terminal 1, in the project
-kbs view --dev --no-open
-
-# terminal 2
-cd viewer/design
-npm run dev:discovery -- --discovery /abs/project/.kbs/viewer.json --port 3001
-```
-
-Next reads the file once at startup and proxies `/snapshot` and `/api/*` to the
-snapshot API. Restart Next if the command moves to another port. Without
-`--dev`, no discovery file is written and `kbs view` serves the bundled viewer
-only.
-
-### Embedding
-
-`kbs view --embed` serves the bundled viewer with `?embed=1` and without a
-project snapshot. The host frames that URL and sends one arbitrary snapshot
-after the viewer posts `ready`:
-
-```js
-iframe.contentWindow.postMessage(
-  { type: "open", snapshot: snapshotDocument },
-  "http://127.0.0.1:8001",
-);
-```
-
-The viewer posts selection events back:
-
-```js
-{ type: "ready" }
-{ type: "select", subject: { kind, name, component?, property? } }
-{ type: "error", message }   // only for a malformed open payload
-```
-
-The embedded viewer does not fetch `/snapshot`, read project paths or know the
-host. It accepts a parsed snapshot document or its JSON text, builds the normal
-workbench indexes and replaces the current document on each `open`.
+The command does not start Next and knows nothing about the viewer source.
 
 The wheel build compiles the viewer with `npm ci` and `npm run build:static`.
 `KBS_SKIP_VIEWER_BUILD=1` uses an existing `viewer/design/out`, `KBS_SKIP_VIEWER_INSTALL=1`

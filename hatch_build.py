@@ -65,7 +65,7 @@ class ViewerBuildHook(BuildHookInterface):
                     [npm, "run", "build:static", "--workspace", "design"],
                     cwd=workspace,
                     check=True,
-                    env={**environment, "KBS_VIEWER_STATIC": "1"},
+                    env=environment,
                 )
             if build_console:
                 if console_out.exists():
@@ -74,7 +74,7 @@ class ViewerBuildHook(BuildHookInterface):
                     [npm, "run", "build:static", "--workspace", "console"],
                     cwd=workspace,
                     check=True,
-                    env={**environment, "KBS_CONSOLE_STATIC": "1"},
+                    env=environment,
                 )
 
         for name, out in (("design viewer", design_out), ("console", console_out)):

@@ -34,16 +34,9 @@ def _configure_logging() -> None:
 
 def _run_console(arguments: argparse.Namespace) -> int:
     from kg_build_system.notebook.config import load_project
-    from kg_build_system.notebook.console import serve, serve_api
+    from kg_build_system.notebook.console import serve
 
     project = load_project(arguments.project)
-    if arguments.api_only:
-        serve_api(
-            project,
-            host=arguments.host,
-            port=arguments.port if arguments.port is not None else 0,
-        )
-        return 0
     serve(
         project,
         host=arguments.host,
@@ -97,7 +90,7 @@ def _parser() -> argparse.ArgumentParser:
 
     console = commands.add_parser(
         "console",
-        help="serve the project console; it embeds the design viewer",
+        help="serve the project console and design viewer",
     )
     console.add_argument(
         "--project", dest="project", metavar="PROJECT", default=".",
@@ -110,10 +103,6 @@ def _parser() -> argparse.ArgumentParser:
     console.add_argument(
         "--port", type=int, default=None,
         help="console port; 0 chooses an available port (default)",
-    )
-    console.add_argument(
-        "--api-only", action="store_true",
-        help="serve only the notebook API for a separate console and viewer",
     )
     console.set_defaults(command_handler=_run_console)
 

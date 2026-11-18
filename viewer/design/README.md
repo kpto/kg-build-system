@@ -60,102 +60,22 @@ kbs view --no-open
 The snapshot may be a workflow plan, a blueprint, a viewer snapshot, or gzip of
 one. A bare workflow plan is wrapped with the current directory as its title.
 
-`kbs view` serves the bundled viewer directly; it does not start Next. With
-`--dev` it also writes a minimal discovery file while it is running:
+`kbs view` serves the bundled viewer directly; it does not start Next.
 
-```text
-<project>/.kbs/viewer.json
-{"api": "http://127.0.0.1:8001"}
-```
+## Build and serve
 
-The file is restored to its previous value on exit, or removed if there was
-none. A separately started Next dev sidecar reads it to discover the snapshot
-API. Without `--dev`, no discovery file is written.
-
-## Embedding
-
-`kbs view --embed` serves the bundled viewer without a project snapshot and
-prints a URL with `?embed=1`. The host frames that URL and supplies each document over
-the message bridge; the viewer does not fetch project data in this mode.
-
-Host to viewer:
-
-```js
-{
-  type: "open",
-  snapshot: <viewer snapshot, workflow plan or blueprint>,
-  requestId?: "optional correlation id"
-}
-```
-
-`snapshot` may be a parsed object or raw JSON text. The viewer replaces the
-current workbench on every `open`.
-
-Viewer to host:
-
-```js
-{ type: "ready", snapshot?: "loaded-snapshot-name" }
-{ type: "select", subject: { kind, name, component?, property?, ... } }
-{ type: "error", message }   // only for a malformed open payload
-```
-
-`ready` is posted once per mount, after the message listener exists. Selection
-events use the workbench `SubjectSelection` shape. The host validates the
-message origin and source; the viewer posts to the referrer origin when the
-browser exposes one, otherwise to `*` (an embedding host should therefore use a
-restrictive referrer policy or validate origin and source itself).
-
-## Develop the viewer
+The design viewer is a static Next export:
 
 ```console
 cd viewer
-npm install
-cd design
-npm run dev
+npm ci
+npm run build:static --workspace design
 ```
 
-`npm run dev` chooses an available port, starts Next on loopback, and writes the
-`viewer` role under the per-user dev directory (`KBS_DEV_DIR` overrides it). It
-prints the URL. `--port` remains optional, and `--force` replaces an existing
-healthy instance. To serve a remote browser, pass `--hostname 0.0.0.0` and name
-that host in `KBS_DEV_ORIGINS` (default `127.0.0.1,localhost`). For a production
-build:
-
-```console
-npm run build
-npx next start --hostname 0.0.0.0 --port 3000
-```
-
-## Develop against a project
-
-Start the project API with `kbs view --dev` from the project root, then start
-Next dev against its discovery file:
-
-```console
-# terminal 1, in the project
-uv run kbs view --dev --no-open --snapshot build/workflow_plan.json
-
-# terminal 2
-cd viewer/design
-npm run dev:discovery -- --discovery /abs/project/.kbs/viewer.json --port 3001
-```
-
-or:
-
-```console
-KBS_DISCOVERY=/abs/project/.kbs/viewer.json npm run dev
-```
-
-Next reads the discovery file once at startup and hard-codes the API origin. It
-proxies `/snapshot` and `/api/*` to that server. Restart Next if the Python
-server moves to another port.
-
-This standalone workflow is one Next dev instance per project, each with its own
-`.kbs/viewer.json`.
-
-The console push workflow is different: the design viewer is stateless and one
-instance serves every project. Start it with `npm run dev`; a console in any
-project reads the `viewer` role and pushes its own snapshots into the iframe.
+`kbs view` serves it for one project artifact, and `kbs console` serves it at
+`/` beside the console and API. The viewer reads `/snapshot` from the Python
+host; `?snapshot=<url>` remains available for a standalone export served
+elsewhere. Node is not required at runtime.
 
 ## Bundle in the Python wheel
 
@@ -177,7 +97,7 @@ an existing `viewer/design/out`:
 KBS_SKIP_VIEWER_BUILD=1 uv build --wheel
 ```
 
-`KBS_SKIP_VIEWER_INSTALL=1` reuses `viewer/design/node_modules`. `KBS_NPM` selects an npm
+`KBS_SKIP_VIEWER_INSTALL=1` reuses `viewer/node_modules`. `KBS_NPM` selects an npm
 executable. The wheel excludes `viewer/design/out/data`; project snapshots are served by
 `kbs view`, not bundled into the package.
 

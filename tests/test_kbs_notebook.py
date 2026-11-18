@@ -188,7 +188,7 @@ def test_console_serves_current_and_revision_views(tmp_path: Path) -> None:
         assert current["format"] == "kg-viewer-snapshot"
         with urlopen(f"{base}/api/config") as response:
             config = json.load(response)
-        assert config["viewerUrl"] == "/?embed=1"
+        assert config["viewerUrl"] == "/"
         with urlopen(
             f"{base}/api/revision-view?revision=KG-abc123"
         ) as response:

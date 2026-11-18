@@ -5,11 +5,7 @@
   "type": "module",
   "description": "The project notebook console for kg-build-system.",
   "scripts": {
-    "dev": "node scripts/dev.mjs",
-    "dev:next": "next dev",
-    "build": "next build",
-    "build:static": "KBS_CONSOLE_STATIC=1 KBS_CONSOLE_BASE_PATH=/console next build",
-    "start": "next start"
+    "build:static": "next build"
   },
   "dependencies": {
     "@kbs/design": "*",

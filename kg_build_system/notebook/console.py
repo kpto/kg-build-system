@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, unquote, urlparse
 
-from . import dev, relations
+from . import relations
 from .config import Project
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
@@ -20,7 +20,7 @@ VIEWER_DIST = PACKAGE_ROOT / "viewer_dist"
 CONSOLE_DIST = PACKAGE_ROOT / "console_dist"
 VIEWER_SOURCE = REPO_ROOT / "viewer" / "design" / "out"
 CONSOLE_SOURCE = REPO_ROOT / "viewer" / "console" / "out"
-VIEWER_URL = "/?embed=1"
+VIEWER_URL = "/"
 
 
 def _asset_root(packaged: Path, source: Path) -> Path | None:
@@ -63,16 +63,6 @@ def _viewer_bytes(path: Path, project: Project) -> bytes:
                 "blueprint": value,
             }
     return _json_bytes(value)
-
-
-def _dev_viewer_url(project: Project) -> str:
-    """The viewer URL a development console should embed."""
-
-    entry = dev.read_role("viewer")
-    url = str(entry.get("url") or "").strip()
-    if url:
-        return f"{url.rstrip('/')}/?embed=1"
-    return ""
 
 
 def _current(project: Project, name: str) -> Path | None:
@@ -317,77 +307,6 @@ def make_handler(project: Project) -> type[BaseHTTPRequestHandler]:
     return Handler
 
 
-def make_api_handler(project: Project) -> type[BaseHTTPRequestHandler]:
-    """API-only handler used by ``kbs console --api-only``."""
-
-    class Handler(BaseHTTPRequestHandler):
-        server_version = "kbs-api/0.1"
-
-        def do_GET(self) -> None:  # noqa: N802 - stdlib hook
-            parsed = urlparse(self.path)
-            response = _api_response(project, parsed, _dev_viewer_url(project))
-            if response is None:
-                self.send_error(HTTPStatus.NOT_FOUND)
-                return
-            status, content_type, body = response
-            if status != 200:
-                self.send_error(status, body.decode("utf-8", "replace"))
-                return
-            self.send_response(HTTPStatus.OK)
-            self.send_header("Content-Type", content_type)
-            self.send_header("Content-Length", str(len(body)))
-            self.send_header("Cache-Control", "no-store")
-            self.end_headers()
-            self.wfile.write(body)
-
-        def log_message(self, format: str, *args: object) -> None:
-            print(f"{self.address_string()} {format % args}")
-
-    return Handler
-
-
-def serve_api(
-    project: Project,
-    *,
-    host: str = "127.0.0.1",
-    port: int = 0,
-) -> None:
-    """Serve only the notebook API and publish the ``api`` dev role."""
-
-    project.ensure()
-    server = ThreadingHTTPServer((host, port), make_api_handler(project))
-    url = f"http://{_display_host(host)}:{server.server_port}"
-    dev.write_role("api", url)
-    print(f"kbs console API: {url}", flush=True)
-    print(f"Project: {project.root}", flush=True)
-    print(f"Notebook: {project.data_dir}", flush=True)
-    previous = None
-    try:
-        import signal
-
-        def stop(signum: int, frame: object) -> None:
-            raise KeyboardInterrupt
-
-        previous = signal.getsignal(signal.SIGTERM)
-        signal.signal(signal.SIGTERM, stop)
-    except (ImportError, OSError, ValueError):
-        previous = None
-    try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        pass
-    finally:
-        if previous is not None:
-            try:
-                import signal
-
-                signal.signal(signal.SIGTERM, previous)
-            except (OSError, ValueError):
-                pass
-        server.server_close()
-        dev.remove_role("api")
-
-
 def serve(
     project: Project,
     *,
@@ -428,8 +347,6 @@ def serve(
 __all__ = [
     "CONSOLE_DIST",
     "VIEWER_DIST",
-    "make_api_handler",
     "make_handler",
     "serve",
-    "serve_api",
 ]

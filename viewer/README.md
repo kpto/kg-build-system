@@ -15,22 +15,21 @@ cd viewer
 npm install
 ```
 
-## Start the dev stack
+## Build and serve
 
-Run each process in its own terminal, starting from the repository root:
+Build both static exports:
 
 ```console
-# 1. the project API
-kbs console --api-only --project /path/to/project
-
-# 2. the design viewer
-cd viewer/design && npm run dev
-
-# 3. the console
-cd viewer/console && npm run dev
+npm run build:static --workspace design
+npm run build:static --workspace console
 ```
 
-Each launcher chooses an available port and publishes a role under the per-user
-dev directory. Open the console URL printed by step 3; it embeds the viewer. See
-`design/README.md` and `console/README.md` for `KBS_DEV_DIR`, `--force` and
-remote development origins.
+Serve a project with the Python host:
+
+```console
+kbs console --project /path/to/project
+```
+
+`kbs console` serves the console at `/console/`, the design viewer at `/` and the
+API at `/console/api/`. `kbs view` serves the standalone design viewer and its
+snapshot. Node is not required at runtime.

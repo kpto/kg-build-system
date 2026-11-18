@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
   Control,
@@ -95,17 +95,33 @@ function shortTime(value?: string): string {
   return `${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-function resolveViewer(raw?: string): { src: string; origin: string } | null {
-  if (!raw || typeof window === "undefined") return null;
+function resolveViewer(raw?: string): string {
+  const base = raw?.trim() ? raw : "/";
+  if (typeof window === "undefined") return base;
   try {
-    const url = new URL(raw, window.location.href);
+    const url = new URL(base, window.location.href);
     if (["127.0.0.1", "localhost", "0.0.0.0", "[::1]", "::1"].includes(url.hostname)) {
       url.hostname = window.location.hostname;
     }
-    url.searchParams.set("embed", "1");
-    return { src: url.toString(), origin: url.origin };
+    return url.toString();
   } catch {
-    return null;
+    return "/";
+  }
+}
+
+/** A revision is one snapshot URL; the viewer reloads on the selected tab. */
+function viewerSrc(viewer: string, revision: string | null): string {
+  if (!revision || typeof window === "undefined") return viewer;
+  try {
+    const url = new URL(viewer, window.location.href);
+    const snapshot = new URL(
+      `/console/api/revision-view?revision=${encodeURIComponent(revision)}`,
+      window.location.href,
+    );
+    url.searchParams.set("snapshot", snapshot.toString());
+    return url.toString();
+  } catch {
+    return viewer;
   }
 }
 
@@ -123,52 +139,12 @@ function ViewerPane({
   selected,
   revisions,
   onSelect,
-  onReady,
 }: {
-  viewer: { src: string; origin: string } | null;
+  viewer: string;
   selected: string | null;
   revisions: Entity[];
   onSelect: (revision: string | null) => void;
-  onReady: (frame: HTMLIFrameElement) => void;
 }) {
-  const frame = useRef<HTMLIFrameElement>(null);
-
-  useEffect(() => {
-    if (!viewer) return;
-    const onMessage = (event: MessageEvent) => {
-      if (event.source !== frame.current?.contentWindow) return;
-      if (event.origin !== viewer.origin) return;
-      if (event.data?.type === "ready" && frame.current) onReady(frame.current);
-    };
-    window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
-  }, [viewer, onReady]);
-
-  useEffect(() => {
-    if (frame.current) onReady(frame.current);
-  }, [selected, onReady]);
-
-  if (!viewer) {
-    return (
-      <Panel className={styles.viewerPanel}>
-        <PanelHeader className={styles.viewerHead}>
-          <Label>Design viewer</Label>
-          <Meta>not running</Meta>
-        </PanelHeader>
-        <div className={styles.notice}>
-          <Hint>
-            The console API has no <code>viewer</code> development role. Start
-            the design viewer, then refresh:
-          </Hint>
-          <pre>cd viewer/design{"\n"}npm run dev</pre>
-          <Control type="button" onClick={() => window.location.reload()}>
-            Retry
-          </Control>
-        </div>
-      </Panel>
-    );
-  }
-
   return (
     <Panel className={styles.viewerPanel}>
       <PanelHeader className={styles.viewerHead}>
@@ -204,12 +180,10 @@ function ViewerPane({
       </div>
       <div className={styles.viewerBody}>
         <iframe
-          ref={frame}
           className={styles.iframe}
-          src={viewer.src}
+          src={viewerSrc(viewer, selected)}
           title="Knowledge graph design viewer"
           referrerPolicy="no-referrer"
-          onLoad={() => frame.current && onReady(frame.current)}
         />
       </div>
     </Panel>
@@ -574,27 +548,6 @@ export default function ConsolePage() {
 
   const viewer = useMemo(() => resolveViewer(config.viewerUrl), [config.viewerUrl]);
 
-  const postView = useCallback(
-    async (frame: HTMLIFrameElement) => {
-      if (!viewer) return;
-      const url = revisionId
-        ? `api/revision-view?revision=${encodeURIComponent(revisionId)}`
-        : "api/current-view";
-      try {
-        const response = await fetch(url, { cache: "no-store" });
-        if (!response.ok) return;
-        const snapshot = await response.json();
-        frame.contentWindow?.postMessage(
-          { type: "open", snapshot, label: revisionId || "current" },
-          viewer.origin,
-        );
-      } catch {
-        // The catalog stays visible when the viewer cannot open its snapshot.
-      }
-    },
-    [revisionId, viewer],
-  );
-
   const objects = graph.objects ?? [];
   const events = graph.timeline ?? [];
   const revisions = objects
@@ -691,7 +644,7 @@ export default function ConsolePage() {
               <div className={styles.notice}>
                 <Hint>{error}</Hint>
                 <Hint>
-                  Start the API with <code>kbs console --api-only --project .</code>
+                  Serve the console with <code>kbs console --project .</code>
                 </Hint>
                 <Control type="button" onClick={() => window.location.reload()}>
                   Retry
@@ -705,7 +658,6 @@ export default function ConsolePage() {
               selected={revisionId}
               revisions={viewableRevisions}
               onSelect={setRevisionId}
-              onReady={(frame) => void postView(frame)}
             />
           ) : null}
           {!loading && !error && active === "iteration" ? (

@@ -21,7 +21,7 @@ def test_top_level_help_describes_one_product(capsys) -> None:
     assert stopped.value.code == 0
     out = " ".join(capsys.readouterr().out.split())
     assert "record findings, proposals, designs, evaluations and revisions" in out
-    assert "serve the project console; it embeds the design viewer" in out
+    assert "serve the project console and design viewer" in out
 
 
 def test_notebook_help_lists_its_commands(capsys) -> None:
@@ -108,7 +108,6 @@ def test_console_help_is_top_level_and_has_no_json_flag(capsys) -> None:
     out = capsys.readouterr().out
     assert "usage: kbs console" in out
     assert "--project PROJECT" in out
-    assert "--api-only" in out
     assert "--viewer-url" not in out
     assert "--json" not in out
 
