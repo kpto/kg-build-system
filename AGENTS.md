@@ -156,18 +156,21 @@ missing, not the code.
   not a default surface.
 - A constitution is the subject's production account: its own purpose at the
   top, the declarations that bring it into being below, and every edge from the
-  supply to the consumer. A record is one DAG: the purpose and graph ancestry
-  framed on the left, one box per binding in the fulfilment frame, and the
-  relation provenance framed on the right; no separator divides the graph.
+  supply to the consumer. A record is one DAG: the purpose in its own PURPOSE
+  frame, the graph ancestry in the GRAPH frame, one box per binding in the
+  FULFILMENT frame, and the relation provenance in the RELATION frame; the
+  layered layout places the frames and none is fixed to a side. No separator
+  divides the graph.
   A source relation shows only its asset; a derived relation only its scanned
   source relations and their assets; a binding shows the relations it reads; an
   asset is the origin and has no card. A source or derived relation puts its
   purpose and provenance in one RELATION frame; a binding puts its purpose in
   the FULFILMENT frame and its relations in the RELATION frame. Its target
-  record is its contribution, in the GRAPH frame. GRAPH, RELATION, FULFILMENT,
-  WORKFLOW and LAYERS are the frame kinds, and every box sits inside its
-  corresponding frame. A collection's layer DAG uses one LAYERS frame; a step
-  boundary uses WORKFLOW.
+  record is its contribution, in the GRAPH frame. PURPOSE, GRAPH, RELATION,
+  FULFILMENT, WORKFLOW and LAYERS are the frame kinds, and every box sits inside
+  its corresponding frame. A collection's layer DAG uses one LAYERS frame; a
+  step boundary uses WORKFLOW. No frame is pinned to a side; the layout places
+  them and the frames are disjoint.
   A shared declaration is one node with one edge per consumer; a binding is
   never the parent of either side, and each box carries its own concept mark
   and concept-tinted background.
