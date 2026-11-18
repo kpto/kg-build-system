@@ -216,6 +216,10 @@ missing, not the code.
   pinned Graph and Workflow tabs are visualisations, and the graph declaration
   is its own Explorer item and detail document, with the shared deck rather than
   a visualisation frame.
+- Every concept detail ends with **Involved steps**: the workflow steps that
+  participate in it, in plan order, as one table whose step pills open the step
+  documents. The card is the last page of the deck; a concept with no resolved
+  steps keeps the card and states the empty state.
 - Present the design before an author workflow: a canonical view carries the
   facts a reader must know immediately, and a detail view shows the same object
   with more evidence rather than starting a separate task.
