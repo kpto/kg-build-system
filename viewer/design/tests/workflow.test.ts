@@ -10,7 +10,11 @@ import {
   formatStepId,
   groupWorkflowRows,
 } from "../workflow/model/WorkflowViewModel";
-import { buildStepScene } from "../workflow/view/WorkflowGraph";
+import {
+  buildCompositorScene,
+  buildStepComponentScene,
+  buildStepScene,
+} from "../shared/ui/WorkflowDag";
 
 const model = buildWorkflowModel(contractIndex);
 
@@ -80,6 +84,42 @@ describe("workflow view model", () => {
     expect(formatArtifactType(["core", "binding", "defect"])).toBe(
       "core:binding:defect",
     );
+  });
+
+  it("builds the component DAG from the same scene primitive", () => {
+    const map = buildWorkflowComponentMap(contractIndex, model);
+    const scene = buildCompositorScene(map);
+    expect(scene.nodes.map((node) => node.id)).toEqual(["duckdb", "core"]);
+    expect(scene.edges).toHaveLength(1);
+    expect(scene.edges[0]).toMatchObject({
+      source: "duckdb",
+      target: "core",
+      weight: 1,
+    });
+  });
+
+  it("lays a step subset out top to bottom for a detail card", () => {
+    const scene = buildStepScene(
+      contractIndex,
+      "",
+      model.rows,
+      () => "#fff",
+      { boundaries: false, direction: "vertical" },
+    );
+    const source = scene.nodes.find((node) => node.label === "source.surveys");
+    const target = scene.nodes.find((node) => node.label === "binding.0");
+    expect(source).toBeDefined();
+    expect(target).toBeDefined();
+    expect(target!.y).toBeGreaterThan(source!.y);
+    expect(target!.x).toBe(source!.x);
+    expect(scene.nodes.every((node) => node.kind === "step")).toBe(true);
+  });
+
+  it("collapses a step subset to its workflow components", () => {
+    const scene = buildStepComponentScene(contractIndex, model.rows);
+    expect(scene.nodes.map((node) => node.id)).toEqual(["duckdb", "core"]);
+    expect(scene.nodes.every((node) => node.kind === "component")).toBe(true);
+    expect(scene.edges).toHaveLength(1);
   });
 
   it("places a step to the right of its dependency", () => {

@@ -1,26 +1,28 @@
 "use client";
 
 /**
- * One shared last card for every concept: the workflow steps involved in it.
- *
- * The caller may pass rows it already resolved; otherwise the card resolves
- * the concept through the same involved-step rules. A step pill opens its own
- * document, so the card never carries a click handler of its own.
+ * The universal last card: the workflow steps involved in one concept drawn as
+ * the same DAG the Workflow document uses. The rows are narrowed to this
+ * concept, so the card is a focused subset of the workflow tab.
  */
 
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import type { ViewerIndex } from "@/lib/types";
 import type { ProofModel } from "@/proof/model";
+import { useConceptNavigation } from "@/shared/ui/ConceptNavigation";
+import { groupPalette } from "@/shared/ui/theme";
+import { ViewportHint } from "@/shared/ui/Viewport";
+import {
+  WorkflowDag,
+  buildStepComponentScene,
+  buildStepScene,
+  type WorkflowDagNode,
+} from "@/shared/ui/WorkflowDag";
 import type { SubjectSelection } from "@/workbench/types";
 import type { WorkflowStepRow } from "@/workflow/model/WorkflowViewModel";
 import { involvedWorkflowRows } from "../model/involvedSteps";
-import { StepPill } from "./ConceptPill";
-import {
-  DetailBand,
-  MemberTable,
-  type MemberRow,
-} from "./DetailChrome";
+import { DetailBand } from "./DetailChrome";
 import styles from "../detail.module.css";
 
 export function InvolvedSteps({
@@ -38,22 +40,41 @@ export function InvolvedSteps({
     () => rows ?? involvedWorkflowRows(index, selection, model),
     [rows, index, selection, model],
   );
-  const memberRows: MemberRow[] = resolved.map((row) => ({
-    key: row.key,
-    title: `${row.id.join(".")} · ${row.kindLabel}`,
-    cells: [
-      <StepPill
-        key="step"
-        name={row.name}
-        component={row.component}
-        stepId={row.id}
-        title={row.id.join(".")}
-      />,
-      row.component,
-      row.kindLabel,
-      `${row.connections}`,
-    ],
-  }));
+  const [selectedId, setSelectedId] = useState<string>();
+  const navigation = useConceptNavigation();
+  const components = useMemo(
+    () => [...new Set(resolved.map((row) => row.component))],
+    [resolved],
+  );
+  const tintFor = useCallback(
+    (component: string) =>
+      groupPalette[Math.max(0, components.indexOf(component)) % groupPalette.length],
+    [components],
+  );
+  // A handful of steps stays a step DAG; a large subset collapses to its
+  // components so the same card remains readable instead of a tiny strip.
+  const grouped = resolved.length > 16;
+  const scene = useMemo(() => {
+    if (!resolved.length) return undefined;
+    if (grouped) return buildStepComponentScene(index, resolved);
+    return buildStepScene(index, "", resolved, tintFor, {
+      boundaries: false,
+      direction: "vertical",
+    });
+  }, [grouped, index, resolved, tintFor]);
+  const fitKey = `${selection?.kind ?? ""}:${selection?.component ?? ""}:${
+    selection?.property ?? ""
+  }:${resolved.length}:${grouped ? "components" : "steps"}`;
+
+  const openStep = (node: WorkflowDagNode) => {
+    if (!node.row || !navigation) return;
+    navigation.open({
+      concept: "step",
+      name: node.row.name,
+      component: node.row.component,
+      stepId: node.row.id,
+    });
+  };
 
   return (
     <DetailBand
@@ -61,42 +82,42 @@ export function InvolvedSteps({
       question="Which build steps participate in this concept?"
       testId="detail-involved-steps"
     >
-      {memberRows.length ? (
-        <p className={styles.involvedCount}>
-          {resolved.length} {resolved.length === 1 ? "step" : "steps"}
-        </p>
-      ) : null}
-      <div className={styles.involvedWide}>
-        <MemberTable
-          columns={["Step", "Component", "Instruction", "Links"]}
-          template="minmax(170px, 1.5fr) minmax(90px, 0.8fr) minmax(120px, 1.1fr) 56px"
-          rows={memberRows}
-          empty="No workflow steps resolve to this concept."
-          testId="involved-steps-table"
-        />
-      </div>
-      <div className={styles.involvedNarrow} data-testid="involved-steps-list">
-        {resolved.length ? (
-          resolved.map((row) => (
-            <div key={row.key} className={styles.involvedRow}>
-              <StepPill
-                name={row.name}
-                component={row.component}
-                stepId={row.id}
-                title={row.id.join(".")}
-              />
-              <span className={styles.involvedLinks}>{row.connections}</span>
-              <span className={styles.involvedMeta}>
-                {row.component} · {row.kindLabel}
-              </span>
-            </div>
-          ))
-        ) : (
-          <p className={styles.inlineEmpty}>
-            No workflow steps resolve to this concept.
+      {scene ? (
+        <>
+          <p className={styles.involvedCount}>
+            {resolved.length} {resolved.length === 1 ? "step" : "steps"}
+            {grouped
+              ? ` · ${components.length} ${
+                  components.length === 1 ? "component" : "components"
+                }`
+              : ""}
           </p>
-        )}
-      </div>
+          <div className={styles.involvedDag}>
+            <WorkflowDag
+              scene={scene}
+              selectedId={selectedId}
+              onSelect={(node) => setSelectedId(node.id)}
+              onOpen={openStep}
+              onBackgroundClick={() => setSelectedId(undefined)}
+              className={styles.involvedDagCanvas}
+              testId="involved-workflow-dag"
+              ariaLabel={
+                grouped
+                  ? `Involved workflow with ${resolved.length} steps in ${components.length} components`
+                  : `Involved workflow with ${resolved.length} steps`
+              }
+              fitKey={fitKey}
+            />
+            <ViewportHint className="pointer-events-none">
+              {grouped ? "pan · zoom" : "pan · zoom · open step"}
+            </ViewportHint>
+          </div>
+        </>
+      ) : (
+        <p className={styles.inlineEmpty}>
+          No workflow steps resolve to this concept.
+        </p>
+      )}
     </DetailBand>
   );
 }

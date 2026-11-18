@@ -2,13 +2,42 @@
 
 import { useMemo, type MouseEvent as ReactMouseEvent } from "react";
 
-import type { ViewerIndex } from "@/lib/types";
+import type { StepId, ViewerIndex } from "@/lib/types";
 import { stepKey } from "@/lib/indexes";
-import {
-  buildWorkflowComponentMap,
-  type WorkflowStepRow,
-} from "@/workflow/model/WorkflowViewModel";
-import { groupPalette, theme } from "@/shared/ui/theme";
+import { GraphCanvas } from "./GraphCanvas";
+import { groupPalette, theme } from "./theme";
+
+/** The row shape a workflow DAG needs; the workflow model's row is one. */
+export interface WorkflowDagStep {
+  key: string;
+  id: StepId;
+  component: string;
+  name: string;
+  kind: string[] | undefined;
+  kindKey: string;
+  kindLabel: string;
+  inputs: number;
+  outputs: number;
+  connections: number;
+}
+
+/** The component map a compositor scene needs; the workflow model's map is one. */
+export interface WorkflowDagComponentNode {
+  id: string;
+  steps: number;
+}
+
+export interface WorkflowDagComponentEdge {
+  id: string;
+  source: string;
+  target: string;
+  count: number;
+}
+
+export interface WorkflowDagComponentMap {
+  nodes: WorkflowDagComponentNode[];
+  edges: WorkflowDagComponentEdge[];
+}
 
 const STEP_NODE_WIDTH = 220;
 const STEP_NODE_HEIGHT = 72;
@@ -21,16 +50,18 @@ const STEP_MAX_ROWS = 28;
 const STEP_MARGIN = 36;
 const BOUNDARY_WIDTH = 150;
 const BOUNDARY_HEIGHT = 72;
+const VERTICAL_STEP_WIDTH = 180;
+const VERTICAL_STEP_GAP_X = 32;
 
-type WorkflowGraphNodeKind = "component" | "step" | "in" | "out";
+type WorkflowDagNodeKind = "component" | "step" | "in" | "out";
 
 /**
  * One node in the workflow scene. A component, a step and a boundary node are
  * the same value; only the facts and the size differ.
  */
-export interface WorkflowGraphNode {
+export interface WorkflowDagNode {
   id: string;
-  kind: WorkflowGraphNodeKind;
+  kind: WorkflowDagNodeKind;
   label: string;
   detail: string;
   meta?: string;
@@ -43,12 +74,14 @@ export interface WorkflowGraphNode {
   headerHeight: number;
   socketY: number;
   dataTestId: string;
-  row?: WorkflowStepRow;
+  row?: WorkflowDagStep;
   component?: string;
+  /** A step in a top-to-bottom DAG: sockets sit on the top and bottom edges. */
+  vertical?: boolean;
 }
 
 /** One link in the workflow scene; the same renderer draws every link kind. */
-export interface WorkflowGraphEdge {
+export interface WorkflowDagEdge {
   id: string;
   source: string;
   target: string;
@@ -65,18 +98,18 @@ export interface WorkflowGraphEdge {
   targetY?: number;
 }
 
-interface WorkflowGraphStats {
+interface WorkflowDagStats {
   stepCount: number;
   internalEdges: number;
   boundaryCount: number;
 }
 
-export interface WorkflowGraphScene {
-  nodes: WorkflowGraphNode[];
-  edges: WorkflowGraphEdge[];
+export interface WorkflowDagScene {
+  nodes: WorkflowDagNode[];
+  edges: WorkflowDagEdge[];
   width: number;
   height: number;
-  stats?: WorkflowGraphStats;
+  stats?: WorkflowDagStats;
 }
 
 const NODE_WIDTH = 208;
@@ -120,7 +153,7 @@ function dependencyLayers(
 
 function componentLayers(
   ids: string[],
-  edges: ReturnType<typeof buildWorkflowComponentMap>["edges"],
+  edges: WorkflowDagComponentEdge[],
 ): Map<string, number> {
   return dependencyLayers(ids, edges);
 }
@@ -218,8 +251,10 @@ function layeredOrder(
 }
 
 export function buildCompositorScene(
-  map: ReturnType<typeof buildWorkflowComponentMap>,
-): WorkflowGraphScene {
+  map: WorkflowDagComponentMap,
+  options: { direction?: "horizontal" | "vertical" } = {},
+): WorkflowDagScene {
+  const vertical = options.direction === "vertical";
   const ids = map.nodes.map((node) => node.id);
   const layer = componentLayers(ids, map.edges);
   const order = new Map(ids.map((id, index) => [id, index]));
@@ -242,11 +277,11 @@ export function buildCompositorScene(
 
   const layerIds = [...columns.keys()].sort((left, right) => left - right);
   const maxRows = Math.max(1, ...layerIds.map((id) => columns.get(id)?.length ?? 0));
-  const width =
+  let width =
     MARGIN * 2 +
     layerIds.length * NODE_WIDTH +
     Math.max(0, layerIds.length - 1) * COLUMN_GAP;
-  const height =
+  let height =
     MARGIN * 2 +
     maxRows * NODE_HEIGHT +
     Math.max(0, maxRows - 1) * ROW_GAP;
@@ -255,31 +290,60 @@ export function buildCompositorScene(
   const placed = new Map<
     string,
     {
-      node: ReturnType<typeof buildWorkflowComponentMap>["nodes"][number];
+      node: WorkflowDagComponentMap["nodes"][number];
       x: number;
       y: number;
       color: string;
       internal: number;
     }
   >();
-  layerIds.forEach((layerId, columnIndex) => {
-    const column = columns.get(layerId) ?? [];
-    const columnHeight =
-      column.length * NODE_HEIGHT +
-      Math.max(0, column.length - 1) * ROW_GAP;
-    const top = MARGIN + (bodyHeight - columnHeight) / 2;
-    column.forEach((node, rowIndex) => {
-      placed.set(node.id, {
-        node,
-        x: MARGIN + columnIndex * (NODE_WIDTH + COLUMN_GAP),
-        y: top + rowIndex * (NODE_HEIGHT + ROW_GAP),
-        color: groupPalette[(order.get(node.id) ?? 0) % groupPalette.length],
-        internal: internal.get(node.id) ?? 0,
+  if (vertical) {
+    const layerWidths = layerIds.map((layerId) => {
+      const column = columns.get(layerId) ?? [];
+      return (
+        column.length * NODE_WIDTH +
+        Math.max(0, column.length - 1) * COLUMN_GAP
+      );
+    });
+    const maxWidth = Math.max(1, ...layerWidths);
+    let cursorY = MARGIN;
+    layerIds.forEach((layerId, layerIndex) => {
+      const column = columns.get(layerId) ?? [];
+      let cursorX = MARGIN + (maxWidth - (layerWidths[layerIndex] ?? 0)) / 2;
+      column.forEach((node) => {
+        placed.set(node.id, {
+          node,
+          x: cursorX,
+          y: cursorY,
+          color: groupPalette[(order.get(node.id) ?? 0) % groupPalette.length],
+          internal: internal.get(node.id) ?? 0,
+        });
+        cursorX += NODE_WIDTH + COLUMN_GAP;
+      });
+      cursorY += NODE_HEIGHT + ROW_GAP;
+    });
+    width = maxWidth + MARGIN * 2;
+    height = cursorY - ROW_GAP + MARGIN;
+  } else {
+    layerIds.forEach((layerId, columnIndex) => {
+      const column = columns.get(layerId) ?? [];
+      const columnHeight =
+        column.length * NODE_HEIGHT +
+        Math.max(0, column.length - 1) * ROW_GAP;
+      const top = MARGIN + (bodyHeight - columnHeight) / 2;
+      column.forEach((node, rowIndex) => {
+        placed.set(node.id, {
+          node,
+          x: MARGIN + columnIndex * (NODE_WIDTH + COLUMN_GAP),
+          y: top + rowIndex * (NODE_HEIGHT + ROW_GAP),
+          color: groupPalette[(order.get(node.id) ?? 0) % groupPalette.length],
+          internal: internal.get(node.id) ?? 0,
+        });
       });
     });
-  });
+  }
 
-  const nodes: WorkflowGraphNode[] = [...placed.values()].map(
+  const nodes: WorkflowDagNode[] = [...placed.values()].map(
     ({ node, x, y, color, internal: inner }) => ({
       id: node.id,
       kind: "component",
@@ -294,23 +358,25 @@ export function buildCompositorScene(
       socketY: SOCKET_Y,
       dataTestId: "workflow-component-node",
       component: node.id,
+      vertical: vertical || undefined,
     }),
   );
 
-  const edges: WorkflowGraphEdge[] = [];
+  const edges: WorkflowDagEdge[] = [];
   for (const edge of map.edges) {
     if (edge.source === edge.target) continue;
     const source = placed.get(edge.source);
     const target = placed.get(edge.target);
     if (!source || !target) continue;
-    const sx = source.x + NODE_WIDTH;
-    const sy = source.y + SOCKET_Y;
-    const tx = target.x;
-    const ty = target.y + SOCKET_Y;
+    const sx = vertical ? source.x + NODE_WIDTH / 2 : source.x + NODE_WIDTH;
+    const sy = vertical ? source.y + NODE_HEIGHT : source.y + SOCKET_Y;
+    const tx = vertical ? target.x + NODE_WIDTH / 2 : target.x;
+    const ty = vertical ? target.y : target.y + SOCKET_Y;
     const forward = tx >= sx;
     const dx = forward
       ? Math.max(56, (tx - sx) * 0.48)
       : 96;
+    const dy = Math.max(40, Math.abs(ty - sy) * 0.5);
     const c1x = sx + dx;
     const c1y = sy;
     const c2x = tx - dx;
@@ -319,7 +385,9 @@ export function buildCompositorScene(
       id: edge.id,
       source: edge.source,
       target: edge.target,
-      path: `M ${sx} ${sy} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${tx} ${ty}`,
+      path: vertical
+        ? `M ${sx} ${sy} C ${sx} ${sy + dy}, ${tx} ${ty - dy}, ${tx} ${ty}`
+        : `M ${sx} ${sy} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${tx} ${ty}`,
       dataTestId: "workflow-component-edge",
       weight: edge.count,
       label: String(edge.count),
@@ -338,10 +406,16 @@ export function buildCompositorScene(
 export function buildStepScene(
   index: ViewerIndex,
   component: string,
-  rows: WorkflowStepRow[],
+  rows: WorkflowDagStep[],
   tintFor: (component: string) => string,
-): WorkflowGraphScene {
+  options: {
+    boundaries?: boolean;
+    direction?: "horizontal" | "vertical";
+  } = {},
+): WorkflowDagScene {
   const visible = new Map(rows.map((row) => [row.key, row]));
+  const vertical = options.direction === "vertical";
+  const useBoundaries = (options.boundaries ?? true) && !vertical;
   const internal: Array<{ id: string; sourceKey: string; targetKey: string }> = [];
   const incoming = new Map<string, number>();
   const outgoing = new Map<string, number>();
@@ -358,6 +432,7 @@ export function buildStepScene(
       continue;
     }
     if (sourceIn) {
+      if (!useBoundaries) continue;
       const targetComponent = connection.inputStepId[0];
       if (targetComponent === component) continue;
       outgoing.set(targetComponent, (outgoing.get(targetComponent) ?? 0) + 1);
@@ -365,6 +440,7 @@ export function buildStepScene(
       sources.add(sourceKey);
       rightSources.set(targetComponent, sources);
     } else if (targetIn) {
+      if (!useBoundaries) continue;
       const sourceComponent = connection.outputStepId[0];
       if (sourceComponent === component) continue;
       incoming.set(sourceComponent, (incoming.get(sourceComponent) ?? 0) + 1);
@@ -419,55 +495,101 @@ export function buildStepScene(
   const gridX = STEP_MARGIN + (leftEntries.length ? leftWidth + 42 : 0);
   const gridY = STEP_MARGIN;
   const rightX = gridX + gridWidth + (rightEntries.length ? 42 : 0);
-  const canvasWidth =
+  let canvasWidth =
     gridX +
     gridWidth +
     (rightEntries.length ? 42 + rightWidth : 0) +
     STEP_MARGIN;
 
-  const nodes: WorkflowGraphNode[] = [];
-  const nodeByKey = new Map<string, WorkflowGraphNode>();
+  const nodes: WorkflowDagNode[] = [];
+  const nodeByKey = new Map<string, WorkflowDagNode>();
   const rowByKey = new Map(rows.map((row) => [row.key, row]));
 
-  // One block per dependency layer. Parallel steps share the block and wrap
-  // into sub-columns; rows align across blocks so a chain reads left to right.
-  let cursorX = gridX;
-  blocks.forEach(({ column, blockColumns }) => {
-    column.forEach((key, index) => {
-      const row = rowByKey.get(key);
-      if (!row) return;
-      const subColumn = Math.floor(index / visibleRows);
-      const rowIndex = index % visibleRows;
-      const node: WorkflowGraphNode = {
-        id: row.key,
-        kind: "step",
-        label: row.name,
-        detail: row.kindLabel,
-        meta: `${row.inputs} in · ${row.outputs} out`,
-        tint: tintFor(row.component),
-        x: cursorX + subColumn * (STEP_NODE_WIDTH + STEP_GAP_X),
-        y: gridY + rowIndex * (STEP_NODE_HEIGHT + STEP_GAP_Y),
-        width: STEP_NODE_WIDTH,
-        height: STEP_NODE_HEIGHT,
-        headerHeight: STEP_HEADER_HEIGHT,
-        socketY: STEP_NODE_HEIGHT / 2,
-        dataTestId: "workflow-step-node",
-        row,
-        component: row.component,
-      };
-      nodes.push(node);
-      nodeByKey.set(node.id, node);
+  let canvasHeight = STEP_MARGIN + gridHeight;
+
+  if (vertical) {
+    // A subset reads top to bottom: one dependency layer per row, parallel
+    // steps side by side, and only the steps themselves.
+    const layerWidths = columns.map(
+      (column) =>
+        column.length * VERTICAL_STEP_WIDTH +
+        Math.max(0, column.length - 1) * VERTICAL_STEP_GAP_X,
+    );
+    const maxWidth = Math.max(1, ...layerWidths);
+    let cursorY = STEP_MARGIN;
+    columns.forEach((column, layerIndex) => {
+      let cursorX =
+        STEP_MARGIN + (maxWidth - (layerWidths[layerIndex] ?? 0)) / 2;
+      column.forEach((key) => {
+        const row = rowByKey.get(key);
+        if (!row) return;
+        const node: WorkflowDagNode = {
+          id: row.key,
+          kind: "step",
+          label: row.name,
+          detail: row.kindLabel,
+          meta: `${row.inputs} in · ${row.outputs} out`,
+          tint: tintFor(row.component),
+          x: cursorX,
+          y: cursorY,
+          width: VERTICAL_STEP_WIDTH,
+          height: STEP_NODE_HEIGHT,
+          headerHeight: STEP_HEADER_HEIGHT,
+          socketY: STEP_NODE_HEIGHT / 2,
+          dataTestId: "workflow-step-node",
+          row,
+          component: row.component,
+          vertical: true,
+        };
+        nodes.push(node);
+        nodeByKey.set(node.id, node);
+        cursorX += VERTICAL_STEP_WIDTH + VERTICAL_STEP_GAP_X;
+      });
+      cursorY += STEP_NODE_HEIGHT + STEP_GAP_Y;
     });
-    cursorX +=
-      blockColumns * STEP_NODE_WIDTH +
-      Math.max(0, blockColumns - 1) * STEP_GAP_X +
-      STEP_LAYER_GAP_X;
-  });
+    canvasWidth = maxWidth + STEP_MARGIN * 2;
+    canvasHeight = cursorY - STEP_GAP_Y + STEP_MARGIN;
+  } else {
+    // One block per dependency layer. Parallel steps share the block and wrap
+    // into sub-columns; rows align across blocks so a chain reads left to right.
+    let cursorX = gridX;
+    blocks.forEach(({ column, blockColumns }) => {
+      column.forEach((key, index) => {
+        const row = rowByKey.get(key);
+        if (!row) return;
+        const subColumn = Math.floor(index / visibleRows);
+        const rowIndex = index % visibleRows;
+        const node: WorkflowDagNode = {
+          id: row.key,
+          kind: "step",
+          label: row.name,
+          detail: row.kindLabel,
+          meta: `${row.inputs} in · ${row.outputs} out`,
+          tint: tintFor(row.component),
+          x: cursorX + subColumn * (STEP_NODE_WIDTH + STEP_GAP_X),
+          y: gridY + rowIndex * (STEP_NODE_HEIGHT + STEP_GAP_Y),
+          width: STEP_NODE_WIDTH,
+          height: STEP_NODE_HEIGHT,
+          headerHeight: STEP_HEADER_HEIGHT,
+          socketY: STEP_NODE_HEIGHT / 2,
+          dataTestId: "workflow-step-node",
+          row,
+          component: row.component,
+        };
+        nodes.push(node);
+        nodeByKey.set(node.id, node);
+      });
+      cursorX +=
+        blockColumns * STEP_NODE_WIDTH +
+        Math.max(0, blockColumns - 1) * STEP_GAP_X +
+        STEP_LAYER_GAP_X;
+    });
+  }
 
   const stepCenterY = (keys: Iterable<string>): number => {
     const values = [...keys]
       .map((key) => nodeByKey.get(key))
-      .filter((node): node is WorkflowGraphNode => Boolean(node))
+      .filter((node): node is WorkflowDagNode => Boolean(node))
       .map((node) => node.y + node.height / 2);
     return values.length
       ? values.reduce((total, value) => total + value, 0) / values.length
@@ -501,7 +623,7 @@ export function buildStepScene(
   const rightPlacements = placeBoundaryStack(rightEntries, rightSources);
 
   leftPlacements.forEach(({ name, links, y }) => {
-    const node: WorkflowGraphNode = {
+    const node: WorkflowDagNode = {
       id: `boundary:in:${name}`,
       kind: "in",
       label: name,
@@ -522,7 +644,7 @@ export function buildStepScene(
   });
 
   rightPlacements.forEach(({ name, links, y }) => {
-    const node: WorkflowGraphNode = {
+    const node: WorkflowDagNode = {
       id: `boundary:out:${name}`,
       kind: "out",
       label: name,
@@ -542,30 +664,37 @@ export function buildStepScene(
     nodeByKey.set(node.id, node);
   });
 
-  const canvasHeight =
+  canvasHeight =
     Math.max(
-      STEP_MARGIN + gridHeight,
+      canvasHeight,
       ...leftPlacements.map((entry) => entry.y + BOUNDARY_HEIGHT),
       ...rightPlacements.map((entry) => entry.y + BOUNDARY_HEIGHT),
-    ) + STEP_MARGIN;
+    ) + (vertical ? 0 : STEP_MARGIN);
 
-  const edges: WorkflowGraphEdge[] = [];
+  const edges: WorkflowDagEdge[] = [];
   const pushEdge = (sourceKey: string, targetKey: string, id: string, boundary: boolean) => {
     const source = nodeByKey.get(sourceKey);
     const target = nodeByKey.get(targetKey);
     if (!source || !target) return;
-    const sx = source.x + source.width;
-    const sy = source.y + source.socketY;
-    const tx = target.x;
-    const ty = target.y + target.socketY;
+    const sx = vertical ? source.x + source.width / 2 : source.x + source.width;
+    const sy = vertical ? source.y + source.height : source.y + source.socketY;
+    const tx = vertical ? target.x + target.width / 2 : target.x;
+    const ty = vertical ? target.y : target.y + target.socketY;
     const dx = Math.max(48, Math.abs(tx - sx) * 0.5);
+    const dy = Math.max(32, Math.abs(ty - sy) * 0.5);
     edges.push({
       id,
       source: sourceKey,
       target: targetKey,
-      path: `M ${sx} ${sy} C ${sx + dx} ${sy}, ${tx - dx} ${ty}, ${tx} ${ty}`,
+      path: vertical
+        ? `M ${sx} ${sy} C ${sx} ${sy + dy}, ${tx} ${ty - dy}, ${tx} ${ty}`
+        : `M ${sx} ${sy} C ${sx + dx} ${sy}, ${tx - dx} ${ty}, ${tx} ${ty}`,
       dataTestId: "workflow-step-edge",
       boundary,
+      sourceX: sx,
+      sourceY: sy,
+      targetX: tx,
+      targetY: ty,
     });
   };
 
@@ -573,6 +702,7 @@ export function buildStepScene(
     pushEdge(edge.sourceKey, edge.targetKey, edge.id, false);
   }
   for (const connection of index.connections) {
+    if (!useBoundaries) continue;
     const sourceKey = stepKey(connection.outputStepId);
     const targetKey = stepKey(connection.inputStepId);
     const sourceIn = visible.has(sourceKey);
@@ -618,13 +748,53 @@ function stepDisplayName(value: string): string {
 }
 
 /**
+ * Collapse a step subset to its workflow components. Large subsets remain a
+ * readable DAG: each node states how many of the involved steps it owns, and
+ * each edge counts the step connections between two components.
+ */
+export function buildStepComponentScene(
+  index: ViewerIndex,
+  rows: WorkflowDagStep[],
+): WorkflowDagScene {
+  const visible = new Map(rows.map((row) => [row.key, row]));
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    counts.set(row.component, (counts.get(row.component) ?? 0) + 1);
+  }
+  const edges = new Map<string, WorkflowDagComponentEdge>();
+  for (const connection of index.connections) {
+    const source = visible.get(stepKey(connection.outputStepId));
+    const target = visible.get(stepKey(connection.inputStepId));
+    if (!source || !target || source.component === target.component) continue;
+    const id = `component:${source.component}:${target.component}`;
+    const existing = edges.get(id);
+    if (existing) existing.count += 1;
+    else {
+      edges.set(id, {
+        id,
+        source: source.component,
+        target: target.component,
+        count: 1,
+      });
+    }
+  }
+  return buildCompositorScene(
+    {
+      nodes: [...counts.entries()].map(([id, steps]) => ({ id, steps })),
+      edges: [...edges.values()],
+    },
+    { direction: "vertical" },
+  );
+}
+
+/**
  * One renderer for every workflow scene. Component nodes, step nodes and
  * boundary nodes share the same chrome; one selected id drives the same
  * incident-link highlight and dimming in both the component and step views.
  */
 const DIM_NODE_OPACITY = 0.3;
 
-export function WorkflowGraphSceneView({
+export function WorkflowDagSceneView({
   scene,
   selectedId,
   activeIds,
@@ -632,13 +802,13 @@ export function WorkflowGraphSceneView({
   onOpen,
   onContextMenu,
 }: {
-  scene: WorkflowGraphScene;
+  scene: WorkflowDagScene;
   selectedId?: string;
   activeIds?: Set<string>;
-  onSelect(node: WorkflowGraphNode): void;
-  onOpen?(node: WorkflowGraphNode): void;
+  onSelect(node: WorkflowDagNode): void;
+  onOpen?(node: WorkflowDagNode): void;
   onContextMenu?(
-    node: WorkflowGraphNode,
+    node: WorkflowDagNode,
     event: ReactMouseEvent<SVGGElement>,
   ): void;
 }) {
@@ -651,7 +821,7 @@ export function WorkflowGraphSceneView({
     );
   }, [scene.edges, selectedId]);
 
-  const renderEdge = (edge: WorkflowGraphEdge) => {
+  const renderEdge = (edge: WorkflowDagEdge) => {
     const highlighted = incident.has(edge.id);
     const active =
       !activeIds ||
@@ -837,24 +1007,49 @@ export function WorkflowGraphSceneView({
                   {node.note}
                 </text>
               ) : null}
-              <circle
-                cx={0}
-                cy={node.socketY}
-                r={5}
-                fill={theme.raised}
-                stroke={selected ? theme.selection : node.tint}
-                strokeWidth={1.4}
-                pointerEvents="none"
-              />
-              <circle
-                cx={node.width}
-                cy={node.socketY}
-                r={5}
-                fill={theme.raised}
-                stroke={selected ? theme.selection : node.tint}
-                strokeWidth={1.4}
-                pointerEvents="none"
-              />
+              {node.vertical ? (
+                <>
+                  <circle
+                    cx={node.width / 2}
+                    cy={0}
+                    r={5}
+                    fill={theme.raised}
+                    stroke={selected ? theme.selection : node.tint}
+                    strokeWidth={1.4}
+                    pointerEvents="none"
+                  />
+                  <circle
+                    cx={node.width / 2}
+                    cy={node.height}
+                    r={5}
+                    fill={theme.raised}
+                    stroke={selected ? theme.selection : node.tint}
+                    strokeWidth={1.4}
+                    pointerEvents="none"
+                  />
+                </>
+              ) : (
+                <>
+                  <circle
+                    cx={0}
+                    cy={node.socketY}
+                    r={5}
+                    fill={theme.raised}
+                    stroke={selected ? theme.selection : node.tint}
+                    strokeWidth={1.4}
+                    pointerEvents="none"
+                  />
+                  <circle
+                    cx={node.width}
+                    cy={node.socketY}
+                    r={5}
+                    fill={theme.raised}
+                    stroke={selected ? theme.selection : node.tint}
+                    strokeWidth={1.4}
+                    pointerEvents="none"
+                  />
+                </>
+              )}
             </g>
           );
         })}
@@ -865,5 +1060,63 @@ export function WorkflowGraphSceneView({
         </g>
       ) : null}
     </>
+  );
+}
+
+/**
+ * The one workflow DAG primitive: a pan/zoom canvas, one selected node and one
+ * open action. The Workflow document composes its own toolbar over the same
+ * renderer; a detail card can mount this self-contained view.
+ */
+export function WorkflowDag({
+  scene,
+  selectedId,
+  activeIds,
+  onSelect,
+  onOpen,
+  onContextMenu,
+  onBackgroundClick,
+  className,
+  testId,
+  ariaLabel,
+  minFitScale,
+  fitKey,
+}: {
+  scene: WorkflowDagScene;
+  selectedId?: string;
+  activeIds?: Set<string>;
+  onSelect?(node: WorkflowDagNode): void;
+  onOpen?(node: WorkflowDagNode): void;
+  onContextMenu?(
+    node: WorkflowDagNode,
+    event: ReactMouseEvent<SVGGElement>,
+  ): void;
+  onBackgroundClick?(): void;
+  className?: string;
+  testId?: string;
+  ariaLabel?: string;
+  minFitScale?: number;
+  fitKey?: string;
+}) {
+  return (
+    <GraphCanvas
+      width={scene.width}
+      height={scene.height}
+      className={className}
+      testId={testId}
+      ariaLabel={ariaLabel}
+      onBackgroundClick={onBackgroundClick}
+      minFitScale={minFitScale}
+      fitKey={fitKey}
+    >
+      <WorkflowDagSceneView
+        scene={scene}
+        selectedId={selectedId}
+        activeIds={activeIds}
+        onSelect={(node) => onSelect?.(node)}
+        onOpen={onOpen}
+        onContextMenu={onContextMenu}
+      />
+    </GraphCanvas>
   );
 }

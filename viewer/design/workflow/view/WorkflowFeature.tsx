@@ -37,10 +37,10 @@ import {
   type WorkflowStepRow,
 } from "@/workflow/model/WorkflowViewModel";
 import {
-  WorkflowGraphSceneView,
+  WorkflowDagSceneView,
   buildCompositorScene,
   buildStepScene,
-} from "./WorkflowGraph";
+} from "@/shared/ui/WorkflowDag";
 import { useWorkflowUi } from "./workflowUi";
 
 function workflowModel(state: WorkspaceProps["state"]) {
@@ -678,7 +678,7 @@ export function WorkflowEditor(props: WorkspaceProps) {
             transform={`translate(${view.x} ${view.y}) scale(${view.scale})`}
             opacity={size.width ? 1 : 0}
           >
-            <WorkflowGraphSceneView
+            <WorkflowDagSceneView
               scene={inStepGroup ? (stepScene ?? componentScene) : componentScene}
               selectedId={inStepGroup ? ui.selectedNodeKey : selectedNode?.id}
               activeIds={
