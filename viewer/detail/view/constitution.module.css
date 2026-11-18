@@ -3,8 +3,8 @@
   z-index: var(--z-modal);
   max-height: 360px;
   overflow: auto;
+  overscroll-behavior: contain;
   border: var(--border-hairline) solid var(--color-line-strong);
-  border-left: var(--border-heavy) solid var(--color-selection);
   border-radius: var(--radius-lg);
   background: var(--color-panel-raised);
   box-shadow: var(--shadow-popover);

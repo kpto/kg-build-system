@@ -339,6 +339,8 @@ export function Constitution({
   useEffect(() => {
     if (!hovered) return;
     const close = () => setHovered(null);
+    // A scroll inside the card is the reader scrolling the card's own
+    // meaning. Only a scroll outside it dismisses the card.
     const outside = (event: Event) => {
       if (cardRef.current?.contains(event.target as Node)) return;
       close();
@@ -346,12 +348,12 @@ export function Constitution({
     const escape = (event: KeyboardEvent) => {
       if (event.key === "Escape") close();
     };
-    window.addEventListener("scroll", close, true);
+    window.addEventListener("scroll", outside, true);
     window.addEventListener("resize", close);
     document.addEventListener("pointerdown", outside, true);
     window.addEventListener("keydown", escape);
     return () => {
-      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("scroll", outside, true);
       window.removeEventListener("resize", close);
       document.removeEventListener("pointerdown", outside, true);
       window.removeEventListener("keydown", escape);
