@@ -209,6 +209,13 @@ stroke is scaled back to the grid, so every layer's logo reads at one visual
 size and one stroke. Colour is a second cue; the silhouette and the label carry
 the distinction alone.
 
+A detail card uses a **section mark**, drawn once in
+`detail/view/detailMarks.tsx`: one silhouette per structural card role, the page
+header's colour on every card, and no mark repeated within a page. A section
+mark is not a concept: it never becomes a pill, a tab or a navigation target,
+and it never reuses the header's concept mark. It shares the concept grammar
+and the tight content box, so every card logo reads at one size.
+
 An inline mention of an instance is one pill: the layer's mark, a divider and
 the instance name, all in the instance's colour. The same pill names a record
 in a connection row, a property in a member table, a relation in a source list,
@@ -344,7 +351,7 @@ context menu — own their own modules.
 
 An item-detail card is not a generic primitive. `DetailBand` is the detail
 feature's one card primitive: it composes the flat `Panel` and places the card
-title above the body at the top-left, with the concept mark. The card question
+title above the body at the top-left, with the section mark. The card question
 is the section's accessible label, not a visible line. Cards are static and
 backgroundless; the detail body never folds them. A view may not re-declare a
 card surface, header or title; those belong to `DetailBand`.

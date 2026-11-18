@@ -261,7 +261,6 @@ export function BindingEditor(props: WorkspaceProps) {
     >
       {constitution ? (
         <DetailBand
-          concept="semantics"
           title="Constitution"
           question="What is this binding for, and how does it come to be?"
           testId="detail-constitution"
@@ -276,7 +275,6 @@ export function BindingEditor(props: WorkspaceProps) {
 
       {hasMeaning ? (
         <DetailBand
-          concept="semantics"
           title="Meaning"
           question="What does this binding fulfil, and what does it exclude?"
           testId="binding-meaning"
@@ -297,7 +295,6 @@ export function BindingEditor(props: WorkspaceProps) {
         />
       ) : (
         <DetailBand
-          concept="graph"
           title="Expression"
           question="Which fields and operations produce the value?"
         >

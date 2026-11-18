@@ -47,7 +47,6 @@ export function WorkflowProvenanceGraph({
   if (!rows.length || !scene) {
     return (
       <DetailBand
-        concept="workflow"
         title="Build steps"
         question="How is this built?"
       >
@@ -60,7 +59,6 @@ export function WorkflowProvenanceGraph({
 
   return (
     <DetailBand
-      concept="workflow"
       title="Build steps"
       question="How is this built?"
     >

@@ -182,7 +182,9 @@ The first paint shows the design, not its annotations.
 | Binding document | its own banner states record, writes, identity, rows read, step and output; Constitution (purpose in a FULFILMENT frame, relations in a RELATION frame), Contribution (target record in a GRAPH frame), Meaning (when the binding carries one), Expression and Build steps follow | the Explorer Bindings group, a record's Bindings table or a binding pill in the fulfilment map |
 | Step document | the same banner and card deck; the banner states step id, component, instruction, bindings and ports; Constitution (producing steps), Contribution (consuming steps), Ports, Payload, Bindings and the Meaning/Sources absence notes follow, with both boundaries in the GRAPH frame | a port, a payload field or a connected step |
 
-Every item document follows the content contract in
+Every detail card carries its own section mark: no two cards on a page repeat a
+mark, and every section mark takes the page header's colour. Every item
+document follows the content contract in
 [`DETAIL_CONTENT.md`](./DETAIL_CONTENT.md); its skin is in
 [`DESIGN_BLENDER.md`](./DESIGN_BLENDER.md).
 
@@ -260,7 +262,7 @@ viewer/
   detail/              the detail contract: bands, constitution, concept pills and expression
   proof/               the provenance model used by Detail
   shared/design/       meaning model and its renderer
-  shared/ui/           generic primitives, concept marks, viewport and menus
+  shared/ui/           generic primitives, concept and section marks, viewport and menus
   lib/                 snapshot types, loader, indexes, shared models
   scripts/             snapshot regeneration and browser screenshots
   public/data/         checked-in snapshots

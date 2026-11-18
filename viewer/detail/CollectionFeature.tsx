@@ -108,7 +108,6 @@ export function CollectionEditor(props: WorkspaceProps) {
       facts={model.facts}
     >
       <DetailBand
-        concept={model.concept}
         title="Constitution"
         question="How does this collection come to be?"
         testId="collection-constitution"
@@ -117,7 +116,6 @@ export function CollectionEditor(props: WorkspaceProps) {
       </DetailBand>
 
       <DetailBand
-        concept="graph"
         title="Contribution"
         question="Which layer depends on this collection?"
         testId="collection-contribution"
@@ -126,7 +124,6 @@ export function CollectionEditor(props: WorkspaceProps) {
       </DetailBand>
 
       <DetailBand
-        concept={model.concept}
         title="Items"
         question="Which participants belong to this collection?"
         testId="collection-items"
@@ -140,7 +137,6 @@ export function CollectionEditor(props: WorkspaceProps) {
       </DetailBand>
 
       <DetailBand
-        concept="semantics"
         title="Coverage"
         question="How complete is this collection?"
         testId="collection-coverage"

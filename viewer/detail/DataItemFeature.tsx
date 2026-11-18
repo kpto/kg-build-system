@@ -119,7 +119,6 @@ export function DataItemEditor(props: WorkspaceProps) {
   );
   const constitutionSection = (
     <DetailBand
-      concept="semantics"
       title="Constitution"
       question="What is this subject for, and how does it come to be?"
       testId="detail-constitution"
@@ -134,7 +133,6 @@ export function DataItemEditor(props: WorkspaceProps) {
     (meaning.frames?.length ?? 0) > 0;
   const meaningSection = hasMeaning ? (
       <DetailBand
-        concept="semantics"
         title="Meaning"
         question="What is this for, and what does it exclude?"
         testId="detail-meaning"
@@ -148,7 +146,6 @@ export function DataItemEditor(props: WorkspaceProps) {
   ) : null;
   const membersSection = (
       <DetailBand
-        concept="field"
         title="Members"
         question="Which columns does this relation publish?"
         testId="detail-columns"

@@ -1652,7 +1652,6 @@ function PropertyProofView({ model }: { model: ProofModel }) {
       </DetailBand>
 
       <DetailBand
-        concept="edge"
         title="Connections"
         question="Which links does this branch assert?"
       >
@@ -1977,7 +1976,6 @@ function SubjectDetailEditor(props: WorkspaceProps) {
 
   const constitutionSection = (
     <DetailBand
-      concept="semantics"
       title="Constitution"
       question="What is this subject for, and how does it come to be?"
       testId="detail-constitution"
@@ -1987,7 +1985,6 @@ function SubjectDetailEditor(props: WorkspaceProps) {
   );
   const meaningSection = (
     <DetailBand
-      concept="semantics"
       title="Meaning"
       question="What is this for, and what does it exclude?"
       testId="detail-meaning"

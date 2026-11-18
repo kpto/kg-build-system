@@ -284,7 +284,6 @@ function StepDetail({
 
 
       <DetailBand
-        concept="semantics"
         title="Constitution"
         question="Which steps produce what this step reads?"
         testId="step-constitution"
@@ -293,7 +292,6 @@ function StepDetail({
       </DetailBand>
 
       <DetailBand
-        concept="graph"
         title="Contribution"
         question="Which steps read what this step produces?"
         testId="step-contribution"
@@ -302,7 +300,6 @@ function StepDetail({
       </DetailBand>
 
       <DetailBand
-        concept="step"
         title="Ports"
         question="Which artifacts does this step open?"
       >
@@ -319,7 +316,6 @@ function StepDetail({
       </DetailBand>
 
       <DetailBand
-        concept="step"
         title="Payload"
         question="Which instruction does this step execute?"
       >
@@ -328,7 +324,6 @@ function StepDetail({
 
       {bindings.length ? (
         <DetailBand
-          concept="step"
           title="Bindings"
           question="Which record does this step produce?"
         >
@@ -358,7 +353,6 @@ function StepDetail({
         </DetailBand>
       ) : null}
       <DetailBand
-        concept="semantics"
         title="Meaning"
         question="What is this step for?"
       >
@@ -370,7 +364,6 @@ function StepDetail({
       </DetailBand>
 
       <DetailBand
-        concept="graph"
         title="Sources"
         question="Where does this step read from?"
       >

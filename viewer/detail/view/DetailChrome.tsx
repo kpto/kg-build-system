@@ -1,6 +1,8 @@
 "use client";
 
 import {
+  createContext,
+  useContext,
   useEffect,
   useId,
   useRef,
@@ -10,33 +12,24 @@ import {
 } from "react";
 
 import type { ConceptKind } from "@/lib/concepts";
-import { ConceptGlyph } from "@/shared/ui/ConceptMark";
+import { concepts } from "@/shared/ui/concepts";
+import {
+  DetailMark,
+  sectionForTitle,
+  type DetailSectionKind,
+} from "./detailMarks";
 import { TabBanner, type TabBannerFact } from "@/shared/ui/TabBanner";
 import { Panel } from "@/shared/ui/Primitives";
 import { cx } from "@/shared/ui/theme";
 import styles from "../detail.module.css";
 
-/** The one logo rule for a section title; a view overrides it only when the
- * document kind, not the title, supplies the right mark. */
-const SECTION_CONCEPT: Record<string, ConceptKind> = {
-  Meaning: "semantics",
-  Fulfilment: "semantics",
-  Sources: "asset",
-  "Build steps": "workflow",
-  Expression: "graph",
-  Members: "field",
-  Fields: "field",
-  Connections: "edge",
-  Bindings: "edge",
-  Branches: "edge",
-  Ports: "step",
-  Payload: "step",
-};
+/** The page header's concept, so every section mark takes its colour. */
+const DetailPageConceptContext = createContext<ConceptKind>("graph");
 
 interface DetailIndexSection {
   id: string;
   title: string;
-  concept: ConceptKind;
+  section: DetailSectionKind;
 }
 
 /**
@@ -57,15 +50,17 @@ function useDetailSections(bodyRef: RefObject<HTMLDivElement | null>) {
       const next = bands.map((band) => ({
         id: band.id,
         title: band.dataset.detailTitle ?? "",
-        concept:
-          (band.dataset.detailConcept as ConceptKind | undefined) ?? "graph",
+        section:
+          (band.dataset.detailSection as DetailSectionKind | undefined) ??
+          "items",
       }));
       setSections((current) =>
         current.length === next.length &&
         current.every(
           (section, index) =>
             section.id === next[index].id &&
-            section.title === next[index].title,
+            section.title === next[index].title &&
+            section.section === next[index].section,
         )
           ? current
           : next,
@@ -81,6 +76,7 @@ function useDetailSections(bodyRef: RefObject<HTMLDivElement | null>) {
 }
 
 function DetailIndex({ sections }: { sections: DetailIndexSection[] }) {
+  const concept = useContext(DetailPageConceptContext);
   if (sections.length < 2) return null;
   return (
     <nav
@@ -106,8 +102,9 @@ function DetailIndex({ sections }: { sections: DetailIndexSection[] }) {
                 });
               }}
             >
-              <ConceptGlyph
-                concept={section.concept}
+              <DetailMark
+                kind={section.section}
+                color={concepts[concept].color}
                 className={styles.indexMark}
               />
               <span className={styles.indexTitle}>{section.title}</span>
@@ -146,26 +143,28 @@ export function DetailDocument({
   const bodyRef = useRef<HTMLDivElement>(null);
   const sections = useDetailSections(bodyRef);
   return (
-    <div
-      className={styles.root}
-      data-testid={testId}
-      data-concept={concept}
-      data-detail-document
-    >
-      <TabBanner
-        concept={concept}
-        kicker={kicker}
-        title={title}
-        subtitle={subtitle}
-        facts={facts}
-      />
-      <div className={styles.body}>
-        <DetailIndex sections={sections} />
-        <div className={styles.deck} ref={bodyRef}>
-          {children}
+    <DetailPageConceptContext.Provider value={concept}>
+      <div
+        className={styles.root}
+        data-testid={testId}
+        data-concept={concept}
+        data-detail-document
+      >
+        <TabBanner
+          concept={concept}
+          kicker={kicker}
+          title={title}
+          subtitle={subtitle}
+          facts={facts}
+        />
+        <div className={styles.body}>
+          <DetailIndex sections={sections} />
+          <div className={styles.deck} ref={bodyRef}>
+            {children}
+          </div>
         </div>
       </div>
-    </div>
+    </DetailPageConceptContext.Provider>
   );
 }
 
@@ -174,7 +173,8 @@ export interface DetailBandProps {
   title: string;
   /** The question the card answers, in the reader's language. */
   question?: string;
-  concept?: ConceptKind;
+  /** Set only when the title is not one of the structural section titles. */
+  section?: DetailSectionKind;
   className?: string;
   flush?: boolean;
   testId?: string;
@@ -192,7 +192,7 @@ export interface DetailBandProps {
 export function DetailBand({
   title,
   question,
-  concept,
+  section,
   className,
   flush = false,
   testId,
@@ -200,7 +200,8 @@ export function DetailBand({
 }: DetailBandProps) {
   const uid = useId().replace(/:/g, "");
   const id = `detail-section-${uid}`;
-  const mark = concept ?? SECTION_CONCEPT[title] ?? "semantics";
+  const pageConcept = useContext(DetailPageConceptContext);
+  const mark = section ?? sectionForTitle(title);
   return (
     <Panel
       as="section"
@@ -210,11 +211,15 @@ export function DetailBand({
       data-flat
       data-detail-band
       data-detail-title={title}
-      data-detail-concept={mark}
+      data-detail-section={mark}
       data-testid={testId}
     >
       <header className={styles.bandHead}>
-        <ConceptGlyph concept={mark} className={styles.bandGlyph} />
+        <DetailMark
+          kind={mark}
+          color={concepts[pageConcept].color}
+          className={styles.bandGlyph}
+        />
         <h2 className={styles.bandTitle}>{title}</h2>
       </header>
       <div className={flush ? styles.bandBodyFlush : styles.bandBody}>

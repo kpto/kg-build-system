@@ -11,7 +11,6 @@ import { DetailBand } from "./DetailChrome";
 export function ContributionSection({ model }: { model: ConstitutionModel }) {
   return (
     <DetailBand
-      concept="graph"
       title="Contribution"
       question="Which layer depends on this subject?"
       testId="detail-contribution"

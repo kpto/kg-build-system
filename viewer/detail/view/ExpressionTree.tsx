@@ -471,7 +471,6 @@ export function ExpressionTree({
 
   return (
     <DetailBand
-      concept="graph"
       title="Expression"
       question="Which fields and operations produce the value?"
     >
