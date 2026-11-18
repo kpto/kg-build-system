@@ -35,6 +35,8 @@ export interface SubjectSelection {
   bindingIndex?: number;
   /** The virtual collection when the subject is a collection document. */
   collection?: CollectionId;
+  /** True when the subject is an abstract edge participant. */
+  abstract?: boolean;
 }
 
 export type WorkbenchDocument =
@@ -162,6 +164,7 @@ export function documentSignature(document: WorkbenchDocument): string {
     selection.stepId?.join("/") ?? "",
     selection.bindingIndex?.toString() ?? "",
     selection.collection ?? "",
+    selection.abstract ? "abstract" : "",
   ].join("\u0000");
 }
 

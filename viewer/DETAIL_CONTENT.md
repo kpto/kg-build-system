@@ -109,7 +109,7 @@ page, the card shows a bounded set of actual subjects and states the total.
 | Bindings | Assets → Source relations → Derived relations | Nodes, Edges | bindings |
 | Nodes | Data: Assets → Source relations → Derived relations → Bindings. Graph: Graph → Abstract | Graph: Edges | nodes |
 | Edges | Data: the record chain. Graph: Abstract → Nodes | none: endpoints are constitution | edges |
-| Abstract | Data: own Bindings. Graph: Graph | Graph: child categories, Nodes, Edges | abstract nodes and abstract edges |
+| Abstract | Data: own Bindings. Graph: Graph | Graph: child abstract nodes, Nodes, Edges | abstract nodes and abstract edges |
 | Workflow | upstream components | downstream components | component groups |
 | Workflow component | upstream components | downstream components | steps |
 
@@ -120,7 +120,7 @@ page, the card shows a bounded set of actual subjects and states the total.
 | Node | **Constitution**, **Meaning**, **Contribution**, **Members**, **Connections**, **Bindings** | Contribution is the incident edges, one graph level above; Members are properties; Connections are incident relations. |
 | Edge | **Constitution**, **Meaning**, **Contribution**, **Members**, **Connections**, **Bindings** | Contribution is empty: an edge has no contribution; its endpoints are constitution. Connections repeats the endpoints with the edge. |
 | Property | **Constitution**, **Meaning**, **Contribution**, **Branches**, **Connections**, **Bindings** | Contribution is the owning record; Branches is the type/presence chain and lane canvas; Connections is its ledger. |
-| Abstract category | **Constitution**, **Meaning**, **Contribution** | Contribution is the immediate child categories, nodes and edges, not the whole tree. The Constitution uses the category's own bindings, never its descendants' data. |
+| Abstract node | **Constitution**, **Meaning**, **Contribution** | Contribution is the immediate child abstract nodes, nodes and edges, not the whole tree. The Constitution uses the abstract node's own bindings, never its descendants' data. An abstract edge is an edge document and carries the same purple edge mark. |
 | Asset | **Meaning**, **Contribution** | The banner states the layout and location; Contribution is the source relations that read the asset. Derived relations are two levels up and are not repeated. The asset is the origin: it has no Constitution, Fields or Bindings page. |
 | Source relation | **Constitution**, **Meaning**, **Members**, **Contribution** | Columns are the relation; the banner states the asset and row source. The Constitution is the relation's purpose over its asset alone. Contribution is the derived relations that scan it and the bindings that read it directly; an indirect binding is not one level up. |
 | Derived relation | **Constitution**, **Meaning**, **Members**, **Contribution** | Members are its columns; the banner states the row source. The Constitution is its purpose over the source relations it scans and their assets. Contribution is the derived relations that scan it and the bindings that read it directly. |
@@ -167,7 +167,7 @@ nothing is grouped or hidden.
 
 | Subject | How it comes to be | The card |
 | --- | --- | --- |
-| Node, edge, property, abstract category | its own bindings, each meeting a relation at a grain and identity; the graph states what it is and where it sits | One DAG: the purpose and graph ancestry in the GRAPH frame, one box per binding in the FULFILMENT frame, and each binding's relation provenance in the RELATION frame. An abstract category uses only the bindings that write it, never its descendants' |
+| Node, edge, property, abstract node | its own bindings, each meeting a relation at a grain and identity; the graph states what it is and where it sits | One DAG: the purpose and graph ancestry in the GRAPH frame, one box per binding in the FULFILMENT frame, and each binding's relation provenance in the RELATION frame. An abstract node uses only the bindings that write it, never its descendants' |
 | Source relation | its asset | Purpose and asset together in the RELATION frame. No bindings, no graph axis |
 | Derived relation | the source relations it scans, each from its asset | Purpose, source relations and their assets together in the RELATION frame. No bindings, no graph axis |
 | Binding | the relations it reads | Purpose in the FULFILMENT frame and the relations it reads with their provenance in the RELATION frame. Its target record is its Contribution, in the GRAPH frame |

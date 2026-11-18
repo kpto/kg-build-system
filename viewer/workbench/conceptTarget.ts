@@ -106,8 +106,15 @@ export function selectionForConceptTarget(
       return { kind: "node", level: "node", component: target.name };
     case "edge":
       return { kind: "edge", level: "edge", component: target.name };
-    case "abstract":
+    case "abstractNode":
       return { kind: "node", level: "abstract", component: target.name };
+    case "abstractEdge":
+      return {
+        kind: "edge",
+        level: "edge",
+        component: target.name,
+        abstract: true,
+      };
     case "table":
       return { kind: "relation", name: target.name, component: target.name };
     case "projection":

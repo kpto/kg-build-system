@@ -6,7 +6,8 @@ import { concepts } from "../shared/ui/concepts";
 
 const kinds: ConceptKind[] = [
   "graph",
-  "abstract",
+  "abstractNode",
+  "abstractEdge",
   "node",
   "edge",
   "property",
@@ -44,8 +45,15 @@ describe("concept catalogue", () => {
   });
 
   it("gives every layer a distinct colour", () => {
-    const colours = kinds.map((kind) => concepts[kind].color);
-    expect(new Set(colours).size).toBe(kinds.length);
+    const base = kinds.filter((kind) => kind !== "abstractEdge");
+    const colours = base.map((kind) => concepts[kind].color);
+    expect(new Set(colours).size).toBe(base.length);
+  });
+
+  it("draws abstract participants in the abstract purple", () => {
+    expect(concepts.abstractEdge.color).toBe(concepts.abstractNode.color);
+    expect(concepts.abstractNode.mark).toBeTruthy();
+    expect(concepts.abstractEdge.mark).toBeTruthy();
   });
 
   it("names the layers by their role", () => {

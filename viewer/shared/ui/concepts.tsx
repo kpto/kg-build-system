@@ -39,21 +39,26 @@ export const concepts: Record<ConceptKind, ConceptDefinition> = {
       </>
     ),
   },
-  abstract: {
-    label: "Abstract category",
+  abstractNode: {
+    label: "Abstract node",
     color: theme.conceptAbstract,
-    box: "2.8 2.8 18.4 18.4",
+    box: "3.8 3.8 16.4 16.4",
     mark: (
       <>
-        <rect x="4" y="4" width="16" height="16" rx="3" />
-        <rect
-          className={styles.fill}
-          x="8.5"
-          y="8.5"
-          width="7"
-          height="7"
-          rx="1.5"
-        />
+        <circle cx="12" cy="12" r="7" />
+        <circle className={styles.fill} cx="12" cy="12" r="2.4" />
+      </>
+    ),
+  },
+  abstractEdge: {
+    label: "Abstract edge",
+    color: theme.conceptAbstract,
+    box: "1.7 3.7 20.6 16.6",
+    mark: (
+      <>
+        <circle className={styles.fill} cx="5" cy="17" r="2.1" />
+        <circle className={styles.fill} cx="19" cy="7" r="2.1" />
+        <path d="M6.7 15.7C9.5 10.5 14 7.3 17.4 7.1" />
       </>
     ),
   },
@@ -256,8 +261,10 @@ export function LayerMark({
 export function conceptForSelection(
   kind?: string,
   level?: string,
+  abstract?: boolean,
 ): ConceptKind {
-  if (level === "abstract") return "abstract";
+  if (level === "abstract") return "abstractNode";
+  if (abstract && kind === "edge") return "abstractEdge";
   switch (kind) {
     case "graph":
     case "workflow":

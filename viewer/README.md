@@ -11,7 +11,7 @@ frame, one document tab strip, and two collapsible side-bar sections:
 | Side-bar section | What it is for |
 | --- | --- |
 | **Control** | Controls for the active view: graph filters, labels, containment, meaning, legend and layout; workflow component and instruction filters. |
-| **Explorer** | Everything in the design: assets, source relations, derived relations, nodes, abstract categories, edges and their properties, bindings, plus the workflow components and step catalogue. A header body opens its layer collection and its arrow unfolds the list; every participant row opens its own document. Right-clicking an item jumps to its Graph or Workflow view. |
+| **Explorer** | Everything in the design: assets, source relations, derived relations, nodes, abstract nodes and edges, properties, bindings, plus the workflow components and step catalogue. A header body opens its layer collection and its arrow unfolds the list; every participant row opens its own document. Right-clicking an item jumps to its Graph or Workflow view. |
 
 The viewer reads the snapshot from its configured `/snapshot` source, or from a
 URL passed as `?snapshot=<url>`; there is no bundled project dataset and no file
@@ -21,7 +21,7 @@ The tab strip is the document axis:
 
 - **Graph** — the canonical graph view, pinned;
 - **Workflow** — the compiled workflow plan, pinned;
-- **Subject documents** — a node, edge, property, asset, abstract category,
+- **Subject documents** — a node, edge, property, asset, abstract node,
   source relation, derived relation or binding. A single click in the Explorer
   tree or a context-menu action opens or reuses a preview tab; a double click,
   **Open Detail**, a right-click **Go to Detail** or the command palette opens
@@ -200,7 +200,7 @@ The editor is one global tab strip. The viewer has three kinds of tab view:
 
 - **Graph** — the pinned canonical graph document;
 - **Workflow** — the pinned compiled workflow plan;
-- **Subject documents** — a node, edge, property, asset, abstract category,
+- **Subject documents** — a node, edge, property, asset, abstract node,
   source relation, derived relation or binding, opened explicitly from **Open
   Detail**, the Explorer tree, a binding pill, a Detail property row, or the
   command palette;

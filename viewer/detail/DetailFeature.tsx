@@ -130,7 +130,7 @@ function toWorkbenchSelection(subject: ProofSubject): SubjectSelection {
     case "node":
       return { ...base, kind: "node" };
     case "edge":
-      return { ...base, kind: "edge" };
+      return { ...base, kind: "edge", abstract: subject.abstract };
     case "asset":
       return { ...base, kind: "asset" };
     case "abstract":
@@ -593,7 +593,7 @@ export function ExplorerSidebar(props: WorkspaceProps) {
             type="button"
             className={styles.treeLabel}
             data-testid={node.abstract ? "detail-tree-abstract" : "detail-tree-node"}
-            data-concept={node.abstract ? "abstract" : "node"}
+            data-concept={node.abstract ? "abstractNode" : "node"}
             onClick={() =>
               select({
                 level: nodeLevel,
@@ -636,7 +636,7 @@ export function ExplorerSidebar(props: WorkspaceProps) {
             title={node.name}
           >
             <ConceptGlyph
-              concept={node.abstract ? "abstract" : "node"}
+              concept={node.abstract ? "abstractNode" : "node"}
               className={styles.sideRowIcon}
             />
             <span>{node.name}</span>
@@ -717,6 +717,7 @@ export function ExplorerSidebar(props: WorkspaceProps) {
 
   const renderEdge = (edge: (typeof edges)[number]) => {
     const edgeOpen = normalized ? true : expanded.has(`edge:${edge.name}`);
+    const edgeConcept = edge.abstract ? "abstractEdge" : "edge";
     const properties = (edge.properties ?? []).filter((property) =>
       matches(normalized, property.name, edge.name),
     );
@@ -745,11 +746,13 @@ export function ExplorerSidebar(props: WorkspaceProps) {
             type="button"
             className={styles.treeLabel}
             data-testid="detail-tree-edge"
+            data-concept={edgeConcept}
             onClick={() =>
               select({
                 level: "edge",
                 kind: "edge",
                 component: edge.name,
+                abstract: edge.abstract,
               })
             }
             onDoubleClick={() =>
@@ -757,6 +760,7 @@ export function ExplorerSidebar(props: WorkspaceProps) {
                 level: "edge",
                 kind: "edge",
                 component: edge.name,
+                abstract: edge.abstract,
               })
             }
             onContextMenu={(event) =>
@@ -769,6 +773,7 @@ export function ExplorerSidebar(props: WorkspaceProps) {
                       level: "edge",
                       kind: "edge",
                       component: edge.name,
+                      abstract: edge.abstract,
                     }),
                 },
                 {
@@ -780,13 +785,14 @@ export function ExplorerSidebar(props: WorkspaceProps) {
                       level: "edge",
                       component: edge.name,
                       name: edge.name,
+                      abstract: edge.abstract,
                     }),
                 },
               ])
             }
             title={edge.name}
           >
-            <ConceptGlyph concept="edge" className={styles.sideRowIcon} />
+            <ConceptGlyph concept={edgeConcept} className={styles.sideRowIcon} />
             <span>{edge.name}</span>
             <span className={styles.treeMeta}>
               {edge.properties?.length ?? 0}
@@ -1880,13 +1886,20 @@ function SubjectDetailEditor(props: WorkspaceProps) {
   const model = useProofModel(props);
   const selection = documentSelection(activeDocument(props.state));
   const meaning = subjectMeaning(index, model);
+  const constitutionalSubject = useMemo(
+    () =>
+      selection?.abstract
+        ? { ...model.subject, abstract: true }
+        : model.subject,
+    [model.subject, selection?.abstract],
+  );
   const constitution = useMemo(
-    () => constitutionModel(index, model.subject),
-    [index, model.subject],
+    () => constitutionModel(index, constitutionalSubject),
+    [index, constitutionalSubject],
   );
   const contribution = useMemo(
-    () => contributionModel(index, model.subject),
-    [index, model.subject],
+    () => contributionModel(index, constitutionalSubject),
+    [index, constitutionalSubject],
   );
   const license = subjectLicense(index, model);
   const facts = useMemo(
@@ -1971,7 +1984,13 @@ function SubjectDetailEditor(props: WorkspaceProps) {
   return (
     <DetailDocument
       testId="detail-editor"
-      concept={model.level}
+      concept={
+        model.level === "abstract"
+          ? "abstractNode"
+          : selection?.abstract && model.level === "edge"
+            ? "abstractEdge"
+            : model.level
+      }
       kicker={model.level}
       title={levelTitle(model)}
       subtitle={

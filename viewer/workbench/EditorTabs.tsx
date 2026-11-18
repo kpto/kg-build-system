@@ -24,6 +24,7 @@ function tabConcept(tab: WorkbenchTab) {
   return conceptForSelection(
     selection?.kind ?? tab.document.kind,
     selection?.level,
+    selection?.abstract,
   );
 }
 

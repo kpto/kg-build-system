@@ -39,7 +39,7 @@ describe("constitution", () => {
       "A defect is observed",
     );
     expect(model.graph.map((level) => level.label)).toEqual([
-      "Category",
+      "Abstract node",
       "Graph",
     ]);
     expect(model.graph.map((level) => level.name)).toEqual([

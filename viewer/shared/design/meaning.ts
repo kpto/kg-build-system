@@ -124,7 +124,7 @@ export interface PurposeSubjectLike {
 
 const PURPOSE_LABELS: Record<PurposeLevelKind, string> = {
   graph: "Graph",
-  abstract: "Category",
+  abstract: "Abstract node",
   node: "Node",
   edge: "Edge",
   property: "Property",

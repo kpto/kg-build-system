@@ -66,6 +66,8 @@ export interface ProofSubject {
   component: string;
   property?: string;
   propertyRef?: Ref;
+  /** True when the subject is an abstract node or abstract edge. */
+  abstract?: boolean;
 }
 
 /** The workbench selection fields the model reads. */

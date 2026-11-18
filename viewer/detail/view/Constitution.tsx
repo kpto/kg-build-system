@@ -35,7 +35,9 @@ const CARD_MAX_HEIGHT = 380;
 
 /** A constitution level names the same layers with one relation spelling. */
 function pillConcept(kind: ConstitutionNode["kind"]): ConceptKind {
-  return kind === "relation" ? "table" : kind;
+  if (kind === "relation") return "table";
+  if (kind === "abstract") return "abstractNode";
+  return kind;
 }
 
 interface HoveredBox {
@@ -77,7 +79,11 @@ function Box({
   const meaningPurpose = node.meaning.purpose;
   const body =
     node.text ?? text ?? meaningPurpose ?? "No purpose is stated.";
-  const concept = pillConcept(node.kind);
+  const concept = node.abstract
+    ? node.kind === "edge"
+      ? "abstractEdge"
+      : "abstractNode"
+    : pillConcept(node.kind);
   return (
     <div
       className={cx(
@@ -116,7 +122,7 @@ function Box({
     >
       <div className={styles.constitutionMeta}>
         <ConceptPill
-          concept={binding ? "binding" : pillConcept(node.kind)}
+          concept={concept}
           name={node.name}
           {...(node.collection ? { collection: node.collection.id } : {})}
           {...((node.component ?? component)
@@ -389,6 +395,7 @@ export function Constitution({
         className={styles.constitutionCanvas}
         testId="constitution-graph"
         ariaLabel={`${label} graph`}
+        minFitScale={0.4}
         fitKey={fitKey}
         onBackgroundClick={() => setSelectedId(undefined)}
       >

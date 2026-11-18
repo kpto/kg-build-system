@@ -72,7 +72,7 @@ describe("virtual collection model", () => {
   it("includes abstract nodes and abstract edges as abstract items", () => {
     const model = collectionModel(index, "abstract");
     expect(model.items.rows.map((row) => row.name)).toEqual(["documented"]);
-    expect(model.items.rows[0].concept).toBe("abstract");
+    expect(model.items.rows[0].concept).toBe("abstractNode");
     // The abstract's dependency is its own binding layer, not its descendants.
     expect(layerTitles(model)).toContain("Bindings");
     expect(model.dependency.axes[0].layers.at(-2)?.count).toBe(0);

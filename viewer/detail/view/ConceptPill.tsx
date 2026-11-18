@@ -114,7 +114,7 @@ export function GraphPill(props: LayerPillProps) {
 }
 
 export function AbstractPill(props: LayerPillProps) {
-  return <ConceptPill concept="abstract" {...props} />;
+  return <ConceptPill concept="abstractNode" {...props} />;
 }
 
 export function NodePill(props: LayerPillProps) {

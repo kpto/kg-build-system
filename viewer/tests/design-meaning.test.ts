@@ -75,7 +75,7 @@ describe("purpose hierarchy", () => {
     });
     expect(levels.map((entry) => entry.label)).toEqual([
       "Graph",
-      "Category",
+      "Abstract node",
       "Node",
     ]);
     expect(levels[0].meaning.purpose).toContain(

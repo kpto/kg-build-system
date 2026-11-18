@@ -24,7 +24,7 @@ Window        where am I, and what design am I reading?
   visibility.
 - **Document** owns its editor content and pane state. The Graph document is
   canonical; the Workflow document is the compiled plan; a subject document is a
-  node, edge, property, asset or abstract category opened from the Explorer tree,
+  node, edge, property, asset or abstract node opened from the Explorer tree,
   a context menu or the command palette; a step document is one workflow step
   opened from the workflow section of Explorer.
 - **Panel** owns one region, one header and one body. A panel never contains
@@ -41,7 +41,7 @@ Window        where am I, and what design am I reading?
 | Section | Question | What it contains |
 | --- | --- | --- |
 | Control | How is the current view configured? | graph filters, labels, Show controls, legend, layout; workflow component and instruction filters |
-| Explorer | What does the design contain? | assets, nodes, abstract categories, edges, properties and the workflow components and steps; it always lists the whole design |
+| Explorer | What does the design contain? | assets, nodes, abstract nodes and edges, properties and the workflow components and steps; it always lists the whole design |
 
 There is no mode switch. Opening a side-bar section changes the side bar, not
 the active document or its editor. Control follows the active view; a subject
@@ -196,7 +196,7 @@ working-surface frame below the banner; every graph surface shares one
 bottom-left navigation cluster.
 
 One concept catalogue in `shared/ui/concepts.tsx` supplies the mark and
-representative colour for every layer: graph, abstract category, node, edge,
+representative colour for every layer: graph, abstract node, abstract edge, node, edge,
 property, asset, source relation, derived relation, field, binding, workflow,
 step and meaning. A banner, a tab, a section reference, an expression row and a
 membership row read the same catalogue, so an asset is the same green cylinder

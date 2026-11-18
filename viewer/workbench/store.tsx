@@ -134,6 +134,7 @@ function normalizeSelection(value: unknown): SubjectSelection | undefined {
   if (typeof candidate.collection === "string") {
     selection.collection = candidate.collection as SubjectSelection["collection"];
   }
+  if (candidate.abstract === true) selection.abstract = true;
   if (
     typeof candidate.level === "string" &&
     DETAIL_LEVELS.has(candidate.level)
@@ -168,6 +169,7 @@ function selectionSignature(selection: SubjectSelection): string {
     selection.stepId?.join("/") ?? "",
     selection.bindingIndex?.toString() ?? "",
     selection.collection ?? "",
+    selection.abstract ? "abstract" : "",
   ].join("\u0000");
 }
 

@@ -41,7 +41,7 @@ export const COLLECTIONS: Record<CollectionId, CollectionDefinition> = {
   nodes: { title: "Nodes", concept: "node", kicker: "Collection" },
   abstract: {
     title: "Abstract",
-    concept: "abstract",
+    concept: "abstractNode",
     kicker: "Collection",
   },
   edges: { title: "Edges", concept: "edge", kicker: "Collection" },

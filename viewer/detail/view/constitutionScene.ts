@@ -1217,33 +1217,23 @@ function buildSubjectSetScene(model: ConstitutionModel): ConstitutionScene {
   );
   const gap = 32;
   const bandGap = 56;
-  const columnsFor = (count: number) =>
-    count > 40 ? 5 : Math.max(1, Math.min(4, Math.ceil(Math.sqrt(count))));
   const bandWidths = new Map(
     bands.map((band) => {
       const count = groups.get(band)!.length;
-      const columns = columnsFor(count);
-      return [band, columns * NODE.graph.width + (columns - 1) * gap];
+      return [band, count * NODE.graph.width + Math.max(0, count - 1) * gap];
     }),
   );
   const totalWidth = Math.max(0, ...bandWidths.values());
   let y = 0;
   for (const band of bands) {
     const members = groups.get(band)!;
-    const columns = columnsFor(members.length);
-    const rows = Math.ceil(members.length / columns);
     const bandWidth = bandWidths.get(band) ?? 0;
     const startX = (totalWidth - bandWidth) / 2;
     members.forEach((node, index) => {
-      const column = index % columns;
-      const row = Math.floor(index / columns);
-      node.x = startX + column * (NODE.graph.width + gap);
-      node.y = y + row * (NODE.graph.height + gap);
+      node.x = startX + index * (NODE.graph.width + gap);
+      node.y = y;
     });
-    y +=
-      rows * NODE.graph.height +
-      Math.max(0, rows - 1) * gap +
-      bandGap;
+    y += NODE.graph.height + bandGap;
   }
 
   const byId = new Map(layers.map((node) => [node.id, node] as const));

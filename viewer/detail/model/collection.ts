@@ -63,6 +63,8 @@ export interface CollectionItem {
   key: string;
   concept: ConceptKind;
   name: string;
+  /** True when the item is an abstract node or abstract edge. */
+  abstract?: boolean;
   component?: string;
   property?: string;
   ownerConcept?: ConceptKind;
@@ -689,7 +691,7 @@ function recordsCollection(
   ];
   const graphDependency: CollectionLayer[] = isEdge
     ? [
-        layer("graph", "abstract", "Abstract", "abstract", abstractCount(index), {
+        layer("graph", "abstract", "Abstract", "abstractNode", abstractCount(index), {
           collection: { id: "abstract" },
           note: "categories that own endpoints",
         }),
@@ -702,7 +704,7 @@ function recordsCollection(
         layer("graph", "graph", "Graph", "graph", 1, {
           note: "the graph declaration",
         }),
-        layer("graph", "abstract", "Abstract", "abstract", abstractCount(index), {
+        layer("graph", "abstract", "Abstract", "abstractNode", abstractCount(index), {
           collection: { id: "abstract" },
           note: "categories above these records",
         }),
@@ -789,13 +791,15 @@ function abstractCollection(index: ViewerIndex): CollectionModel {
   const items = [
     ...abstractNodes.map((node) => ({
       name: node.name,
-      concept: "abstract" as const,
+      concept: "abstractNode" as const,
+      abstract: true,
       kind: "abstract node",
       bindings: componentBindings(index, "node", node.name),
     })),
     ...abstractEdges.map((edge) => ({
       name: edge.name,
-      concept: "edge" as const,
+      concept: "abstractEdge" as const,
+      abstract: true,
       kind: "abstract edge",
       bindings: componentBindings(index, "edge", edge.name),
     })),
@@ -850,7 +854,7 @@ function abstractCollection(index: ViewerIndex): CollectionModel {
           collection: { id: "bindings" },
           note: "the bindings that write abstract participants",
         }),
-        layer("data", "abstract", "Abstract", "abstract", items.length, {
+        layer("data", "abstract", "Abstract", "abstractNode", items.length, {
           current: true,
           note: "this collection",
         }),
@@ -868,10 +872,10 @@ function abstractCollection(index: ViewerIndex): CollectionModel {
       "graph",
       "abstract",
       "Abstract",
-      "abstract",
+      "abstractNode",
       items.filter(
         (item) =>
-          item.concept === "abstract" &&
+          item.concept === "abstractNode" &&
           index.topologyComponentsByName.get(item.name)?.parent?.[2] !==
             undefined,
       ).length,
@@ -901,6 +905,7 @@ function abstractCollection(index: ViewerIndex): CollectionModel {
       key: `${item.concept}:${item.name}`,
       concept: item.concept,
       name: item.name,
+      abstract: item.abstract,
       component: item.name,
       cells: [
         item.kind,
@@ -1065,6 +1070,10 @@ function layerKind(concept: ConceptKind): PurposeLevelKind {
       return "relation";
     case "workflow":
       return "step";
+    case "abstractNode":
+      return "abstract";
+    case "abstractEdge":
+      return "edge";
     case "semantics":
     case "field":
       return "graph";
@@ -1129,11 +1138,15 @@ function collectionItems(model: CollectionModel): ConstitutionSubjectLike[] {
       case "node":
         items.push({ level: "node", component: row.name });
         break;
-      case "abstract":
-        items.push({ level: "abstract", component: row.name });
+      case "abstractNode":
+        items.push({ level: "abstract", component: row.name, abstract: true });
         break;
       case "edge":
-        items.push({ level: "edge", component: row.name });
+        items.push({
+          level: "edge",
+          component: row.name,
+          abstract: row.abstract,
+        });
         break;
       case "step":
         if (row.stepId) {
@@ -1218,6 +1231,8 @@ function itemBoundary(
     ...boundary.subject,
     current: false,
     item: true,
+    abstract:
+      item.level === "abstract" || item.abstract || boundary.subject.abstract,
     collection: undefined,
     frame,
     ...(item.level === "binding" && item.bindingIndex !== undefined

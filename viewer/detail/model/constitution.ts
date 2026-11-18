@@ -5,7 +5,7 @@
  * hang below it and every edge follows production (supply → subject). What
  * constitutes a subject depends on its kind:
  *
- * - a record (node, edge, property, abstract category) is produced by its
+ * - a record (node, edge, property, abstract node) is produced by its
  *   bindings, each supplied by a relation and that relation's provenance; its
  *   graph ancestry states where it sits;
  * - a source relation is produced by its asset, and an asset is the origin;
@@ -77,6 +77,8 @@ export interface ConstitutionNode {
   bindingIndex?: number;
   /** True when the box is one of a collection's own items. */
   item?: boolean;
+  /** True when the box is an abstract node or abstract edge participant. */
+  abstract?: boolean;
   /** An explicit frame, used by layer and workflow boxes. */
   frame?: ConstitutionFrameId;
 }
@@ -134,11 +136,13 @@ export interface ConstitutionSubjectLike {
   stepId?: [string, string];
   /** The binding's index when the subject is a binding document. */
   bindingIndex?: number;
+  /** True when the subject is an abstract node or abstract edge. */
+  abstract?: boolean;
 }
 
 const LABELS: Record<PurposeLevelKind, string> = {
   graph: "Purpose",
-  abstract: "Category",
+  abstract: "Abstract node",
   node: "Node",
   edge: "Edge",
   property: "Property",
@@ -499,6 +503,7 @@ export function constitutionModel(
     label: LABELS[subjectConcept(subject)],
     meaning: subjectMeaning(index, subject),
     current: true,
+    abstract: subject.level === "abstract" || subject.abstract,
   };
   if (!recordSubject) {
     return {
@@ -550,6 +555,7 @@ function subjectFor(
     label: LABELS[subjectConcept(subject)],
     meaning: subjectMeaning(index, subject),
     current: true,
+    abstract: subject.level === "abstract" || subject.abstract,
     ...(step
       ? {
           text: "Build step",
