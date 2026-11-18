@@ -181,11 +181,11 @@ opens a document. A workflow component header behaves the same way.
 - **Expression** belongs to the binding document, not to the record detail. It
   shows the identity and property chains the binding writes. **Involved steps**
   closes every view kind by mounting the shared workflow DAG primitive, narrowed
-  to the steps that participate. A small subset is the step DAG, laid out top to
-  bottom, and a large subset collapses to the workflow components with their
-  step counts. The record reaches the binding through its Bindings table and the
-  Constitution's binding node. The binding banner states the rows read, so
-  Sources is not a separate card.
+  to the steps that participate. A small subset is the step DAG, laid out left to
+  right like the Workflow tab, and a large subset collapses to the workflow
+  components with their step counts. The record reaches the binding through its
+  Bindings table and the Constitution's binding node. The binding banner states
+  the rows read, so Sources is not a separate card.
 - **Properties** for a node or edge and **Fields** for a relation are one table
   grammar for properties, columns, fields, descendants and openings. The
   instance pill opens its document when one exists.

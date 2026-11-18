@@ -783,7 +783,6 @@ export function buildStepComponentScene(
       nodes: [...counts.entries()].map(([id, steps]) => ({ id, steps })),
       edges: [...edges.values()],
     },
-    { direction: "vertical" },
   );
 }
 

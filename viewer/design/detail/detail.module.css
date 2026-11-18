@@ -2151,15 +2151,14 @@ button.memberRow:focus-visible {
 
 .involvedDag {
   position: relative;
-  height: min(60vh, 520px);
-  min-height: 300px;
+  height: min(34vh, 240px);
+  min-height: 200px;
 }
 
 .involvedDagCanvas {
   width: 100%;
   height: 100%;
-  border: var(--border-hairline) solid var(--color-line-soft);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   background-color: var(--color-abyss);
 }
 

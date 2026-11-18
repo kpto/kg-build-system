@@ -21,7 +21,7 @@ the index rail is the only navigation between cards.
 | 3 | **Properties / Fields** | Which units belong to this subject? | One table grammar: a node or edge shows **Properties**; a relation shows **Fields**. The instance pill opens its document when one exists. |
 | 4 | **Connections** | Which records does this subject touch? | One row per edge and other endpoint with an **In/Out** column: `[edge] → [target]` or `[source] → [edge]`. The current subject is not repeated. Ports of a step. |
 | 5 | **Bindings** | Which binding fulfils this subject? | One row per binding: name, writes, identity, rows read. The binding pill opens the binding document. |
-| 6 | **Involved steps** | Which build steps participate in this concept? | The same workflow DAG the Workflow document uses, narrowed to the steps that participate. A small subset shows step nodes top to bottom; a large subset collapses to its workflow components with the count of involved steps. Drag to pan, wheel to zoom, and double-click a step to open its document. Every kind ends with this card. |
+| 6 | **Involved steps** | Which build steps participate in this concept? | The same workflow DAG the Workflow document uses, narrowed to the steps that participate. A small subset shows step nodes left to right, like the Workflow tab; a large subset collapses to its workflow components with the count of involved steps. Drag to pan, wheel to zoom, and double-click a step to open its document. Every kind ends with this card. |
 
 A card title sits above the card body at its top-left: the card's section mark
 and structural title, never a banner bar or a card surface. The question in the

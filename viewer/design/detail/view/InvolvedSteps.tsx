@@ -59,7 +59,6 @@ export function InvolvedSteps({
     if (grouped) return buildStepComponentScene(index, resolved);
     return buildStepScene(index, "", resolved, tintFor, {
       boundaries: false,
-      direction: "vertical",
     });
   }, [grouped, index, resolved, tintFor]);
   const fitKey = `${selection?.kind ?? ""}:${selection?.component ?? ""}:${
