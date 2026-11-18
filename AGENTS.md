@@ -302,8 +302,9 @@ missing, not the code.
   its arrow unfolds the list; the arrow sits at the left of every row, the body
   never toggles and the arrow never opens the document. A filter reveals the
   matching sections and rows once; it does not override a fold, and changing
-  the query reveals the matches again. A virtual collection is a layer read as
-  a group, not a declared subject: it has no Meaning card, uses the layer's
+  the query reveals the matches again. Clearing the filter restores the folding
+  state from before the filter. A virtual collection is a layer read as a
+  group, not a declared subject: it has no Meaning card, uses the layer's
   concept mark, and carries Constitution (its items and the actual participants
   below them), Contribution (its items and the actual participants one level
   above), Items and Coverage, both directions in the same DAG. There is no
