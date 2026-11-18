@@ -45,21 +45,24 @@ class FilePlanner:
             (step,) = FilePlanner(configuration).plan(blueprint, PlanContext())
             ```
         """
+        opening = self.configuration.opening
+        name = self.configuration.name
+        component = f"{self.component_id}.{name}" if name else self.component_id
         return (
             Step(
-                component=self.component_id,
-                name="write",
+                component=component,
+                name=f"write.{name or opening or 'graph'}",
                 inputs=(
                     Input(
                         ArtifactPattern.of("core", "graph", "**"),
-                        None,
+                        Key((opening,)) if opening else None,
                         RECORDS_INPUT,
                     ),
                 ),
                 outputs=(
                     Publication(
-                        ArtifactType.of(self.component_id, "write_result"),
-                        Key(("result",)),
+                        ArtifactType.of(component, "write_result"),
+                        Key((name or "result",)),
                     ),
                 ),
                 instruction=Instruction(
