@@ -370,7 +370,9 @@ missing, not the code.
   constitution uses its own binding layer and its contribution is its immediate
   children only.
 - Motion is feedback, not decoration: short ease-out transitions on transform and
-  opacity, origin-aware entrances, and reduced motion removes movement.
+  opacity, origin-aware entrances, and reduced motion removes movement. A
+  card-to-card navigation scroll uses one short duration regardless of distance;
+  distance changes the speed, not the time.
 - End every change report with the rule-promotion result: none, refined or
   added.
 
