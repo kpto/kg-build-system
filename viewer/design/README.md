@@ -105,7 +105,7 @@ restrictive referrer policy or validate origin and source itself).
 ## Develop the viewer
 
 ```console
-cd viewer
+cd viewer/design
 npm install
 npm run dev -- --hostname 0.0.0.0
 ```
@@ -127,7 +127,7 @@ Next dev against its discovery file:
 uv run kbs view --dev --no-open --snapshot build/workflow_plan.json
 
 # terminal 2
-cd viewer
+cd viewer/design
 npm run dev:discovery -- --discovery /abs/project/.kbs/viewer.json --port 3001
 ```
 
@@ -151,20 +151,20 @@ its own `.kbs/viewer.json`.
 ```text
 npm ci
 npm run build:static
-viewer/out -> kg_build_system/viewer_dist
+viewer/design/out -> kg_build_system/viewer_dist
 ```
 
-`kbs view` serves the bundled `kg_build_system/viewer_dist` (or `viewer/out` in a
+`kbs view` serves the bundled `kg_build_system/viewer_dist` (or `viewer/design/out` in a
 source checkout); Node is not required at runtime.
 Node and network access are required at build time. For a local wheel build with
-an existing `viewer/out`:
+an existing `viewer/design/out`:
 
 ```console
 KBS_SKIP_VIEWER_BUILD=1 uv build --wheel
 ```
 
-`KBS_SKIP_VIEWER_INSTALL=1` reuses `viewer/node_modules`. `KBS_NPM` selects an npm
-executable. The wheel excludes `viewer/out/data`; project snapshots are served by
+`KBS_SKIP_VIEWER_INSTALL=1` reuses `viewer/design/node_modules`. `KBS_NPM` selects an npm
+executable. The wheel excludes `viewer/design/out/data`; project snapshots are served by
 `kbs view`, not bundled into the package.
 
 ## Low detail first
@@ -264,7 +264,7 @@ uv run --with selenium python scripts/screenshot.py \
 ## Layout
 
 ```
-viewer/
+viewer/design/
   app/                 shell entry, route handlers and global theme
   workbench/           VS Code layout, state, persistence, UI chrome
   topology/            canonical design graph, detail controls and view

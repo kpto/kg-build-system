@@ -3,7 +3,7 @@
 The in-app browser screenshot tool needs a visible desktop window; this script
 works headlessly and is the standard verification path for the viewer.
 
-    uv run --with selenium python viewer/scripts/screenshot.py \
+    uv run --with selenium python viewer/design/scripts/screenshot.py \
         --url http://127.0.0.1:3000/ --output /tmp/opencode/viewer.png
 
 Optional:

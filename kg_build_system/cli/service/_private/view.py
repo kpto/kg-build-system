@@ -138,12 +138,12 @@ def _assets() -> Path:
     packaged = files("kg_build_system").joinpath("viewer_dist")
     if packaged.is_dir():
         return Path(str(packaged))
-    source = Path(__file__).resolve().parents[4] / "viewer" / "out"
+    source = Path(__file__).resolve().parents[4] / "viewer" / "design" / "out"
     if (source / "index.html").exists():
         return source
     raise ValueError(
         "the viewer assets are not available; install a wheel with viewer_dist "
-        "or build viewer/out with `npm run build:static`"
+        "or build viewer/design/out with `npm run build:static`"
     )
 
 

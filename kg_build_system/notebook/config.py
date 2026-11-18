@@ -28,7 +28,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "evaluation_reports": ["notebook/eval/report.json", "notebook/eval/quick.json"],
     "snapshot_sources": [
         "data/snapshots/current.snapshot.json",
-        "viewer/public/data/current.snapshot.json",
+        "viewer/design/public/data/current.snapshot.json",
         "data/build/workflow_plan.json",
     ],
     "snapshot_command": "",
@@ -135,7 +135,7 @@ def find_snapshot_source(project: Project) -> Path | None:
     for path in project.paths(project.config.get("snapshot_sources")):
         if path.is_file():
             return path
-    for directory in ("data/snapshots", "viewer/public/data"):
+    for directory in ("data/snapshots", "viewer/design/public/data"):
         candidate = project.path(directory)
         if not candidate.is_dir():
             continue

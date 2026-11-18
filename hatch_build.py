@@ -5,8 +5,8 @@ with Node, then places the static export under ``kg_build_system/viewer_dist``
 so ``kbs view`` can serve it without Node at runtime.
 
 Environment:
-    KBS_SKIP_VIEWER_BUILD=1   use the existing ``viewer/out``
-    KBS_SKIP_VIEWER_INSTALL=1 use existing ``viewer/node_modules``
+    KBS_SKIP_VIEWER_BUILD=1   use the existing ``viewer/design/out``
+    KBS_SKIP_VIEWER_INSTALL=1 use existing ``viewer/design/node_modules``
     KBS_NPM=/path/to/npm      alternate npm executable
 """
 from __future__ import annotations
@@ -30,10 +30,10 @@ class ViewerBuildHook(BuildHookInterface):
             return
 
         root = Path(self.root)
-        viewer = root / "viewer"
+        viewer = root / "viewer" / "design"
         out = viewer / "out"
         if not (viewer / "package.json").exists():
-            raise RuntimeError("viewer/package.json is missing")
+            raise RuntimeError("viewer/design/package.json is missing")
 
         if os.environ.get("KBS_SKIP_VIEWER_BUILD") != "1":
             npm = os.environ.get("KBS_NPM") or shutil.which("npm")
@@ -41,7 +41,7 @@ class ViewerBuildHook(BuildHookInterface):
                 raise RuntimeError(
                     "npm is required to build the bundled viewer; install Node "
                     "or set KBS_NPM, or set KBS_SKIP_VIEWER_BUILD=1 with an "
-                    "existing viewer/out"
+                    "existing viewer/design/out"
                 )
             if os.environ.get("KBS_SKIP_VIEWER_INSTALL") != "1":
                 subprocess.run([npm, "ci"], cwd=viewer, check=True)
@@ -61,7 +61,7 @@ class ViewerBuildHook(BuildHookInterface):
 
         if not (out / "index.html").exists():
             raise RuntimeError(
-                "viewer/out/index.html is missing; run the static viewer build"
+                "viewer/design/out/index.html is missing; run the static viewer build"
             )
 
         self._temp = tempfile.TemporaryDirectory(prefix="kbs-viewer-")

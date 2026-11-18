@@ -65,7 +65,7 @@ kbs generate --project . --watch --debounce 500
 
 `kbs view` serves the bundled design viewer for one project artifact. A wheel
 ships the static viewer build under `kg_build_system/viewer_dist`; a source
-checkout serves `viewer/out`. The command starts one local HTTP server: the
+checkout serves `viewer/design/out`. The command starts one local HTTP server: the
 viewer at `/`, the snapshot at `/snapshot`, and opens the viewer. Node is not
 required at runtime.
 
@@ -100,7 +100,7 @@ it at that file:
 kbs view --dev --no-open
 
 # terminal 2
-cd viewer
+cd viewer/design
 npm run dev:discovery -- --discovery /abs/project/.kbs/viewer.json --port 3001
 ```
 
@@ -135,8 +135,8 @@ host. It accepts a parsed snapshot document or its JSON text, builds the normal
 workbench indexes and replaces the current document on each `open`.
 
 The wheel build compiles the viewer with `npm ci` and `npm run build:static`.
-`KBS_SKIP_VIEWER_BUILD=1` uses an existing `viewer/out`, `KBS_SKIP_VIEWER_INSTALL=1`
-reuses `viewer/node_modules`, and `KBS_NPM` selects an npm executable.
+`KBS_SKIP_VIEWER_BUILD=1` uses an existing `viewer/design/out`, `KBS_SKIP_VIEWER_INSTALL=1`
+reuses `viewer/design/node_modules`, and `KBS_NPM` selects an npm executable.
 
 `compile` and `execute` are Python calls, not console commands. Use `compile` to turn a blueprint into a plan and `execute` to run it; the calls are listed on [API surface](/appendix/reference/api) and walked through on [Generation](/book/part-2/09-generation).
 
