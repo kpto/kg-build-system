@@ -64,28 +64,30 @@ export function WorkflowProvenanceGraph({
       title="Build steps"
       question="How is this built?"
     >
-      <GraphCanvas
-        width={scene.width}
-        height={scene.height}
-        className={styles.workflowGraph}
-        testId="detail-workflow-graph"
-        ariaLabel={`Narrowed workflow graph with ${rows.length} steps`}
-        onBackgroundClick={() => setSelectedId(undefined)}
-      >
-        <WorkflowGraphSceneView
-          scene={scene}
-          selectedId={selectedId}
-          onSelect={(node) => {
-            if (node.kind === "step") setSelectedId(node.id);
-          }}
-          onOpen={(node) => {
-            if (node.row) onOpenStep(node.row);
-          }}
-        />
-      </GraphCanvas>
-      <p className={styles.workflowHint}>
-        Click a step to select; double-click to open its document.
-      </p>
+      <div className={styles.workflowGraphBody}>
+        <GraphCanvas
+          width={scene.width}
+          height={scene.height}
+          className={styles.workflowGraph}
+          testId="detail-workflow-graph"
+          ariaLabel={`Narrowed workflow graph with ${rows.length} steps`}
+          onBackgroundClick={() => setSelectedId(undefined)}
+        >
+          <WorkflowGraphSceneView
+            scene={scene}
+            selectedId={selectedId}
+            onSelect={(node) => {
+              if (node.kind === "step") setSelectedId(node.id);
+            }}
+            onOpen={(node) => {
+              if (node.row) onOpenStep(node.row);
+            }}
+          />
+        </GraphCanvas>
+        <p className={styles.workflowHint}>
+          Click a step to select; double-click to open its document.
+        </p>
+      </div>
     </DetailBand>
   );
 }

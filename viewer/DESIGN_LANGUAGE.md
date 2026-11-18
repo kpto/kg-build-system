@@ -307,8 +307,10 @@ A detail body pairs one left index pane with a horizontal deck of flat cards. Th
 top-level cards in reading order and does not track the scroll position; the
 tile group carries one side line. Each card fills the deck height, carries its
 title at the top-left and leaves the next card's edge visible. The deck owns
-horizontal scroll; each card body owns vertical scroll. The index disappears
-below the width where a card would lose its reading measure.
+horizontal scroll. The card body owns vertical scroll, except a graph or tree
+viewport, which fills the body and owns its scroll; a compact list or lane may
+cap its height. The index disappears below the width where a card would
+lose its reading measure.
 
 ## Interaction motion
 

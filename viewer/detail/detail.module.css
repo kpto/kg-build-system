@@ -119,10 +119,18 @@
   display: contents;
 }
 
+.workflowGraphBody {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+}
+
 .workflowGraph {
   display: block;
   width: 100%;
-  height: 260px;
+  min-height: 260px;
+  flex: 1;
   animation: wb-fade-in var(--motion-slow) var(--ease-instrument);
   background:
     radial-gradient(circle at 50% 50%, var(--color-glow), transparent 70%),
@@ -130,7 +138,8 @@
 }
 
 .expressionOutline {
-  max-height: 420px;
+  height: 100%;
+  max-height: none;
   overflow: auto;
   padding: var(--space-stack) var(--space-inline) var(--space-group);
   overscroll-behavior: contain;
