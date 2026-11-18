@@ -80,6 +80,7 @@ export function InvolvedSteps({
       title="Involved steps"
       question="Which build steps participate in this concept?"
       testId="detail-involved-steps"
+      fill
     >
       {scene ? (
         <>

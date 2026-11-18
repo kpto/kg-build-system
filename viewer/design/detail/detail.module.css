@@ -1801,6 +1801,16 @@ button.expressionToggle:hover {
   padding: var(--space-region) 0 0 var(--space-page);
 }
 
+/* A graph card owns its height: the viewport takes the space below the card
+   header instead of sitting in a fixed band. */
+.bandBodyFill {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: var(--space-stack);
+  overflow: hidden;
+}
+
 .bandNote {
   margin: 0 0 var(--space-stack);
   color: var(--color-faint);
@@ -2151,8 +2161,8 @@ button.memberRow:focus-visible {
 
 .involvedDag {
   position: relative;
-  height: min(34vh, 240px);
-  min-height: 200px;
+  min-height: 0;
+  flex: 1;
 }
 
 .involvedDagCanvas {

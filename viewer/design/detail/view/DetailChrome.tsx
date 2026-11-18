@@ -272,6 +272,8 @@ export interface DetailBandProps {
   section?: DetailSectionKind;
   className?: string;
   flush?: boolean;
+  /** A body that owns its height, such as a fitted graph viewport. */
+  fill?: boolean;
   testId?: string;
   children: ReactNode;
 }
@@ -290,6 +292,7 @@ export function DetailBand({
   section,
   className,
   flush = false,
+  fill = false,
   testId,
   children,
 }: DetailBandProps) {
@@ -317,7 +320,12 @@ export function DetailBand({
         />
         <h2 className={styles.bandTitle}>{title}</h2>
       </header>
-      <div className={flush ? styles.bandBodyFlush : styles.bandBody}>
+      <div
+        className={cx(
+          flush ? styles.bandBodyFlush : styles.bandBody,
+          fill && styles.bandBodyFill,
+        )}
+      >
         {children}
       </div>
     </Panel>
