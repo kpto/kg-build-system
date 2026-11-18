@@ -300,13 +300,13 @@ missing, not the code.
   its arrow unfolds the list; the body never toggles and the arrow never opens
   the document. A virtual collection is a layer read as a group, not a declared
   subject: it has no Meaning card, uses the layer's concept mark, and carries
-  Constitution (the actual participants below its items, merged), Contribution
-  (the actual participants one level above), Items and Coverage, both
-  directions in the same DAG. A large merged set shows a readable number of
-  actual subjects and states the total; it never shows layer boxes or links to
-  another collection. Abstract nodes and edges are participants: an abstract
-  constitution uses its own binding layer and its contribution is its immediate
-  children only.
+  Constitution (its items and the actual participants below them), Contribution
+  (its items and the actual participants one level above), Items and Coverage,
+  both directions in the same DAG. There is no collection root. A large set
+  accepts items until the boundary reaches a readable size and states how many
+  items are shown; it never shows layer boxes or links to another collection.
+  Abstract nodes and edges are participants: an abstract constitution uses its
+  own binding layer and its contribution is its immediate children only.
 - Motion is feedback, not decoration: short ease-out transitions on transform and
   opacity, origin-aware entrances, and reduced motion removes movement.
 - End every change report with the rule-promotion result: none, refined or
