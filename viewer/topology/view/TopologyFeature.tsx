@@ -2237,7 +2237,7 @@ export function TopologyInspector({
     ? [
         "overview",
         ...(entityMeaningCount > 0 ? (["meaning"] as const) : []),
-        ...(hasProperties ? (["properties"] as const) : []),
+        "properties",
         ...(hasFulfilment ? (["fulfilment"] as const) : []),
       ]
     : [
