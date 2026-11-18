@@ -680,24 +680,55 @@ function buildComponentsScene(model: ConstitutionModel): ConstitutionScene {
   const edges: ConstitutionSceneEdge[] = [];
   const notes: ConstitutionSceneNote[] = [];
   const edgeKeys = new Set<string>();
+  const purposeFrameId =
+    model.purpose.kind === "binding"
+      ? ("fulfilment" as const)
+      : model.purpose.kind === "relation" ||
+          model.purpose.kind === "projection"
+        ? ("relation" as const)
+        : undefined;
 
   if (!components.length) {
-    const width = NODE.purpose.width;
-    const height = NODE.purpose.height + NOTE_GAP + NOTE_HEIGHT;
+    const purposeFrame = purposeFrameId
+      ? frameFor(purposeFrameId, [purpose])
+      : undefined;
+    const frames = purposeFrame ? [purposeFrame] : [];
+    const offset = {
+      x: Math.max(0, -Math.min(0, ...frames.map((frame) => frame.x))),
+      y: Math.max(0, -Math.min(0, ...frames.map((frame) => frame.y))),
+    };
+    const noteY = NODE.purpose.height + NOTE_GAP;
     notes.push({
       text: "No component is declared.",
-      x: width / 2,
-      y: NODE.purpose.height + NOTE_GAP,
+      x: NODE.purpose.width / 2,
+      y: noteY,
     });
     return {
       nodes,
       edges,
-      labels: [],
+      labels: purposeFrame
+        ? [
+            {
+              text: purposeFrameId === "fulfilment" ? "FULFILMENT" : "RELATION",
+              x: purposeFrame.x + FRAME_LABEL_INSET,
+              y: purposeFrame.y + FRAME_LABEL_BASELINE,
+            },
+          ]
+        : [],
       notes,
-      frames: [],
-      offset: { x: 0, y: 0 },
-      width,
-      height,
+      frames,
+      offset,
+      width:
+        Math.max(
+          NODE.purpose.width,
+          purposeFrame ? purposeFrame.x + purposeFrame.width : 0,
+          NODE.purpose.width / 2 + 140,
+        ) + offset.x,
+      height:
+        Math.max(
+          noteY + NOTE_HEIGHT,
+          purposeFrame ? purposeFrame.y + purposeFrame.height : 0,
+        ) + offset.y,
     };
   }
 
@@ -765,35 +796,51 @@ function buildComponentsScene(model: ConstitutionModel): ConstitutionScene {
   });
 
   distributeConnections(edges, nodes, new Set([purpose.id]));
-  const graphFrame = graphNodes.length
-    ? frameFor("graph", graphNodes)
-    : undefined;
-  const relationFrame = relationNodes.length
-    ? frameFor("relation", relationNodes)
-    : undefined;
-  const frames = [
-    ...(graphFrame ? [graphFrame] : []),
-    ...(relationFrame ? [relationFrame] : []),
-  ];
+  const frames: ConstitutionSceneFrame[] = [];
+  const labels: ConstitutionSceneLabel[] = [];
+  const addFrame = (
+    frame: ConstitutionSceneFrame | undefined,
+    label: string,
+  ) => {
+    if (!frame) return;
+    frames.push(frame);
+    labels.push({
+      text: label,
+      x: frame.x + FRAME_LABEL_INSET,
+      y: frame.y + FRAME_LABEL_BASELINE,
+    });
+  };
+
+  if (purposeFrameId === "relation") {
+    addFrame(
+      frameFor("relation", [purpose, ...relationNodes]),
+      "RELATION",
+    );
+  } else if (purposeFrameId === "fulfilment") {
+    addFrame(frameFor("fulfilment", [purpose]), "FULFILMENT");
+    addFrame(
+      graphNodes.length ? frameFor("graph", graphNodes) : undefined,
+      "GRAPH",
+    );
+    addFrame(
+      relationNodes.length ? frameFor("relation", relationNodes) : undefined,
+      "RELATION",
+    );
+  } else {
+    addFrame(
+      graphNodes.length ? frameFor("graph", graphNodes) : undefined,
+      "GRAPH",
+    );
+    addFrame(
+      relationNodes.length ? frameFor("relation", relationNodes) : undefined,
+      "RELATION",
+    );
+  }
+
   const offset = {
     x: Math.max(0, -Math.min(0, ...frames.map((frame) => frame.x))),
     y: Math.max(0, -Math.min(0, ...frames.map((frame) => frame.y))),
   };
-  const labels: ConstitutionSceneLabel[] = [];
-  if (graphFrame) {
-    labels.push({
-      text: "GRAPH",
-      x: graphFrame.x + FRAME_LABEL_INSET,
-      y: graphFrame.y + FRAME_LABEL_BASELINE,
-    });
-  }
-  if (relationFrame) {
-    labels.push({
-      text: "RELATION",
-      x: relationFrame.x + FRAME_LABEL_INSET,
-      y: relationFrame.y + FRAME_LABEL_BASELINE,
-    });
-  }
 
   const nodeMaxX = Math.max(
     ...nodes.map((node) => node.x + node.width),

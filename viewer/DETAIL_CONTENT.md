@@ -17,7 +17,7 @@ the index rail is the only navigation between cards.
 | Order | Section | Question it answers | Content |
 | --- | --- | --- | --- |
 | 1 | **Meaning** | What is this for, and what does it exclude? | Purpose as the lead, then two labelled readings: contextless claims and the limitations that bound the purpose. Each group states its own count; the groups stack when the card is narrow. Legacy readings follow under **Earlier reading**. |
-| 2 | **Constitution** | What is this subject for, and how does it come to be? | One layered DAG on a pan/zoom canvas. A record shows its purpose and graph ancestry in the GRAPH frame on the left, one box per binding in the FULFILMENT frame, and each binding's relation provenance in the RELATION frame on the right; there is no separator. A source relation shows its Purpose over its asset in the RELATION frame; a derived relation its Purpose over the source relations it scans and their assets in the RELATION frame; a binding its Purpose over the target record (GRAPH frame) and the relations it reads (RELATION frame). An asset has no Constitution card: it is the origin. Every edge points from the supply to the consumer; a shared declaration is one node with one edge per consumer; ranks, ordering and edge routes are computed; the purpose box carries the subject's own concept mark. Each node clamps its purpose to two lines; hovering or focusing it reveals the full meaning, selecting it dims the rest, and its label opens its document. |
+| 2 | **Constitution** | What is this subject for, and how does it come to be? | One layered DAG on a pan/zoom canvas. A record shows its purpose and graph ancestry in the GRAPH frame on the left, one box per binding in the FULFILMENT frame, and each binding's relation provenance in the RELATION frame on the right; there is no separator. A source relation shows its Purpose over its asset in the RELATION frame; a derived relation its Purpose over the source relations it scans and their assets in the RELATION frame; a binding its Purpose in the FULFILMENT frame, its target record (purpose and identity) in the GRAPH frame and the relations it reads in the RELATION frame. An asset has no Constitution card: it is the origin. Every edge points from the supply to the consumer; a shared declaration is one node with one edge per consumer; ranks, ordering and edge routes are computed; the purpose box carries the subject's own concept mark. Each node clamps its purpose to two lines; hovering or focusing it reveals the full meaning, selecting it dims the rest, and its label opens its document. |
 | 3 | **Members** | Which units belong to this subject? | One table grammar: name, type, meaning, source, count; the instance pill opens its document when one exists. |
 | 4 | **Connections** | Which records does this subject touch? | Endpoints of an edge, incident relations of a node, ports of a step. |
 | 5 | **Bindings** | Which binding fulfils this subject? | One row per binding: name, writes, identity, rows read. The binding pill opens the binding document. |
@@ -93,9 +93,9 @@ nothing is grouped or hidden.
 | Subject | How it comes to be | The card |
 | --- | --- | --- |
 | Node, edge, property, abstract category | its bindings, each meeting a relation at a grain and identity; the graph states what it is and where it sits | One DAG: the purpose and graph ancestry in the GRAPH frame, one box per binding in the FULFILMENT frame, and each binding's relation provenance in the RELATION frame |
-| Source relation | its asset | Purpose over its asset alone; the asset is in the RELATION frame. No bindings, no graph axis |
-| Derived relation | the source relations it scans, each from its asset | Purpose over those source relations and their assets; the sources and assets are in the RELATION frame. No bindings, no graph axis |
-| Binding | the meeting of a record and a relation | Purpose over the target record (purpose and identity only) in the GRAPH frame, and the relations it reads with their provenance in the RELATION frame |
+| Source relation | its asset | Purpose and asset together in the RELATION frame. No bindings, no graph axis |
+| Derived relation | the source relations it scans, each from its asset | Purpose, source relations and their assets together in the RELATION frame. No bindings, no graph axis |
+| Binding | the meeting of a record and a relation | Purpose in the FULFILMENT frame, the target record (purpose and identity only) in the GRAPH frame, and the relations it reads with their provenance in the RELATION frame |
 | Asset | nothing: it is the given source | no Constitution card |
 | Step | build machinery, not a semantic declaration | no Constitution card |
 
@@ -121,14 +121,14 @@ purpose is not repeated as the binding's parent.
   a derived relation's scanned relations and their assets, and the relations a
   binding reads. A source relation or asset shared by several consumers is one
   node with one edge per consumer.
-- The only frame kinds are **GRAPH**, **RELATION** and **FULFILMENT**. A record
-  is one intact DAG with its purpose and graph ancestry in the GRAPH frame on
-  the left, its bindings in the FULFILMENT frame, and its relation provenance
-  in the RELATION frame on the right. A source or derived relation leaves its
-  purpose unframed and frames its asset or scanned sources as RELATION. A
-  binding leaves its purpose unframed, frames its target record as GRAPH and
-  the relations it reads as RELATION. There is no separator, and a binding box
-  is a binding, never the fulfilment itself.
+- The only frame kinds are **GRAPH**, **RELATION** and **FULFILMENT**, and
+  every box sits inside its corresponding frame. A record has its purpose and
+  graph ancestry in the GRAPH frame, its bindings in the FULFILMENT frame, and
+  its relation provenance in the RELATION frame. A source or derived relation
+  has its purpose and its asset or scanned sources in one RELATION frame. A
+  binding has its purpose in the FULFILMENT frame, its target record in the
+  GRAPH frame, and the relations it reads in the RELATION frame. There is no
+  separator, and a binding box is a binding, never the fulfilment itself.
 
 When several arrows meet one box, their heads sit on a centred, evenly spaced
 set of points along that edge.
