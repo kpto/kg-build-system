@@ -26,6 +26,67 @@ import styles from "../detail.module.css";
 /** The page header's concept, so every section mark takes its colour. */
 const DetailPageConceptContext = createContext<ConceptKind>("graph");
 
+/** One constant duration for every card-to-card scroll, near or far. */
+const CARD_SCROLL_DURATION = 180;
+
+function scrollCardTo(
+  deck: HTMLElement,
+  id: string,
+  title: string,
+  frame: RefObject<number | null>,
+  restore: RefObject<(() => void) | null>,
+): void {
+  if (frame.current !== null) cancelAnimationFrame(frame.current);
+  restore.current?.();
+  const target =
+    document.getElementById(id) ??
+    Array.from(
+      deck.querySelectorAll<HTMLElement>("[data-detail-band]"),
+    ).find((band) => band.dataset.detailTitle === title);
+  if (!target) return;
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const previousSnap = deck.style.scrollSnapType;
+  const previousBehavior = deck.style.scrollBehavior;
+  const restoreStyles = () => {
+    deck.style.scrollSnapType = previousSnap;
+    deck.style.scrollBehavior = previousBehavior;
+    restore.current = null;
+  };
+  restore.current = restoreStyles;
+  // Disable snap while the card moves; snap is restored on the exact target.
+  deck.style.scrollSnapType = "none";
+  deck.style.scrollBehavior = "auto";
+  const from = deck.scrollLeft;
+  const deckRect = deck.getBoundingClientRect();
+  const targetRect = target.getBoundingClientRect();
+  const max = Math.max(0, deck.scrollWidth - deck.clientWidth);
+  const to = Math.max(
+    0,
+    Math.min(max, from + targetRect.left - deckRect.left),
+  );
+  if (reduce || Math.abs(to - from) < 1) {
+    deck.scrollLeft = to;
+    frame.current = null;
+    restoreStyles();
+    return;
+  }
+  const start = performance.now();
+  const distance = to - from;
+  const step = (now: number) => {
+    const progress = Math.min(1, (now - start) / CARD_SCROLL_DURATION);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    deck.scrollLeft = from + distance * eased;
+    if (progress < 1) {
+      frame.current = requestAnimationFrame(step);
+    } else {
+      deck.scrollLeft = to;
+      frame.current = null;
+      restoreStyles();
+    }
+  };
+  frame.current = requestAnimationFrame(step);
+}
+
 interface DetailIndexSection {
   id: string;
   title: string;
@@ -68,14 +129,47 @@ function useDetailSections(bodyRef: RefObject<HTMLDivElement | null>) {
     };
     collect();
     const observer = new MutationObserver(collect);
-    observer.observe(body, { childList: true, subtree: true });
+    observer.observe(body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["id", "data-detail-title", "data-detail-section"],
+    });
     return () => observer.disconnect();
   }, [bodyRef]);
 
   return sections;
 }
 
-function DetailIndex({ sections }: { sections: DetailIndexSection[] }) {
+function DetailIndex({
+  sections,
+  deckRef,
+}: {
+  sections: DetailIndexSection[];
+  deckRef: RefObject<HTMLDivElement | null>;
+}) {
+  const scrollFrame = useRef<number | null>(null);
+  const scrollRestore = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    const deck = deckRef.current;
+    if (!deck) return;
+    const cancel = () => {
+      if (scrollFrame.current !== null) {
+        cancelAnimationFrame(scrollFrame.current);
+        scrollFrame.current = null;
+      }
+      scrollRestore.current?.();
+    };
+    deck.addEventListener("wheel", cancel, { passive: true });
+    deck.addEventListener("pointerdown", cancel);
+    return () => {
+      cancel();
+      deck.removeEventListener("wheel", cancel);
+      deck.removeEventListener("pointerdown", cancel);
+    };
+  }, [deckRef]);
+
   if (sections.length < 2) return null;
   return (
     <nav
@@ -91,14 +185,16 @@ function DetailIndex({ sections }: { sections: DetailIndexSection[] }) {
               href={`#${section.id}`}
               onClick={(event) => {
                 event.preventDefault();
-                const reduce = window.matchMedia(
-                  "(prefers-reduced-motion: reduce)",
-                ).matches;
-                document.getElementById(section.id)?.scrollIntoView({
-                  behavior: reduce ? "auto" : "smooth",
-                  block: "nearest",
-                  inline: "start",
-                });
+                const deck = deckRef.current;
+                if (deck) {
+                  scrollCardTo(
+                    deck,
+                    section.id,
+                    section.title,
+                    scrollFrame,
+                    scrollRestore,
+                  );
+                }
               }}
             >
               <DetailMark
@@ -157,7 +253,7 @@ export function DetailDocument({
           facts={facts}
         />
         <div className={styles.body}>
-          <DetailIndex sections={sections} />
+          <DetailIndex sections={sections} deckRef={bodyRef} />
           <div className={styles.deck} ref={bodyRef}>
             {children}
           </div>
