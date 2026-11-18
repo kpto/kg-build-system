@@ -162,7 +162,10 @@ missing, not the code.
   A source relation shows only its asset; a derived relation only its scanned
   source relations and their assets; a binding shows the target record's
   purpose and identity and the relations it reads; an asset is the origin and
-  has no card.
+  has no card. A source or derived relation leaves its purpose unframed and
+  frames its provenance as RELATION; a binding leaves its purpose unframed,
+  frames its target record as GRAPH and its relations as RELATION. GRAPH,
+  RELATION and FULFILMENT are the only frame kinds.
   A shared declaration is one node with one edge per consumer; a binding is
   never the parent of either side, and each box carries its own concept mark
   and concept-tinted background.
@@ -180,6 +183,9 @@ missing, not the code.
   the shaft, not the gap.
 - A connector's shaft and head meet at one point: place the head at the path
   endpoint, not near it, so a gap or rotation cannot separate them.
+- Several connectors into one box share one centred, evenly spaced set of head
+  positions along the edge they meet; the spacing is uniform and the set is
+  symmetric about the edge midpoint.
 - Present the design before an author workflow: a canonical view carries the
   facts a reader must know immediately, and a detail view shows the same object
   with more evidence rather than starting a separate task.
