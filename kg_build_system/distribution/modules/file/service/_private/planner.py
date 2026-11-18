@@ -36,6 +36,12 @@ class FilePlanner:
 
     def __init__(self, configuration: FileConfiguration) -> None:
         self.configuration = configuration
+        if configuration.name:
+            # The toolchain groups steps by ``component_id`` and assigns that id
+            # to every step of the group. Two writers in one workflow are two
+            # components, so the name must reach the identity here, not only the
+            # step name.
+            self.component_id = f"{type(self).component_id}.{configuration.name}"
 
     def plan(self, model: Any, context: PlanContext) -> tuple[Step, ...]:
         """Return the one deferred file-write step.
@@ -47,7 +53,7 @@ class FilePlanner:
         """
         opening = self.configuration.opening
         name = self.configuration.name
-        component = f"{self.component_id}.{name}" if name else self.component_id
+        component = self.component_id
         return (
             Step(
                 component=component,
