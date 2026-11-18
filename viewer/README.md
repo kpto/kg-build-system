@@ -11,7 +11,7 @@ frame, one document tab strip, and two collapsible side-bar sections:
 | Side-bar section | What it is for |
 | --- | --- |
 | **Control** | Controls for the active view: graph filters, labels, containment, meaning, legend and layout; workflow component and instruction filters. |
-| **Explorer** | Everything in the design: assets, source relations, derived relations, nodes, abstract nodes and edges, properties, bindings, plus the workflow components and step catalogue. A header body opens its layer collection and its arrow unfolds the list; every participant row opens its own document. Right-clicking an item jumps to its Graph or Workflow view. |
+| **Explorer** | Everything in the design: assets, source relations, derived relations, nodes, abstract nodes and edges, properties, bindings, plus the workflow components and step catalogue. A header body opens its layer collection and its arrow — on the left of every row — unfolds the list; every participant row opens its own document. Right-clicking an item jumps to its Graph or Workflow view. |
 
 The viewer reads the snapshot from its configured `/snapshot` source, or from a
 URL passed as `?snapshot=<url>`; there is no bundled project dataset and no file

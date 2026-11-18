@@ -72,8 +72,8 @@ two levels up is wrong even when its rows are true.
 ## Virtual collection documents
 
 Every Explorer row is a document. A layer header's body opens a **collection**;
-its arrow unfolds or folds the list. The body never toggles and the arrow never
-opens the document. A workflow component header behaves the same way: its body
+its arrow, on the left of the row, unfolds or folds the list. The body never
+toggles and the arrow never opens the document. A workflow component header behaves the same way: its body
 opens the component's collection and its arrow unfolds its steps.
 
 A collection is a layer read as a group, not a declared subject. It carries no

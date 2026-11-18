@@ -264,16 +264,6 @@ function SideSection({
       >
         <button
           type="button"
-          className={styles.sideSectionTitle}
-          onClick={() => onOpen(id)}
-          data-testid={`explorer-group-${id}`}
-          title={`Open the ${title} collection`}
-        >
-          <span>{title}</span>
-          <span className={styles.sideCount}>{count}</span>
-        </button>
-        <button
-          type="button"
           className={styles.sideSectionToggle}
           aria-expanded={open}
           aria-label={`${open ? "Collapse" : "Expand"} ${title}`}
@@ -285,6 +275,16 @@ function SideSection({
           ) : (
             <ChevronRight aria-hidden className={styles.sideChevron} />
           )}
+        </button>
+        <button
+          type="button"
+          className={styles.sideSectionTitle}
+          onClick={() => onOpen(id)}
+          data-testid={`explorer-group-${id}`}
+          title={`Open the ${title} collection`}
+        >
+          <span>{title}</span>
+          <span className={styles.sideCount}>{count}</span>
         </button>
       </div>
       {open ? <div className={styles.sideSectionBody}>{children}</div> : null}
