@@ -40,6 +40,8 @@ from kg_build_system.distribution import (
     MetaGraphPlanner,
 )
 
+# The fixture's optional extension example. Remove this import and the matching
+# composition below when the project removes expression/hello.py.
 from project.expression.hello import HELLO
 from project.modules.hello_emitter import HelloEmitter
 

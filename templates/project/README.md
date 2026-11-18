@@ -54,8 +54,11 @@ relations and bindings all say “replace it”. The order is meaning first:
 5. Implement the declarations. Add a derived relation only when a record needs a
    computation the source rows do not supply; a project with no derived
    relation or stage is valid.
-6. Delete `data/items.json` and add your source. If the format is not parquet,
-   json or csv, add a source adapter in `modules/` (see below).
+6. Delete `data/items.json` and add your source. If the project does not use the
+   fixture's `hello` example, also delete `expression/hello.py`,
+   `modules/hello_emitter.py`, the `HELLO`/`HelloEmitter` import and
+   composition in `manifest.py`, and the hello tests. If the format is not
+   parquet, json or csv, add a source adapter in `modules/` (see below).
 7. Add a value or relation operation only when a domain calculation is missing;
    do not add one to satisfy a template example.
 8. Run `uv run pytest` and `uv run pyright`.

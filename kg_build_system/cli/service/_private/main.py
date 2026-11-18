@@ -13,6 +13,7 @@ from kg_build_system.generation.code_generation.service.internal import (
     add_generate_command,
 )
 
+from .init import add_init_command
 from .manifest_command import add_manifest_commands
 from .view import add_view_command
 
@@ -34,6 +35,7 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="kbs")
     commands = parser.add_subparsers(dest="command", required=True)
     add_generate_command(commands)
+    add_init_command(commands)
     add_manifest_commands(commands)
     add_view_command(commands)
     return parser

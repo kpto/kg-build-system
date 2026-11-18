@@ -8,9 +8,9 @@ verified: 2026-11-18
 sources:
   - pyproject.toml
   - kg_build_system/cli/service/_private/main.py
+  - kg_build_system/cli/service/_private/init.py
   - kg_build_system/cli/service/_private/manifest_command.py
   - kg_build_system/cli/service/_private/view.py
-  - kg_build_system/generation/code_generation/service/_private/command.py
 subject: generation
 perspective: reference
 ---
@@ -27,6 +27,7 @@ perspective: reference
 
 | Command | Job |
 | --- | --- |
+| `kbs init [PATH]` | Copy the packaged project template into an empty directory and point its `pyproject.toml` at the framework. Refuses a non-empty directory unless `--force` is passed. |
 | `kbs check --project PATH` | Read the blueprint and print the authored semantic argument: graph purpose, records, relations, bindings and review notes. It is a reading report, not a proof; the project's tests remain the gate. |
 | `kbs blueprint --project PATH [--output PATH]` | Build and print, or write, the blueprint document. |
 | `kbs workflow --project PATH [--output PATH]` | Compile and print, or write, the workflow-plan document. |
