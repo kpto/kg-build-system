@@ -103,7 +103,8 @@ When a contribution set is large, it is read at layer resolution: one linked
 layer box per kind.
 
 A **virtual collection** is a layer read as a group, not a declared subject. It
-has no Meaning card and uses the layer's concept mark. Its order is:
+has no Meaning card, omits a section that does not apply to its layer, and uses
+the layer's concept mark. Its order is:
 
 ```text
 Banner: Collection
@@ -188,8 +189,11 @@ opens a document. A workflow component header behaves the same way.
   The Constitution is the binding's purpose over the target record and the
   relations it reads.
 
-A kind may state an absence instead of omitting a section. A step has no design
-meaning and no release source, and it says so; it is build machinery.
+A section that does not apply to the kind is omitted, not shown as a card that
+says so. A subject with no purpose, claim or limitation has no Meaning card; a
+step has no Meaning or Sources card; an edge has no Contribution card; the
+Assets collection has no Constitution card; the Edges collection has no
+Contribution card.
 
 Every tab — detail, Graph and Workflow — uses the same banner. It leads with
 the kind's mark from the one concept catalogue and states the identity,

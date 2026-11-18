@@ -1983,7 +1983,15 @@ function SubjectDetailEditor(props: WorkspaceProps) {
       <Constitution model={constitution} />
     </DetailBand>
   );
-  const meaningSection = (
+  // A Meaning card exists only when the subject states a meaning. A subject
+  // with no purpose, claim or limitation has no Meaning card, rather than a
+  // card that only says the section does not apply.
+  const hasMeaning =
+    Boolean(meaning.purpose) ||
+    meaning.claims.length > 0 ||
+    meaning.limitations.length > 0 ||
+    (meaning.frames?.length ?? 0) > 0;
+  const meaningSection = hasMeaning ? (
     <DetailBand
       title="Meaning"
       question="What is this for, and what does it exclude?"
@@ -1997,7 +2005,7 @@ function SubjectDetailEditor(props: WorkspaceProps) {
         emptyText="Meaning omitted for this subject."
       />
     </DetailBand>
-  );
+  ) : null;
   const kindSection = (
     <>
       {model.level === "property" ? (
@@ -2007,7 +2015,12 @@ function SubjectDetailEditor(props: WorkspaceProps) {
       )}
     </>
   );
-  const contributionSection = <ContributionSection model={contribution} />;
+  // An edge has no contribution by definition: its endpoints are its
+  // constitution. Omit the card rather than add one that only says so.
+  const contributionSection =
+    model.level === "edge" ? null : (
+      <ContributionSection model={contribution} />
+    );
   const bindingsSection = (
     <>
 

@@ -352,28 +352,6 @@ function StepDetail({
           </div>
         </DetailBand>
       ) : null}
-      <DetailBand
-        title="Meaning"
-        question="What is this step for?"
-      >
-        <p className="text-[length:var(--text-base)] leading-relaxed text-faint">
-          A step is build machinery. It carries no design meaning of its own;
-          the meaning of the values it moves stays on the record and the
-          relation declarations.
-        </p>
-      </DetailBand>
-
-      <DetailBand
-        title="Sources"
-        question="Where does this step read from?"
-      >
-        <p className="text-[length:var(--text-base)] leading-relaxed text-faint">
-          A step has no release source. It reads the artifacts its input
-          openings declare; the source of a value is stated by the record and
-          relation documents.
-        </p>
-      </DetailBand>
-
     </DetailDocument>
   );
 }

@@ -103,18 +103,20 @@ items in the top band; a Contribution puts them in the bottom band.
 | **Items** | the collection itself | the layer's members with layer-specific facts; every row opens the participant document |
 | **Coverage** | the collection's completeness | items, items with meaning, items with a constitution, items with a contribution |
 
-A collection's constitution merges the actual dependencies of its items, so a
+A collection omits a section that does not apply to it: the Assets collection
+has no Constitution card, and the Edges collection has no Contribution card. A
+collection's constitution merges the actual dependencies of its items, so a
 shared declaration is one box. When the merged set is larger than a readable
 page, the card shows a bounded set of actual subjects and states the total.
 
 | Collection | Constitution | Contribution | Items |
 | --- | --- | --- | --- |
-| Assets | empty: the origin | Source relations | assets |
+| Assets | omitted: the origin | Source relations | assets |
 | Source relations | Assets | Derived relations, Bindings | source relations |
 | Derived relations | Assets → Source relations | Derived relations, Bindings | derived relations |
 | Bindings | Assets → Source relations → Derived relations | Nodes, Edges | bindings |
 | Nodes | Data: Assets → Source relations → Derived relations → Bindings. Graph: Graph → Abstract | Graph: Edges | nodes |
-| Edges | Data: the record chain. Graph: Abstract → Nodes | none: endpoints are constitution | edges |
+| Edges | Data: the record chain. Graph: Abstract → Nodes | omitted: endpoints are constitution | edges |
 | Abstract | Data: own Bindings. Graph: Graph | Graph: child abstract nodes, Nodes, Edges | abstract nodes and abstract edges |
 | Workflow | upstream components | downstream components | component groups |
 | Workflow component | upstream components | downstream components | steps |
@@ -124,17 +126,20 @@ page, the card shows a bounded set of actual subjects and states the total.
 | View kind | Sections | Notes |
 | --- | --- | --- |
 | Node | **Constitution**, **Meaning**, **Contribution**, **Members**, **Connections**, **Bindings** | Contribution is the incident edges, one graph level above; Members are properties; Connections are incident relations. |
-| Edge | **Constitution**, **Meaning**, **Contribution**, **Members**, **Connections**, **Bindings** | Contribution is empty: an edge has no contribution; its endpoints are constitution. Connections states `source → edge` as `in` and `edge → target` as `out`. |
+| Edge | **Constitution**, **Meaning**, **Members**, **Connections**, **Bindings** | An edge has no Contribution card: its endpoints are its constitution. Connections states `source → edge` as `in` and `edge → target` as `out`. |
 | Property | **Constitution**, **Meaning**, **Contribution**, **Branches**, **Connections**, **Bindings** | Contribution is the owning record; Branches is the type/presence chain and lane canvas; Connections is its ledger. |
 | Abstract node | **Constitution**, **Meaning**, **Contribution** | Contribution is the immediate child abstract nodes, nodes and edges, not the whole tree. The Constitution uses the abstract node's own bindings, never its descendants' data. An abstract edge is an edge document and carries the same purple edge mark. |
 | Asset | **Meaning**, **Contribution** | The banner states the layout and location; Contribution is the source relations that read the asset. Derived relations are two levels up and are not repeated. The asset is the origin: it has no Constitution, Fields or Bindings page. |
 | Source relation | **Constitution**, **Meaning**, **Members**, **Contribution** | Columns are the relation; the banner states the asset and row source. The Constitution is the relation's purpose over its asset alone. Contribution is the derived relations that scan it and the bindings that read it directly; an indirect binding is not one level up. |
 | Derived relation | **Constitution**, **Meaning**, **Members**, **Contribution** | Members are its columns; the banner states the row source. The Constitution is its purpose over the source relations it scans and their assets. Contribution is the derived relations that scan it and the bindings that read it directly. |
 | Binding | **Constitution**, **Contribution**, **Meaning**, **Expression**, **Build steps** | The Constitution is the binding's purpose over the relations it reads; Contribution is the target record (purpose and identity only). Expression and Build steps carry the computation and the plan. |
-| Step | **Constitution**, **Contribution**, **Ports**, **Payload**, **Bindings**, **Meaning**, **Sources** | Constitution is the steps that produce its inputs; Contribution is the steps that read its outputs. A step is build machinery; Meaning and Sources state their absence last. |
+| Step | **Constitution**, **Contribution**, **Ports**, **Payload**, **Bindings** | Constitution is the steps that produce its inputs; Contribution is the steps that read its outputs. A step is build machinery and has no Meaning or Sources card. |
 
 Text in bold is the first card the reader meets; every card in the row is
-present and open, in that order.
+present and open, in that order. A section not listed for a kind is omitted
+because it does not apply, not shown as a card that says so. A **Meaning** card
+is present only when the subject states a purpose, claim or limitation;
+otherwise it is omitted.
 
 A field is not a document kind; it belongs to its owner's Members table. A
 binding is a document kind and also appears in its record's Bindings table and

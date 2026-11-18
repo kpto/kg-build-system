@@ -91,6 +91,12 @@ export function CollectionEditor(props: WorkspaceProps) {
     [model],
   );
 
+  // A section that is not applicable to the collection is omitted rather than
+  // rendered as an empty card: an asset is the origin, and nothing depends on
+  // an edge.
+  const showConstitution = model.id !== "assets";
+  const showContribution = model.id !== "edges";
+
   const open = (ref: CollectionRef) => openCollection(props, ref);
   const itemRows: MemberRow[] = model.items.rows.map((item) => ({
     key: item.key,
@@ -107,21 +113,25 @@ export function CollectionEditor(props: WorkspaceProps) {
       subtitle={model.subtitle}
       facts={model.facts}
     >
-      <DetailBand
-        title="Constitution"
-        question="How does this collection come to be?"
-        testId="collection-constitution"
-      >
-        <Constitution model={constitution} />
-      </DetailBand>
+      {showConstitution ? (
+        <DetailBand
+          title="Constitution"
+          question="How does this collection come to be?"
+          testId="collection-constitution"
+        >
+          <Constitution model={constitution} />
+        </DetailBand>
+      ) : null}
 
-      <DetailBand
-        title="Contribution"
-        question="Which layer depends on this collection?"
-        testId="collection-contribution"
-      >
-        <Constitution model={contribution} label="Contribution" />
-      </DetailBand>
+      {showContribution ? (
+        <DetailBand
+          title="Contribution"
+          question="Which layer depends on this collection?"
+          testId="collection-contribution"
+        >
+          <Constitution model={contribution} label="Contribution" />
+        </DetailBand>
+      ) : null}
 
       <DetailBand
         title="Items"
