@@ -158,7 +158,7 @@ def _subject_payload(project: Project, key: str) -> dict[str, Any]:
 
 def make_handler(project: Project, viewer_url: str) -> type[BaseHTTPRequestHandler]:
     class Handler(BaseHTTPRequestHandler):
-        server_version = "KGKitConsole/0.1"
+        server_version = "kbs-console/0.1"
 
         def do_GET(self) -> None:  # noqa: N802 - stdlib hook
             parsed = urlparse(self.path)
@@ -238,10 +238,10 @@ def serve(
     project.ensure()
     relations.graph(project)
     server = ThreadingHTTPServer((host, port), make_handler(project, viewer_url))
-    print(f"KG console: http://{host}:{port}/")
-    print(f"Project: {project.root}")
-    print(f"Data: {project.data_dir}")
-    print(f"Viewer iframe: {viewer_url}")
+    print(f"kbs console: http://{host}:{port}/", flush=True)
+    print(f"Project: {project.root}", flush=True)
+    print(f"Notebook: {project.data_dir}", flush=True)
+    print(f"Design viewer: {viewer_url}", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

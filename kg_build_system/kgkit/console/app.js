@@ -333,7 +333,7 @@
   function renderHeader() {
     const revision = recentFirst(objectsOf("revision"))[0];
     const fields = Object.fromEntries((revision?.fields || []).map((field) => [field.label, field.value]));
-    return `<header class="kg-header"><div class="kg-title-row"><div class="kg-title-left"><span class="kg-kicker">${esc(state.project || "KG")} / RELATIONS</span><div class="kg-history"><button type="button" class="kg-history-button" data-action="back" aria-label="Back" title="Back (mouse button 3)" ${state.historyIndex === 0 ? "disabled" : ""}>←</button><button type="button" class="kg-history-button" data-action="forward" aria-label="Forward" title="Forward (mouse button 4)" ${state.historyIndex >= state.history.length - 1 ? "disabled" : ""}>→</button></div></div><span class="kg-revision">rev ${esc(short(revision?.id))}</span></div><div class="kg-meta"><span class="kg-dot"></span><span>${esc(revision?.title || "revision not loaded")}</span><span class="kg-sep">·</span><span>${fields["Nodes"] || "nodes not reported"} nodes / ${fields["Edges"] || "edges not reported"} edges</span></div></header>`;
+    return `<header class="kg-header"><div class="kg-title-row"><div class="kg-title-left"><span class="kg-kicker">${esc(state.project || "KBS")} / NOTEBOOK</span><div class="kg-history"><button type="button" class="kg-history-button" data-action="back" aria-label="Back" title="Back (mouse button 3)" ${state.historyIndex === 0 ? "disabled" : ""}>←</button><button type="button" class="kg-history-button" data-action="forward" aria-label="Forward" title="Forward (mouse button 4)" ${state.historyIndex >= state.history.length - 1 ? "disabled" : ""}>→</button></div></div><span class="kg-revision">rev ${esc(short(revision?.id))}</span></div><div class="kg-meta"><span class="kg-dot"></span><span>${esc(revision?.title || "revision not loaded")}</span><span class="kg-sep">·</span><span>${fields["Nodes"] || "nodes not reported"} nodes / ${fields["Edges"] || "edges not reported"} edges</span></div></header>`;
   }
 
   function render() {
@@ -632,7 +632,7 @@
       if (config.viewerUrl) state.viewerUrl = config.viewerUrl;
       if (config.project) {
         state.project = String(config.project);
-        document.title = `${state.project} · KG console`;
+        document.title = `${state.project} · kbs console`;
       }
       render();
     } catch (cause) {

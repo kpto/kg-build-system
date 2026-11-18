@@ -105,6 +105,7 @@ def run_init(arguments: argparse.Namespace) -> int:
     _rewrite_pyproject(target)
     load_project(target).ensure(write_config=True)
     print(f"Initialised a kg-build-system project in {target}")
+    print(f"Notebook: {target / 'kgkit'}")
     print("Next:")
     print(f"  cd {target}")
     print("  uv sync")
@@ -116,7 +117,7 @@ def run_init(arguments: argparse.Namespace) -> int:
 def add_init_command(commands: Any) -> None:
     """Register ``init`` on the CLI registry."""
     parser = commands.add_parser(
-        "init", help="copy the project template into a new workspace",
+        "init", help="copy the project template and create the notebook",
     )
     parser.add_argument(
         "path", nargs="?", type=Path, default=Path.cwd(),
