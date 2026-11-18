@@ -1877,7 +1877,8 @@ button.expressionToggle:hover {
 
 .memberHead,
 .memberRow {
-  min-width: max-content;
+  width: 100%;
+  min-width: 0;
   display: grid;
   align-items: center;
   gap: var(--space-group);
