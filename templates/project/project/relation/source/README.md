@@ -21,8 +21,9 @@ definitions.
   `class Sites(SourceRelation[AssetT])` with `SourceRelationOptions(...)`.
 - Fields MUST use `field(...)` and MUST state `meaning=...` or `meaning=Omitted`;
   a nested record MUST be a `Struct` beside it.
-- A field's definition MUST state the value, its unit and its null meaning; name,
-  type and provenance MUST be derived, never restated.
+- A field's definition MUST state the value and its null meaning, and its unit
+  where the value has one. Name, type and provenance MUST be derived, never
+  restated.
 - A source relation read by a binding SHOULD declare a contract. The identity MUST
   name the source's key fields.
 - A nested `Struct` MAY live beside the source relation it serves.
@@ -37,7 +38,7 @@ Imports `asset/` and the framework. Read `../derived/README.md` next.
 
 ## Gate
 
-`tests/test_philosophy.py` and `kbs check`. A source relation with a derivation
+`tests/test_philosophy.py`, `uv run pytest` and `uv run pyright`. A source relation with a derivation
 fails the model check, not the wording.
 
 The key words MUST, MUST NOT, SHOULD, SHOULD NOT and MAY follow RFC 2119.

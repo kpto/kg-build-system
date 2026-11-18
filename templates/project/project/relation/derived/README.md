@@ -46,7 +46,7 @@ Imports `relation/source`, `asset/` and the framework. Never `graph/` or
 
 ## Gate
 
-`tests/test_philosophy.py` and `kbs check`. A failure changes the design, not the
+`tests/test_philosophy.py`, `uv run pytest` and `uv run pyright`. A failure changes the design, not the
 wording.
 
 The key words MUST, MUST NOT, SHOULD, SHOULD NOT and MAY follow RFC 2119.

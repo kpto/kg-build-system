@@ -26,6 +26,11 @@ own relation shapes, records or engine emitters.
 - The operation MUST be a value operation. A row effect, a grain change or a
   relation aggregate is not an expression operation; use a `DerivedRelation`, a
   `Stage`, or the relation-operation guide in `../modules/count_rows.py`.
+- A threshold is not just a number. If a reference supplies a bound but not the
+  adverse direction, make the direction a named operation or a stated assumption
+  and say which records carry it. Do not compare every analyte or parameter with
+  the same operator; a dissolved-oxygen minimum and a turbidity maximum are not
+  the same calculation.
 - The engine emitter MUST live in `modules/` and be composed into the engine in
   `manifest.py`. It MUST NOT import the project's declarations.
 - The language MUST be composed with the operation set:

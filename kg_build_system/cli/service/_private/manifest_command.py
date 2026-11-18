@@ -157,6 +157,120 @@ def run_workflow_plan(arguments: argparse.Namespace) -> int:
     return 0 if report.succeeded else 1
 
 
+def _meaning_text(meaning: object, field: str) -> str:
+    if meaning is None:
+        return ""
+    value = getattr(meaning, field, None)
+    if value is None:
+        return ""
+    return getattr(value, "text", "") or ""
+
+
+def run_check(arguments: argparse.Namespace) -> int:
+    """Implement ``kbs check``: print the authored argument for review."""
+    declaration, _ = read_manifest(arguments.project)
+    model = build_blueprint(declaration)
+    lines: list[str] = [f"Project: {model.graph_declaration.name if model.graph_declaration else '(no graph declaration)'}"]
+
+    graph_meaning = (
+        model.graph_declaration.meaning
+        if model.graph_declaration is not None else None
+    )
+    graph_purpose = _meaning_text(graph_meaning, "purpose")
+    lines.append("")
+    lines.append("Graph purpose:")
+    lines.append(f"  {graph_purpose or '(none)'}")
+    for limitation in getattr(getattr(graph_meaning, "purpose", None), "limitations", ()) or ():
+        lines.append(f"  limitation: {getattr(limitation, 'text', '')}")
+    for claim in getattr(graph_meaning, "claims", ()) or ():
+        lines.append(f"  claim: {getattr(claim, 'text', '')}")
+
+    lines.append("")
+    lines.append(f"Nodes ({len(model.graph.nodes)}):")
+    for node in model.graph.nodes:
+        purpose = _meaning_text(node.meaning, "purpose")
+        lines.append(f"  {node.name}{' [abstract]' if node.abstract else ''}: {purpose or '(no purpose)'}")
+    lines.append("")
+    lines.append(f"Edges ({len(model.graph.edges)}):")
+    for edge in model.graph.edges:
+        purpose = _meaning_text(edge.meaning, "purpose")
+        lines.append(f"  {edge.name}: {purpose or '(no purpose)'}")
+
+    lines.append("")
+    lines.append(f"Source relations ({len(model.data.source_relations)}):")
+    for relation in model.data.source_relations:
+        definition = relation.definition
+        grain = getattr(definition, "grain", "") if definition else ""
+        purpose = _meaning_text(relation.meaning, "purpose")
+        lines.append(f"  {relation.name}: {grain or '(no definition)'}; {purpose or '(claims only)'}")
+    lines.append("")
+    lines.append(f"Derived relations ({len(model.data.derived_relations)}):")
+    for relation in model.data.derived_relations:
+        definition = relation.definition
+        grain = getattr(definition, "grain", "") if definition else ""
+        purpose = _meaning_text(relation.meaning, "purpose")
+        lines.append(f"  {relation.name} [{relation.visibility}]: {grain or '(no definition)'}; {purpose or '(no purpose)'}")
+
+    lines.append("")
+    lines.append(f"Bindings ({len(model.bindings)}):")
+    bound_names: set[str] = set()
+    for binding in model.bindings:
+        component = getattr(binding, "component", "?")
+        bound_names.add(component)
+        purpose = _meaning_text(binding.meaning, "purpose")
+        lines.append(f"  {component}: {purpose or '(no purpose)'}")
+        for limitation in getattr(getattr(binding.meaning, "purpose", None), "limitations", ()) or ():
+            lines.append(f"    limitation: {getattr(limitation, 'text', '')}")
+
+    warnings: list[str] = []
+    if not graph_purpose:
+        warnings.append("the graph declaration has no purpose")
+    node_records = {node.name: node for node in model.graph.nodes}
+    edge_records = {edge.name: edge for edge in model.graph.edges}
+    for name in sorted(bound_names & (set(node_records) | set(edge_records))):
+        record = node_records.get(name) or edge_records.get(name)
+        if not _meaning_text(getattr(record, "meaning", None), "purpose"):
+            warnings.append(f"the bound record {name!r} states no purpose")
+    for relation in model.data.derived_relations:
+        if relation.visibility == "public" and relation.definition is None:
+            warnings.append(f"the published derived relation {relation.name!r} has no definition")
+        if relation.visibility == "public" and not _meaning_text(relation.meaning, "purpose"):
+            warnings.append(f"the published derived relation {relation.name!r} states no purpose")
+    for binding in model.bindings:
+        purpose = _meaning_text(binding.meaning, "purpose")
+        if not purpose:
+            warnings.append(f"the binding {getattr(binding, 'component', '?')!r} states no purpose")
+        elif purpose.startswith(("Supply ", "Populate ", "Fulfil ")) or " from each row's " in purpose:
+            warnings.append(f"the binding {getattr(binding, 'component', '?')!r} reads like a row recipe")
+    names = {
+        column.name
+        for relation in (
+            *model.data.source_relations, *model.data.derived_relations,
+        )
+        for column in relation.columns
+    }
+    names.update(operation.name for operation in model.operations.operations)
+    if any("threshold" in name.lower() for name in names) and not any(
+        "direction" in name.lower() for name in names
+    ):
+        warnings.append(
+            "a threshold is modelled without a comparison direction; state "
+            "whether the adverse side is a minimum or a maximum"
+        )
+
+    lines.append("")
+    lines.append("Review notes:")
+    if warnings:
+        lines.extend(f"  - {warning}" for warning in warnings)
+    else:
+        lines.append("  - no structural review notes")
+    lines.append("")
+    lines.append("This report states the authored argument. It does not prove a")
+    lines.append("fulfilment; the project's tests and a cold-reader review do.")
+    print("\n".join(lines))
+    return 0
+
+
 def add_manifest_commands(commands: Any) -> None:
     """Register ``blueprint``, ``workflow`` and ``run`` on the CLI registry."""
     blueprint = commands.add_parser(
@@ -185,6 +299,15 @@ def add_manifest_commands(commands: Any) -> None:
     )
     workflow.set_defaults(command_handler=run_workflow)
 
+    check = commands.add_parser(
+        "check", help="print the authored semantic argument for review",
+    )
+    check.add_argument(
+        "--project", type=Path, default=Path.cwd(),
+        help="project directory that holds manifest.py",
+    )
+    check.set_defaults(command_handler=run_check)
+
     run = commands.add_parser("run", help="compile and execute a project workflow")
     run.add_argument(
         "--project", type=Path, default=Path.cwd(),
@@ -197,4 +320,4 @@ def add_manifest_commands(commands: Any) -> None:
     run.set_defaults(command_handler=run_workflow_plan)
 
 
-__all__ = ["add_manifest_commands", "read_manifest"]
+__all__ = ["add_manifest_commands", "read_manifest", "run_check"]

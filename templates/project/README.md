@@ -9,6 +9,7 @@ write your first real declaration.
 ```console
 uv sync
 uv run pytest
+uv run kbs check --project project       # print the authored model for review
 uv run kbs blueprint --project project   # build and print the blueprint
 uv run kbs workflow --project project    # compile and print the plan
 uv run kbs run --project project         # compile and execute
@@ -40,21 +41,32 @@ used as defined in RFC 2119.
 ## Replace the fixture
 
 The fixture is a conformance fixture, not a domain model. Its graph, nodes,
-relations and bindings all say “replace it”. The order is:
+relations and bindings all say “replace it”. The order is meaning first:
 
-1. Answer `START-HERE.md`.
-2. Replace the asset in `asset/`.
-3. Replace the source relation in `relation/source/`.
-4. Replace the derived relation and its stage in `relation/derived/`.
-5. Replace the records in `graph/` and the graph declaration.
-6. Replace the bindings in `binding/`.
-7. Delete `data/items.json` and add your source.
-8. If the format is not parquet, json or csv, add an input adapter in
-   `modules/` (see below).
-9. Run `uv run pytest`.
+1. Answer `START-HERE.md` and **keep the answers**. This file is the design
+   record a cold reader reads before the code; it is not a one-off interview.
+2. Replace the graph declaration and record meanings: purpose, records, uses,
+   non-goals and what a consumer may not infer.
+3. Replace the relation contracts: what one row means, its grain, identity and
+   coverage, independent of the graph.
+4. Replace the bindings: which record use each relation fulfils, at what grain,
+   identity and coverage, and where it falls short.
+5. Implement the declarations. Add a derived relation only when a record needs a
+   computation the source rows do not supply; a project with no derived
+   relation or stage is valid.
+6. Delete `data/items.json` and add your source. If the format is not parquet,
+   json or csv, add a source adapter in `modules/` (see below).
+7. Add a value or relation operation only when a domain calculation is missing;
+   do not add one to satisfy a template example.
+8. Run `uv run pytest` and `uv run pyright`.
 
-`kbs init` will copy this template; an empty variant will start without the
-fixture when you prefer to write the first slice directly.
+The release files are inputs, not fixtures. An adapter that reads one may be a
+planner and executor; a source relation may keep a nested structure and let a
+derived relation expand it.
+
+Copy this template into a new project (or use `kbs init` when the installed
+version provides it). The fixture is optional; a project may start from an
+empty package when you prefer to write the first slice directly.
 
 ## Adapt an input
 
