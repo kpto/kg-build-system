@@ -121,25 +121,23 @@ describe("constitution scene", () => {
     }
   });
 
-  it("centres the binding heads and spaces them evenly on the purpose edge", () => {
+  it("centres the purpose heads and spaces them evenly on the purpose edge", () => {
     const purpose = byName("defect")[0];
     const heads = scene.edges
-      .filter(
-        (entry) =>
-          entry.source.startsWith("binding:") &&
-          entry.target === "purpose",
-      )
+      .filter((entry) => entry.target === "purpose")
       .map((entry) => entry.head!)
-      .sort((left, right) => left.y - right.y);
-    expect(heads).toHaveLength(3);
-    const centre = purpose.y + purpose.height / 2;
-    expect(heads[1].y).toBeCloseTo(centre);
-    expect(heads[0].y + heads[2].y).toBeCloseTo(centre * 2);
-    expect(heads[1].y - heads[0].y).toBeCloseTo(
-      heads[2].y - heads[1].y,
+      .sort((left, right) => left.x - right.x);
+    expect(heads.length).toBeGreaterThan(1);
+    const centre = purpose.x + purpose.width / 2;
+    expect((heads[0].x + heads[heads.length - 1].x) / 2).toBeCloseTo(
+      centre,
     );
+    const spacing = heads[1].x - heads[0].x;
+    for (let index = 1; index < heads.length; index += 1) {
+      expect(heads[index].x - heads[index - 1].x).toBeCloseTo(spacing);
+    }
     for (const head of heads) {
-      expect(head.x).toBeCloseTo(purpose.x + purpose.width);
+      expect(head.y).toBeCloseTo(purpose.y + purpose.height);
     }
   });
 
@@ -167,8 +165,9 @@ describe("constitution scene", () => {
     expect(estate.y).toBeGreaterThan(surveys.y);
   });
 
-  it("frames the graph ancestry, the bindings and the relation provenance", () => {
+  it("frames the purpose, the graph ancestry, the bindings and the relation provenance", () => {
     expect(scene.frames.map((frame) => frame.id)).toEqual([
+      "purpose",
       "graph",
       "fulfilment",
       "relation",
@@ -183,12 +182,14 @@ describe("constitution scene", () => {
       item.y + item.height <= entry.y + entry.height;
     const frameFor = (id: (typeof scene.frames)[number]["id"]) =>
       scene.frames.find((frame) => frame.id === id)!;
+    const purposeFrame = frameFor("purpose");
     const graphFrame = frameFor("graph");
     const fulfilmentFrame = frameFor("fulfilment");
     const relationFrame = frameFor("relation");
 
+    expect(contains(purposeFrame, byName("defect")[0])).toBe(true);
     expect(contains(graphFrame, byName("fixture_graph")[0])).toBe(true);
-    expect(contains(graphFrame, byName("defect")[0])).toBe(true);
+    expect(contains(graphFrame, byName("defect")[0])).toBe(false);
     expect(contains(graphFrame, byName("alpha_binding")[0])).toBe(false);
 
     for (const binding of scene.nodes.filter(
@@ -206,17 +207,15 @@ describe("constitution scene", () => {
     expect(scene.offset.x).toBeGreaterThanOrEqual(0);
     expect(scene.offset.y).toBeGreaterThanOrEqual(0);
     expect(scene.labels.map((label) => label.text)).toEqual([
+      "PURPOSE",
       "GRAPH",
       "FULFILMENT",
       "RELATION",
     ]);
     for (const label of scene.labels) {
-      const frame =
-        label.text === "GRAPH"
-          ? graphFrame
-          : label.text === "FULFILMENT"
-            ? fulfilmentFrame
-            : relationFrame;
+      const frame = scene.frames.find(
+        (entry) => entry.id === label.text.toLowerCase(),
+      )!;
       expect(label.x).toBeGreaterThan(frame.x);
       expect(label.y).toBeGreaterThan(frame.y);
       expect(label.y).toBeLessThan(frame.y + frame.height);
@@ -235,13 +234,17 @@ describe("constitution scene", () => {
   });
 
   it("keeps the frames disjoint", () => {
-    const [graphFrame, fulfilmentFrame, relationFrame] = scene.frames;
-    expect(graphFrame.x + graphFrame.width).toBeLessThanOrEqual(
-      fulfilmentFrame.x,
-    );
-    expect(fulfilmentFrame.y + fulfilmentFrame.height).toBeLessThanOrEqual(
-      relationFrame.y,
-    );
+    for (let left = 0; left < scene.frames.length; left += 1) {
+      for (let right = left + 1; right < scene.frames.length; right += 1) {
+        const a = scene.frames[left];
+        const b = scene.frames[right];
+        const overlapX =
+          Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x);
+        const overlapY =
+          Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y);
+        expect(overlapX <= 0 || overlapY <= 0).toBe(true);
+      }
+    }
   });
 });
 

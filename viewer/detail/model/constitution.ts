@@ -53,6 +53,7 @@ export type ConstitutionTarget =
 
 /** The frame a box sits in; a workflow subject adds the workflow frame. */
 export type ConstitutionFrameId =
+  | "purpose"
   | "graph"
   | "fulfilment"
   | "relation"

@@ -126,9 +126,10 @@ opens a document. A workflow component header behaves the same way.
   consumer; a declaration shared by several consumers is one node with one edge
   per consumer, never a copy or a count. The purpose box carries the subject's
   own concept mark, never the graph mark.
-  - A record is one intact DAG: the purpose and graph ancestry are framed on the
-    left, the bindings are together in the FULFILMENT frame, and the relation
-    provenance is framed on the right. There is no separator.
+  - A record is one intact DAG. The subject's purpose has its own PURPOSE
+    frame; the graph ancestry, bindings and relation provenance each have their
+    own frame. The layered layout places those frames; no group is fixed to a
+    side. There is no separator.
   - A source relation shows its purpose over its asset alone; a derived relation
     its purpose over the source relations it scans and their assets. The purpose
     and the asset or scanned sources share one RELATION frame. Neither carries
@@ -138,10 +139,12 @@ opens a document. A workflow component header behaves the same way.
     RELATION frame. Its target record (purpose and identity only) is its
     Contribution, in the GRAPH frame. The record's graph ancestry belongs to the
     record's own constitution.
-  - GRAPH, RELATION, FULFILMENT, WORKFLOW and LAYERS are the frame kinds, and
-    every box sits inside its corresponding frame. WORKFLOW frames
-    build-machinery subjects; LAYERS frames a collection's layer DAG; the three
-    design frames serve every participant.
+  - PURPOSE, GRAPH, RELATION, FULFILMENT, WORKFLOW and LAYERS are the frame
+    kinds, and every box sits inside its corresponding frame. PURPOSE frames
+    the subject anchor; WORKFLOW frames build-machinery subjects; LAYERS frames
+    a collection's layer DAG; GRAPH, RELATION and FULFILMENT frame a
+    participant's components. No frame is pinned to a side: the layered layout
+    places them and the frames are disjoint.
   - An asset is the given source, so it has no Constitution card. A step is
     build machinery and has none either.
   When several arrows meet one box, their heads sit on a centred, evenly spaced

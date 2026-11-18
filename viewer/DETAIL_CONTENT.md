@@ -186,10 +186,12 @@ purpose is not repeated as the binding's parent.
   a derived relation's scanned relations and their assets, and the relations a
   binding reads. A source relation or asset shared by several consumers is one
   node with one edge per consumer.
-- The frame kinds are **GRAPH**, **RELATION**, **FULFILMENT**, **WORKFLOW**
-  and **LAYERS**, and every box sits inside its corresponding frame. A record has
-  its purpose and graph ancestry in the GRAPH frame, its bindings in the
-  FULFILMENT frame, and its relation provenance in the RELATION frame. A source
+- The frame kinds are **PURPOSE**, **GRAPH**, **RELATION**, **FULFILMENT**,
+  **WORKFLOW** and **LAYERS**, and every box sits inside its corresponding
+  frame. A record has its purpose in the PURPOSE frame, its graph ancestry in
+  the GRAPH frame, its bindings in the FULFILMENT frame, and its relation
+  provenance in the RELATION frame. No frame is fixed to a side: the layered
+  layout places them and the frames are disjoint. A source
   or derived relation has its purpose and its asset or scanned sources in one
   RELATION frame. A binding has its purpose in the FULFILMENT frame and the
   relations it reads in the RELATION frame; its target record is its

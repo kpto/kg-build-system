@@ -285,26 +285,6 @@ function bindingRelationEdges(
   return edges;
 }
 
-/**
- * A binding sits beside the purpose. Its edge rises from the binding top into
- * its own lane, angles across the row and enters the purpose's right edge at a
- * distinct point, so no segment crosses another binding box.
- */
-function bindingToPurposePath(
-  binding: ConstitutionSceneNode,
-  purpose: ConstitutionSceneNode,
-  entryY: number,
-  laneY: number,
-): string {
-  const startX = binding.x + binding.width / 2;
-  const startY = binding.y;
-  const endX = purpose.x + purpose.width;
-  const bend = 24;
-  return `M ${startX} ${startY} L ${startX} ${laneY} L ${
-    endX + bend
-  } ${entryY} L ${endX} ${entryY}`;
-}
-
 /** A produced subject enters the purpose's bottom edge at its assigned point. */
 function componentToPurposePath(
   source: ConstitutionSceneNode,
@@ -314,16 +294,6 @@ function componentToPurposePath(
   return `M ${source.x + source.width / 2} ${source.y} L ${entryX} ${
     purpose.y + purpose.height
   }`;
-}
-
-/** The ancestry supplies the purpose from below, in the same column. */
-function ancestryToPurposePath(
-  ancestor: ConstitutionSceneNode,
-  purpose: ConstitutionSceneNode,
-): string {
-  return `M ${ancestor.x + ancestor.width / 2} ${ancestor.y} L ${
-    purpose.x + purpose.width / 2
-  } ${purpose.y + purpose.height}`;
 }
 
 /** The last segment gives the arrowhead tip and direction. */
@@ -425,10 +395,11 @@ function isComponentsSubject(kind: ConstitutionNode["kind"]): boolean {
 }
 
 /**
- * A record's constitution: one DAG whose graph ancestry sits on the left and
- * whose relation provenance sits on the right. The binding nodes connect the
- * two sides and are enclosed by the fulfilment frame. The graph purpose and the
- * bindings converge on the purpose; no separator or axis frame divides them.
+ * A record's constitution: one DAG whose graph ancestry and relation provenance
+ * are placed by the layered layout, with no fixed side for either. The binding
+ * nodes connect the two sides and are enclosed by the fulfilment frame. The
+ * graph purpose and the bindings converge on the purpose; no separator or axis
+ * frame divides them.
  */
 function buildRecordScene(model: ConstitutionModel): ConstitutionScene {
   const nodes: ConstitutionSceneNode[] = [];
@@ -490,68 +461,15 @@ function buildRecordScene(model: ConstitutionModel): ConstitutionScene {
   const purposePositioned = positioned.find(
     (node) => node.id === purpose.id,
   )!;
-  const graphLeft = Math.min(
-    ...positioned
-      .filter((node) => node.axis === "graph")
-      .map((node) => node.x),
-    purposePositioned.x,
-  );
-  purposePositioned.x = graphLeft;
   nodes.push(...positioned);
   const positionedById = new Map(
     positioned.map((node) => [node.id, node]),
   );
-  distributeConnections(edges, positioned, new Set([purpose.id]));
-  const bindingNodes = positioned.filter((node) => node.axis === "binding");
-  const sortedBindings = [...bindingNodes].sort(
-    (left, right) => left.x - right.x,
-  );
-  const entryY = new Map<string, number>();
-  const laneY = new Map<string, number>();
-  const bindingCount = sortedBindings.length;
-  // Keep the heads around the edge centre, evenly spaced, rather than pinned
-  // to the corners; the same rule spaces the lanes above the binding row.
-  const entrySpacing =
-    bindingCount > 1
-      ? Math.min(
-          20,
-          (purposePositioned.height - 32) / (bindingCount - 1),
-        )
-      : 0;
-  const entryCentre =
-    purposePositioned.y + purposePositioned.height / 2;
-  const laneSpacing = 8;
-  const laneCentre = sortedBindings[0]
-    ? sortedBindings[0].y - 44
-    : purposePositioned.y;
-  sortedBindings.forEach((binding, index) => {
-    entryY.set(
-      binding.id,
-      entryCentre +
-        (index - (bindingCount - 1) / 2) * entrySpacing,
-    );
-    laneY.set(
-      binding.id,
-      laneCentre +
-        ((bindingCount - 1) / 2 - index) * laneSpacing,
-    );
-  });
   links.forEach((edge) => {
     const source = positionedById.get(edge.source);
     const target = positionedById.get(edge.target);
     if (!source || !target) return;
-    const path =
-      edge.target === purpose.id
-        ? source.axis === "binding"
-          ? bindingToPurposePath(
-              source,
-              purposePositioned,
-              entryY.get(source.id) ??
-                purposePositioned.y + purposePositioned.height / 2,
-              laneY.get(source.id) ?? source.y - 36,
-            )
-          : ancestryToPurposePath(source, purposePositioned)
-        : layered.paths.get(`${edge.source}->${edge.target}`);
+    const path = layered.paths.get(`${edge.source}->${edge.target}`);
     if (!path) return;
     edges.push({
       id: `${edge.source}->${edge.target}`,
@@ -561,15 +479,20 @@ function buildRecordScene(model: ConstitutionModel): ConstitutionScene {
       head: edgeHead(path),
     });
   });
+  distributeConnections(edges, positioned, new Set());
+  const bindingNodes = positioned.filter((node) => node.axis === "binding");
   const axes = [
+    {
+      id: "purpose" as const,
+      text: "PURPOSE",
+      frame: frameFor("purpose", [purposePositioned]),
+    },
     {
       id: "graph" as const,
       text: "GRAPH",
       frame: frameFor(
         "graph",
-        positioned.filter(
-          (node) => node.axis === "purpose" || node.axis === "graph",
-        ),
+        positioned.filter((node) => node.axis === "graph"),
       ),
     },
     {
@@ -611,7 +534,7 @@ function buildRecordScene(model: ConstitutionModel): ConstitutionScene {
     const last = bindingNodes.reduce((lower, node) =>
       node.y + node.height > lower.y + lower.height ? node : lower,
     );
-    const fulfilmentFrame = axes[1].frame;
+    const fulfilmentFrame = axes[2].frame;
     notes.push({
       text: "No relation is shown.",
       x: fulfilmentFrame
@@ -880,6 +803,7 @@ function buildComponentsScene(model: ConstitutionModel): ConstitutionScene {
 }
 
 const FRAME_LABEL: Record<ConstitutionFrameId, string> = {
+  purpose: "PURPOSE",
   graph: "GRAPH",
   fulfilment: "FULFILMENT",
   relation: "RELATION",
@@ -1027,6 +951,7 @@ function buildBoundaryScene(
   const frames: ConstitutionSceneFrame[] = [];
   const labels: ConstitutionSceneLabel[] = [];
   for (const id of [
+    "purpose",
     "graph",
     "fulfilment",
     "relation",
