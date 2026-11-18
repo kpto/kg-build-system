@@ -160,13 +160,14 @@ missing, not the code.
   framed on the left, one box per binding in the fulfilment frame, and the
   relation provenance framed on the right; no separator divides the graph.
   A source relation shows only its asset; a derived relation only its scanned
-  source relations and their assets; a binding shows the target record's
-  purpose and identity and the relations it reads; an asset is the origin and
-  has no card. A source or derived relation puts its purpose and provenance in
-  one RELATION frame; a binding puts its purpose in the FULFILMENT frame, its
-  target record in the GRAPH frame and its relations in the RELATION frame.
-  GRAPH, RELATION and FULFILMENT are the only frame kinds, and every box sits
-  inside its corresponding frame.
+  source relations and their assets; a binding shows the relations it reads; an
+  asset is the origin and has no card. A source or derived relation puts its
+  purpose and provenance in one RELATION frame; a binding puts its purpose in
+  the FULFILMENT frame and its relations in the RELATION frame. Its target
+  record is its contribution, in the GRAPH frame. GRAPH, RELATION, FULFILMENT,
+  WORKFLOW and LAYERS are the frame kinds, and every box sits inside its
+  corresponding frame. A collection's layer DAG uses one LAYERS frame; a step
+  boundary uses WORKFLOW.
   A shared declaration is one node with one edge per consumer; a binding is
   never the parent of either side, and each box carries its own concept mark
   and concept-tinted background.
@@ -287,18 +288,19 @@ missing, not the code.
   connections and bindings. A binding document leads with its constitution,
   then meaning when present, expression and build steps; a record reaches the
   computation through its bindings.
-- A participant detail states its full dependency and only the immediate
-  dependant. A page that lists two levels up is wrong even when its rows are
-  true. Dependency is the chain below, back to the asset; dependant is the one
-  layer above.
+- A participant detail states its full constitution and only the immediate
+  contribution. A page that lists two levels up is wrong even when its rows are
+  true. Constitution is the chain below, back to the asset; contribution is the
+  one layer above. Both use the same constitution DAG, with the subject's
+  purpose as the anchor.
 - Every Explorer row is a document. A header's body opens its collection and
   its arrow unfolds the list; the body never toggles and the arrow never opens
   the document. A virtual collection is a layer read as a group, not a declared
   subject: it has no Meaning card, uses the layer's concept mark, and carries
-  Dependency (the full layer DAG below at layer resolution), Dependant (one
-  layer above), Items and Coverage. Abstract nodes and edges are participants:
-  an abstract dependency uses its own binding layer and its dependants are
-  immediate children only.
+  Constitution (the full layer DAG below at layer resolution), Contribution
+  (one layer above), Items and Coverage, both directions in the same DAG.
+  Abstract nodes and edges are participants: an abstract constitution uses its
+  own binding layer and its contribution is its immediate children only.
 - Motion is feedback, not decoration: short ease-out transitions on transform and
   opacity, origin-aware entrances, and reduced motion removes movement.
 - End every change report with the rule-promotion result: none, refined or
