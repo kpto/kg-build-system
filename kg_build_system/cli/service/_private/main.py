@@ -52,6 +52,16 @@ def _run_console(arguments: argparse.Namespace) -> int:
     return 0
 
 
+def _run_guide(arguments: argparse.Namespace) -> int:
+    from importlib.resources import files
+
+    text = files("kg_build_system").joinpath("PHILOSOPHY.md").read_text(
+        encoding="utf-8"
+    )
+    print(text, end="")
+    return 0
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="kbs",
@@ -59,7 +69,7 @@ def _parser() -> argparse.ArgumentParser:
         epilog=(
             "command groups:\n"
             "  model     generate, init, blueprint, workflow, check, run\n"
-            "  read      view (design viewer), console (project console)\n"
+            "  read      view (design viewer), console (project console), guide\n"
             "  notebook  kbs notebook status|relations|snapshot|findings|propose|"
             "decide|revisions|compare|eval\n"
         ),
@@ -106,6 +116,16 @@ def _parser() -> argparse.ArgumentParser:
         help="serve only the notebook API for a separate console and viewer",
     )
     console.set_defaults(command_handler=_run_console)
+
+    guide = commands.add_parser(
+        "guide",
+        help="print the framework philosophy",
+        description=(
+            "Print the framework's philosophy: the principles it enforces and "
+            "the practices each one rules out."
+        ),
+    )
+    guide.set_defaults(command_handler=_run_guide)
     return parser
 
 
