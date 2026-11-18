@@ -7,7 +7,6 @@
     flex: none;
     flex-direction: column;
     overflow: hidden;
-    padding-top: var(--space-group);
     background-color: var(--color-panel);
   }
 

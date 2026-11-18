@@ -373,7 +373,7 @@ export function ExplorerSidebar(props: WorkspaceProps) {
       : undefined;
   const { state: workflowUi } = useWorkflowUi(props.state.snapshot.name);
   const focusedComponent = workflowUi.filters.component;
-  const sectionOpen = (id: string) => Boolean(normalized) || open.has(id);
+  const sectionOpen = (id: string) => open.has(id);
   const workflowSectionOpen = sectionOpen("workflow");
 
   // Reveal the active workflow context once when it changes. The reveal is a
@@ -552,6 +552,32 @@ export function ExplorerSidebar(props: WorkspaceProps) {
   const concreteEdges = edges.filter((edge) => !edge.abstract);
   const abstractEdges = edges.filter((edge) => edge.abstract);
 
+  // A filter reveals matching sections and tree rows once. After that the
+  // reader may fold them; changing the query is the only thing that reveals
+  // them again.
+  useEffect(() => {
+    if (!normalized) return;
+    setOpen((current) => {
+      const next = new Set(current);
+      if (assets.length) next.add("assets");
+      if (tables.length) next.add("tables");
+      if (projections.length) next.add("projections");
+      if (concreteNodes.length) next.add("nodes");
+      if (abstractNodes.length || abstractEdges.length) next.add("abstract");
+      if (concreteEdges.length) next.add("edges");
+      if (bindings.length) next.add("bindings");
+      if (filteredWorkflowRows.length) next.add("workflow");
+      return next;
+    });
+    setExpanded((current) => {
+      const next = new Set(current);
+      for (const node of nodes) next.add(`node:${node.name}`);
+      for (const edge of edges) next.add(`edge:${edge.name}`);
+      for (const group of workflowGroups) next.add(`wf:${group.component}`);
+      return next;
+    });
+  }, [normalized]);
+
   const isActive = (
     level: ProofLevel,
     component: string,
@@ -562,7 +588,7 @@ export function ExplorerSidebar(props: WorkspaceProps) {
     (property === undefined || active.property === property);
 
   const renderNode = (node: (typeof nodes)[number]) => {
-    const nodeOpen = normalized ? true : expanded.has(`node:${node.name}`);
+    const nodeOpen = expanded.has(`node:${node.name}`);
     const properties = (node.properties ?? []).filter((property) =>
       matches(normalized, property.name, node.name),
     );
@@ -716,7 +742,7 @@ export function ExplorerSidebar(props: WorkspaceProps) {
   };
 
   const renderEdge = (edge: (typeof edges)[number]) => {
-    const edgeOpen = normalized ? true : expanded.has(`edge:${edge.name}`);
+    const edgeOpen = expanded.has(`edge:${edge.name}`);
     const edgeConcept = edge.abstract ? "abstractEdge" : "edge";
     const properties = (edge.properties ?? []).filter((property) =>
       matches(normalized, property.name, edge.name),
@@ -1055,7 +1081,7 @@ export function ExplorerSidebar(props: WorkspaceProps) {
           {workflowGroups.length ? (
             workflowGroups.map((group) => {
               const groupKey = `wf:${group.component}`;
-              const groupOpen = normalized ? true : expanded.has(groupKey);
+              const groupOpen = expanded.has(groupKey);
               return (
                 <div key={groupKey} className={styles.treeBlock}>
                   <div className={styles.treeRow}>
