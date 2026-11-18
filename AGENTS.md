@@ -305,8 +305,12 @@ missing, not the code.
   both directions in the same DAG. There is no collection root. A large set
   accepts items until the boundary reaches a readable size and states how many
   items are shown; it never shows layer boxes or links to another collection.
-  Abstract nodes and edges are participants: an abstract constitution uses its
-  own binding layer and its contribution is its immediate children only.
+  The boundary is ordered in vertical level bands: an asset is below a source
+  relation, a source relation below a derived relation, a derived relation below
+  a binding, and a record above a binding. A Constitution puts the items in the
+  top band; a Contribution puts them in the bottom band. Abstract nodes and
+  edges are participants: an abstract constitution uses its own binding layer
+  and its contribution is its immediate children only.
 - Motion is feedback, not decoration: short ease-out transitions on transform and
   opacity, origin-aware entrances, and reduced motion removes movement.
 - End every change report with the rule-promotion result: none, refined or
