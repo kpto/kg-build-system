@@ -54,22 +54,13 @@
     overflow-wrap: anywhere;
   }
 
-  .role {
+  .subtitle {
     margin: var(--space-hairline) 0 0;
     color: var(--color-faint);
     font-size: var(--text-micro);
     font-weight: var(--weight-bold);
     letter-spacing: var(--tracking-widest);
     text-transform: uppercase;
-  }
-
-  .subtitle {
-    margin: var(--space-hairline) 0 0;
-    color: var(--color-muted);
-    font-family: var(--font-mono);
-    font-size: var(--text-label);
-    line-height: var(--leading-normal);
-    overflow-wrap: anywhere;
   }
 
   .facts {

@@ -17,7 +17,6 @@ import type { ConceptKind, ConceptTarget } from "@/lib/concepts";
 import { meaningCount, type DesignMeaningValue } from "@/shared/design/meaning";
 import { DesignMeaning } from "@/shared/design/DesignMeaning";
 import { ConceptGlyph } from "./ConceptMark";
-import { concepts } from "./concepts";
 
 import styles from "./conceptPreview.module.css";
 
@@ -34,11 +33,8 @@ export interface ConceptPreviewFact {
 export interface ConceptPreviewModel {
   concept: ConceptKind;
   name: string;
-  /** The specific role, for example `Abstract node` or `Source relation`. */
+  /** The concept name, for example `Abstract node` or `Source relation`. */
   kind: string;
-  /** The instance's immediate context: owner, container, source, target or
-   * endpoints. Every preview states one. */
-  subtitle: string;
   facts: ConceptPreviewFact[];
   meaning?: DesignMeaningValue;
 }
@@ -214,10 +210,7 @@ function ConceptPreviewCard({
         <ConceptGlyph concept={model.concept} className={styles.mark} />
         <p className={styles.name}>{model.name}</p>
       </header>
-      {model.kind !== concepts[model.concept].label ? (
-        <p className={styles.role}>{model.kind}</p>
-      ) : null}
-      <p className={styles.subtitle}>{model.subtitle}</p>
+      <p className={styles.subtitle}>{model.kind}</p>
 
       {model.facts.length ? (
         <dl className={styles.facts}>
