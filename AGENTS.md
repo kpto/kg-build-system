@@ -273,9 +273,10 @@ missing, not the code.
   role, and leaves the next card peeking as the cue for more. The body is set
   off by the region gap and a page-scale left inset, so proximity groups the
   title with its mark and the body as the reading region. The card has no
-  border, background or radius; the body owns vertical scroll, the deck owns
-  horizontal scroll. The index is the only card navigation and does not follow
-  the scroll position.
+  border, background or radius; the deck owns horizontal scroll and the card
+  body owns vertical scroll, except a graph or tree viewport, which fills the
+  body and owns that scroll; a compact list or lane may cap its height. The
+  index is the only card navigation and does not follow the scroll position.
 - A label stays with the group it names; do not push it to a shared baseline
   with auto spacing when that separates it from its content.
 - Every tab uses one banner for identity, overview and view actions. A detail
