@@ -213,8 +213,10 @@ Single-clicking a node or a property row only changes the transient **Inspect**
 selection; it does not open a tab. Explorer rows single-click into a reusable
 preview tab and double-click into a permanent tab. A subject has one document:
 a pill, row, reference or command-palette entry for an already-open subject
-activates its existing tab rather than opening a second one. A middle click on
-a pill opens a permanent tab in the background without switching to it.
+activates its existing tab rather than opening a second one. Hovering or
+focusing a pill previews the concept instance in a shared popup with its
+identity, key facts and stated meaning. A middle click on a pill opens a
+permanent tab in the background without switching to it.
 Right-clicking an Explorer item offers **Go to Graph** for graph subjects and
 **Go to Workflow** for workflow components and steps. A workflow component
 selected in Control or in the Workflow graph expands its step group in

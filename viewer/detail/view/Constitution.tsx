@@ -1,25 +1,15 @@
 "use client";
 
-import {
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-} from "react";
-import { createPortal } from "react-dom";
+import { useMemo, useState, type CSSProperties } from "react";
 
 import type { ConceptKind } from "@/lib/concepts";
 import { concepts } from "@/shared/ui/concepts";
 import { GraphCanvas } from "@/shared/ui/GraphCanvas";
 import { ConceptPill } from "./ConceptPill";
 import { cx } from "@/shared/ui/theme";
-import { DesignMeaning } from "@/shared/design/DesignMeaning";
 import type { ConstitutionModel, ConstitutionNode } from "../model/constitution";
 import {
   buildConstitutionScene,
-  sceneNodeId,
   type ConstitutionScene,
 } from "./constitutionScene";
 import styles from "./constitution.module.css";
@@ -30,9 +20,6 @@ export interface ConstitutionProps {
   label?: string;
 }
 
-const CARD_WIDTH = 440;
-const CARD_MAX_HEIGHT = 380;
-
 /** A constitution level names the same layers with one relation spelling. */
 function pillConcept(kind: ConstitutionNode["kind"]): ConceptKind {
   if (kind === "relation") return "table";
@@ -40,41 +27,22 @@ function pillConcept(kind: ConstitutionNode["kind"]): ConceptKind {
   return kind;
 }
 
-interface HoveredBox {
-  node: ConstitutionNode;
-  rect: DOMRect;
-}
-
-function boxKey(node: ConstitutionNode): string {
-  return sceneNodeId(node);
-}
-
 function Box({
   node,
   root = false,
   binding = false,
-  hoverable = true,
   text,
   component,
   bindingIndex,
   stepId,
-  hovered,
-  hoverCardId,
-  onHover,
-  onLeave,
 }: {
   node: ConstitutionNode;
   root?: boolean;
   binding?: boolean;
-  hoverable?: boolean;
   text?: string;
   component?: string;
   bindingIndex?: number;
   stepId?: [string, string];
-  hovered: boolean;
-  hoverCardId: string;
-  onHover(node: ConstitutionNode, element: HTMLElement): void;
-  onLeave(): void;
 }) {
   const meaningPurpose = node.meaning.purpose;
   const body =
@@ -100,25 +68,6 @@ function Box({
       data-root={root || undefined}
       data-binding={binding || undefined}
       data-current={node.current || undefined}
-      tabIndex={hoverable ? 0 : undefined}
-      onMouseEnter={
-        hoverable
-          ? (event) => onHover(node, event.currentTarget)
-          : undefined
-      }
-      onMouseLeave={hoverable ? onLeave : undefined}
-      onFocus={
-        hoverable
-          ? (event) => onHover(node, event.currentTarget)
-          : undefined
-      }
-      onBlur={hoverable ? onLeave : undefined}
-      aria-label={
-        hoverable
-          ? `${node.label} ${node.name}: full meaning`
-          : undefined
-      }
-      aria-describedby={hoverable && hovered ? hoverCardId : undefined}
     >
       <div className={styles.constitutionMeta}>
         <ConceptPill
@@ -162,20 +111,12 @@ function Box({
  */
 function ConstitutionSceneView({
   scene,
-  hoveredKey,
-  hoverCardId,
   selectedId,
   onSelect,
-  onHover,
-  onLeave,
 }: {
   scene: ConstitutionScene;
-  hoveredKey?: string;
-  hoverCardId: string;
   selectedId?: string;
   onSelect(id: string): void;
-  onHover(node: ConstitutionNode, element: HTMLElement): void;
-  onLeave(): void;
 }) {
   const incident = useMemo(() => {
     if (!selectedId) return new Set<string>();
@@ -261,15 +202,10 @@ function ConstitutionSceneView({
                   node={node.node}
                   root={node.axis === "subject"}
                   binding={node.axis === "binding" && !node.node.collection}
-                  hoverable={node.hoverable}
                   text={node.text}
                   component={node.component}
                   bindingIndex={node.bindingIndex}
                   stepId={node.stepId}
-                  hovered={hoveredKey === boxKey(node.node)}
-                  hoverCardId={hoverCardId}
-                  onHover={onHover}
-                  onLeave={onLeave}
                 />
               </div>
             </foreignObject>
@@ -309,63 +245,14 @@ function ConstitutionSceneView({
  * The subject as one constitution DAG: the graph ancestry on the left, the
  * relation provenance on the right and the binding nodes between them in the
  * fulfilment frame. Every edge points up from the supply to the consumer;
- * shared declarations are one node. Hovering or focusing a node reveals its
- * full meaning in a portal; selecting a node dims the rest and keeps its
- * incident edges.
+ * shared declarations are one node. Selecting a node dims the rest and keeps
+ * its incident edges; a node's pill carries the universal concept preview.
  */
 export function Constitution({
   model,
   label = "Constitution",
 }: ConstitutionProps) {
-  const [hovered, setHovered] = useState<HoveredBox | null>(null);
   const [selectedId, setSelectedId] = useState<string>();
-  const closeTimer = useRef<number | null>(null);
-  const cardRef = useRef<HTMLElement | null>(null);
-  const hoverCardId = useId();
-
-  const cancelClose = () => {
-    if (closeTimer.current !== null) {
-      window.clearTimeout(closeTimer.current);
-      closeTimer.current = null;
-    }
-  };
-  const scheduleClose = () => {
-    cancelClose();
-    closeTimer.current = window.setTimeout(() => setHovered(null), 140);
-  };
-
-  useEffect(() => cancelClose, []);
-
-  useEffect(() => {
-    if (!hovered) return;
-    const close = () => setHovered(null);
-    // A scroll inside the card is the reader scrolling the card's own
-    // meaning. Only a scroll outside it dismisses the card.
-    const outside = (event: Event) => {
-      if (cardRef.current?.contains(event.target as Node)) return;
-      close();
-    };
-    const escape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") close();
-    };
-    window.addEventListener("scroll", outside, true);
-    window.addEventListener("resize", close);
-    document.addEventListener("pointerdown", outside, true);
-    window.addEventListener("keydown", escape);
-    return () => {
-      window.removeEventListener("scroll", outside, true);
-      window.removeEventListener("resize", close);
-      document.removeEventListener("pointerdown", outside, true);
-      window.removeEventListener("keydown", escape);
-    };
-  }, [hovered]);
-
-  const openHover = (node: ConstitutionNode, element: HTMLElement) => {
-    cancelClose();
-    setHovered({ node, rect: element.getBoundingClientRect() });
-  };
-
-  const hoveredKey = hovered ? boxKey(hovered.node) : undefined;
 
   const scene = useMemo(() => buildConstitutionScene(model), [model]);
   const fitKey = useMemo(
@@ -376,18 +263,6 @@ export function Constitution({
       ].join("|"),
     [scene],
   );
-
-  const hoveredLeft = hovered
-    ? Math.min(
-        Math.max(12, hovered.rect.left),
-        Math.max(12, window.innerWidth - CARD_WIDTH - 12),
-      )
-    : 0;
-  const hoveredTop = hovered
-    ? hovered.rect.bottom + 8 + CARD_MAX_HEIGHT > window.innerHeight
-      ? Math.max(12, hovered.rect.top - CARD_MAX_HEIGHT - 8)
-      : hovered.rect.bottom + 8
-    : 0;
 
   return (
     <div className={styles.constitution} aria-label={label}>
@@ -403,46 +278,10 @@ export function Constitution({
       >
         <ConstitutionSceneView
           scene={scene}
-          hoveredKey={hoveredKey}
-          hoverCardId={hoverCardId}
           selectedId={selectedId}
           onSelect={setSelectedId}
-          onHover={openHover}
-          onLeave={scheduleClose}
         />
       </GraphCanvas>
-
-      {hovered
-        ? createPortal(
-            <aside
-              ref={cardRef}
-              className={styles.meaningHover}
-              style={{
-                left: hoveredLeft,
-                top: hoveredTop,
-                width: CARD_WIDTH,
-              }}
-              id={hoverCardId}
-              role="tooltip"
-              onMouseEnter={cancelClose}
-              onMouseLeave={scheduleClose}
-            >
-              <header className={styles.meaningHoverHead}>
-                <span>{hovered.node.label}</span>
-                <strong>{hovered.node.name}</strong>
-                <span>full meaning</span>
-              </header>
-              <DesignMeaning
-                claims={hovered.node.meaning.claims}
-                limitations={hovered.node.meaning.limitations}
-                purpose={hovered.node.meaning.purpose}
-                frames={hovered.node.meaning.frames}
-                emptyText="Meaning omitted at this level."
-              />
-            </aside>,
-            document.body,
-          )
-        : null}
     </div>
   );
 }

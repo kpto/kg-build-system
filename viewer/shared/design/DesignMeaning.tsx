@@ -11,6 +11,8 @@ export interface DesignMeaningProps {
   /** Readings carried by a snapshot that predates the purpose model. */
   frames?: Array<{ text: string; limitations?: SemanticText[] }>;
   emptyText?: string;
+  /** Use the compact reading for a preview or another bounded surface. */
+  compact?: boolean;
 }
 
 /**
@@ -25,13 +27,14 @@ export function DesignMeaning({
   purpose,
   frames = [],
   emptyText = "Meaning omitted for this subject.",
+  compact = false,
 }: DesignMeaningProps) {
   if (!purpose && !claims.length && !limitations.length && !frames.length) {
     return <p className={styles.meaningEmpty}>{emptyText}</p>;
   }
 
   return (
-    <div className={styles.meaning}>
+    <div className={compact ? `${styles.meaning} ${styles.meaningCompact}` : styles.meaning}>
       {purpose ? (
         <div className={styles.meaningPurposeLead}>
           <p className={styles.meaningLabel}>Purpose</p>

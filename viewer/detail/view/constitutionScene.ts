@@ -27,7 +27,6 @@ export interface ConstitutionSceneNode {
   node: ConstitutionNode;
   /** The binding's purpose, shown instead of the node's own purpose. */
   text?: string;
-  hoverable?: boolean;
   /** The pill's owner and binding identity for navigation. */
   component?: string;
   bindingIndex?: number;
@@ -245,12 +244,6 @@ function bindingNode(binding: ConstitutionBinding): ConstitutionSceneNode {
     component: binding.component,
     bindingIndex: binding.index,
     text: binding.purpose ?? binding.meaning.purpose ?? "No purpose is stated.",
-    hoverable: Boolean(
-      binding.meaning.purpose ||
-        binding.meaning.claims.length ||
-        binding.meaning.limitations.length ||
-        (binding.meaning.frames?.length ?? 0),
-    ),
     x: 0,
     y: 0,
     ...NODE.binding,
@@ -415,7 +408,6 @@ function buildRecordScene(model: ConstitutionModel): ConstitutionScene {
     id: "subject",
     axis: "subject",
     node: model.subject,
-    ...(model.subject.kind === "step" ? { hoverable: false } : {}),
     x: 0,
     y: 0,
     ...NODE.subject,
@@ -427,7 +419,6 @@ function buildRecordScene(model: ConstitutionModel): ConstitutionScene {
     x: 0,
     y: 0,
     ...NODE.graph,
-    ...(node.collection ? { hoverable: false } : {}),
   }));
   const bindings = model.bindings.map(bindingNode);
   const provenance = relationProvenance(model.relation);
@@ -604,7 +595,6 @@ function buildComponentsScene(model: ConstitutionModel): ConstitutionScene {
     id: "subject",
     axis: "subject",
     node: model.subject,
-    ...(model.subject.kind === "step" ? { hoverable: false } : {}),
     x: 0,
     y: 0,
     ...NODE.subject,
@@ -616,7 +606,6 @@ function buildComponentsScene(model: ConstitutionModel): ConstitutionScene {
     x: 0,
     y: 0,
     ...NODE.graph,
-    ...(node.collection ? { hoverable: false } : {}),
   }));
   const provenance = relationProvenance(model.relation);
   const relationNodes = [...provenance.nodes.values()].map(relationNode);
@@ -1022,7 +1011,6 @@ function buildContributionScene(model: ConstitutionModel): ConstitutionScene {
     id: "subject",
     axis: "subject",
     node: model.subject,
-    ...(model.subject.kind === "step" ? { hoverable: false } : {}),
     x: 0,
     y: 0,
     ...NODE.subject,
@@ -1034,7 +1022,6 @@ function buildContributionScene(model: ConstitutionModel): ConstitutionScene {
     x: 0,
     y: 0,
     ...NODE.graph,
-    ...(node.collection ? { hoverable: false } : {}),
   }));
   const relationNodes = model.relation.map((relation) =>
     relationNode(relation.node),
@@ -1048,7 +1035,6 @@ function buildContributionScene(model: ConstitutionModel): ConstitutionScene {
       x: 0,
       y: 0,
       ...NODE.relation,
-      hoverable: false,
     }),
   );
   const nodes = [
@@ -1079,7 +1065,6 @@ function buildWorkflowScene(model: ConstitutionModel): ConstitutionScene {
     id: "subject",
     axis: "subject",
     node: model.subject,
-    hoverable: false,
     x: 0,
     y: 0,
     ...NODE.subject,
@@ -1092,7 +1077,6 @@ function buildWorkflowScene(model: ConstitutionModel): ConstitutionScene {
       x: 0,
       y: 0,
       ...NODE.relation,
-      hoverable: false,
     }),
   );
   const nodes = [subject, ...workflowNodes];

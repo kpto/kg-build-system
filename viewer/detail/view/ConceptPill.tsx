@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 import type { ConceptKind, ConceptTarget } from "@/lib/concepts";
 import { ConceptGlyph } from "@/shared/ui/ConceptMark";
 import { useConceptNavigation } from "@/shared/ui/ConceptNavigation";
+import { useConceptPreview } from "@/shared/ui/ConceptPreview";
 import { concepts } from "@/shared/ui/concepts";
 import styles from "./ConceptPill.module.css";
 
@@ -68,6 +69,7 @@ export function ConceptPill({
     ...(stepId ? { stepId } : {}),
     ...(bindingIndex !== undefined ? { bindingIndex } : {}),
   };
+  const preview = useConceptPreview(target);
   const body = (
     <>
       <ConceptGlyph concept={concept} className={styles.mark} active={active} />
@@ -91,26 +93,38 @@ export function ConceptPill({
   }
 
   return (
-    <button
-      type="button"
-      className={classes}
-      style={style}
-      data-concept={concept}
-      data-active={active || undefined}
-      title={title ?? `Open ${definition.label.toLowerCase()} ${name}`}
-      aria-label={`Open ${definition.label.toLowerCase()} ${name}`}
-      onClick={() => navigation.open(target)}
-      onMouseDown={(event) => {
-        if (event.button === 1) event.preventDefault();
-      }}
-      onAuxClick={(event) => {
-        if (event.button !== 1) return;
-        event.preventDefault();
-        navigation.open(target, { background: true });
-      }}
-    >
-      {body}
-    </button>
+    <>
+      <button
+        type="button"
+        className={classes}
+        style={style}
+        data-concept={concept}
+        data-active={active || undefined}
+        title={title ?? `Open ${definition.label.toLowerCase()} ${name}`}
+        aria-label={`Open ${definition.label.toLowerCase()} ${name}`}
+        aria-describedby={preview.describedBy}
+        onMouseEnter={(event) => preview.open(event.currentTarget)}
+        onMouseLeave={preview.scheduleClose}
+        onFocus={(event) => preview.open(event.currentTarget)}
+        onBlur={preview.scheduleClose}
+        onClick={() => {
+          preview.dismiss();
+          navigation.open(target);
+        }}
+        onMouseDown={(event) => {
+          if (event.button === 1) event.preventDefault();
+        }}
+        onAuxClick={(event) => {
+          if (event.button !== 1) return;
+          event.preventDefault();
+          preview.dismiss();
+          navigation.open(target, { background: true });
+        }}
+      >
+        {body}
+      </button>
+      {preview.popup}
+    </>
   );
 }
 

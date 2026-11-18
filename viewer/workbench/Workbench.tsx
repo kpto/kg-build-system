@@ -8,6 +8,7 @@ import { buildViewerIndex } from "@/lib/indexes";
 import { loadSnapshot } from "@/lib/load";
 import type { ViewerIndex, ViewerSnapshot } from "@/lib/types";
 import { ConceptNavigationProvider } from "@/shared/ui/ConceptNavigation";
+import { ConceptPreviewProvider } from "@/shared/ui/ConceptPreview";
 import { cx } from "@/shared/ui/theme";
 import { CommandPalette } from "./CommandPalette";
 import { EditorArea } from "./EditorArea";
@@ -22,6 +23,7 @@ import {
   postToParent,
   snapshotFromOpen,
 } from "./embed";
+import { previewForConceptTarget } from "./conceptPreview";
 import { destinationForConceptTarget } from "./conceptTarget";
 import { WorkbenchProvider, useWorkbench } from "./store";
 import { MAX_SIDEBAR, MIN_SIDEBAR, lensSelection } from "./types";
@@ -149,6 +151,14 @@ function WorkbenchShell() {
   );
   const selection = lensSelection(state);
   const selectionSignature = selection ? JSON.stringify(selection) : "";
+  const conceptPreview = useMemo(
+    () => ({
+      preview: (target: ConceptTarget) =>
+        previewForConceptTarget(state.index, target),
+    }),
+    [state.index],
+  );
+
   const conceptNavigation = useMemo(
     () => ({
       open: (
@@ -242,36 +252,38 @@ function WorkbenchShell() {
   }, [actions]);
 
   return (
-    <ConceptNavigationProvider navigation={conceptNavigation}>
-      <div className={cx(styles.shell, "ui-grain")} data-testid="workbench">
-        <div className={styles.body}>
-          {sidebarVisible ? (
-            <>
-              <SideBar />
-              <Splitter
-                orientation="vertical"
-                value={layout.sidebarWidth}
-                min={MIN_SIDEBAR}
-                max={MAX_SIDEBAR}
-                label="Resize side bar"
-                onChange={(value) => actions.setLayout({ sidebarWidth: value })}
+    <ConceptPreviewProvider value={conceptPreview}>
+      <ConceptNavigationProvider navigation={conceptNavigation}>
+        <div className={cx(styles.shell, "ui-grain")} data-testid="workbench">
+          <div className={styles.body}>
+            {sidebarVisible ? (
+              <>
+                <SideBar />
+                <Splitter
+                  orientation="vertical"
+                  value={layout.sidebarWidth}
+                  min={MIN_SIDEBAR}
+                  max={MAX_SIDEBAR}
+                  label="Resize side bar"
+                  onChange={(value) => actions.setLayout({ sidebarWidth: value })}
+                />
+              </>
+            ) : null}
+
+            <div className={styles.main}>
+              <EditorArea
+                sidebarVisible={sidebarVisible}
+                onToggleSidebar={() => setSidebarVisible((visible) => !visible)}
               />
-            </>
-          ) : null}
-
-          <div className={styles.main}>
-            <EditorArea
-              sidebarVisible={sidebarVisible}
-              onToggleSidebar={() => setSidebarVisible((visible) => !visible)}
-            />
+            </div>
           </div>
-        </div>
 
-        {paletteOpen ? (
-          <CommandPalette onClose={() => setPaletteOpen(false)} />
-        ) : null}
-      </div>
-    </ConceptNavigationProvider>
+          {paletteOpen ? (
+            <CommandPalette onClose={() => setPaletteOpen(false)} />
+          ) : null}
+        </div>
+      </ConceptNavigationProvider>
+    </ConceptPreviewProvider>
   );
 }
 

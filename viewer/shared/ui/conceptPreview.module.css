@@ -1,0 +1,115 @@
+/* One concept preview: identity, facts and meaning. The card is the common
+   region; the facts and meaning are separated because they answer different
+   questions. No one-sided accent: the concept mark carries the type. */
+
+@layer components {
+  .card {
+    position: fixed;
+    z-index: var(--z-tooltip);
+    display: flex;
+    min-width: 0;
+    max-height: min(420px, calc(100vh - 24px));
+    flex-direction: column;
+    overflow: auto;
+    overscroll-behavior: contain;
+    padding: var(--space-group) var(--space-section) var(--space-section);
+    border: var(--border-hairline) solid var(--color-line-strong);
+    border-radius: var(--radius-lg);
+    background-color: var(--color-panel-raised);
+    box-shadow: var(--shadow-popover);
+    animation: concept-preview-in var(--motion-fast) var(--ease-instrument);
+  }
+
+  @keyframes concept-preview-in {
+    from {
+      opacity: 0;
+      transform: translateY(-3px) scale(0.99);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  .identity {
+    display: flex;
+    min-width: 0;
+    align-items: flex-start;
+    gap: var(--space-stack);
+  }
+
+  .mark {
+    width: 16px;
+    height: 16px;
+    flex: none;
+  }
+
+  .name {
+    margin: 0;
+    color: var(--color-text);
+    font-family: var(--font-mono);
+    font-size: var(--text-heading);
+    font-weight: var(--weight-medium);
+    line-height: var(--leading-tight);
+    overflow-wrap: anywhere;
+  }
+
+  .role {
+    margin: var(--space-hairline) 0 0;
+    color: var(--color-faint);
+    font-size: var(--text-micro);
+    font-weight: var(--weight-bold);
+    letter-spacing: var(--tracking-widest);
+    text-transform: uppercase;
+  }
+
+  .relation {
+    margin: var(--space-hairline) 0 0;
+    color: var(--color-muted);
+    font-family: var(--font-mono);
+    font-size: var(--text-label);
+    line-height: var(--leading-normal);
+    overflow-wrap: anywhere;
+  }
+
+  .facts {
+    display: flex;
+    margin: var(--space-group) 0 0;
+    padding: var(--space-group) 0 0;
+    border-top: var(--border-hairline) solid var(--color-line-soft);
+    flex-direction: column;
+    gap: var(--space-hairline);
+  }
+
+  .fact {
+    display: grid;
+    min-width: 0;
+    grid-template-columns: 88px minmax(0, 1fr);
+    align-items: baseline;
+    gap: var(--space-stack);
+  }
+
+  .fact dt {
+    color: var(--color-faint);
+    font-size: var(--text-micro);
+    font-weight: var(--weight-bold);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+  }
+
+  .fact dd {
+    min-width: 0;
+    margin: 0;
+    color: var(--color-muted);
+    font-family: var(--font-mono);
+    font-size: var(--text-caption);
+    line-height: var(--leading-normal);
+    overflow-wrap: anywhere;
+  }
+
+  .meaning {
+    margin-top: var(--space-group);
+    padding-top: var(--space-group);
+    border-top: var(--border-hairline) solid var(--color-line-soft);
+  }
+}

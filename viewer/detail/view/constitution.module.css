@@ -1,50 +1,3 @@
-.meaningHover {
-  position: fixed;
-  z-index: var(--z-modal);
-  max-height: 360px;
-  overflow: auto;
-  overscroll-behavior: contain;
-  border: var(--border-hairline) solid var(--color-line-strong);
-  border-radius: var(--radius-lg);
-  background: var(--color-panel-raised);
-  box-shadow: var(--shadow-popover);
-  padding: var(--space-group) var(--space-section) var(--space-section);
-}
-
-.meaningHoverHead {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-stack);
-  margin-bottom: var(--space-stack);
-  border-bottom: var(--border-hairline) solid var(--color-line-soft);
-  padding-bottom: var(--space-stack);
-}
-
-.meaningHoverHead span {
-  color: var(--color-faint);
-  font-family: var(--font-mono);
-  font-size: var(--text-micro);
-  letter-spacing: var(--tracking-wide);
-  text-overflow: ellipsis;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.meaningHoverHead strong {
-  overflow: hidden;
-  color: var(--color-text);
-  font-family: var(--font-mono);
-  font-size: var(--text-body);
-  font-weight: var(--weight-medium);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.meaningHoverHead span:last-child {
-  flex: none;
-  margin-left: auto;
-}
-
 /* ------------------------------------------------------------ constitution */
 
 .constitution {
@@ -141,11 +94,6 @@
 
 .constitutionBox:hover {
   border-color: var(--color-line-strong);
-}
-
-.constitutionBox:focus-visible {
-  outline: var(--border-hairline) solid var(--color-accent);
-  outline-offset: 1px;
 }
 
 .constitutionBoxBinding {

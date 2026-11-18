@@ -33,6 +33,29 @@
   line-height: var(--leading-relaxed);
 }
 
+.meaningCompact {
+  gap: var(--space-group);
+}
+
+.meaningCompact .meaningPurpose {
+  font-size: var(--text-label);
+  line-height: var(--leading-normal);
+}
+
+.meaningCompact .meaningLabel {
+  font-size: var(--text-micro);
+}
+
+.meaningCompact .meaningEvidence {
+  gap: var(--space-group);
+}
+
+.meaningCompact .meaningClaims li,
+.meaningCompact .meaningLimits li {
+  font-size: var(--text-caption);
+  line-height: var(--leading-normal);
+}
+
 .meaningEvidence {
   display: grid;
   padding-top: var(--space-group);

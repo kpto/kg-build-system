@@ -16,7 +16,7 @@ the index rail is the only navigation between cards.
 
 | Order | Section | Question it answers | Content |
 | --- | --- | --- | --- |
-| 1 | **Constitution** | What is this subject for, and how does it come to be? | One layered DAG on a pan/zoom canvas. A record shows the subject and its graph ancestry in the GRAPH frame, one box per binding in the FULFILMENT frame, and each binding's relation provenance in the RELATION frame; there is no separator and the three frames do not overlap. A source relation shows its subject over its asset in the RELATION frame; a derived relation its subject over the source relations it scans and their assets in the RELATION frame; a binding its subject in the FULFILMENT frame and the relations it reads in the RELATION frame, with its target record as the Contribution in the GRAPH frame. An asset has no Constitution card: it is the origin. Every edge points from the supply to the consumer; a shared declaration is one node with one edge per consumer; ranks, ordering and edge routes are computed; the subject box carries the subject's own concept mark. Each node clamps its meaning to two lines; hovering or focusing it reveals the full meaning, selecting it dims the rest, and its label opens its document. |
+| 1 | **Constitution** | What is this subject for, and how does it come to be? | One layered DAG on a pan/zoom canvas. A record shows the subject and its graph ancestry in the GRAPH frame, one box per binding in the FULFILMENT frame, and each binding's relation provenance in the RELATION frame; there is no separator and the three frames do not overlap. A source relation shows its subject over its asset in the RELATION frame; a derived relation its subject over the source relations it scans and their assets in the RELATION frame; a binding its subject in the FULFILMENT frame and the relations it reads in the RELATION frame, with its target record as the Contribution in the GRAPH frame. An asset has no Constitution card: it is the origin. Every edge points from the supply to the consumer; a shared declaration is one node with one edge per consumer; ranks, ordering and edge routes are computed; the subject box carries the subject's own concept mark. Each node clamps its meaning to two lines; selecting it dims the rest, and its pill previews the concept and opens its document. |
 | 2 | **Meaning** | What is this for, and what does it exclude? | Purpose as the lead, then two labelled readings: contextless claims and the limitations that bound the purpose. Each group states its own count; the groups stack when the card is narrow. Legacy readings follow under **Earlier reading**. |
 | 3 | **Members** | Which units belong to this subject? | One table grammar: name, type, meaning, source, count; the instance pill opens its document when one exists. |
 | 4 | **Connections** | Which records does this subject touch? | One row per edge and other endpoint with an **In/Out** column: `[edge] → [target]` or `[source] → [edge]`. The current subject is not repeated. Ports of a step. |
@@ -143,6 +143,11 @@ because it does not apply, not shown as a card that says so. A **Meaning** card
 is present only when the subject states a purpose, claim or limitation;
 otherwise it is omitted.
 
+A pill previews the instance it names in the shared concept preview: concept
+mark and role, name, a compact relation, key facts and, when stated, meaning.
+The preview is read-only, scrolls its own content and dismisses on outside
+interaction; the pill remains the action.
+
 A field is not a document kind; it belongs to its owner's Members table. A
 binding is a document kind and also appears in its record's Bindings table and
 the Constitution's binding node.
@@ -227,9 +232,9 @@ set of points along that edge.
 The card never invents a purpose, a relation or a binding. When a declaration
 states no meaning, the node says so; when a record has no binding, the card
 says so; when a produced subject has no component, it says that instead. The
-canvas opens fitted and pans and zooms; hovering or focusing a node reveals its
-full meaning, selecting one dims every other node and keeps its incident edges,
-and a node label opens its document. The node itself is inspection only.
+canvas opens fitted and pans and zooms; selecting a node dims every other node
+and keeps its incident edges, and the node's pill previews its concept and opens
+its document. The node itself is inspection only.
 
 ## One grammar per concept
 

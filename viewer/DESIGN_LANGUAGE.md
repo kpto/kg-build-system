@@ -165,8 +165,7 @@ opens a document. A workflow component header behaves the same way.
   the layout computes ranks, ordering and edge routes. The canvas opens fitted
   and pans and zooms;
   selecting a node dims every other node and non-incident link, empty space
-  clears, hovering or focusing reveals the full meaning, and a node label opens
-  its document.
+  clears, and the node's pill previews its concept and opens its document.
 - **Meaning** leads with the subject's purpose, then sets the contextless
   claims and the limitations that bound that purpose as two labelled readings.
   Each group carries its own count, and the groups stack when the card is
@@ -227,6 +226,20 @@ in a connection row, a property in a member table, a relation in a source list,
 a field in an expression tree and a card in the fulfilment map. A pill resolves
 and opens the instance's document itself, so a caller supplies identity, never
 a click handler. A long name truncates in the pill; it never wraps.
+
+Hovering or focusing a pill opens the **concept preview**: one shared popup
+with the concept mark and role, the name, a compact relation, the key facts and
+the stated meaning. The facts specialise by concept — a node leads with labels
+and connections, an edge with its endpoints, a relation with its asset, grain
+and identity, a binding with its target and rows read, a step with its
+instruction and ports — but the chrome is one surface. The popup owns its
+scroll, dismisses on outside interaction, and never navigates; the pill remains
+the action.
+
+The preview follows **Cognitive Load** (Laws of UX, Jon Yablonski —
+https://lawsofux.com/cognitive-load/): it exposes only the identity, key facts
+and stated meaning needed to decide whether to open the document, and groups
+them by proximity so the card is scanned rather than read.
 
 ## Theme tokens
 
