@@ -889,12 +889,21 @@ function linkPath(
     };
   }
 
+  // A parallel link bows between the nodes but meets each circle along the
+  // centre line: the short radial stubs keep both ends perpendicular to the
+  // node surface and let the arrow head land square on the target.
+  const gap = Math.max(0, distance - sourceRadius - targetRadius);
+  const stub = Math.min(18, gap * 0.35);
+  const startOutX = startX + ux * stub;
+  const startOutY = startY + uy * stub;
+  const endInX = endX - ux * stub;
+  const endInY = endY - uy * stub;
   const normalX = -uy;
   const normalY = ux;
-  const controlX = (startX + endX) / 2 + normalX * offset * 2;
-  const controlY = (startY + endY) / 2 + normalY * offset * 2;
+  const controlX = (startOutX + endInX) / 2 + normalX * offset * 2;
+  const controlY = (startOutY + endInY) / 2 + normalY * offset * 2;
   return {
-    path: `M ${startX} ${startY} Q ${controlX} ${controlY} ${endX} ${endY}`,
+    path: `M ${startX} ${startY} L ${startOutX} ${startOutY} Q ${controlX} ${controlY} ${endInX} ${endInY} L ${endX} ${endY}`,
     x: endX,
     y: endY,
   };
