@@ -1068,10 +1068,17 @@ function layerKind(concept: ConceptKind): PurposeLevelKind {
 }
 
 function layerFrame(concept: ConceptKind): ConstitutionFrameId {
-  return concept === "workflow" ? "workflow" : "layers";
+  if (concept === "binding") return "fulfilment";
+  if (concept === "table" || concept === "projection" || concept === "asset") {
+    return "relation";
+  }
+  return "graph";
 }
 
-function layerNode(layer: CollectionLayer): ConstitutionNode {
+function layerNode(
+  layer: CollectionLayer,
+  frame: ConstitutionFrameId,
+): ConstitutionNode {
   return {
     kind: layerKind(layer.concept),
     name: layer.title,
@@ -1080,7 +1087,7 @@ function layerNode(layer: CollectionLayer): ConstitutionNode {
     detail: `${layer.count} items`,
     text: layer.note ?? `${layer.count} items in this layer`,
     collection: layer.collection,
-    frame: layerFrame(layer.concept),
+    frame,
   };
 }
 
@@ -1109,7 +1116,8 @@ export function collectionDagModel(
   model: CollectionModel,
   direction: "dependency" | "contribution",
 ): ConstitutionModel {
-  const purpose = collectionPurpose(model);
+  const subjectNode = collectionPurpose(model);
+  const frame = layerFrame(model.concept);
   const layers: ConstitutionNode[] = [];
   const layerEdges: Array<{ source: string; target: string }> = [];
   const seen = new Set<string>();
@@ -1119,7 +1127,7 @@ export function collectionDagModel(
       let previous: ConstitutionNode | undefined;
       for (const layer of axis.layers) {
         if (layer.current) continue;
-        const node = layerNode(layer);
+        const node = layerNode(layer, frame);
         const id = `${node.kind}:${node.name}`;
         if (!seen.has(id)) {
           seen.add(id);
@@ -1136,7 +1144,7 @@ export function collectionDagModel(
       if (previous) {
         layerEdges.push({
           source: `${previous.kind}:${previous.name}`,
-          target: "purpose",
+          target: "subject",
         });
       }
     }
@@ -1144,20 +1152,20 @@ export function collectionDagModel(
     for (const axis of model.dependants.axes) {
       for (const layer of axis.layers) {
         if (layer.count === 0) continue;
-        const node = layerNode(layer);
+        const node = layerNode(layer, frame);
         const id = `${node.kind}:${node.name}`;
         if (!seen.has(id)) {
           seen.add(id);
           layers.push(node);
         }
-        layerEdges.push({ source: "purpose", target: id });
+        layerEdges.push({ source: "subject", target: id });
       }
     }
   }
 
   return {
     direction,
-    purpose,
+    subject: subjectNode,
     graph: [],
     relation: [],
     bindings: [],

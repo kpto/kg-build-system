@@ -72,9 +72,9 @@ function Box({
   onHover(node: ConstitutionNode, element: HTMLElement): void;
   onLeave(): void;
 }) {
-  const purpose = node.meaning.purpose;
+  const meaningPurpose = node.meaning.purpose;
   const body =
-    node.text ?? text ?? purpose ?? "No purpose is stated.";
+    node.text ?? text ?? meaningPurpose ?? "No purpose is stated.";
   const concept = pillConcept(node.kind);
   return (
     <div
@@ -136,7 +136,7 @@ function Box({
       <span
         className={cx(
           styles.constitutionText,
-          !purpose && !text && styles.constitutionMissing,
+          !meaningPurpose && !text && styles.constitutionMissing,
         )}
       >
         {body}
@@ -249,7 +249,7 @@ function ConstitutionSceneView({
               >
                 <Box
                   node={node.node}
-                  root={node.axis === "purpose"}
+                  root={node.axis === "subject"}
                   binding={node.axis === "binding" && !node.node.collection}
                   hoverable={node.hoverable}
                   text={node.text}
@@ -402,7 +402,7 @@ export function Constitution({
         ? createPortal(
             <aside
               ref={cardRef}
-              className={styles.purposeHover}
+              className={styles.meaningHover}
               style={{
                 left: hoveredLeft,
                 top: hoveredTop,
@@ -413,7 +413,7 @@ export function Constitution({
               onMouseEnter={cancelClose}
               onMouseLeave={scheduleClose}
             >
-              <header className={styles.purposeHoverHead}>
+              <header className={styles.meaningHoverHead}>
                 <span>{hovered.node.label}</span>
                 <strong>{hovered.node.name}</strong>
                 <span>full meaning</span>

@@ -32,10 +32,10 @@ describe("constitution", () => {
       level: "node",
       component: "defect",
     });
-    expect(model.purpose.kind).toBe("node");
-    expect(model.purpose.name).toBe("defect");
-    expect(model.purpose.current).toBe(true);
-    expect(model.purpose.meaning.claims[0]?.text).toContain(
+    expect(model.subject.kind).toBe("node");
+    expect(model.subject.name).toBe("defect");
+    expect(model.subject.current).toBe(true);
+    expect(model.subject.meaning.claims[0]?.text).toContain(
       "A defect is observed",
     );
     expect(model.graph.map((level) => level.label)).toEqual([
@@ -69,14 +69,14 @@ describe("constitution", () => {
       component: "defect",
       property: "title",
     });
-    expect(model.purpose.kind).toBe("property");
-    expect(model.purpose.name).toBe("defect.title");
+    expect(model.subject.kind).toBe("property");
+    expect(model.subject.name).toBe("defect.title");
     expect(model.graph.map((level) => level.kind)).toEqual([
       "node",
       "abstract",
       "graph",
     ]);
-    expect(model.purpose.meaning.claims[0]?.text).toContain("display name");
+    expect(model.subject.meaning.claims[0]?.text).toContain("display name");
     expect(model.relation.map((root) => root.node.name)).toEqual(["surveys"]);
     expect(model.relation[0].children.map((child) => child.node.name)).toEqual([
       "estate",
@@ -88,10 +88,10 @@ describe("constitution", () => {
       level: "relation",
       component: "surveys",
     });
-    expect(model.purpose.kind).toBe("relation");
-    expect(model.purpose.name).toBe("surveys");
-    expect(model.purpose.current).toBe(true);
-    expect(model.purpose.meaning.claims[0]?.text).toContain(
+    expect(model.subject.kind).toBe("relation");
+    expect(model.subject.name).toBe("surveys");
+    expect(model.subject.current).toBe(true);
+    expect(model.subject.meaning.claims[0]?.text).toContain(
       "estate survey table",
     );
     expect(model.graph).toEqual([]);
@@ -108,8 +108,8 @@ describe("constitution", () => {
       level: "projection",
       component: "defect",
     });
-    expect(model.purpose.kind).toBe("projection");
-    expect(model.purpose.name).toBe("defect");
+    expect(model.subject.kind).toBe("projection");
+    expect(model.subject.name).toBe("defect");
     expect(model.graph).toEqual([]);
     expect(model.bindings).toEqual([]);
     expect(model.relation).toHaveLength(1);
@@ -126,8 +126,8 @@ describe("constitution", () => {
       level: "asset",
       component: "estate",
     });
-    expect(model.purpose.kind).toBe("asset");
-    expect(model.purpose.name).toBe("estate");
+    expect(model.subject.kind).toBe("asset");
+    expect(model.subject.name).toBe("estate");
     expect(model.graph).toEqual([]);
     expect(model.relation).toEqual([]);
     expect(model.bindings).toEqual([]);
@@ -139,10 +139,10 @@ describe("constitution", () => {
       component: "defect",
       bindingIndex: 0,
     });
-    expect(model.purpose.kind).toBe("binding");
-    expect(model.purpose.name).toBe("defect.title");
-    expect(model.purpose.current).toBe(true);
-    expect(model.purpose.meaning.claims[0]?.text).toContain(
+    expect(model.subject.kind).toBe("binding");
+    expect(model.subject.name).toBe("defect.title");
+    expect(model.subject.current).toBe(true);
+    expect(model.subject.meaning.claims[0]?.text).toContain(
       "projects the survey title",
     );
     expect(model.graph).toEqual([]);
@@ -174,7 +174,7 @@ describe("constitution", () => {
       component: "estate",
     });
     expect(model.direction).toBe("contribution");
-    expect(model.purpose.kind).toBe("asset");
+    expect(model.subject.kind).toBe("asset");
     expect(model.relation.map((root) => root.node.name)).toEqual(["surveys"]);
     expect(model.graph).toEqual([]);
   });

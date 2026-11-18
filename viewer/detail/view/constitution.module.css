@@ -1,4 +1,4 @@
-.purposeHover {
+.meaningHover {
   position: fixed;
   z-index: var(--z-modal);
   max-height: 360px;
@@ -11,7 +11,7 @@
   padding: var(--space-group) var(--space-section) var(--space-section);
 }
 
-.purposeHoverHead {
+.meaningHoverHead {
   display: flex;
   align-items: baseline;
   gap: var(--space-stack);
@@ -20,7 +20,7 @@
   padding-bottom: var(--space-stack);
 }
 
-.purposeHoverHead span {
+.meaningHoverHead span {
   color: var(--color-faint);
   font-family: var(--font-mono);
   font-size: var(--text-micro);
@@ -30,7 +30,7 @@
   white-space: nowrap;
 }
 
-.purposeHoverHead strong {
+.meaningHoverHead strong {
   overflow: hidden;
   color: var(--color-text);
   font-family: var(--font-mono);
@@ -40,7 +40,7 @@
   white-space: nowrap;
 }
 
-.purposeHoverHead span:last-child {
+.meaningHoverHead span:last-child {
   flex: none;
   margin-left: auto;
 }

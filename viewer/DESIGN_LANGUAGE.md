@@ -120,31 +120,29 @@ Every Explorer header is two targets: the **body** opens the collection and the
 opens a document. A workflow component header behaves the same way.
 
 - **Overview** is the tab banner: identity and one fact row. It is not a band.
-- **Constitution** shows how the subject comes to be: its purpose at the top
+- **Constitution** shows how the subject comes to be: the subject at the top
   and only the declarations that produce it below, laid out as one layered DAG
   on the shared graph canvas. Every edge points from the supply to the
   consumer; a declaration shared by several consumers is one node with one edge
-  per consumer, never a copy or a count. The purpose box carries the subject's
+  per consumer, never a copy or a count. The subject box carries the subject's
   own concept mark, never the graph mark.
-  - A record is one intact DAG. The subject's purpose has its own PURPOSE
-    frame; the graph ancestry, bindings and relation provenance each have their
-    own frame. The layered layout places those frames; no group is fixed to a
-    side. There is no separator.
-  - A source relation shows its purpose over its asset alone; a derived relation
-    its purpose over the source relations it scans and their assets. The purpose
+  - A record is one intact DAG. The subject and its graph ancestry share the
+    GRAPH frame; the bindings are in the FULFILMENT frame and the relation
+    provenance in the RELATION frame. The layered layout places them; no group
+    is fixed to a side. There is no separator.
+  - A source relation shows its subject over its asset alone; a derived relation
+    its subject over the source relations it scans and their assets. The subject
     and the asset or scanned sources share one RELATION frame. Neither carries
     a binding or a graph axis.
-  - A binding shows its purpose over the relations it reads, with their
+  - A binding shows its subject over the relations it reads, with their
     provenance. Its purpose is in the FULFILMENT frame and the relations in the
     RELATION frame. Its target record (purpose and identity only) is its
     Contribution, in the GRAPH frame. The record's graph ancestry belongs to the
     record's own constitution.
-  - PURPOSE, GRAPH, RELATION, FULFILMENT, WORKFLOW and LAYERS are the frame
-    kinds, and every box sits inside its corresponding frame. PURPOSE frames
-    the subject anchor; WORKFLOW frames build-machinery subjects; LAYERS frames
-    a collection's layer DAG; GRAPH, RELATION and FULFILMENT frame a
-    participant's components. No frame is pinned to a side: the layered layout
-    places them and the frames are disjoint.
+  - GRAPH, RELATION and FULFILMENT are the frame kinds, and every box sits
+    inside one of them. A record's subject and graph ancestry share the GRAPH
+    frame; a step boundary uses GRAPH; a collection layer DAG uses the frame of
+    its layer. No frame is pinned to a side.
   - An asset is the given source, so it has no Constitution card. A step is
     build machinery and has none either.
   When several arrows meet one box, their heads sit on a centred, evenly spaced

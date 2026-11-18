@@ -96,10 +96,10 @@ describe("virtual collection model", () => {
     ]);
     expect(dag.layerEdges).toEqual([
       { source: "asset:Assets", target: "relation:Source relations" },
-      { source: "relation:Source relations", target: "purpose" },
+      { source: "relation:Source relations", target: "subject" },
     ]);
     const scene = buildConstitutionScene(dag);
-    expect(scene.frames.map((frame) => frame.id)).toEqual(["layers"]);
+    expect(scene.frames.map((frame) => frame.id)).toEqual(["relation"]);
     for (const node of scene.nodes) {
       expect(
         scene.frames.some(
@@ -121,7 +121,7 @@ describe("virtual collection model", () => {
       "Derived relations",
       "Bindings",
     ]);
-    expect(dag.layerEdges?.every((edge) => edge.source === "purpose")).toBe(
+    expect(dag.layerEdges?.every((edge) => edge.source === "subject")).toBe(
       true,
     );
     expect(dag.layers?.[0].collection).toEqual({ id: "derivedRelations" });

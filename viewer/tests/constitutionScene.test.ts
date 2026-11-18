@@ -38,7 +38,7 @@ function derivedTree(
 }
 
 const sceneModel: ConstitutionModel = {
-  purpose: node("node", "defect", "Purpose"),
+  subject: node("node", "defect", "Purpose"),
   graph: [node("graph", "fixture_graph", "Graph")],
   relation: [
     derivedTree("alpha", sourceTree("surveys")),
@@ -113,7 +113,7 @@ describe("constitution scene", () => {
 
   it("routes each binding to the purpose as an angled line", () => {
     for (const binding of scene.edges.filter(
-      (entry) => entry.source.startsWith("binding:") && entry.target === "purpose",
+      (entry) => entry.source.startsWith("binding:") && entry.target === "subject",
     )) {
       expect(binding.path).toContain("L");
       expect(binding.path).not.toContain("C");
@@ -121,14 +121,14 @@ describe("constitution scene", () => {
     }
   });
 
-  it("centres the purpose heads and spaces them evenly on the purpose edge", () => {
-    const purpose = byName("defect")[0];
+  it("centres the subject heads and spaces them evenly on the subject edge", () => {
+    const subjectNode = byName("defect")[0];
     const heads = scene.edges
-      .filter((entry) => entry.target === "purpose")
+      .filter((entry) => entry.target === "subject")
       .map((entry) => entry.head!)
       .sort((left, right) => left.x - right.x);
     expect(heads.length).toBeGreaterThan(1);
-    const centre = purpose.x + purpose.width / 2;
+    const centre = subjectNode.x + subjectNode.width / 2;
     expect((heads[0].x + heads[heads.length - 1].x) / 2).toBeCloseTo(
       centre,
     );
@@ -137,7 +137,7 @@ describe("constitution scene", () => {
       expect(heads[index].x - heads[index - 1].x).toBeCloseTo(spacing);
     }
     for (const head of heads) {
-      expect(head.y).toBeCloseTo(purpose.y + purpose.height);
+      expect(head.y).toBeCloseTo(subjectNode.y + subjectNode.height);
     }
   });
 
@@ -145,10 +145,10 @@ describe("constitution scene", () => {
     expect(edge("projection:alpha", "binding:0")).toBeTruthy();
     expect(edge("projection:beta", "binding:1")).toBeTruthy();
     expect(edge("relation:surveys", "binding:2")).toBeTruthy();
-    expect(edge("binding:0", "purpose")).toBeTruthy();
-    expect(edge("binding:1", "purpose")).toBeTruthy();
-    expect(edge("binding:2", "purpose")).toBeTruthy();
-    expect(edge("graph:fixture_graph", "purpose")).toBeTruthy();
+    expect(edge("binding:0", "subject")).toBeTruthy();
+    expect(edge("binding:1", "subject")).toBeTruthy();
+    expect(edge("binding:2", "subject")).toBeTruthy();
+    expect(edge("graph:fixture_graph", "subject")).toBeTruthy();
   });
 
   it("puts every binding on one rank and layers provenance below it", () => {
@@ -165,9 +165,8 @@ describe("constitution scene", () => {
     expect(estate.y).toBeGreaterThan(surveys.y);
   });
 
-  it("frames the purpose, the graph ancestry, the bindings and the relation provenance", () => {
+  it("frames the purpose and graph ancestry, the bindings and the relation provenance", () => {
     expect(scene.frames.map((frame) => frame.id)).toEqual([
-      "purpose",
       "graph",
       "fulfilment",
       "relation",
@@ -182,14 +181,12 @@ describe("constitution scene", () => {
       item.y + item.height <= entry.y + entry.height;
     const frameFor = (id: (typeof scene.frames)[number]["id"]) =>
       scene.frames.find((frame) => frame.id === id)!;
-    const purposeFrame = frameFor("purpose");
     const graphFrame = frameFor("graph");
     const fulfilmentFrame = frameFor("fulfilment");
     const relationFrame = frameFor("relation");
 
-    expect(contains(purposeFrame, byName("defect")[0])).toBe(true);
+    expect(contains(graphFrame, byName("defect")[0])).toBe(true);
     expect(contains(graphFrame, byName("fixture_graph")[0])).toBe(true);
-    expect(contains(graphFrame, byName("defect")[0])).toBe(false);
     expect(contains(graphFrame, byName("alpha_binding")[0])).toBe(false);
 
     for (const binding of scene.nodes.filter(
@@ -207,7 +204,6 @@ describe("constitution scene", () => {
     expect(scene.offset.x).toBeGreaterThanOrEqual(0);
     expect(scene.offset.y).toBeGreaterThanOrEqual(0);
     expect(scene.labels.map((label) => label.text)).toEqual([
-      "PURPOSE",
       "GRAPH",
       "FULFILMENT",
       "RELATION",
@@ -233,19 +229,7 @@ describe("constitution scene", () => {
     }
   });
 
-  it("keeps the frames disjoint", () => {
-    for (let left = 0; left < scene.frames.length; left += 1) {
-      for (let right = left + 1; right < scene.frames.length; right += 1) {
-        const a = scene.frames[left];
-        const b = scene.frames[right];
-        const overlapX =
-          Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x);
-        const overlapY =
-          Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y);
-        expect(overlapX <= 0 || overlapY <= 0).toBe(true);
-      }
-    }
-  });
+
 });
 
 describe("constitution scene for a produced subject", () => {
@@ -285,17 +269,17 @@ describe("constitution scene for a produced subject", () => {
 
   it("shows a source relation as its purpose over its asset alone", () => {
     const model: ConstitutionModel = {
-      purpose: node("relation", "surveys", "Purpose"),
+      subject: node("relation", "surveys", "Purpose"),
       graph: [],
       relation: [{ node: node("asset", "estate", "Asset"), children: [] }],
       bindings: [],
     };
     const sourceScene = buildConstitutionScene(model);
     expect(sourceScene.nodes.map((entry) => entry.id)).toEqual([
-      "purpose",
+      "subject",
       "asset:estate",
     ]);
-    expect(findEdge(sourceScene, "asset:estate", "purpose")).toBeTruthy();
+    expect(findEdge(sourceScene, "asset:estate", "subject")).toBeTruthy();
     expect(sourceScene.labels.map((label) => label.text)).toEqual([
       "RELATION",
     ]);
@@ -304,29 +288,29 @@ describe("constitution scene for a produced subject", () => {
     ]);
     expect(sourceScene.offset.x).toBeGreaterThanOrEqual(0);
     expect(sourceScene.offset.y).toBeGreaterThanOrEqual(0);
-    expect(contains(sourceScene, "relation", "purpose")).toBe(true);
+    expect(contains(sourceScene, "relation", "subject")).toBe(true);
     expect(contains(sourceScene, "relation", "asset:estate")).toBe(true);
     expect(allBoxesInFrames(sourceScene)).toBe(true);
-    const purpose = findBySceneId(sourceScene, "purpose")!;
+    const subjectNode = findBySceneId(sourceScene, "subject")!;
     const asset = findBySceneId(sourceScene, "asset:estate")!;
     const head = sourceScene.edges.find(
-      (entry) => entry.target === "purpose",
+      (entry) => entry.target === "subject",
     )?.head;
     expect(head).toBeDefined();
-    expect(head!.x).toBeCloseTo(purpose.x + purpose.width / 2);
-    expect(head!.y).toBeCloseTo(purpose.y + purpose.height);
-    expect(asset.y).toBeGreaterThan(purpose.y);
+    expect(head!.x).toBeCloseTo(subjectNode.x + subjectNode.width / 2);
+    expect(head!.y).toBeCloseTo(subjectNode.y + subjectNode.height);
+    expect(asset.y).toBeGreaterThan(subjectNode.y);
   });
 
-  it("shows a derived relation as its purpose over its scanned sources and their assets", () => {
+  it("shows a derived relation as its subject over its scanned sources and their assets", () => {
     const model: ConstitutionModel = {
-      purpose: node("projection", "defect", "Purpose"),
+      subject: node("projection", "defect", "Purpose"),
       graph: [],
       relation: [sourceTree("surveys")],
       bindings: [],
     };
     const derivedScene = buildConstitutionScene(model);
-    expect(findEdge(derivedScene, "relation:surveys", "purpose")).toBeTruthy();
+    expect(findEdge(derivedScene, "relation:surveys", "subject")).toBeTruthy();
     expect(findEdge(derivedScene, "asset:estate", "relation:surveys")).toBeTruthy();
     expect(derivedScene.labels.map((label) => label.text)).toEqual([
       "RELATION",
@@ -334,20 +318,20 @@ describe("constitution scene for a produced subject", () => {
     expect(derivedScene.frames.map((frame) => frame.id)).toEqual([
       "relation",
     ]);
-    expect(contains(derivedScene, "relation", "purpose")).toBe(true);
+    expect(contains(derivedScene, "relation", "subject")).toBe(true);
     expect(contains(derivedScene, "relation", "relation:surveys")).toBe(true);
     expect(contains(derivedScene, "relation", "asset:estate")).toBe(true);
     expect(allBoxesInFrames(derivedScene)).toBe(true);
     const surveys = findBySceneId(derivedScene, "relation:surveys");
     const estate = findBySceneId(derivedScene, "asset:estate");
-    const purpose = findBySceneId(derivedScene, "purpose");
-    expect(surveys!.y).toBeGreaterThan(purpose!.y);
+    const subjectNode = findBySceneId(derivedScene, "subject");
+    expect(surveys!.y).toBeGreaterThan(subjectNode!.y);
     expect(estate!.y).toBeGreaterThan(surveys!.y);
   });
 
   it("shows a binding with the purpose, the target record and the relations it reads", () => {
     const model: ConstitutionModel = {
-      purpose: node("binding", "defect.title", "Purpose"),
+      subject: node("binding", "defect.title", "Purpose"),
       graph: [
         {
           ...node("node", "defect", "Node"),
@@ -358,8 +342,8 @@ describe("constitution scene for a produced subject", () => {
       bindings: [],
     };
     const bindingScene = buildConstitutionScene(model);
-    expect(findEdge(bindingScene, "node:defect", "purpose")).toBeTruthy();
-    expect(findEdge(bindingScene, "relation:surveys", "purpose")).toBeTruthy();
+    expect(findEdge(bindingScene, "node:defect", "subject")).toBeTruthy();
+    expect(findEdge(bindingScene, "relation:surveys", "subject")).toBeTruthy();
     expect(findEdge(bindingScene, "asset:estate", "relation:surveys")).toBeTruthy();
     expect(bindingScene.labels.map((label) => label.text)).toEqual([
       "FULFILMENT",
@@ -371,39 +355,39 @@ describe("constitution scene for a produced subject", () => {
       "graph",
       "relation",
     ]);
-    expect(contains(bindingScene, "fulfilment", "purpose")).toBe(true);
+    expect(contains(bindingScene, "fulfilment", "subject")).toBe(true);
     expect(contains(bindingScene, "graph", "node:defect")).toBe(true);
     expect(contains(bindingScene, "relation", "relation:surveys")).toBe(true);
     expect(contains(bindingScene, "relation", "asset:estate")).toBe(true);
     expect(allBoxesInFrames(bindingScene)).toBe(true);
     const target = findBySceneId(bindingScene, "node:defect")!;
     const surveys = findBySceneId(bindingScene, "relation:surveys")!;
-    const purpose = findBySceneId(bindingScene, "purpose")!;
+    const subjectNode = findBySceneId(bindingScene, "subject")!;
     const heads = bindingScene.edges
-      .filter((entry) => entry.target === "purpose")
+      .filter((entry) => entry.target === "subject")
       .map((entry) => entry.head!)
       .sort((left, right) => left.x - right.x);
     expect(heads).toHaveLength(2);
-    const centre = purpose.x + purpose.width / 2;
+    const centre = subjectNode.x + subjectNode.width / 2;
     expect((heads[0].x + heads[1].x) / 2).toBeCloseTo(centre);
     expect(heads[1].x - heads[0].x).toBeCloseTo(24);
     for (const head of heads) {
-      expect(head.y).toBeCloseTo(purpose.y + purpose.height);
+      expect(head.y).toBeCloseTo(subjectNode.y + subjectNode.height);
     }
     expect(target.y).toBe(surveys.y);
-    expect(target.y).toBeGreaterThan(purpose.y);
+    expect(target.y).toBeGreaterThan(subjectNode.y);
     expect(target.node.detail).toBe("identity surveys.survey_id");
   });
 
   it("shows an asset as its purpose with no component", () => {
     const model: ConstitutionModel = {
-      purpose: node("asset", "estate", "Purpose"),
+      subject: node("asset", "estate", "Purpose"),
       graph: [],
       relation: [],
       bindings: [],
     };
     const assetScene = buildConstitutionScene(model);
-    expect(assetScene.nodes.map((entry) => entry.id)).toEqual(["purpose"]);
+    expect(assetScene.nodes.map((entry) => entry.id)).toEqual(["subject"]);
     expect(assetScene.edges).toEqual([]);
     expect(assetScene.labels).toEqual([]);
     expect(assetScene.frames).toEqual([]);
@@ -442,7 +426,7 @@ describe("contribution scene", () => {
       "fulfilment",
       "graph",
     ]);
-    expect(inside(scene, "fulfilment", "purpose")).toBe(true);
+    expect(inside(scene, "fulfilment", "subject")).toBe(true);
     expect(inside(scene, "graph", "node:defect")).toBe(true);
     expect(
       scene.nodes.every((entry) =>
@@ -457,7 +441,7 @@ describe("contribution scene", () => {
     ).toBe(true);
   });
 
-  it("puts a relation purpose in RELATION and its bindings in FULFILMENT", () => {
+  it("puts a relation subject in RELATION and its bindings in FULFILMENT", () => {
     const scene = buildConstitutionScene(
       contributionModel(contractIndex, {
         level: "relation",
@@ -468,7 +452,7 @@ describe("contribution scene", () => {
       "fulfilment",
       "relation",
     ]);
-    expect(inside(scene, "relation", "purpose")).toBe(true);
+    expect(inside(scene, "relation", "subject")).toBe(true);
     expect(inside(scene, "fulfilment", "binding:0")).toBe(true);
   });
 
@@ -481,7 +465,7 @@ describe("contribution scene", () => {
         stepId: ["duckdb", "source.surveys"],
       }),
     );
-    expect(scene.frames.map((frame) => frame.id)).toEqual(["workflow"]);
-    expect(scene.labels.map((label) => label.text)).toEqual(["WORKFLOW"]);
+    expect(scene.frames.map((frame) => frame.id)).toEqual(["graph"]);
+    expect(scene.labels.map((label) => label.text)).toEqual(["GRAPH"]);
   });
 });

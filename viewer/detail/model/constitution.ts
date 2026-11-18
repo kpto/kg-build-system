@@ -1,7 +1,7 @@
 /**
  * The constitution of one subject: how it comes to be.
  *
- * The subject's purpose is the root; the declarations that bring it into being
+ * The subject is the root; the declarations that bring it into being
  * hang below it and every edge follows production (supply → subject). What
  * constitutes a subject depends on its kind:
  *
@@ -11,10 +11,10 @@
  * - a source relation is produced by its asset, and an asset is the origin;
  * - a derived relation is produced by the source relations it scans and their
  *   assets;
- * - a binding is the meeting of a record and a relation: its components are the
- *   target record (purpose and identity only) and the relations it reads.
+ * - a binding is produced by the relations it reads; the target record is its
+ *   contribution, one level above.
  *
- * The purpose box carries the subject's own concept mark. A declaration shared
+ * The subject box carries the subject's own concept mark. A declaration shared
  * by several consumers is one node with one edge per consumer. A level keeps
  * its own meaning, so the branches show production and supply, never inherited
  * text.
@@ -52,13 +52,7 @@ export type ConstitutionTarget =
   | { kind: "asset"; name: string };
 
 /** The frame a box sits in; a workflow subject adds the workflow frame. */
-export type ConstitutionFrameId =
-  | "purpose"
-  | "graph"
-  | "fulfilment"
-  | "relation"
-  | "workflow"
-  | "layers";
+export type ConstitutionFrameId = "graph" | "fulfilment" | "relation";
 
 /** One box in the constitution tree. */
 export interface ConstitutionNode {
@@ -105,8 +99,8 @@ export interface ConstitutionBinding {
 export interface ConstitutionModel {
   /** The direction this DAG reads: below the subject or one level above it. */
   direction?: "dependency" | "contribution";
-  /** The one purpose the subject is read under. */
-  purpose: ConstitutionNode;
+  /** The subject box: the participant the constitution or contribution is read for. */
+  subject: ConstitutionNode;
   /** Record-axis levels, ordered from the root toward the subject. */
   graph: ConstitutionNode[];
   /** Every relation a binding reads, each with its full provenance. */
@@ -115,7 +109,7 @@ export interface ConstitutionModel {
   bindings: ConstitutionBinding[];
   /** Workflow steps below or above a step subject. */
   workflow?: ConstitutionNode[];
-  /** A collection's layer DAG: the layers below or above the purpose. */
+  /** A collection's layer DAG: the layers below or above the subject. */
   layers?: ConstitutionNode[];
   /** Explicit edges between layer boxes, by scene node id. */
   layerEdges?: Array<{ source: string; target: string }>;
@@ -149,7 +143,7 @@ const LABELS: Record<PurposeLevelKind, string> = {
   step: "Step",
 };
 
-/** The purpose box carries the subject's own concept, never the graph mark. */
+/** The subject box carries the subject's own concept, never the graph mark. */
 const SUBJECT_CONCEPTS: Record<string, PurposeLevelKind> = {
   property: "property",
   node: "node",
@@ -275,7 +269,7 @@ function bindingMeaning(
   };
 }
 
-function purposeNode(level: PurposeLevel): ConstitutionNode {
+function levelNode(level: PurposeLevel): ConstitutionNode {
   const open =
     level.kind === "abstract"
       ? ({ kind: "abstract", name: level.name } as const)
@@ -384,7 +378,7 @@ function relationTree(
  * A record's components are the relations its bindings read; a source
  * relation's is its asset; a derived relation's are the source relations it
  * scans and their assets; an asset is the origin and has none. The subject
- * itself is the purpose box, so it is not repeated in the branch.
+ * itself is the subject box, so it is not repeated in the branch.
  */
 function relationTrees(
   index: ViewerIndex,
@@ -441,12 +435,12 @@ function bindingConstitution(
   const binding = index.bindings.find(
     (candidate) => candidate.index === subject.bindingIndex,
   );
-  const purpose = purposeFor(index, subject);
+  const subjectNode = subjectFor(index, subject);
   if (!binding) {
-    return { purpose, graph: [], relation: [], bindings: [] };
+    return { subject: subjectNode, graph: [], relation: [], bindings: [] };
   }
   return {
-    purpose,
+    subject: subjectNode,
     graph: [],
     relation: bindingRelations(index, binding, subject),
     bindings: [],
@@ -471,7 +465,7 @@ function bindingSummaries(
 /**
  * Read how one subject comes to be.
  *
- * The purpose box is the subject. A record hangs its bindings, graph ancestry
+ * The subject box is the root. A record hangs its bindings, graph ancestry
  * and each binding's relation provenance below it; a relation hangs only the
  * declarations that produce it; a binding hangs its target record and the
  * relations it reads; an asset is the origin and has no constitution.
@@ -490,19 +484,19 @@ export function constitutionModel(
     subject.level === "edge" ||
     subject.level === "abstract" ||
     subject.level === "property";
-  const purpose: ConstitutionNode = {
+  const subjectNode: ConstitutionNode = {
     kind: subjectConcept(subject),
     name:
       subject.level === "property"
         ? `${subject.component}.${subject.property ?? ""}`
         : subject.component,
-    label: "Purpose",
+    label: LABELS[subjectConcept(subject)],
     meaning: subjectMeaning(index, subject),
     current: true,
   };
   if (!recordSubject) {
     return {
-      purpose,
+      subject: subjectNode,
       graph: [],
       relation: relationTrees(index, subject, map),
       bindings: [],
@@ -511,9 +505,9 @@ export function constitutionModel(
   const graph = purposeLevels(index, subject)
     .slice(0, -1)
     .reverse()
-    .map(purposeNode);
+    .map(levelNode);
   return {
-    purpose,
+    subject: subjectNode,
     graph,
     relation: relationTrees(index, subject, map),
     bindings: bindingSummaries(index, map),
@@ -524,7 +518,7 @@ export function constitutionModel(
 // Contribution and workflow boundaries
 // ---------------------------------------------------------------------------
 
-function purposeFor(
+function subjectFor(
   index: ViewerIndex,
   subject: ConstitutionSubjectLike,
 ): ConstitutionNode {
@@ -547,7 +541,7 @@ function purposeFor(
   return {
     kind: subjectConcept(subject),
     name,
-    label: "Purpose",
+    label: LABELS[subjectConcept(subject)],
     meaning: subjectMeaning(index, subject),
     current: true,
     ...(step
@@ -653,7 +647,7 @@ function groupFor(kind: PurposeLevelKind): ContributionGroup | undefined {
     case "abstract":
       return { kind, title: "Abstract", note: "child categories directly under this subject", frame: "graph", collection: { id: "abstract" }, count: 0 };
     case "step":
-      return { kind, title: "Steps", note: "steps that read this step", frame: "workflow", count: 0 };
+      return { kind, title: "Steps", note: "steps that read this step", frame: "graph", count: 0 };
     default:
       return undefined;
   }
@@ -735,7 +729,7 @@ function stepNode(index: ViewerIndex, id: [string, string]): ConstitutionNode {
     stepId: id,
     detail: step?.instruction.kind?.join(":") ?? undefined,
     text: "Build step",
-    frame: "workflow",
+    frame: "graph",
   };
 }
 
@@ -748,7 +742,7 @@ export function stepBoundaryModel(
   subject: ConstitutionSubjectLike,
   direction: "dependency" | "contribution",
 ): ConstitutionModel {
-  const purpose = purposeFor(index, subject);
+  const subjectNode = subjectFor(index, subject);
   const key = subject.stepId ? stepKey(subject.stepId) : undefined;
   const seen = new Set<string>();
   const workflow: ConstitutionNode[] = [];
@@ -770,7 +764,7 @@ export function stepBoundaryModel(
   }
   return {
     direction,
-    purpose,
+    subject: subjectNode,
     graph: [],
     relation: [],
     bindings: [],
@@ -795,10 +789,10 @@ export function contributionModel(
   index: ViewerIndex,
   subject: ConstitutionSubjectLike,
 ): ConstitutionModel {
-  const purpose = purposeFor(index, subject);
+  const subjectNode = subjectFor(index, subject);
   const model: ConstitutionModel = {
     direction: "contribution",
-    purpose,
+    subject: subjectNode,
     graph: [],
     relation: [],
     bindings: [],
