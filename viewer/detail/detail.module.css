@@ -2021,19 +2021,49 @@ button.memberRow:focus-visible {
 
 /* ---- Connections ------------------------------------------------------ */
 
+.connectionHead,
 .connectionRow {
-  display: flex;
-  min-height: 21px;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
   align-items: center;
   gap: var(--space-stack);
   padding: var(--space-hairline) var(--space-inline);
   border-bottom: var(--border-hairline) solid var(--color-line-soft);
+}
+
+.connectionHead {
+  min-height: 24px;
+  color: var(--color-faint);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+}
+
+.connectionRow {
+  min-height: 21px;
   font-family: var(--font-mono);
   font-size: var(--text-body);
 }
 
 .connectionRow:last-child {
   border-bottom: 0;
+}
+
+.connectionDirection {
+  color: var(--color-faint);
+  font-size: var(--text-caption);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+}
+
+.connectionLine {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-stack);
 }
 
 

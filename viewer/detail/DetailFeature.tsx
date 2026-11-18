@@ -1536,6 +1536,12 @@ function ConnectionsSection({
 }) {
   const endpoint = (name?: string) =>
     name ? <NodePill name={name} /> : <span>not resolved</span>;
+  const head = (
+    <div className={styles.connectionHead} aria-hidden>
+      <span>In/Out</span>
+      <span>Connection</span>
+    </div>
+  );
 
   if (kind === "edge") {
     const edge = index.topologyEdgesByName.get(component);
@@ -1545,15 +1551,22 @@ function ConnectionsSection({
         title="Connections"
         question="Which records does this relation join?"
       >
+        {head}
         <div className={styles.connectionRow}>
-          {endpoint(edge.source?.[2])}
-          <ArrowRight aria-hidden className={styles.inlineArrow} />
-          <EdgePill name={edge.name} />
+          <span className={styles.connectionDirection}>in</span>
+          <span className={styles.connectionLine}>
+            {endpoint(edge.source?.[2])}
+            <ArrowRight aria-hidden className={styles.inlineArrow} />
+            <EdgePill name={edge.name} />
+          </span>
         </div>
         <div className={styles.connectionRow}>
-          <EdgePill name={edge.name} />
-          <ArrowRight aria-hidden className={styles.inlineArrow} />
-          {endpoint(edge.target?.[2])}
+          <span className={styles.connectionDirection}>out</span>
+          <span className={styles.connectionLine}>
+            <EdgePill name={edge.name} />
+            <ArrowRight aria-hidden className={styles.inlineArrow} />
+            {endpoint(edge.target?.[2])}
+          </span>
         </div>
       </DetailBand>
     );
@@ -1568,19 +1581,27 @@ function ConnectionsSection({
       question="Which relations touch this record?"
     >
       {incident.length ? (
-        incident.map((edge) => {
-          const source = edge.source?.[2];
-          const target = edge.target?.[2];
-          const outgoing = source === component;
-          const other = outgoing ? target : source;
-          return (
-            <div className={styles.connectionRow} key={edge.name}>
-              {outgoing ? <EdgePill name={edge.name} /> : endpoint(other)}
-              <ArrowRight aria-hidden className={styles.inlineArrow} />
-              {outgoing ? endpoint(other) : <EdgePill name={edge.name} />}
-            </div>
-          );
-        })
+        <>
+          {head}
+          {incident.map((edge) => {
+            const source = edge.source?.[2];
+            const target = edge.target?.[2];
+            const outgoing = source === component;
+            const other = outgoing ? target : source;
+            return (
+              <div className={styles.connectionRow} key={edge.name}>
+                <span className={styles.connectionDirection}>
+                  {outgoing ? "out" : "in"}
+                </span>
+                <span className={styles.connectionLine}>
+                  {outgoing ? <EdgePill name={edge.name} /> : endpoint(other)}
+                  <ArrowRight aria-hidden className={styles.inlineArrow} />
+                  {outgoing ? endpoint(other) : <EdgePill name={edge.name} />}
+                </span>
+              </div>
+            );
+          })}
+        </>
       ) : (
         <DetailEmptyState>No relation touches this record.</DetailEmptyState>
       )}
