@@ -2215,7 +2215,6 @@ export function TopologyInspector({
   const propertyCount = entity ? entityProperties(props, entity).length : 0;
   const graphName = props.state.index.graphDeclaration?.name ?? "Graph";
   const entityMeaningCount = meaning ? meaningCount(meaning) : 0;
-  const hasProperties = propertyCount > 0;
   const fulfilmentSubject: Parameters<typeof buildAxisMap>[1] | undefined =
     entity
       ? activeProperty
@@ -2434,6 +2433,7 @@ export function TopologyInspector({
                     label={isTopologyNode(entity) ? "Links" : "Kind"}
                     value={isTopologyNode(entity) ? entity.degree : entity.kind}
                   />
+                  <SummaryField label="Properties" value={propertyCount} />
                   <SummaryField
                     label="License"
                     value={entityLicense?.value ?? "Not declared"}
@@ -2460,50 +2460,6 @@ export function TopologyInspector({
                     />
                   </div>
                 </div>
-
-                {hasProperties ? (
-                  <section className="rounded-[var(--radius-md)] border border-line-soft bg-panel-raised px-2.5 py-2">
-                    <div className="mb-1 flex items-baseline justify-between gap-2">
-                      <Label>Properties</Label>
-                      <button
-                        type="button"
-                        onClick={() => setTab("properties")}
-                        className="text-[length:var(--text-sm)] text-accent-strong hover:text-text"
-                      >
-                        All {propertyCount}
-                      </button>
-                    </div>
-                    <div className="grid gap-0.5">
-                      {entityProperties(props, entity)
-                        .slice(0, 4)
-                        .map((property) => (
-                          <button
-                            key={property.name}
-                            type="button"
-                            onClick={() =>
-                              props.actions.inspect(
-                                propertySelection(entity, property),
-                              )
-                            }
-                            className="flex w-full items-baseline justify-between gap-2 rounded-[var(--radius-sm)] px-1 py-0.5 text-left hover:bg-panel-soft"
-                            title={`Inspect ${entityComponentName(entity)}.${property.name}`}
-                          >
-                            <span className="truncate font-mono text-[length:var(--text-base)] text-text">
-                              {property.name}
-                            </span>
-                            <span className="shrink-0 font-mono text-[length:var(--text-caption)] text-faint">
-                              {logicalTypeName(property.logical_type)}
-                            </span>
-                          </button>
-                        ))}
-                    </div>
-                    {propertyCount > 4 ? (
-                      <p className="mt-1 font-mono text-[length:var(--text-sm)] text-faint">
-                        +{propertyCount - 4} more
-                      </p>
-                    ) : null}
-                  </section>
-                ) : null}
 
                 <section className="rounded-[var(--radius-md)] border border-line-soft bg-panel-raised px-2.5 py-2">
                   <Label className="block">Purpose</Label>
