@@ -50,6 +50,7 @@ retains its editor state and scroll position.
 
 | Document | Editor |
 | --- | --- |
+| **Graph detail** | the graph declaration as a detail deck: banner extent and licence, Meaning and Coverage; opened from the graph item above the Explorer layers |
 | **Graph** (pinned) | shared visualisation frame with a header (view name, visible node/link counts, **Inspect** toggle) above a D3 force canvas; bottom-left zoom/Fit navigation; floating Inspector shows graph purpose/overview when nothing is selected, or the selected entity's identity, properties and meaning; clicking empty space deselects |
 | **Workflow** (pinned) | compositor-style component graph in the same visualisation frame; the header names the workflow or focused component, states component or step counts and carries step-group actions; selecting a component and using **Open step group** drills into its step-level flow graph with one block per dependency layer, a large layer wrapping into aligned sub-columns, and boundary components aligned to the steps they feed; selecting a component, step or boundary node highlights its incident links and dims the other nodes in the same graph view, and entering another step group requires **Open step group**; drag to pan, wheel to zoom, Fit in the navigation cluster resets; Back returns to components; the Workflow filter bar narrows the step graph |
 | **Step** | one workflow step's instruction, payload, openings, connections and blueprint bindings on the same detail surface as node and subject documents; opened from the workflow section of Explorer |

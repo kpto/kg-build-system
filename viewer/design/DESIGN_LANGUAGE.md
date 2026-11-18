@@ -23,10 +23,11 @@ Window        where am I, and what design am I reading?
 - **Window** owns identity: brand, snapshot, global search, zoom, panel
   visibility.
 - **Document** owns its editor content and pane state. The Graph document is
-  canonical; the Workflow document is the compiled plan; a subject document is a
-  node, edge, property, asset or abstract node opened from the Explorer tree,
-  a context menu or the command palette; a step document is one workflow step
-  opened from the workflow section of Explorer.
+  canonical; the Workflow document is the compiled plan; a graph detail is the
+  graph declaration read as a deck; a subject document is a node, edge,
+  property, asset or abstract node opened from the Explorer tree, a context menu
+  or the command palette; a step document is one workflow step opened from the
+  workflow section of Explorer.
 - **Panel** owns one region, one header and one body. A panel never contains
   another panel of the same kind.
 - **Section** owns one question inside a panel. If it needs "and", it is two

@@ -74,6 +74,7 @@ import {
 import { DataItemEditor } from "./DataItemFeature";
 import { BindingEditor } from "./BindingFeature";
 import { CollectionEditor } from "./CollectionFeature";
+import { GraphEditor } from "./GraphFeature";
 import { COLLECTIONS, type CollectionId } from "@/workbench/collections";
 import { ContextMenu } from "@/shared/ui/ContextMenu";
 import { laneColor } from "@/shared/ui/theme";
@@ -444,6 +445,18 @@ export function ExplorerSidebar(props: WorkspaceProps) {
     getWorkflowUiStore(props.state.snapshot.name).setComponent(component);
     props.actions.showWorkflow();
   };
+  const graphName = index.graphDeclaration?.name ?? "Graph";
+  const openGraphDetail = (preview: boolean) => {
+    props.actions.openTab({
+      selection: { kind: "graph", component: graphName, name: graphName },
+      preview,
+    });
+  };
+  const graphVisible = matches(
+    normalized,
+    graphName,
+    index.graphSemantics?.purpose?.text,
+  );
   const openStep = (row: WorkflowStepRow, preview: boolean) => {
     props.actions.openTab({
       selection: {
@@ -922,6 +935,19 @@ export function ExplorerSidebar(props: WorkspaceProps) {
           spellCheck={false}
         />
       </div>
+      {graphVisible ? (
+        <div className={styles.sideGraph}>
+          <SidebarRow
+            testId="explorer-graph"
+            label={graphName}
+            concept="graph"
+            meta={`${index.topologyNodes.length}N · ${index.topologyEdges.length}E`}
+            active={active?.kind === "graph"}
+            onSelect={() => openGraphDetail(true)}
+            onOpenPermanent={() => openGraphDetail(false)}
+          />
+        </div>
+      ) : null}
       <div className={`${styles.sideScroll} thin-scrollbar`}>
         <SideSection
           id="assets"
@@ -1750,6 +1776,9 @@ function subjectMeaning(
 
 export function DetailEditor(props: WorkspaceProps) {
   const selection = documentSelection(activeDocument(props.state));
+  if (selection?.kind === "graph") {
+    return <GraphEditor {...props} />;
+  }
   if (selection?.kind === "collection") {
     return <CollectionEditor {...props} />;
   }

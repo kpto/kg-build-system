@@ -1393,6 +1393,14 @@ button.expressionToggle:hover {
   overscroll-behavior: contain;
 }
 
+/* The graph declaration is one item above the layer groups: the document is
+   the root of the design, not a member of one layer. */
+.sideGraph {
+  flex: none;
+  padding: var(--space-stack) var(--space-inline) var(--space-inline);
+  border-bottom: var(--border-hairline) solid var(--color-line-soft);
+}
+
 .meaningPanel {
   border: var(--border-hairline) solid var(--color-line);
   border-radius: var(--radius-md);

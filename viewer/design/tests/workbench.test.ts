@@ -67,6 +67,24 @@ describe("workbench documents and geometry", () => {
     expect(current.layout.sidebarWidth).toBe(520);
   });
 
+  it("opens the graph declaration as a document beside the graph view", () => {
+    const current = workbenchReducer(state(), {
+      type: "open-tab",
+      input: {
+        selection: {
+          kind: "graph",
+          component: "fixture_graph",
+          name: "fixture_graph",
+        },
+      },
+    });
+    expect(current.tabs).toHaveLength(3);
+    const tab = current.tabs[2];
+    expect(tab.id).not.toBe("graph");
+    expect(documentTitle(tab.document)).toBe("fixture_graph");
+    expect(current.activeTabId).toBe(tab.id);
+  });
+
   it("reuses one preview tab for single-click navigation", () => {
     let current = workbenchReducer(state(), {
       type: "open-tab",

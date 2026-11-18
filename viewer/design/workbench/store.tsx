@@ -41,6 +41,7 @@ import { DEFAULT_LAYOUT, MAX_SIDEBAR, MIN_SIDEBAR } from "./types";
 export const WORKBENCH_STORAGE_PREFIX = "kg-workbench:v2";
 
 const SUBJECT_KINDS = new Set<SubjectKind>([
+  "graph",
   "asset",
   "relation",
   "projection",

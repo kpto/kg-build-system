@@ -127,6 +127,7 @@ page, the card shows a bounded set of actual subjects and states the total.
 
 | View kind | Sections | Notes |
 | --- | --- | --- |
+| Graph | **Meaning**, **Coverage** | The banner states nodes, abstract categories, relations, meaning units and licence. Coverage states the graph's extent: participants, abstract categories, relation links, properties and bindings. The graph declaration is not a record: it has no Constitution, Contribution, Properties, Connections or Bindings page. |
 | Node | **Constitution**, **Meaning**, **Contribution**, **Properties**, **Connections**, **Bindings** | Contribution is the incident edges, one graph level above; Properties are the record's properties; Connections are incident relations. |
 | Edge | **Constitution**, **Meaning**, **Properties**, **Connections**, **Bindings** | An edge has no Contribution card: its endpoints are its constitution. Properties are the edge's properties. Connections states `source → edge` as `in` and `edge → target` as `out`. |
 | Property | **Constitution**, **Meaning**, **Contribution**, **Branches**, **Connections**, **Bindings** | Contribution is the owning record; Branches is the type/presence chain and lane canvas; Connections is its ledger. |

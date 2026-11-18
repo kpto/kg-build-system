@@ -10,7 +10,7 @@ frame, one document tab strip, and one collapsible side bar:
 
 | Side-bar section | What it is for |
 | --- | --- |
-| **Explorer** | Everything in the design: assets, source relations, derived relations, nodes, abstract nodes and edges, properties, bindings, plus the workflow components and step catalogue. A header body opens its layer collection and its arrow — on the left of every row — unfolds the list; every participant row opens its own document. Right-clicking an item jumps to its Graph or Workflow view. |
+| **Explorer** | Everything in the design: the graph declaration, assets, source relations, derived relations, nodes, abstract nodes and edges, properties, bindings, plus the workflow components and step catalogue. A header body opens its layer collection and its arrow — on the left of every row — unfolds the list; every participant row opens its own document. Right-clicking an item jumps to its Graph or Workflow view. |
 
 A visualisation owns its controls. The Graph carries a compact toolbar and one
 **View** popover; the Workflow carries a compact filter bar. The side bar never
@@ -24,11 +24,11 @@ The tab strip is the document axis:
 
 - **Graph** — the canonical graph view, pinned;
 - **Workflow** — the compiled workflow plan, pinned;
-- **Subject documents** — a node, edge, property, asset, abstract node,
-  source relation, derived relation or binding. A single click in the Explorer
-  tree or a context-menu action opens or reuses a preview tab; a double click,
-  **Open Detail**, a right-click **Go to Detail** or the command palette opens
-  a permanent tab.
+- **Subject documents** — the graph declaration, a node, edge, property, asset,
+  abstract node, source relation, derived relation or binding. A single click in
+  the Explorer tree or a context-menu action opens or reuses a preview tab; a
+  double click, **Open Detail**, a right-click **Go to Detail** or the command
+  palette opens a permanent tab.
 
 There is no mode switch. The side bar is the Explorer. A view's controls sit on
 the view itself: the Graph has a toolbar and a View popover, and the Workflow
@@ -176,6 +176,7 @@ The first paint shows the design, not its annotations.
 
 | Surface | Default | Revealed by |
 | --- | --- | --- |
+| Graph detail | the graph declaration as a banner over a two-card deck: **Meaning** and **Coverage** | the graph item above the Explorer layers; the index rail moves between the two cards |
 | Graph document | Blender-node-editor canvas with a dot and major grid, degree-sized nodes tinted by category, nested abstract-category containers and hub labels; the shared visualisation header states visible nodes and links, carries the **Inspect** toggle and opens a floating inspector showing graph purpose and counts | selecting an entity fills Inspect with its meaning, properties and the fulfilment map; clicking empty space returns to graph purpose; the **Labels** control and the **View** popover reveal the other layers |
 | Workflow document | compositor-style component graph in the shared visualisation frame; its header names the workflow or focused step group and states component or step counts, with step-group actions on the right; drag to pan, wheel to zoom, Fit in the bottom-left navigation cluster resets | filter by component or instruction kind in the Workflow bar; click a component to select it, then use **Open step group** to enter its step-level flow graph with one block per dependency layer; a large layer wraps into aligned sub-columns and chains read left to right; clicking a step node selects it, **Open step** opens its detail document, and **Back** returns to components. Selecting a component, step or boundary node highlights its incident links and dims the other nodes and links; entering another step group requires **Open step group** |
 | Subject document | one banner overview and one horizontal deck of flat cards: Constitution (one DAG: purpose and graph ancestry in a GRAPH frame, one box per binding in a FULFILMENT frame, relation provenance in a RELATION frame; shared declarations once; opens fitted, pan/zoom), Contribution (the one level above, in the same DAG), Meaning, Properties, Connections and Bindings; the effective licence sits in the header | the left index rail navigates the static cards; the deck fills the tab body height with the page margin inside each card, so the index starts at the tab edge; each card fills the deck and the next card peeks, and the last card snaps to the deck start; property rows, the branch selector and binding pills open their own documents; the Explorer tree opens another subject document |
@@ -205,10 +206,10 @@ The editor is one global tab strip. The viewer has three kinds of tab view:
 
 - **Graph** — the pinned canonical graph document;
 - **Workflow** — the pinned compiled workflow plan;
-- **Subject documents** — a node, edge, property, asset, abstract node,
-  source relation, derived relation or binding, opened explicitly from **Open
-  Detail**, the Explorer tree, a binding pill, a Detail property row, or the
-  command palette;
+- **Subject documents** — the graph declaration, a node, edge, property, asset,
+  abstract node, source relation, derived relation or binding, opened explicitly
+  from **Open Detail**, the Explorer tree, a binding pill, a Detail property
+  row, or the command palette;
 - **Step documents** — one workflow step, opened from the workflow section of Explorer.
 
 Single-clicking a node or a property row only changes the transient **Inspect**

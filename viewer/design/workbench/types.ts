@@ -10,6 +10,7 @@ import type { ViewerIndex, ViewerSnapshot } from "@/lib/types";
 import { collectionTitle, type CollectionId } from "./collections";
 
 export type SubjectKind =
+  | "graph"
   | "asset"
   | "relation"
   | "projection"
@@ -23,7 +24,7 @@ export type SubjectKind =
 
 export type DetailLevel = "property" | "node" | "edge" | "abstract" | "asset";
 
-/** A subject the viewer can open or inspect. There is no graph subject. */
+/** A subject the viewer can open or inspect. The graph declaration is one. */
 export interface SubjectSelection {
   kind?: SubjectKind;
   name?: string;
@@ -141,6 +142,9 @@ export function subjectTitle(selection: SubjectSelection): string {
   if (selection.kind === "property" && selection.component && selection.property) {
     return `${selection.component}.${selection.property}`;
   }
+  if (selection.kind === "graph") {
+    return selection.component ?? selection.name ?? "Graph";
+  }
   if (selection.component) return selection.component;
   if (selection.name) return selection.name;
   return "Detail";
@@ -161,6 +165,8 @@ export function documentTitle(document: WorkbenchDocument): string {
  */
 export function selectionSignature(selection: SubjectSelection): string {
   switch (selection.kind) {
+    case "graph":
+      return ["graph", selection.component ?? selection.name ?? ""].join("\u0000");
     case "node":
     case "edge":
     case "asset":
