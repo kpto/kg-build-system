@@ -128,8 +128,9 @@ opens a document. A workflow component header behaves the same way.
   own concept mark, never the graph mark.
   - A record is one intact DAG. The subject and its graph ancestry share the
     GRAPH frame; the bindings are in the FULFILMENT frame and the relation
-    provenance in the RELATION frame. The layered layout places them; no group
-    is fixed to a side. There is no separator.
+    provenance in the RELATION frame. The subject shares the graph ancestry
+    column; the layered layout places the three frames without overlap. There
+    is no separator.
   - A source relation shows its subject over its asset alone; a derived relation
     its subject over the source relations it scans and their assets. The subject
     and the asset or scanned sources share one RELATION frame. Neither carries
@@ -142,7 +143,8 @@ opens a document. A workflow component header behaves the same way.
   - GRAPH, RELATION and FULFILMENT are the frame kinds, and every box sits
     inside one of them. A record's subject and graph ancestry share the GRAPH
     frame; a step boundary uses GRAPH; a collection layer DAG uses the frame of
-    its layer. No frame is pinned to a side.
+    its layer. The subject shares the graph ancestry column; the layered layout
+    places the three frames without overlap.
   - An asset is the given source, so it has no Constitution card. A step is
     build machinery and has none either.
   When several arrows meet one box, their heads sit on a centred, evenly spaced

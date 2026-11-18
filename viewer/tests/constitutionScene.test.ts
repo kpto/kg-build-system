@@ -165,6 +165,20 @@ describe("constitution scene", () => {
     expect(estate.y).toBeGreaterThan(surveys.y);
   });
 
+  it("keeps the frames disjoint", () => {
+    for (let left = 0; left < scene.frames.length; left += 1) {
+      for (let right = left + 1; right < scene.frames.length; right += 1) {
+        const a = scene.frames[left];
+        const b = scene.frames[right];
+        const overlapX =
+          Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x);
+        const overlapY =
+          Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y);
+        expect(overlapX <= 0 || overlapY <= 0).toBe(true);
+      }
+    }
+  });
+
   it("frames the purpose and graph ancestry, the bindings and the relation provenance", () => {
     expect(scene.frames.map((frame) => frame.id)).toEqual([
       "graph",

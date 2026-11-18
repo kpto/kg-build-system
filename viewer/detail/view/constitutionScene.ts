@@ -461,6 +461,17 @@ function buildRecordScene(model: ConstitutionModel): ConstitutionScene {
   const subjectPositioned = positioned.find(
     (node) => node.id === subject.id,
   )!;
+  const graphNodesPositioned = positioned.filter(
+    (node) => node.axis === "graph",
+  );
+  if (graphNodesPositioned.length) {
+    // The subject belongs to the GRAPH frame, so it sits in the ancestry
+    // column. The layered layout still chooses where that column is relative
+    // to the other frames.
+    subjectPositioned.x = Math.min(
+      ...graphNodesPositioned.map((node) => node.x),
+    );
+  }
   nodes.push(...positioned);
   const positionedById = new Map(
     positioned.map((node) => [node.id, node]),
