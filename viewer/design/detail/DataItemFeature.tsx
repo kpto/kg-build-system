@@ -146,8 +146,8 @@ export function DataItemEditor(props: WorkspaceProps) {
   ) : null;
   const membersSection = (
       <DetailBand
-        title="Members"
-        question="Which columns does this relation publish?"
+        title="Fields"
+        question="Which fields does this relation publish?"
         testId="detail-columns"
       >
         <MemberTable

@@ -4,7 +4,7 @@
  * Detail document view: one design subject read in full.
  *
  * Every record detail renders the same band order: Meaning, Constitution,
- * Members, Connections and Bindings. The binding document carries the
+ * Properties, Connections and Bindings. The binding document carries the
  * Expression and Build steps. A kind includes or omits a band; it never
  * invents a second section grammar. The content contract is
  * `DETAIL_CONTENT.md`.
@@ -1694,7 +1694,7 @@ function ComponentProofView({
   return (
     <div className={styles.levelBody}>
       <DetailBand
-        title="Members"
+        title="Properties"
         question="Which properties does this record assert?"
         testId="detail-properties"
       >

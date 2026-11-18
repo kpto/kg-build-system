@@ -53,9 +53,7 @@ describe("detail section marks", () => {
     }
   });
 
-  it("maps every structural card title to its own section", () => {
-    const kinds = Object.values(DETAIL_SECTION_BY_TITLE);
-    expect(new Set(kinds).size).toBe(kinds.length);
+  it("maps every structural card title to a section", () => {
     for (const [title, kind] of Object.entries(DETAIL_SECTION_BY_TITLE)) {
       expect(sectionForTitle(title)).toBe(kind);
       expect(detailMarks[kind]).toBeTruthy();

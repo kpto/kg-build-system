@@ -76,7 +76,7 @@ Every item detail view follows one content contract, stated in
 
 ```text
 Banner: Overview
-Constitution → Meaning → Contribution → Members → Connections → Bindings
+Constitution → Meaning → Contribution → Properties → Connections → Bindings
 ```
 
 A binding document is the one exception to the record order:
@@ -176,8 +176,9 @@ opens a document. A workflow component header behaves the same way.
   writes; Build steps shows the plan around that binding. The record reaches
   them through its Bindings table and the Constitution's binding node. The
   binding banner states the rows read, so Sources is not a separate card.
-- **Members** is one table grammar for properties, columns, fields,
-  descendants and openings. The instance pill opens its document when one exists.
+- **Properties** for a node or edge and **Fields** for a relation are one table
+  grammar for properties, columns, fields, descendants and openings. The
+  instance pill opens its document when one exists.
 - **Connections** states the edge and the other endpoint with an **In/Out**
   column: `[edge pill] → [target pill]` or `[source pill] → [edge pill]`. The
   current subject is not repeated; a step's connections are its ports.

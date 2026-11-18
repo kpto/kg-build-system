@@ -48,7 +48,8 @@ export const DETAIL_SECTION_BY_TITLE: Record<string, DetailSectionKind> = {
   Constitution: "constitution",
   Meaning: "meaning",
   Contribution: "contribution",
-  Members: "members",
+  Properties: "members",
+  Fields: "members",
   Connections: "connections",
   Bindings: "bindings",
   Branches: "branches",
@@ -71,7 +72,7 @@ export function sectionForTitle(title: string): DetailSectionKind {
 /**
  * One new silhouette per structural card role. The shapes are deliberately
  * different from the concept catalogue: a detail page may show a node header
- * and a Members or Connections card, and the two must not read as the same
+ * and a Properties or Connections card, and the two must not read as the same
  * kind.
  */
 export const detailMarks: Record<DetailSectionKind, DetailMarkDefinition> = {
@@ -109,7 +110,7 @@ export const detailMarks: Record<DetailSectionKind, DetailMarkDefinition> = {
     ),
   },
   members: {
-    label: "Members",
+    label: "Properties / Fields",
     box: DETAIL_MARK_BOX,
     mark: (
       <>
