@@ -411,7 +411,10 @@ the page margin instead.
   own pane and keeps its own editor state and scroll position.
 - A single click in the Explorer tree opens or reuses one preview tab, like VS
   Code. Double-clicking the row, using **Open Detail**, choosing **Go to Detail**
-  in a context menu, or using the command palette opens a permanent tab. The
+  in a context menu, or using the command palette opens a permanent tab. A
+  subject has one document: a pill, a row, a reference or the command palette
+  for an already-open subject activates that tab instead of opening a second
+  one; display-only fields such as a repeated name are not part of identity. The
   context menu also offers **Go to Graph** for graph subjects and **Go to
   Workflow** for workflow items. A workflow component selected in Control or in
   the Workflow graph expands its step group in Explorer. That reveal is

@@ -211,7 +211,9 @@ The editor is one global tab strip. The viewer has three kinds of tab view:
 
 Single-clicking a node or a property row only changes the transient **Inspect**
 selection; it does not open a tab. Explorer rows single-click into a reusable
-preview tab and double-click into a permanent tab. Right-clicking an Explorer
+preview tab and double-click into a permanent tab. A subject has one document:
+a pill, row, reference or command-palette entry for an already-open subject
+activates its existing tab rather than opening a second one. Right-clicking an Explorer
 item offers **Go to Graph** for graph subjects and **Go to Workflow** for
 workflow components and steps. A workflow component selected in Control or in
 the Workflow graph expands its step group in Explorer; an explicit collapse sticks until the active subject changes. **Middle-click** closes a

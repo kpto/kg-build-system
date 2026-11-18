@@ -170,6 +170,75 @@ describe("workbench documents and geometry", () => {
     expect(again.tabs).toHaveLength(3);
   });
 
+  it("deduplicates equivalent explorer and pill selections", () => {
+    // The Explorer supplies a display name and level; a pill supplies the
+    // component alone. They are the same document and must reuse one tab.
+    let current = workbenchReducer(state(), {
+      type: "open-tab",
+      input: { selection: defectNode },
+    });
+    current = workbenchReducer(current, {
+      type: "open-tab",
+      input: {
+        selection: { kind: "node", level: "node", component: "defect" },
+        preview: true,
+      },
+    });
+    expect(current.tabs).toHaveLength(3);
+    expect(
+      current.tabs.filter((tab) => documentTitle(tab.document) === "defect"),
+    ).toHaveLength(1);
+
+    current = workbenchReducer(current, {
+      type: "open-tab",
+      input: {
+        selection: {
+          kind: "edge",
+          level: "edge",
+          component: "target_belongs_to_class",
+          name: "target_belongs_to_class",
+        },
+      },
+    });
+    current = workbenchReducer(current, {
+      type: "open-tab",
+      input: {
+        selection: {
+          kind: "edge",
+          level: "edge",
+          component: "target_belongs_to_class",
+        },
+        preview: true,
+      },
+    });
+    expect(
+      current.tabs.filter(
+        (tab) => documentTitle(tab.document) === "target_belongs_to_class",
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("deduplicates a property with or without its qualified display name", () => {
+    let current = workbenchReducer(state(), {
+      type: "open-tab",
+      input: { selection: defectProperty },
+    });
+    current = workbenchReducer(current, {
+      type: "open-tab",
+      input: {
+        selection: {
+          kind: "property",
+          level: "property",
+          component: "defect",
+          property: "title",
+          name: "title",
+        },
+      },
+    });
+    expect(current.tabs).toHaveLength(3);
+    expect(activeTitle(current)).toBe("defect.title");
+  });
+
   it("walks back and forward across documents", () => {
     let current = workbenchReducer(state(), {
       type: "open-tab",

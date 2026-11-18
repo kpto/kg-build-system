@@ -21,6 +21,7 @@ import {
 
 import type { ViewerIndex, ViewerSnapshot } from "@/lib/types";
 
+import { selectionSignature } from "./types";
 import type {
   OpenTabInput,
   SubjectKind,
@@ -157,20 +158,6 @@ function normalizeSelection(value: unknown): SubjectSelection | undefined {
     selection.stepId = [candidate.stepId[0], candidate.stepId[1]];
   }
   return selection;
-}
-
-function selectionSignature(selection: SubjectSelection): string {
-  return [
-    selection.kind ?? "",
-    selection.component ?? "",
-    selection.name ?? "",
-    selection.property ?? "",
-    selection.level ?? "",
-    selection.stepId?.join("/") ?? "",
-    selection.bindingIndex?.toString() ?? "",
-    selection.collection ?? "",
-    selection.abstract ? "abstract" : "",
-  ].join("\u0000");
 }
 
 function subjectId(selection: SubjectSelection): string {

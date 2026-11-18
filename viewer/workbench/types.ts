@@ -150,22 +150,76 @@ export function documentTitle(document: WorkbenchDocument): string {
   return subjectTitle(document.selection);
 }
 
+/**
+ * The semantic identity of a subject document. Display-only and derived fields
+ * are excluded: a node's `name` repeats its `component`, a property's `name`
+ * repeats its owner and property, a step's `stepId` repeats its component and
+ * name, and a collection's `name` is its display title. Two navigations that
+ * reach the same subject therefore open one tab, not two.
+ */
+export function selectionSignature(selection: SubjectSelection): string {
+  switch (selection.kind) {
+    case "node":
+    case "edge":
+    case "asset":
+    case "relation":
+    case "projection":
+      return [
+        selection.kind,
+        selection.component ?? selection.name ?? "",
+        selection.level ?? "",
+        selection.abstract ? "abstract" : "",
+      ].join("\u0000");
+    case "property":
+      return [
+        "property",
+        selection.component ?? "",
+        selection.property ?? "",
+        selection.level ?? "",
+      ].join("\u0000");
+    case "field":
+      return ["field", selection.component ?? "", selection.name ?? ""].join(
+        "\u0000",
+      );
+    case "binding":
+      return [
+        "binding",
+        selection.bindingIndex?.toString() ??
+          `${selection.component ?? ""}:${selection.name ?? ""}`,
+        selection.component ?? "",
+      ].join("\u0000");
+    case "step":
+      return [
+        "step",
+        selection.component ?? selection.stepId?.[0] ?? "",
+        selection.name ?? selection.stepId?.[1] ?? "",
+      ].join("\u0000");
+    case "collection":
+      return [
+        "collection",
+        selection.collection ?? "",
+        selection.component ?? "",
+      ].join("\u0000");
+    default:
+      return [
+        selection.kind ?? "",
+        selection.component ?? "",
+        selection.name ?? "",
+        selection.property ?? "",
+        selection.level ?? "",
+        selection.stepId?.join("/") ?? "",
+        selection.bindingIndex?.toString() ?? "",
+        selection.collection ?? "",
+        selection.abstract ? "abstract" : "",
+      ].join("\u0000");
+  }
+}
+
 /** Stable content identity used to remount a pane when a preview replaces it. */
 export function documentSignature(document: WorkbenchDocument): string {
   if (document.kind === "graph") return "graph";
   if (document.kind === "workflow") return "workflow";
-  const selection = document.selection;
-  return [
-    selection.kind ?? "",
-    selection.component ?? "",
-    selection.name ?? "",
-    selection.property ?? "",
-    selection.level ?? "",
-    selection.stepId?.join("/") ?? "",
-    selection.bindingIndex?.toString() ?? "",
-    selection.collection ?? "",
-    selection.abstract ? "abstract" : "",
-  ].join("\u0000");
+  return selectionSignature(document.selection);
 }
 
 export const DEFAULT_LAYOUT: WorkbenchLayout = {
