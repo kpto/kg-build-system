@@ -236,6 +236,25 @@ def _api_response(
     return None
 
 
+def data_response(
+    project: Project,
+    raw_path: str,
+) -> tuple[int, str, bytes] | None:
+    """Resolve the data paths kbs owns in dev mode: snapshot and project API."""
+
+    parsed = urlparse(raw_path)
+    if parsed.path in {"/snapshot", "/api/snapshot"}:
+        current = _current(project, "current.snapshot.json")
+        if current is None:
+            return 404, "text/plain; charset=utf-8", b"no current snapshot"
+        return (
+            200,
+            "application/json; charset=utf-8",
+            _viewer_bytes(current, project),
+        )
+    return _api_response(project, parsed, VIEWER_URL)
+
+
 def make_handler(project: Project) -> type[BaseHTTPRequestHandler]:
     """Serve the integrated console, viewer and API on one origin."""
 
@@ -248,7 +267,7 @@ def make_handler(project: Project) -> type[BaseHTTPRequestHandler]:
         def do_GET(self) -> None:  # noqa: N802 - stdlib hook
             parsed = urlparse(self.path)
             path = parsed.path
-            response = _api_response(project, parsed, VIEWER_URL)
+            response = data_response(project, self.path)
             if response is not None:
                 self._send_response(response)
                 return
@@ -256,13 +275,6 @@ def make_handler(project: Project) -> type[BaseHTTPRequestHandler]:
                 self.send_response(HTTPStatus.MOVED_PERMANENTLY)
                 self.send_header("Location", "/console/")
                 self.end_headers()
-                return
-            if path == "/snapshot":
-                current = _current(project, "current.snapshot.json")
-                if current is None:
-                    self.send_error(HTTPStatus.NOT_FOUND)
-                    return
-                self._send_bytes(_viewer_bytes(current, project), "application/json; charset=utf-8")
                 return
             if path.startswith("/console/"):
                 relative = path[len("/console/"):] or "index.html"
@@ -347,6 +359,7 @@ def serve(
 __all__ = [
     "CONSOLE_DIST",
     "VIEWER_DIST",
+    "data_response",
     "make_handler",
     "serve",
 ]

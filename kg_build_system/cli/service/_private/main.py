@@ -37,6 +37,17 @@ def _run_console(arguments: argparse.Namespace) -> int:
     from kg_build_system.notebook.console import serve
 
     project = load_project(arguments.project)
+    if arguments.dev:
+        from kg_build_system.cli.service._private.dev.service import serve_console_dev
+
+        try:
+            return serve_console_dev(
+                project,
+                host=arguments.host,
+                port=arguments.port,
+            )
+        except (OSError, RuntimeError) as error:
+            raise ValueError(str(error)) from error
     serve(
         project,
         host=arguments.host,
@@ -102,7 +113,11 @@ def _parser() -> argparse.ArgumentParser:
     console.add_argument("--host", default="127.0.0.1", help="bind address")
     console.add_argument(
         "--port", type=int, default=None,
-        help="console port; 0 chooses an available port (default)",
+        help="console port; defaults to 0, or 8000 in dev mode",
+    )
+    console.add_argument(
+        "--dev", action="store_true",
+        help="run the framework .env dev commands and reverse-proxy them",
     )
     console.set_defaults(command_handler=_run_console)
 

@@ -74,18 +74,23 @@ required at runtime.
 | `--snapshot PATH` | Workflow plan, blueprint, viewer snapshot or gzip of one. Defaults to `build/workflow_plan.json`. |
 | `--title TEXT` | Display title for a bare workflow plan or blueprint. |
 | `--host ADDRESS` | Bind address; defaults to `127.0.0.1`. |
-| `--port PORT` | Port to serve on; defaults to `8001`. |
+| `--port PORT` | Port to serve on; defaults to `8001`, or `8000` in dev mode. |
 | `--no-open` | Do not open a browser. |
+| `--dev` | Run the viewer command from the framework `.env` and reverse-proxy it; the default port is 8000. |
 
 `kbs view` serves the snapshot at `/snapshot`. It never falls back to a bundled
 sample: with no `--snapshot` and no `build/workflow_plan.json`, it exits with an
 error and asks for a plan.
 
 The command does not start Next and knows nothing about the viewer source.
+`--dev` is the framework-maintainer path: the untracked `.env` at the framework
+repo root supplies `KBS_DEV_VIEWER` and `KBS_DEV_CONSOLE`, each command prints
+its port on the first line, and `kbs` proxies the dev UI while serving the
+snapshot itself.
 
 The wheel build compiles the viewer with `npm ci` and `npm run build:static`.
 `KBS_SKIP_VIEWER_BUILD=1` uses an existing `viewer/design/out`, `KBS_SKIP_VIEWER_INSTALL=1`
-reuses `viewer/design/node_modules`, and `KBS_NPM` selects an npm executable.
+reuses `viewer/node_modules`, and `KBS_NPM` selects an npm executable.
 
 `compile` and `execute` are Python calls, not console commands. Use `compile` to turn a blueprint into a plan and `execute` to run it; the calls are listed on [API surface](/appendix/reference/api) and walked through on [Generation](/book/part-2/09-generation).
 

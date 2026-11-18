@@ -80,8 +80,15 @@ def add_view_command(commands: argparse._SubParsersAction[Any]) -> None:
     )
     parser.add_argument("--title", default=None, help="display title for a bare plan")
     parser.add_argument("--host", default="127.0.0.1", help="bind address")
-    parser.add_argument("--port", type=int, default=8001, help="port to serve on")
+    parser.add_argument(
+        "--port", type=int, default=None,
+        help="port to serve on; defaults to 8001, or 8000 in dev mode",
+    )
     parser.add_argument("--no-open", action="store_true", help="do not open a browser")
+    parser.add_argument(
+        "--dev", action="store_true",
+        help="run the framework .env dev commands and reverse-proxy them",
+    )
     parser.set_defaults(command_handler=run_view)
 
 
@@ -149,9 +156,23 @@ def _snapshot(path: Path | None, title: str | None) -> tuple[bytes, str]:
 
 
 def run_view(arguments: argparse.Namespace) -> int:
-    assets = _assets()
     snapshot, snapshot_type = _snapshot(arguments.snapshot, arguments.title)
-    server = ViewerServer((arguments.host, arguments.port), ViewerHandler)
+    if arguments.dev:
+        from .dev.service import serve_view_dev
+
+        try:
+            return serve_view_dev(
+                snapshot,
+                snapshot_type,
+                host=arguments.host,
+                port=arguments.port,
+                no_open=arguments.no_open,
+            )
+        except (OSError, RuntimeError) as error:
+            raise ValueError(str(error)) from error
+    assets = _assets()
+    port = 8001 if arguments.port is None else arguments.port
+    server = ViewerServer((arguments.host, port), ViewerHandler)
     server.assets = assets
     server.snapshot_bytes = snapshot
     server.snapshot_type = snapshot_type

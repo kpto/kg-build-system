@@ -108,6 +108,7 @@ def test_console_help_is_top_level_and_has_no_json_flag(capsys) -> None:
     out = capsys.readouterr().out
     assert "usage: kbs console" in out
     assert "--project PROJECT" in out
+    assert "--dev" in out
     assert "--viewer-url" not in out
     assert "--json" not in out
 

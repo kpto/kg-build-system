@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
   transpilePackages: ["@kbs/design"],
   agentRules: false,
   basePath: "/console",
-  output: "export",
+  output: process.env.NODE_ENV === "development" ? undefined : "export",
   images: { unoptimized: true },
 };
 

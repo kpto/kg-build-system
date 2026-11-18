@@ -35,7 +35,7 @@ sources:
 | `kbs notebook revisions record` / `list` | Record or list revision pins. |
 | `kbs notebook compare --before … --after …` | Compare two revisions. |
 | `kbs notebook validate` / `build` / `audit` / `eval` | Run the project-owned commands from `notebook/config.json`. |
-| `kbs console` | Serve the console at `/console/`, the design viewer at `/` and the API on one available port. |
+| `kbs console` | Serve the console at `/console/`, the design viewer at `/` and the API on one available port. `--dev` starts the two commands from the framework `.env` and proxies them. |
 
 Every notebook command takes `--project <dir>` (default `.`) and `--json`.
 Human output is key/value text; `--json` prints the same result as JSON. A

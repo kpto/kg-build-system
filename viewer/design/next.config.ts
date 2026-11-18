@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
   turbopack: { root: path.resolve(process.cwd(), "..") },
   transpilePackages: ["@kbs/design"],
   agentRules: false,
-  output: "export",
+  output: process.env.NODE_ENV === "development" ? undefined : "export",
   images: { unoptimized: true },
 };
 
