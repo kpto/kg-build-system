@@ -186,8 +186,7 @@ missing, not the code.
   container inside it. Draw it behind the links, label it at the top-left, make
   it selectable, and terminate its declared edges on the container boundary.
 - An inspector leads with identity and purpose in one screen. Meaning, members,
-  properties and provenance are explicit chunks, not one long scroll; the
-  overview carries a short property preview and the full list is a chunk. With no
+  properties and provenance are explicit chunks, not one long scroll. With no
   selection it previews the hovered entity, and the graph void returns to the
   overview; a selection always wins. The tab bar sits above the pinned identity,
   only applicable tabs are shown, and the active tab survives a change of
