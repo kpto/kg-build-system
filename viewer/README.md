@@ -213,14 +213,18 @@ Single-clicking a node or a property row only changes the transient **Inspect**
 selection; it does not open a tab. Explorer rows single-click into a reusable
 preview tab and double-click into a permanent tab. A subject has one document:
 a pill, row, reference or command-palette entry for an already-open subject
-activates its existing tab rather than opening a second one. Right-clicking an Explorer
-item offers **Go to Graph** for graph subjects and **Go to Workflow** for
-workflow components and steps. A workflow component selected in Control or in
-the Workflow graph expands its step group in Explorer; an explicit collapse sticks until the active subject changes. **Middle-click** closes a
-subject or step tab; the pinned Graph and Workflow tabs cannot be closed. **Back** and
-**Forward** (arrows in the tab strip, `Alt+←` / `Alt+→`, or the mouse
-back/forward buttons) walk the document history. Every open tab keeps its own
-editor state and scroll position. There is no JSON/Data tab.
+activates its existing tab rather than opening a second one. A middle click on
+a pill opens a permanent tab in the background without switching to it.
+Right-clicking an Explorer item offers **Go to Graph** for graph subjects and
+**Go to Workflow** for workflow components and steps. A workflow component
+selected in Control or in the Workflow graph expands its step group in
+Explorer; an explicit collapse sticks until the active subject changes.
+Middle-clicking a subject or step tab closes it; the pinned Graph and Workflow
+tabs cannot be closed. **Back** and **Forward** (arrows in the tab strip,
+`Alt+←` / `Alt+→`, or the mouse back/forward buttons) walk the view history,
+not the tab order: a closed document is reopened when history reaches its view.
+Every open tab keeps its own editor state and scroll position. There is no
+JSON/Data tab.
 
 ## Snapshot source
 

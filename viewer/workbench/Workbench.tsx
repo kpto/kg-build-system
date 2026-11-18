@@ -151,18 +151,25 @@ function WorkbenchShell() {
   const selectionSignature = selection ? JSON.stringify(selection) : "";
   const conceptNavigation = useMemo(
     () => ({
-      open: (target: ConceptTarget) => {
+      open: (
+        target: ConceptTarget,
+        options?: { background?: boolean },
+      ) => {
         const destination = destinationForConceptTarget(state.index, target);
         if (!destination) return;
         if (destination.kind === "graph") {
-          actions.showGraph({});
+          if (!options?.background) actions.showGraph({});
           return;
         }
         if (destination.kind === "workflow") {
-          actions.showWorkflow();
+          if (!options?.background) actions.showWorkflow();
           return;
         }
-        actions.openTab({ selection: destination.selection, preview: true });
+        actions.openTab(
+          options?.background
+            ? { selection: destination.selection, background: true }
+            : { selection: destination.selection, preview: true },
+        );
       },
     }),
     [actions, state.index],

@@ -4,7 +4,8 @@
  * Workbench state and persistence.
  *
  * One state value owns the loaded snapshot, one global panel geometry, one
- * global editor-tab strip, and the navigation history over that strip. The
+ * global editor-tab strip, and the view history behind back and forward. The
+ * history stores documents, not tab ids, so a closed view can be reopened. The
  * geometry is never per document: switching document changes content, not the
  * shape of the workbench.
  */
@@ -21,11 +22,12 @@ import {
 
 import type { ViewerIndex, ViewerSnapshot } from "@/lib/types";
 
-import { selectionSignature } from "./types";
+import { documentSignature, selectionSignature } from "./types";
 import type {
   OpenTabInput,
   SubjectKind,
   WorkbenchActions,
+  WorkbenchDocument,
   WorkbenchLayout,
   SubjectSelection,
   WorkbenchState,
@@ -188,17 +190,23 @@ export function createWorkbenchState(
     layout: normalizeLayout(undefined),
     tabs: [graph, workflow],
     activeTabId: graph.id,
-    history: [graph.id],
+    history: [graph.document],
     historyIndex: 0,
   };
 }
 
 function pushHistory(
   state: WorkbenchState,
-  tabIdValue: string,
+  document: WorkbenchDocument,
 ): Pick<WorkbenchState, "history" | "historyIndex"> {
   const history = state.history.slice(0, state.historyIndex + 1);
-  if (history[history.length - 1] !== tabIdValue) history.push(tabIdValue);
+  const signature = documentSignature(document);
+  if (
+    !history.length ||
+    documentSignature(history[history.length - 1]) !== signature
+  ) {
+    history.push(document);
+  }
   return { history, historyIndex: history.length - 1 };
 }
 
@@ -212,7 +220,20 @@ function activate(
   return {
     ...state,
     activeTabId: tab.id,
-    ...(record ? pushHistory(state, tab.id) : {}),
+    ...(record ? pushHistory(state, tab.document) : {}),
+  };
+}
+
+function tabForDocument(
+  document: WorkbenchDocument,
+  preview = false,
+): WorkbenchTab {
+  if (document.kind === "graph") return graphTab();
+  if (document.kind === "workflow") return workflowTab();
+  return {
+    id: preview ? previewId(document.selection) : subjectId(document.selection),
+    document,
+    ...(preview ? { preview: true } : {}),
   };
 }
 
@@ -223,6 +244,9 @@ function appendTab(
   const selection = normalizeSelection(input.selection);
   if (!selection || !selection.kind) return state;
   const signature = selectionSignature(selection);
+  // A background open is always permanent and never takes the visible preview
+  // slot; it appends the tab without changing the active view.
+  const preview = Boolean(input.preview) && !input.background;
   const existing = state.tabs.find(
     (tab) =>
       tab.document.kind === "subject" &&
@@ -230,50 +254,64 @@ function appendTab(
   );
   if (existing) {
     // Opening a subject explicitly promotes a preview tab to permanent.
-    if (!input.preview && existing.preview) {
-      return activate(
-        {
-          ...state,
-          tabs: state.tabs.map((tab) =>
+    const tabs =
+      !preview && existing.preview
+        ? state.tabs.map((tab) =>
             tab.id === existing.id ? { ...tab, preview: undefined } : tab,
-          ),
-        },
-        existing.id,
-      );
+          )
+        : state.tabs;
+    if (input.background) {
+      return tabs === state.tabs ? state : { ...state, tabs };
     }
-    return activate(state, existing.id);
+    return activate({ ...state, tabs }, existing.id);
   }
 
-  if (input.preview) {
-    const preview = state.tabs.find((tab) => tab.preview && !tab.pinned);
-    if (preview) {
+  if (preview) {
+    const previewTab = state.tabs.find((tab) => tab.preview && !tab.pinned);
+    if (previewTab) {
       // Reuse one preview tab, like a browser or VS Code. The id tracks the
       // shown selection so a later permanent document cannot collide with it.
       const nextId = previewId(selection);
+      const document: WorkbenchDocument = { kind: "subject", selection };
       const tabs = state.tabs.map((tab) =>
-        tab.id === preview.id
-          ? {
-              ...tab,
-              id: nextId,
-              document: { kind: "subject" as const, selection },
-            }
+        tab.id === previewTab.id
+          ? { ...tab, id: nextId, document }
           : tab,
       );
-      const history = state.history.map((id) =>
-        id === preview.id ? nextId : id,
-      );
       const activeTabId =
-        state.activeTabId === preview.id ? nextId : state.activeTabId;
-      return activate({ ...state, tabs, history, activeTabId }, nextId);
+        state.activeTabId === previewTab.id ? nextId : state.activeTabId;
+      return activate({ ...state, tabs, activeTabId }, nextId);
     }
   }
 
-  const tab: WorkbenchTab = {
-    id: input.preview ? previewId(selection) : subjectId(selection),
-    document: { kind: "subject", selection },
-    ...(input.preview ? { preview: true } : {}),
+  const tab = tabForDocument({ kind: "subject", selection }, preview);
+  const tabs = [...state.tabs, tab];
+  if (input.background) return { ...state, tabs };
+  return activate({ ...state, tabs }, tab.id);
+}
+
+/**
+ * Activate one history view. The view is a document, not a tab: when its tab
+ * was closed, open it again as a permanent document and keep the view history
+ * intact.
+ */
+function restoreView(state: WorkbenchState, index: number): WorkbenchState {
+  const document = state.history[index];
+  if (!document) return state;
+  const signature = documentSignature(document);
+  const existing = state.tabs.find(
+    (tab) => documentSignature(tab.document) === signature,
+  );
+  if (existing) {
+    return { ...state, activeTabId: existing.id, historyIndex: index };
+  }
+  const tab = tabForDocument(document);
+  return {
+    ...state,
+    tabs: [...state.tabs, tab],
+    activeTabId: tab.id,
+    historyIndex: index,
   };
-  return activate({ ...state, tabs: [...state.tabs, tab] }, tab.id);
 }
 
 function nextActiveAfterClose(
@@ -317,13 +355,20 @@ export function workbenchReducer(
         return { ...state, inspection: selection };
       }
       if (tab.document.kind === "workflow") return state;
+      const document: WorkbenchDocument = { kind: "subject", selection };
+      const history = state.history.slice();
+      if (history[state.historyIndex]) {
+        history[state.historyIndex] = document;
+      } else {
+        history.push(document);
+      }
       return {
         ...state,
         tabs: state.tabs.map((candidate) =>
-          candidate.id === tab.id
-            ? { ...candidate, document: { kind: "subject", selection } }
-            : candidate,
+          candidate.id === tab.id ? { ...candidate, document } : candidate,
         ),
+        history,
+        historyIndex: history.length - 1,
       };
     }
 
@@ -383,58 +428,27 @@ export function workbenchReducer(
       if (!remaining.length) return state;
       const nextActive = nextActiveAfterClose(state, action.tabId);
       if (!nextActive) return state;
-      let history = state.history.filter((id) => id !== action.tabId);
-      let historyIndex = Math.min(state.historyIndex, history.length - 1);
-      if (nextActive.id !== state.activeTabId) {
-        history = history.slice(0, Math.max(0, historyIndex) + 1);
-        if (history[history.length - 1] !== nextActive.id) {
-          history.push(nextActive.id);
-        }
-        historyIndex = history.length - 1;
+      if (nextActive.id === state.activeTabId) {
+        // A closed background tab did not change the current view. Its view
+        // stays in history, so Back or Forward can reopen it.
+        return { ...state, tabs: remaining };
       }
-      return {
-        ...state,
-        tabs: remaining,
-        activeTabId: nextActive.id,
-        history,
-        historyIndex: Math.max(0, historyIndex),
-      };
+      const next = { ...state, tabs: remaining, activeTabId: nextActive.id };
+      return { ...next, ...pushHistory(next, nextActive.document) };
     }
 
     case "activate-tab":
       return activate(state, action.tabId);
 
-    case "back": {
-      for (let index = state.historyIndex - 1; index >= 0; index -= 1) {
-        const id = state.history[index];
-        if (state.tabs.some((tab) => tab.id === id)) {
-          const tab = state.tabs.find((candidate) => candidate.id === id);
-          if (!tab) return state;
-          return {
-            ...state,
-            activeTabId: tab.id,
-            historyIndex: index,
-          };
-        }
-      }
-      return state;
-    }
+    case "back":
+      return state.historyIndex > 0
+        ? restoreView(state, state.historyIndex - 1)
+        : state;
 
-    case "forward": {
-      for (let index = state.historyIndex + 1; index < state.history.length; index += 1) {
-        const id = state.history[index];
-        if (state.tabs.some((tab) => tab.id === id)) {
-          const tab = state.tabs.find((candidate) => candidate.id === id);
-          if (!tab) return state;
-          return {
-            ...state,
-            activeTabId: tab.id,
-            historyIndex: index,
-          };
-        }
-      }
-      return state;
-    }
+    case "forward":
+      return state.historyIndex < state.history.length - 1
+        ? restoreView(state, state.historyIndex + 1)
+        : state;
 
     default:
       return state;

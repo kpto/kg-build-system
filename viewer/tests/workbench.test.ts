@@ -295,6 +295,107 @@ describe("workbench documents and geometry", () => {
     expect(activeTitle(current)).toBe("defect");
   });
 
+  it("opens a background tab without changing the active view", () => {
+    let current = workbenchReducer(state(), {
+      type: "open-tab",
+      input: { selection: defectNode, background: true },
+    });
+    expect(current.tabs.map((tab) => documentTitle(tab.document))).toEqual([
+      "Graph",
+      "Workflow",
+      "defect",
+    ]);
+    expect(activeTitle(current)).toBe("Graph");
+    expect(current.history).toHaveLength(1);
+
+    current = workbenchReducer(current, {
+      type: "open-tab",
+      input: { selection: defectProperty, background: true },
+    });
+    expect(current.tabs.map((tab) => documentTitle(tab.document))).toEqual([
+      "Graph",
+      "Workflow",
+      "defect",
+      "defect.title",
+    ]);
+    expect(activeTitle(current)).toBe("Graph");
+    expect(current.history).toHaveLength(1);
+
+    current = workbenchReducer(current, {
+      type: "open-tab",
+      input: { selection: defectNode },
+    });
+    expect(activeTitle(current)).toBe("defect");
+    expect(current.tabs).toHaveLength(4);
+  });
+
+  it("reopens a closed view when history reaches it", () => {
+    let current = workbenchReducer(state(), {
+      type: "open-tab",
+      input: { selection: defectNode },
+    });
+    current = workbenchReducer(current, {
+      type: "open-tab",
+      input: { selection: defectProperty },
+    });
+    const nodeTab = current.tabs.find(
+      (tab) => documentTitle(tab.document) === "defect",
+    );
+    expect(nodeTab).toBeTruthy();
+    current = workbenchReducer(current, {
+      type: "close-tab",
+      tabId: nodeTab!.id,
+    });
+    expect(current.tabs.map((tab) => documentTitle(tab.document))).toEqual([
+      "Graph",
+      "Workflow",
+      "defect.title",
+    ]);
+    expect(current.history).toHaveLength(3);
+
+    current = workbenchReducer(current, { type: "back" });
+    expect(activeTitle(current)).toBe("defect");
+    expect(current.tabs.map((tab) => documentTitle(tab.document))).toEqual([
+      "Graph",
+      "Workflow",
+      "defect.title",
+      "defect",
+    ]);
+    expect(current.historyIndex).toBe(1);
+
+    current = workbenchReducer(current, { type: "forward" });
+    expect(activeTitle(current)).toBe("defect.title");
+  });
+
+  it("reopens the closed active view from history", () => {
+    let current = workbenchReducer(state(), {
+      type: "open-tab",
+      input: { selection: defectNode },
+    });
+    current = workbenchReducer(current, {
+      type: "open-tab",
+      input: { selection: defectProperty },
+    });
+    const propertyTab = current.tabs.find(
+      (tab) => documentTitle(tab.document) === "defect.title",
+    );
+    expect(propertyTab).toBeTruthy();
+    current = workbenchReducer(current, {
+      type: "close-tab",
+      tabId: propertyTab!.id,
+    });
+    expect(activeTitle(current)).toBe("defect");
+
+    current = workbenchReducer(current, { type: "back" });
+    expect(activeTitle(current)).toBe("defect.title");
+    expect(current.tabs.map((tab) => documentTitle(tab.document))).toEqual([
+      "Graph",
+      "Workflow",
+      "defect",
+      "defect.title",
+    ]);
+  });
+
   it("titles a step document by its step name", () => {
     expect(
       subjectTitle({

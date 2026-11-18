@@ -10,7 +10,9 @@ import type { ConceptTarget } from "@/lib/concepts";
  * resolve an instance name to a document.
  */
 export interface ConceptNavigation {
-  open(target: ConceptTarget): void;
+  /** Open a target; a background open appends a permanent tab without
+   * activating it and leaves the current view in place. */
+  open(target: ConceptTarget, options?: { background?: boolean }): void;
 }
 
 const ConceptNavigationContext = createContext<ConceptNavigation | null>(null);

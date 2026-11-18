@@ -41,7 +41,7 @@ export function EditorTabs({
 
   return (
     <div className={styles.tabbar} data-testid="editor-tabs">
-      <div className={styles.tabnav} role="group" aria-label="Tab history">
+      <div className={styles.tabnav} role="group" aria-label="View history">
         <button
           type="button"
           className={styles.tabnavButton}

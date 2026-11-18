@@ -421,17 +421,19 @@ the page margin instead.
   one-shot: once the reader collapses the Workflow section or a component group,
   it stays collapsed until the active subject changes again.
   Preview tabs are reused by the next single click; double-clicking a preview
-  tab label pins it. Middle-clicking a subject or step tab closes it; pinned
-  Graph and Workflow tabs cannot be closed.
+  tab label pins it. Middle-clicking a pill opens a permanent tab in the
+  background without switching to it. Middle-clicking a subject or step tab
+  closes it; pinned Graph and Workflow tabs cannot be closed.
 - There is no mode and no automatic section switching. Control and Explorer are
   side-bar sections; changing section never changes the active tab, and changing
   tab never opens, closes or switches the open sections or panel geometry.
   Control shows controls for the active view; Explorer always states the whole
   design. Opening the same subject again activates its existing tab.
-- Back and forward walk the activated-tab history (`Alt+←` / `Alt+→`, the arrows
-  in the tab strip, or the mouse back/forward buttons). Opening, activating or
-  closing a tab records one navigation step; changing selection inside the
-  active tab does not.
+- Back and forward walk the view history (`Alt+←` / `Alt+→`, the arrows in the
+  tab strip, or the mouse back/forward buttons), not tab identity. Each entry
+  is a document view; if that view's tab was closed, navigating to it reopens
+  the tab. Opening, activating or closing a tab records one navigation step;
+  changing selection inside the active tab does not.
 
 ## One region, one job
 

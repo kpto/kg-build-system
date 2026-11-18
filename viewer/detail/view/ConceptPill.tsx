@@ -100,6 +100,14 @@ export function ConceptPill({
       title={title ?? `Open ${definition.label.toLowerCase()} ${name}`}
       aria-label={`Open ${definition.label.toLowerCase()} ${name}`}
       onClick={() => navigation.open(target)}
+      onMouseDown={(event) => {
+        if (event.button === 1) event.preventDefault();
+      }}
+      onAuxClick={(event) => {
+        if (event.button !== 1) return;
+        event.preventDefault();
+        navigation.open(target, { background: true });
+      }}
     >
       {body}
     </button>

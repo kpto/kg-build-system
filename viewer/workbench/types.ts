@@ -68,7 +68,9 @@ export interface WorkbenchState {
   activeTabId: string;
   /** Transient graph inspection; it never becomes a document by itself. */
   inspection?: SubjectSelection;
-  history: string[];
+  /** The view stack in visit order. It stores documents, not tab ids, so a
+   * closed tab can be reopened when navigation reaches its view. */
+  history: WorkbenchDocument[];
   historyIndex: number;
 }
 
@@ -76,6 +78,8 @@ export interface OpenTabInput {
   selection: SubjectSelection;
   /** Single-click navigation opens a reusable preview tab. */
   preview?: boolean;
+  /** Open a permanent tab without activating it. */
+  background?: boolean;
 }
 
 export interface WorkbenchActions {
