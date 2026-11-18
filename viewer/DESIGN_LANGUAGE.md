@@ -228,11 +228,12 @@ and opens the instance's document itself, so a caller supplies identity, never
 a click handler. A long name truncates in the pill; it never wraps.
 
 Hovering or focusing a pill opens the **concept preview**: one shared popup
-with the concept mark and role, the name, a compact relation, the key facts and
-the stated meaning. The facts specialise by concept — a node leads with labels
-and connections, an edge with its endpoints, a relation with its asset, grain
-and identity, a binding with its target and rows read, a step with its
-instruction and ports — but the chrome is one surface. The popup owns its
+with the concept mark and name, a subtitle that always states the instance's
+immediate context — its owner, container, source, target or endpoints — the key
+facts and the stated meaning. The facts and subtitle specialise by concept — a
+node leads with labels and connections, an edge with its endpoints, a relation
+with its asset, grain and identity, a binding with its target and rows read, a
+step with its instruction and ports — but the chrome is one surface. The popup owns its
 scroll, dismisses on outside interaction, and never navigates; the pill remains
 the action.
 

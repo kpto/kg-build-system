@@ -109,6 +109,7 @@ export function previewForConceptTarget(
       concept: target.concept,
       name: collectionTitle(id, target.component),
       kind: "Collection",
+      subtitle: "layer of the design",
       facts: collectionFacts(index, id),
     };
   }
@@ -119,6 +120,7 @@ export function previewForConceptTarget(
         concept: "graph",
         name: target.name || index.graphDeclaration?.name || "Graph",
         kind: "Graph declaration",
+        subtitle: "root of the design",
         facts: facts(
           fact("Nodes", index.stats.topologyNodes),
           fact("Edges", index.stats.topologyEdges),
@@ -142,6 +144,7 @@ export function previewForConceptTarget(
         concept: target.concept,
         name: node.name,
         kind: node.abstract ? "Abstract node" : "Node",
+        subtitle: "in graph",
         facts: facts(
           fact("Labels", node.labels?.join(" · ")),
           fact("Parent", node.parent?.[2]),
@@ -161,7 +164,7 @@ export function previewForConceptTarget(
         concept: target.concept,
         name: edge.name,
         kind: edge.abstract ? "Abstract edge" : "Edge",
-        relation: `${edge.source?.[2] ?? "unknown"} → ${
+        subtitle: `connects ${edge.source?.[2] ?? "unknown"} → ${
           edge.target?.[2] ?? "unknown"
         }`,
         facts: facts(
@@ -187,7 +190,7 @@ export function previewForConceptTarget(
         concept: "property",
         name: `${parts.component}.${parts.property}`,
         kind: "Property",
-        relation: `on ${node ? "node" : "edge"} ${parts.component}`,
+        subtitle: `on ${node ? "node" : "edge"} ${parts.component}`,
         facts: facts(
           fact("Type", logicalTypeName(property?.logical_type)),
           fact("Definition", property?.description),
@@ -207,6 +210,7 @@ export function previewForConceptTarget(
         concept: "asset",
         name: asset.name,
         kind: "Asset",
+        subtitle: "source of the release",
         facts: facts(
           fact("Layout", asset.layout?.kind),
           fact("Location", asset.layout?.locator),
@@ -226,7 +230,7 @@ export function previewForConceptTarget(
         concept: "table",
         name: relation.name,
         kind: "Source relation",
-        relation: `reads asset ${
+        subtitle: `reads asset ${
           resolveAssetName(index, relation.name) ?? "unknown"
         }`,
         facts: facts(
@@ -247,7 +251,9 @@ export function previewForConceptTarget(
         concept: "projection",
         name: projection.name,
         kind: "Derived relation",
-        relation: scans.length ? `scans ${scans.join(", ")}` : undefined,
+        subtitle: scans.length
+          ? `scans ${scans.join(", ")}`
+          : "derived relation",
         facts: facts(
           fact("Columns", projection.columns.length),
           fact("Grain", projection.definition?.grain),
@@ -272,7 +278,7 @@ export function previewForConceptTarget(
         concept: "field",
         name: field.field.name,
         kind: "Field",
-        relation: `on ${field.ownerKind} ${field.ownerName}`,
+        subtitle: `on ${field.ownerKind} ${field.ownerName}`,
         facts: facts(
           fact("Type", logicalTypeName(field.field.logical_type)),
           fact(
@@ -308,7 +314,7 @@ export function previewForConceptTarget(
         concept: "binding",
         name: binding.binding.name ?? `binding #${binding.index}`,
         kind: "Binding",
-        relation: `writes ${binding.kind} ${binding.component}`,
+        subtitle: `writes ${binding.kind} ${binding.component}`,
         facts: facts(
           fact("Rows read", rows.join(", ") || "no row source"),
           fact("Step", binding.step?.id[1]),
@@ -339,7 +345,7 @@ export function previewForConceptTarget(
         concept: "step",
         name: step.id[1],
         kind: "Step",
-        relation: `in component ${step.id[0]}`,
+        subtitle: `in component ${step.id[0]}`,
         facts: facts(
           fact("Instruction", step.instruction.kind.join(" · ")),
           fact("Inputs", step.inputs?.length ?? 0),
@@ -358,6 +364,7 @@ export function previewForConceptTarget(
         concept: "workflow",
         name: component.id,
         kind: "Workflow component",
+        subtitle: "in workflow",
         facts: facts(
           fact("Steps", steps),
           fact("Version", component.version),
@@ -376,6 +383,7 @@ export function previewForConceptTarget(
         concept: "semantics",
         name: subject.name,
         kind: "Meaning",
+        subtitle: `attached to ${subject.ownerName ?? subject.name}`,
         facts: facts(
           fact("Owner", subject.ownerName),
           fact("Entity", subject.entityKind),

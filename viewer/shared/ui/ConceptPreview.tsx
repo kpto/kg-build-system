@@ -36,8 +36,9 @@ export interface ConceptPreviewModel {
   name: string;
   /** The specific role, for example `Abstract node` or `Source relation`. */
   kind: string;
-  /** A compact relationship, for example `source → target`. */
-  relation?: string;
+  /** The instance's immediate context: owner, container, source, target or
+   * endpoints. Every preview states one. */
+  subtitle: string;
   facts: ConceptPreviewFact[];
   meaning?: DesignMeaningValue;
 }
@@ -216,9 +217,7 @@ function ConceptPreviewCard({
       {model.kind !== concepts[model.concept].label ? (
         <p className={styles.role}>{model.kind}</p>
       ) : null}
-      {model.relation ? (
-        <p className={styles.relation}>{model.relation}</p>
-      ) : null}
+      <p className={styles.subtitle}>{model.subtitle}</p>
 
       {model.facts.length ? (
         <dl className={styles.facts}>

@@ -144,9 +144,10 @@ is present only when the subject states a purpose, claim or limitation;
 otherwise it is omitted.
 
 A pill previews the instance it names in the shared concept preview: concept
-mark and role, name, a compact relation, key facts and, when stated, meaning.
-The preview is read-only, scrolls its own content and dismisses on outside
-interaction; the pill remains the action.
+mark and name, a subtitle that states its immediate context (owner, container,
+source, target or endpoints), key facts and, when stated, meaning. The preview
+is read-only, scrolls its own content and dismisses on outside interaction; the
+pill remains the action.
 
 A field is not a document kind; it belongs to its owner's Members table. A
 binding is a document kind and also appears in its record's Bindings table and

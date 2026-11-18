@@ -11,6 +11,7 @@ describe("concept previews", () => {
     const model = preview({ concept: "node", name: "defect" });
     expect(model?.kind).toBe("Node");
     expect(model?.name).toBe("defect");
+    expect(model?.subtitle).toBe("in graph");
     expect(model?.facts).toContainEqual({ label: "Labels", value: "Defect" });
     expect(model?.facts).toContainEqual({ label: "Properties", value: "1" });
     expect(model?.facts).toContainEqual({ label: "Connections", value: "1" });
@@ -22,7 +23,7 @@ describe("concept previews", () => {
   it("previews an edge with its endpoints", () => {
     const model = preview({ concept: "edge", name: "has_observation" });
     expect(model?.kind).toBe("Edge");
-    expect(model?.relation).toBe("documented → defect");
+    expect(model?.subtitle).toBe("connects documented → defect");
     expect(model?.meaning?.claims[0]?.text).toContain("when the defect");
   });
 
@@ -35,7 +36,7 @@ describe("concept previews", () => {
     });
     expect(model?.kind).toBe("Property");
     expect(model?.name).toBe("defect.title");
-    expect(model?.relation).toBe("on node defect");
+    expect(model?.subtitle).toBe("on node defect");
     expect(model?.facts).toContainEqual({ label: "Type", value: "str" });
     expect(model?.meaning?.claims[0]?.text).toContain("display name");
   });
@@ -43,6 +44,7 @@ describe("concept previews", () => {
   it("previews an asset, relation and derived relation", () => {
     const asset = preview({ concept: "asset", name: "estate" });
     expect(asset?.kind).toBe("Asset");
+    expect(asset?.subtitle).toBe("source of the release");
     expect(asset?.facts).toContainEqual({ label: "Layout", value: "json" });
     expect(asset?.facts).toContainEqual({
       label: "Location",
@@ -56,7 +58,7 @@ describe("concept previews", () => {
 
     const relation = preview({ concept: "table", name: "surveys" });
     expect(relation?.kind).toBe("Source relation");
-    expect(relation?.relation).toBe("reads asset estate");
+    expect(relation?.subtitle).toBe("reads asset estate");
     expect(relation?.facts).toContainEqual({ label: "Columns", value: "2" });
     expect(relation?.facts).toContainEqual({
       label: "Grain",
@@ -65,7 +67,7 @@ describe("concept previews", () => {
 
     const projection = preview({ concept: "projection", name: "defect" });
     expect(projection?.kind).toBe("Derived relation");
-    expect(projection?.relation).toBe("scans surveys");
+    expect(projection?.subtitle).toBe("scans surveys");
     expect(projection?.facts).toContainEqual({
       label: "Visibility",
       value: "public",
@@ -80,13 +82,13 @@ describe("concept previews", () => {
       ownerConcept: "table",
     });
     expect(field?.kind).toBe("Field");
-    expect(field?.relation).toBe("on relation surveys");
+    expect(field?.subtitle).toBe("on relation surveys");
     expect(field?.facts).toContainEqual({ label: "Type", value: "str" });
 
     const binding = preview({ concept: "binding", name: "defect.title", bindingIndex: 0 });
     expect(binding?.kind).toBe("Binding");
     expect(binding?.name).toBe("defect.title");
-    expect(binding?.relation).toBe("writes node defect");
+    expect(binding?.subtitle).toBe("writes node defect");
     expect(binding?.facts).toContainEqual({
       label: "Rows read",
       value: "surveys",
@@ -119,6 +121,7 @@ describe("concept previews", () => {
       collection: "nodes",
     });
     expect(collection?.kind).toBe("Collection");
+    expect(collection?.subtitle).toBe("layer of the design");
     expect(collection?.facts).toContainEqual({ label: "Items", value: "1" });
 
     const graph = preview({ concept: "graph", name: "fixture_graph" });

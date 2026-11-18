@@ -34,7 +34,7 @@
   .identity {
     display: flex;
     min-width: 0;
-    align-items: flex-start;
+    align-items: center;
     gap: var(--space-stack);
   }
 
@@ -63,7 +63,7 @@
     text-transform: uppercase;
   }
 
-  .relation {
+  .subtitle {
     margin: var(--space-hairline) 0 0;
     color: var(--color-muted);
     font-family: var(--font-mono);
