@@ -185,6 +185,8 @@ missing, not the code.
   enclosing its direct members, where a child abstract category is its own
   container inside it. Draw it behind the links, label it at the top-left, make
   it selectable, and terminate its declared edges on the container boundary.
+- An inspector leads with identity and purpose in one screen. Meaning, members,
+  properties and provenance are explicit chunks, not one long scroll.
 - A repeated item renders its units compactly. A heading is structural, not per
   unit: a table cell or list row does not repeat the section chrome.
 - A card uses one vertical gap between stacked items. A connector sits in that
