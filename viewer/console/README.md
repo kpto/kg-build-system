@@ -6,19 +6,25 @@ and the iteration timeline, and talks to the Python notebook API.
 ## Develop
 
 The three dev processes choose their own ports and publish roles under the
-per-user dev directory. No `--port` is needed:
+per-user dev directory. No `--port` is needed.
+
+Install once, from the repository root:
 
 ```console
 cd viewer
 npm install
+```
 
+Run each process in its own terminal, starting from the repository root:
+
+```console
 # 1. the project API
 kbs console --api-only --project /path/to/project
 
 # 2. the design viewer
 cd viewer/design && npm run dev
 
-# 3. this console
+# 3. the console
 cd viewer/console && npm run dev
 ```
 
