@@ -459,9 +459,12 @@ the page margin instead.
 - The Graph document carries the graph inspection as a floating **Inspect**
   window. A subject document carries its own meaning and properties. The two
   never share a panel, so opening a tab cannot change inspection.
-- A category boundary in the Graph is the smallest circle that encloses the
-  category's nodes, drawn behind the links. Its label sits at the category's
-  top-left so it stays readable when the circle extends beyond the viewport.
+- An abstract category with children is a container node: the smallest circle
+  enclosing its direct members, with a child abstract category drawn as its own
+  container inside it. Containers are selectable, sit behind the links, and
+  terminate their declared edges on the boundary. The label sits at the
+  category's top-left so it stays readable when the circle extends beyond the
+  viewport.
 - Cognitive Load (Laws of UX): repeating the same properties in two regions is
   extraneous load — it consumes attention without adding understanding.
 - Law of Common Region (Laws of UX): a boundary is a promise about what belongs

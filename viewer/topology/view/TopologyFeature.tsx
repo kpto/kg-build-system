@@ -548,9 +548,9 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
             <FilterButton
               pressed={detail.clusters}
               onClick={() => patchDetail({ clusters: !detail.clusters })}
-              title="Draw a frame around each graph category"
+              title="Draw each abstract category as a nested container node"
             >
-              Clusters
+              Containers
             </FilterButton>
           </FilterGroup>
 
@@ -706,26 +706,31 @@ function linkPath(
   source: SimNode,
   target: SimNode,
   offset: number,
+  sourceRadius = nodeRadius(source.model) + 0.75,
+  targetRadius = nodeRadius(target.model) + 0.75,
 ): { path: string; x: number; y: number } {
-  const sourceRadius = nodeRadius(source.model) + 0.75;
-  const targetRadius = nodeRadius(target.model) + 0.75;
   const sourceX = source.x ?? 0;
   const sourceY = source.y ?? 0;
   const targetX = target.x ?? 0;
   const targetY = target.y ?? 0;
   if (source.id === target.id) {
     // A self-loop is a teardrop beside the node, not a ring around it: a ring
-    // reads as a badge and hides the node's own state.
-    const radius = sourceRadius + 3;
+    // reads as a badge and hides the node's own state. A container self-loop
+    // sits on the boundary at a readable size rather than orbiting the whole
+    // container.
+    const compact = sourceRadius > 80;
+    const radius = compact ? 18 : sourceRadius + 3;
     const lift = radius * 0.7;
+    const anchorX = compact ? sourceX + sourceRadius * 0.92 : sourceX;
+    const anchorY = compact ? sourceY - sourceRadius * 0.38 : sourceY;
     return {
-      path: `M ${sourceX + lift} ${sourceY - lift} C ${
-        sourceX + radius * 2.5
-      } ${sourceY - radius * 1.15}, ${sourceX + radius * 2.5} ${
-        sourceY + radius * 1.15
-      }, ${sourceX + lift} ${sourceY + lift}`,
-      x: sourceX + lift,
-      y: sourceY + lift,
+      path: `M ${anchorX + lift} ${anchorY - lift} C ${
+        anchorX + radius * 2.5
+      } ${anchorY - radius * 1.15}, ${anchorX + radius * 2.5} ${
+        anchorY + radius * 1.15
+      }, ${anchorX + lift} ${anchorY + lift}`,
+      x: anchorX + lift,
+      y: anchorY + lift,
     };
   }
 
@@ -1362,62 +1367,107 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
   // Category frames sit behind the links and follow the simulation, so the
   // hairball reads as a few named groups rather than one undifferentiated
   // cloud. A frame is drawn only when two or more visible nodes share it.
-  const clusterFrames: Array<{
-    category: string;
+  interface TopologyContainer {
+    node: TopologyNodeModel;
     count: number;
     cx: number;
     cy: number;
     r: number;
     labelX: number;
     labelY: number;
-  }> = [];
+  }
+
+  const containers: TopologyContainer[] = [];
   if (ui.detail.clusters) {
-    const frames = new Map<
-      string,
-      {
-        count: number;
-        points: Array<[number, number, number]>;
-        minX: number;
-        minY: number;
-      }
-    >();
+    const byName = new Map(
+      visible.nodes.map((node) => [node.name, node] as const),
+    );
+    const childrenByParent = new Map<string, TopologyNodeModel[]>();
     for (const node of visible.nodes) {
-      const sim = simById.get(node.id);
-      if (!sim) continue;
-      const radius = nodeRadius(node) + 10;
-      const x = sim.x ?? 0;
-      const y = sim.y ?? 0;
-      const frame = frames.get(node.category) ?? {
-        count: 0,
-        points: [],
-        minX: Number.POSITIVE_INFINITY,
-        minY: Number.POSITIVE_INFINITY,
-      };
-      frame.count += 1;
-      frame.minX = Math.min(frame.minX, x - radius);
-      frame.minY = Math.min(frame.minY, y - radius);
-      frame.points.push([x, y, radius]);
-      frames.set(node.category, frame);
+      if (!node.parent) continue;
+      const children = childrenByParent.get(node.parent) ?? [];
+      children.push(node);
+      childrenByParent.set(node.parent, children);
     }
-    for (const [category, frame] of frames) {
-      if (frame.count < 2) continue;
-      const centre = minimumEnclosingCircle(
-        frame.points.map(([x, y]) => [x, y]),
-      ) ?? { x: 0, y: 0, r: 0 };
-      const nodeRadiusMax = Math.max(
-        ...frame.points.map(([, , radius]) => radius),
-      );
-      const r = centre.r + nodeRadiusMax + 8;
-      clusterFrames.push({
-        category,
-        count: frame.count,
+    const depthOf = (node: TopologyNodeModel): number => {
+      let depth = 0;
+      let parent = node.parent;
+      const seen = new Set<string>();
+      while (parent && byName.has(parent) && !seen.has(parent)) {
+        seen.add(parent);
+        depth += 1;
+        parent = byName.get(parent)?.parent;
+      }
+      return depth;
+    };
+    const categories = visible.nodes
+      .filter(
+        (node) =>
+          node.abstract && (childrenByParent.get(node.name)?.length ?? 0) > 0,
+      )
+      .sort((left, right) => depthOf(right) - depthOf(left));
+    const byCategory = new Map<string, TopologyContainer>();
+    for (const node of categories) {
+      const members = childrenByParent.get(node.name) ?? [];
+      const points: Array<[number, number]> = [];
+      let maxRadius = 0;
+      let count = 0;
+      let minX = Number.POSITIVE_INFINITY;
+      let minY = Number.POSITIVE_INFINITY;
+      for (const child of members) {
+        const nested = byCategory.get(child.name);
+        if (nested) {
+          points.push([nested.cx, nested.cy]);
+          maxRadius = Math.max(maxRadius, nested.r);
+          count += nested.count;
+          minX = Math.min(minX, nested.cx - nested.r);
+          minY = Math.min(minY, nested.cy - nested.r);
+          continue;
+        }
+        const sim = simById.get(child.id);
+        if (!sim) continue;
+        const radius = nodeRadius(child) + 10;
+        points.push([sim.x ?? 0, sim.y ?? 0]);
+        maxRadius = Math.max(maxRadius, radius);
+        count += 1;
+        minX = Math.min(minX, (sim.x ?? 0) - radius);
+        minY = Math.min(minY, (sim.y ?? 0) - radius);
+      }
+      if (!points.length) continue;
+      const centre = minimumEnclosingCircle(points);
+      if (!centre) continue;
+      byCategory.set(node.name, {
+        node,
+        count,
         cx: centre.x,
         cy: centre.y,
-        r,
-        labelX: frame.minX - 6,
-        labelY: frame.minY - 28,
+        r: centre.r + maxRadius + 10,
+        labelX: minX - 6,
+        labelY: minY - 28,
       });
     }
+    containers.push(
+      ...[...byCategory.values()].sort(
+        (left, right) => depthOf(left.node) - depthOf(right.node),
+      ),
+    );
+  }
+
+  const containersByName = new Map(
+    containers.map((container) => [container.node.name, container] as const),
+  );
+  const effectiveSimById = new Map(simById);
+  const effectiveRadiusById = new Map<string, number>();
+  for (const container of containers) {
+    const sim = simById.get(container.node.id);
+    if (sim) {
+      effectiveSimById.set(container.node.id, {
+        ...sim,
+        x: container.cx,
+        y: container.cy,
+      });
+    }
+    effectiveRadiusById.set(container.node.id, container.r);
   }
 
   const graphLicense = effectiveLicenseForGraph(props.state.index);
@@ -1528,45 +1578,94 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
         <rect width="100%" height="100%" fill="url(#topology-grid-major)" pointerEvents="none" />
 
         <g ref={sceneRef}>
-          {clusterFrames.length ? (
-            <g data-topology-clusters pointerEvents="none">
-              {clusterFrames.map((frame) => (
-                <g key={frame.category}>
-                  <circle
-                    cx={frame.cx}
-                    cy={frame.cy}
-                    r={frame.r}
-                    fill={colors.get(frame.category) ?? theme.lineStrong}
-                    fillOpacity={0.04}
-                    stroke={colors.get(frame.category) ?? theme.lineStrong}
-                    strokeOpacity={0.35}
-                    strokeWidth={0.9}
-                    strokeDasharray="2 5"
-                  />
-                  <text
-                    x={frame.labelX}
-                    y={frame.labelY}
-                    fill={theme.faint}
-                    fontSize="var(--text-micro)"
-                    fontFamily="var(--font-sans)"
-                    letterSpacing="0.08em"
-                    className="select-none"
-                  >
-                    {frame.category.toUpperCase()} · {frame.count}
-                  </text>
-                </g>
-              ))}
+          {containers.length ? (
+            <g data-topology-containers>
+              {containers.map((container) => {
+                const node = container.node;
+                const selected = selectedNodeName === node.name;
+                const hovered = hoveredNodeId === node.id;
+                const color = colors.get(node.name) ?? theme.lineStrong;
+                return (
+                  <g key={node.id}>
+                    <circle
+                      data-topology-container={node.name}
+                      cx={container.cx}
+                      cy={container.cy}
+                      r={container.r}
+                      fill={color}
+                      fillOpacity={0.04}
+                      stroke={
+                        selected
+                          ? theme.selection
+                          : hovered
+                            ? theme.accentStrong
+                            : color
+                      }
+                      strokeOpacity={selected || hovered ? 0.72 : 0.35}
+                      strokeWidth={selected ? 1.6 : 0.9}
+                      strokeDasharray="2 5"
+                      pointerEvents="all"
+                      tabIndex={0}
+                      role="button"
+                      aria-pressed={selected}
+                      aria-label={`${node.label}, abstract container, ${container.count} nodes`}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        selectNode(node);
+                      }}
+                      onDoubleClick={(event) => {
+                        event.stopPropagation();
+                        selectNode(node);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          selectNode(node);
+                        }
+                      }}
+                      onContextMenu={(event) =>
+                        openMenu(event, componentSelection(node), node.name)
+                      }
+                      onMouseEnter={(event) => {
+                        setHoveredNodeId(node.id);
+                        updateHover("node", node.id, event);
+                      }}
+                      onMouseMove={(event) => updateHover("node", node.id, event)}
+                      onMouseLeave={() => {
+                        setHoveredNodeId(undefined);
+                        setHover(undefined);
+                      }}
+                    />
+                    <text
+                      x={container.labelX}
+                      y={container.labelY}
+                      fill={theme.faint}
+                      fontSize="var(--text-micro)"
+                      fontFamily="var(--font-sans)"
+                      letterSpacing="0.08em"
+                      className="select-none"
+                      pointerEvents="none"
+                    >
+                      {node.label.toUpperCase()} · {container.count}
+                    </text>
+                  </g>
+                );
+              })}
             </g>
           ) : null}
           <g data-topology-links>
             {visible.links.map((link) => {
-              const source = simById.get(link.source);
-              const target = simById.get(link.target);
+              const source = effectiveSimById.get(link.source);
+              const target = effectiveSimById.get(link.target);
               if (!source || !target) return null;
               const geometry = linkPath(
                 source,
                 target,
                 linkOffsets.get(link.id) ?? 0,
+                effectiveRadiusById.get(link.source) ??
+                  nodeRadius(source.model) + 0.75,
+                effectiveRadiusById.get(link.target) ??
+                  nodeRadius(target.model) + 0.75,
               );
               const selected =
                 link.kind === "edge" && link.edgeName === selectedEdgeName;
@@ -1703,7 +1802,9 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
 
           <g data-topology-nodes>
             {showNodeMarkers
-              ? visible.nodes.map((node) => {
+              ? visible.nodes
+                  .filter((node) => !containersByName.has(node.name))
+                  .map((node) => {
                   const sim = simById.get(node.id);
                   if (!sim) return null;
                   const radius = nodeRadius(node);
