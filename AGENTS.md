@@ -270,7 +270,9 @@ missing, not the code.
   a nested surface takes the step below its container.
 - An overlay uses one border weight and radius on every side; an accent is not a
   one-sided border. A transient overlay dismisses on outside interaction only:
-  scrolling or selecting inside its own surface leaves it open.
+  scrolling or selecting inside its own surface leaves it open. Its placement
+  uses the rendered height, so a short overlay hugs its anchor rather than
+  reserving its maximum height.
 - A component owns its stylesheet: the global file holds theme roles, base
   element behaviour and global utilities only. A parent passes context down; a
   child never styles an ancestor, and a component block never lives in the
