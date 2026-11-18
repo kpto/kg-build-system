@@ -287,6 +287,18 @@ missing, not the code.
   connections and bindings. A binding document leads with its constitution,
   then meaning when present, expression and build steps; a record reaches the
   computation through its bindings.
+- A participant detail states its full dependency and only the immediate
+  dependant. A page that lists two levels up is wrong even when its rows are
+  true. Dependency is the chain below, back to the asset; dependant is the one
+  layer above.
+- Every Explorer row is a document. A header's body opens its collection and
+  its arrow unfolds the list; the body never toggles and the arrow never opens
+  the document. A virtual collection is a layer read as a group, not a declared
+  subject: it has no Meaning card, uses the layer's concept mark, and carries
+  Dependency (the full layer DAG below at layer resolution), Dependant (one
+  layer above), Items and Coverage. Abstract nodes and edges are participants:
+  an abstract dependency uses its own binding layer and its dependants are
+  immediate children only.
 - Motion is feedback, not decoration: short ease-out transitions on transform and
   opacity, origin-aware entrances, and reduced motion removes movement.
 - End every change report with the rule-promotion result: none, refined or
