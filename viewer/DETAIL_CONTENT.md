@@ -34,7 +34,7 @@ its row is chosen; it does not follow the scroll position. It is hidden when
 the pane is narrower than the rail plus one readable card. The rail reads the
 rendered cards, so a card added by any kind appears in it without a second
 section list. The deck fills the height left by the page margin and reserves
-its trailing peek space so the last card snaps to the deck start.
+the last card snaps to the deck start.
 
 A binding is its own document. Its sections are **Constitution**,
 **Contribution**, **Meaning** (when the binding carries one), **Expression** and
@@ -232,12 +232,10 @@ and a node label opens its document. The node itself is inspection only.
 
 ## Layout
 
-- A document is a horizontal deck of flat section cards. Each card fills
-  the available body height and is narrower than the deck so the next card's
-  edge stays visible as the cue for more content. When the index rail is
-  hidden, one card fills the deck and the next card is off-screen; a clipped
-  sliver is not a cue. Cards are separated by the group spacing and have no
-  border or background. Every card is rendered by the
+- A document is a horizontal deck of flat section cards. One card fills the
+  deck width and the available body height; the next card is off-screen, never
+  a clipped sliver under the page margin. Cards are separated by the group
+  spacing and have no border or background. Every card is rendered by the
   one shared `DetailBand` feature primitive; a detail view does not declare its
   own card markup or surface.
 - The banner and the left index are static. The deck scrolls horizontally; each

@@ -20,8 +20,8 @@
   padding: var(--space-region);
 }
 
-/* One horizontal deck: each card fills the height, and the next card peeks
-   past the right edge as the cue for more content. */
+/* One horizontal deck: one card fills the width and height; the next card is
+   off-screen, so no card content is clipped under the page margin. */
 .deck {
   display: flex;
   min-width: 0;
@@ -41,10 +41,10 @@
   display: none;
 }
 
-/* The trailing space lets the last card snap to the deck's left edge instead
-   of leaving the previous card's edge behind it. */
+/* The deck may end at the last card; its start is the maximum scroll, so the
+   last card snaps to the deck's left edge. */
 .deck::after {
-  flex: 0 0 calc(var(--space-page) + var(--space-section));
+  flex: 0 0 0;
   content: "";
 }
 
@@ -1749,7 +1749,7 @@ button.expressionToggle:hover {
   min-width: 0;
   min-height: 0;
   height: 100%;
-  flex: 0 0 calc(100% - var(--space-page) - var(--space-section));
+  flex: 0 0 100%;
   flex-direction: column;
   scroll-snap-align: start;
 }
@@ -2149,17 +2149,4 @@ button.memberRow:focus-visible {
 
 .coverageItem .coverageReading {
   grid-column: 1 / -1;
-}
-
-/* Without the index there is no room for a readable peek. One card fills the
-   deck, so the next card is off-screen instead of being a clipped sliver under
-   the page margin. This lives after the base card rule so it wins. */
-@media (max-width: 1180px) {
-  .band {
-    flex-basis: 100%;
-  }
-
-  .deck::after {
-    flex-basis: 0;
-  }
 }
