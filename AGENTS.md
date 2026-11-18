@@ -187,7 +187,9 @@ missing, not the code.
   it selectable, and terminate its declared edges on the container boundary.
 - An inspector leads with identity and purpose in one screen. Meaning, members,
   properties and provenance are explicit chunks, not one long scroll. With no
-  selection it previews the last hovered entity; a selection always wins.
+  selection it previews the hovered entity, and the graph void returns to the
+  overview; a selection always wins. Identity stays pinned above the tabs, and
+  the active tab survives a change of inspected entity.
 - A repeated item renders its units compactly. A heading is structural, not per
   unit: a table cell or list row does not repeat the section chrome.
 - A card uses one vertical gap between stacked items. A connector sits in that
