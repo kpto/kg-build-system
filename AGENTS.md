@@ -271,7 +271,9 @@ missing, not the code.
 - A concept's mark carries its type; do not repeat the type as visible text
   beside it. A mark's viewBox is tight to its visual bounds and its stroke is
   scaled to the shared grid, so every layer logo reads at one size and one
-  stroke. A count appears once, in the region that owns the list.
+  stroke. An abstract node and an abstract edge reuse the node and edge marks in
+  the abstract purple; there is no separate abstract category mark. A count
+  appears once, in the region that owns the list.
 - A detail document is a horizontal deck of flat cards inside one page margin.
   The deck fills the height left by the margin, and each card fills the deck
   height, states its title above the body at the top-left in the heading role,
@@ -305,12 +307,13 @@ missing, not the code.
   both directions in the same DAG. There is no collection root. A large set
   accepts items until the boundary reaches a readable size and states how many
   items are shown; it never shows layer boxes or links to another collection.
-  The boundary is ordered in vertical level bands: an asset is below a source
-  relation, a source relation below a derived relation, a derived relation below
-  a binding, and a record above a binding. A Constitution puts the items in the
-  top band; a Contribution puts them in the bottom band. Abstract nodes and
-  edges are participants: an abstract constitution uses its own binding layer
-  and its contribution is its immediate children only.
+  The boundary assigns dependency levels and puts every box of one level in one
+  horizontal row: an asset is below a source relation, a source relation below a
+  derived relation, a derived relation below a binding, and a record above a
+  binding. A Constitution puts the items in the top row; a Contribution puts
+  them in the bottom row. Abstract nodes and edges are participants: an abstract
+  constitution uses its own binding layer and its contribution is its immediate
+  children only.
 - Motion is feedback, not decoration: short ease-out transitions on transform and
   opacity, origin-aware entrances, and reduced motion removes movement.
 - End every change report with the rule-promotion result: none, refined or
