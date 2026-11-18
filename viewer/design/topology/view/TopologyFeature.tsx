@@ -34,8 +34,10 @@ import {
   Meta,
   Panel,
   PanelHeader,
+  Row,
   RowButton,
 } from "@/shared/ui/Primitives";
+import { PropertyPill } from "@/detail/view/ConceptPill";
 import {
   FulfilmentMap,
 } from "@/detail/view/FulfilmentMap";
@@ -164,21 +166,23 @@ function PropertyRows({
   return (
     <div className="grid gap-0.5" data-testid="topology-properties">
       {properties.map((property) => (
-        <RowButton
+        <Row
           key={property.name}
-          onClick={() => props.actions.inspect(propertySelection(entity, property))}
           onContextMenu={(event) =>
             onContextMenu ? onContextMenu(property, event) : undefined
           }
           className="justify-between"
-          data-active={activeProperty === property.name ? "true" : undefined}
-          title={`Inspect ${entityComponentName(entity)}.${property.name}`}
+          title={`Open ${entityComponentName(entity)}.${property.name}`}
         >
-          <span className="truncate font-mono text-[length:var(--text-base)] text-text">
-            {property.name}
-          </span>
+          <PropertyPill
+            name={property.name}
+            component={entityComponentName(entity)}
+            ownerConcept={isTopologyNode(entity) ? "node" : "edge"}
+            property={property.name}
+            active={activeProperty === property.name}
+          />
           <Meta>{logicalTypeName(property.logical_type)}</Meta>
-        </RowButton>
+        </Row>
       ))}
     </div>
   );

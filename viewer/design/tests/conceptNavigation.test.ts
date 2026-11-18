@@ -40,7 +40,7 @@ describe("concept pill navigation", () => {
         index,
       ),
     ).toMatchObject({
-      kind: "node",
+      kind: "property",
       level: "property",
       component: "defect",
       property: "title",

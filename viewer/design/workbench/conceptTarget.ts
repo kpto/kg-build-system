@@ -131,7 +131,7 @@ export function selectionForConceptTarget(
       const kind = ownerKind(target, index);
       if (parts && kind) {
         return {
-          kind,
+          kind: "property",
           level: "property",
           name: target.name,
           component: parts.component,
@@ -141,7 +141,7 @@ export function selectionForConceptTarget(
       const owner = index ? findPropertyOwner(index, target.name) : undefined;
       if (!owner) return undefined;
       return {
-        kind: owner.kind,
+        kind: "property",
         level: "property",
         name: target.name,
         component: owner.component,
