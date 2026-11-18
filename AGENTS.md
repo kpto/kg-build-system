@@ -208,6 +208,9 @@ missing, not the code.
 - Several connectors into one box share one centred, evenly spaced set of head
   positions along the edge they meet; the spacing is uniform and the set is
   symmetric about the edge midpoint.
+- A link between round nodes meets each node along its radius: a parallel
+  offset bends the middle of the link, never the attachment, so the head stays
+  perpendicular to the node surface.
 - One workflow DAG primitive (`shared/ui/WorkflowDag.tsx`) owns the scene
   builder, node renderer and pan/zoom viewport. The Workflow document and an
   Involved steps card mount the same primitive; a detail narrows the scene and
