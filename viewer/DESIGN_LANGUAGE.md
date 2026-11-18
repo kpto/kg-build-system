@@ -240,7 +240,9 @@ the action.
 The preview follows **Cognitive Load** (Laws of UX, Jon Yablonski —
 https://lawsofux.com/cognitive-load/): it exposes only the identity, key facts
 and stated meaning needed to decide whether to open the document, and groups
-them by proximity so the card is scanned rather than read.
+them by proximity so the card is scanned rather than read. The card is placed
+from its measured height — below the pill when it fits, otherwise above — so a
+short preview hugs the pill instead of jumping to the top of the viewport.
 
 ## Theme tokens
 

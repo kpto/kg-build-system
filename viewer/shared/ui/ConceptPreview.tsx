@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
   type ReactNode,
@@ -188,10 +189,22 @@ function ConceptPreviewCard({
     Math.max(CARD_MARGIN, rect.left),
     Math.max(CARD_MARGIN, window.innerWidth - width - CARD_MARGIN),
   );
-  const below = rect.bottom + 8 + CARD_MAX_HEIGHT <= window.innerHeight;
-  const top = below
-    ? rect.bottom + 8
-    : Math.max(CARD_MARGIN, rect.top - CARD_MAX_HEIGHT - 8);
+  // Place the card from its measured height, not its maximum height, so a
+  // short preview sits next to its pill instead of jumping to the top.
+  const [top, setTop] = useState<number | null>(null);
+
+  useLayoutEffect(() => {
+    const element = cardRef.current;
+    if (!element) return;
+    const height = element.offsetHeight;
+    const fitsBelow =
+      rect.bottom + 8 + height <= window.innerHeight - CARD_MARGIN;
+    setTop(
+      fitsBelow
+        ? rect.bottom + 8
+        : Math.max(CARD_MARGIN, rect.top - height - 8),
+    );
+  }, [cardRef, model, rect]);
 
   return createPortal(
     <aside
@@ -200,7 +213,12 @@ function ConceptPreviewCard({
       role="tooltip"
       aria-label={`${model.kind} ${model.name} preview`}
       className={styles.card}
-      style={{ left, top, width }}
+      style={{
+        left,
+        top: top ?? CARD_MARGIN,
+        width,
+        visibility: top === null ? "hidden" : undefined,
+      }}
       data-testid="concept-preview"
       data-concept={model.concept}
       onMouseEnter={onEnter}
