@@ -602,6 +602,8 @@ missing, not the code.
 
 ### Names state the role
 
+- A command surface names itself once: usage, help, banners and errors use the
+  product's vocabulary; a package or directory name is not a user-facing term.
 - `IR` is not a synonym for internal data. Do not use it as a module or class
   suffix.
 - A serialisable model is a DTO, and its module names the artifact it belongs
