@@ -21,3 +21,6 @@ docs/.quartz-cache/
 
 # Viewer discovery file
 .kbs/
+
+# Local dev hostnames admitted by the viewers (copy dev-origins.local.example.json)
+viewer/dev-origins.local.json
