@@ -589,6 +589,8 @@ missing, not the code.
   not accept purpose, claim or limitation text. Meaning is written at the
   declaration, and a helper that assembles it is an adaptation.
 - It makes the intended use easy and the wrong use impossible.
+- A scaffold carries structure and an unanswered argument; a worked example is a
+  separate tree, chosen explicitly, never the default.
 - A capability handle exposes only the operations its subject supports and is consumed by its first use; an unsupported operation is absent from the handle type, not present and refused at runtime.
 - It exposes only what an author may write; internal types stay internal.
 - A type in a public signature is a public type. If the value is an internal model, the
