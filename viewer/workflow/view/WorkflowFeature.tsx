@@ -482,7 +482,7 @@ export function WorkflowStepEditor({ state }: WorkspaceProps) {
   }
 
   return (
-    <div className="min-h-full" data-testid="workflow-step-editor">
+    <div className="h-full" data-testid="workflow-step-editor">
       <StepDetail index={state.index} step={step} />
     </div>
   );
