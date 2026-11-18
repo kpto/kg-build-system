@@ -280,9 +280,10 @@ missing, not the code.
   with auto spacing when that separates it from its content.
 - Every tab uses one banner for identity, overview and view actions. A detail
   body starts at its first section, not an Overview band.
-- A record detail leads with meaning and then states its constitution, members,
-  connections and bindings. The binding document carries the expression and
-  build steps; a record reaches them through its bindings.
+- A record detail leads with its constitution, then meaning, members,
+  connections and bindings. A binding document leads with its constitution,
+  then meaning when present, expression and build steps; a record reaches the
+  computation through its bindings.
 - Motion is feedback, not decoration: short ease-out transitions on transform and
   opacity, origin-aware entrances, and reduced motion removes movement.
 - End every change report with the rule-promotion result: none, refined or
