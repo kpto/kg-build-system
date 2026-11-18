@@ -4,9 +4,14 @@
   --kg-lane-2: #2f7d6d;
   --kg-lane-3: #8b5cf6;
   --kg-type-kg-edited: light-dark(#1d4ed8, #93b4f7);
+  --kg-type-revision-added: light-dark(#1d4ed8, #93b4f7);
   --kg-type-evaluation-run: light-dark(#6d28d9, #c0a3f5);
+  --kg-type-evaluation-added: light-dark(#6d28d9, #c0a3f5);
   --kg-type-design-proposed: light-dark(#b45309, #f0b45e);
   --kg-type-design-adopted: light-dark(#15803d, #74d18f);
+  --kg-type-design-superseded: light-dark(#6b7280, #a8b3c2);
+  --kg-type-design-abandoned: light-dark(#b91c1c, #f09a9a);
+  --kg-type-finding-added: light-dark(#0e7490, #67c7dc);
   --kg-type-design-rejected: light-dark(#b91c1c, #f09a9a);
   --kg-type-default: light-dark(#475569, #a8b3c2);
   color-scheme: light dark;

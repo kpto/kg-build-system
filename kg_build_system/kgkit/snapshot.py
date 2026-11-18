@@ -1,9 +1,9 @@
-"""Write and import a compiled viewer snapshot.
+"""The viewer snapshot format and its revision capture.
 
-The package does not know how a project builds its graph. It owns the snapshot
-format: it can wrap a workflow document into ``kg-viewer-snapshot`` and write the
-current file plus a timestamped archive, and it can import a snapshot the project
-produced into ``kgkit/records/views``. There is no database.
+The current compilation is the viewer's default document: ``current.snapshot.json``
+is overwritten by the latest build import. A revision capture is immutable: it is
+written to a dated archive beside the current file and named by the revision
+record. There is no snapshot event; the revision owns its capture.
 """
 
 from __future__ import annotations
@@ -58,14 +58,43 @@ def _snapshot_revision(value: dict[str, Any]) -> str:
     return ""
 
 
-def import_snapshot(
+def _viewer_document(
+    payload: dict[str, Any], *, name: str, title: str | None
+) -> dict[str, Any]:
+    """Wrap a bare workflow plan or blueprint as a viewer snapshot."""
+
+    if "format" in payload:
+        return payload
+    heading = title or str(payload.get("title") or name)
+    if {"components", "steps", "connections"} <= payload.keys():
+        return {
+            "format": "kg-viewer-snapshot",
+            "version": 1,
+            "name": name,
+            "title": heading,
+            "workflow": payload,
+        }
+    if {"graph", "data", "assets", "bindings"} <= payload.keys():
+        return {
+            "format": "kg-viewer-snapshot",
+            "version": 1,
+            "name": name,
+            "title": heading,
+            "blueprint": payload,
+        }
+    return payload
+
+
+def capture(
     project: Project | None = None,
     *,
+    revision: str = "",
     source: str | Path | None = None,
     command: str | None = None,
-    revision: str | None = None,
     title: str | None = None,
 ) -> dict[str, Any]:
+    """Write the latest compilation as the current view and an immutable archive."""
+
     project = project or load_project()
     project.ensure()
     if command:
@@ -86,51 +115,55 @@ def import_snapshot(
     source_path = project.path(source) if source else find_snapshot_source(project)
     if source_path is None or not source_path.is_file():
         raise FileNotFoundError(
-            "no snapshot source found; pass --from <file> or set snapshot_command "
-            "in kgkit/config.json"
+            "no compiled snapshot source found; run the project build first, "
+            "or pass --from <file> / set snapshot_command in kgkit/config.json"
         )
     payload = _read_json(source_path)
     if not _is_snapshot(payload):
-        raise ValueError(
-            f"{source_path} is not a viewer snapshot, workflow plan or blueprint"
-        )
+        raise ValueError(f"{source_path} is not a viewer snapshot, workflow plan or blueprint")
+    payload = _viewer_document(payload, name=project.name, title=title)
 
     saved_at = datetime.now(UTC)
     resolved_revision = (revision or _snapshot_revision(payload)).strip()
-    stem = f"snapshot-{_slug(resolved_revision) if resolved_revision else 'current'}-{saved_at.strftime('%Y%m%dT%H%M%S%fZ')}"
+    stem = f"{_slug(resolved_revision) if resolved_revision else 'current'}-{saved_at.strftime('%Y%m%dT%H%M%S%fZ')}"
     current = project.snapshots_dir / "current.snapshot.json"
     archive = project.snapshots_dir / f"{stem}.snapshot.json"
     body = json.dumps(payload, separators=(",", ":"), ensure_ascii=False)
-
     current.write_text(body, encoding="utf-8")
     archive.write_text(body, encoding="utf-8")
-    meta = {
-        "saved_at": saved_at.isoformat(timespec="seconds"),
-        "revision": resolved_revision,
-        "source": project.relative(source_path),
-        "title": title or str(payload.get("title") or "Saved snapshot"),
-        "summary": "A saved viewer snapshot of the compiled graph.",
-        "snapshot_file": archive.name,
-    }
-    (project.snapshots_dir / "current.meta.json").write_text(
-        json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
-    (project.snapshots_dir / f"{stem}.meta.json").write_text(
-        json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
-
     return {
         "ok": True,
         "project": project.name,
-        "data_dir": str(project.data_dir),
         "snapshot": str(current),
         "snapshot_file": current.name,
         "snapshot_history": str(archive),
         "history_file": archive.name,
+        "file": archive.name,
+        "created_at": saved_at.isoformat(timespec="seconds"),
         "saved_at": saved_at.isoformat(timespec="seconds"),
         "revision": resolved_revision,
         "source": project.relative(source_path),
+        "title": title or str(payload.get("title") or "Saved snapshot"),
     }
+
+
+def import_snapshot(
+    project: Project | None = None,
+    *,
+    source: str | Path | None = None,
+    command: str | None = None,
+    revision: str | None = None,
+    title: str | None = None,
+) -> dict[str, Any]:
+    """Import the latest compilation into the notebook's current view."""
+
+    return capture(
+        project,
+        revision=revision or "",
+        source=source,
+        command=command,
+        title=title,
+    )
 
 
 def write_snapshot_document(
@@ -172,4 +205,4 @@ def write_snapshot_document(
     }
 
 
-__all__ = ["import_snapshot", "write_snapshot_document"]
+__all__ = ["capture", "import_snapshot", "write_snapshot_document"]
