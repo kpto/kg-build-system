@@ -76,7 +76,6 @@ function useDetailSections(bodyRef: RefObject<HTMLDivElement | null>) {
 }
 
 function DetailIndex({ sections }: { sections: DetailIndexSection[] }) {
-  const concept = useContext(DetailPageConceptContext);
   if (sections.length < 2) return null;
   return (
     <nav
@@ -104,7 +103,7 @@ function DetailIndex({ sections }: { sections: DetailIndexSection[] }) {
             >
               <DetailMark
                 kind={section.section}
-                color={concepts[concept].color}
+                color="currentColor"
                 className={styles.indexMark}
               />
               <span className={styles.indexTitle}>{section.title}</span>

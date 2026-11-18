@@ -26,9 +26,10 @@ A card title sits above the card body at its top-left: the card's section mark
 and structural title, never a banner bar or a card surface. The question in the
 reader's language becomes the card's accessible label, not a visible line, and
 the header carries no count: the body owns the items it shows. Every card gets
-its own section logo; no two cards on one page repeat a mark, and every section
-logo takes the page header's colour. The title-to-section mapping lives once in
-`detail/view/detailMarks.tsx`; a card with a non-structural title states its
+its own section logo; no two cards on one page repeat a mark, and every card
+logo takes the page header's colour. The index rail draws the same marks in its
+own text colour, not the subject colour. The title-to-section mapping lives once
+in `detail/view/detailMarks.tsx`; a card with a non-structural title states its
 section explicitly. A section logo is not a concept and never becomes a pill or a
 navigation target.
 

@@ -211,10 +211,11 @@ the distinction alone.
 
 A detail card uses a **section mark**, drawn once in
 `detail/view/detailMarks.tsx`: one silhouette per structural card role, the page
-header's colour on every card, and no mark repeated within a page. A section
-mark is not a concept: it never becomes a pill, a tab or a navigation target,
-and it never reuses the header's concept mark. It shares the concept grammar
-and the tight content box, so every card logo reads at one size.
+header's colour on every card, and no mark repeated within a page. The index
+rail draws the same marks in its own text colour, not the subject colour. A
+section mark is not a concept: it never becomes a pill, a tab or a navigation
+target, and it never reuses the header's concept mark. It shares the concept
+grammar and the tight content box, so every card logo reads at one size.
 
 An inline mention of an instance is one pill: the layer's mark, a divider and
 the instance name, all in the instance's colour. The same pill names a record

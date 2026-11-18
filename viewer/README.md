@@ -183,7 +183,8 @@ The first paint shows the design, not its annotations.
 | Step document | the same banner and card deck; the banner states step id, component, instruction, bindings and ports; Constitution (producing steps), Contribution (consuming steps), Ports, Payload, Bindings and the Meaning/Sources absence notes follow, with both boundaries in the GRAPH frame | a port, a payload field or a connected step |
 
 Every detail card carries its own section mark: no two cards on a page repeat a
-mark, and every section mark takes the page header's colour. Every item
+mark, and every card mark takes the page header's colour; the index rail draws
+the same marks in its own text colour. Every item
 document follows the content contract in
 [`DETAIL_CONTENT.md`](./DETAIL_CONTENT.md); its skin is in
 [`DESIGN_BLENDER.md`](./DESIGN_BLENDER.md).
