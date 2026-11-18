@@ -234,8 +234,10 @@ and a node label opens its document. The node itself is inspection only.
 
 - A document is a horizontal deck of flat section cards. Each card fills
   the available body height and is narrower than the deck so the next card's
-  edge stays visible as the cue for more content. Cards are separated by the
-  group spacing and have no border or background. Every card is rendered by the
+  edge stays visible as the cue for more content. When the index rail is
+  hidden, one card fills the deck and the next card is off-screen; a clipped
+  sliver is not a cue. Cards are separated by the group spacing and have no
+  border or background. Every card is rendered by the
   one shared `DetailBand` feature primitive; a detail view does not declare its
   own card markup or surface.
 - The banner and the left index are static. The deck scrolls horizontally; each

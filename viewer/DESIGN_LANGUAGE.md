@@ -354,7 +354,8 @@ position; the tile group carries one side line. The deck fills the height left
 by the margin; each card fills the deck height, carries its title at the
 top-left and leaves the next card's edge visible. The deck owns horizontal
 scroll and reserves its trailing peek space so the last card can snap to the
-deck start. The card body owns vertical scroll, except a graph or tree
+deck start. When the index is hidden, one card fills the deck and the next card
+is off-screen rather than a clipped sliver under the page margin. The card body owns vertical scroll, except a graph or tree
 viewport, which fills the body and owns its scroll; a compact list or lane may
 cap its height. The index disappears below the width where a card would lose
 its reading measure.

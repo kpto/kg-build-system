@@ -2150,3 +2150,16 @@ button.memberRow:focus-visible {
 .coverageItem .coverageReading {
   grid-column: 1 / -1;
 }
+
+/* Without the index there is no room for a readable peek. One card fills the
+   deck, so the next card is off-screen instead of being a clipped sliver under
+   the page margin. This lives after the base card rule so it wins. */
+@media (max-width: 1180px) {
+  .band {
+    flex-basis: 100%;
+  }
+
+  .deck::after {
+    flex-basis: 0;
+  }
+}
