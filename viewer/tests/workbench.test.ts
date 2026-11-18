@@ -361,6 +361,11 @@ describe("workbench documents and geometry", () => {
       "defect.title",
       "defect",
     ]);
+    expect(
+      current.tabs.find(
+        (tab) => documentTitle(tab.document) === "defect",
+      )?.preview,
+    ).toBe(true);
     expect(current.historyIndex).toBe(1);
 
     current = workbenchReducer(current, { type: "forward" });
@@ -394,6 +399,11 @@ describe("workbench documents and geometry", () => {
       "defect",
       "defect.title",
     ]);
+    expect(
+      current.tabs.find(
+        (tab) => documentTitle(tab.document) === "defect.title",
+      )?.preview,
+    ).toBe(true);
   });
 
   it("titles a step document by its step name", () => {

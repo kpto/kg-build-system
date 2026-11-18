@@ -432,7 +432,8 @@ the page margin instead.
 - Back and forward walk the view history (`Alt+←` / `Alt+→`, the arrows in the
   tab strip, or the mouse back/forward buttons), not tab identity. Each entry
   is a document view; if that view's tab was closed, navigating to it reopens
-  the tab. Opening, activating or closing a tab records one navigation step;
+  it in the preview slot, not as a permanent tab. Opening, activating or
+  closing a tab records one navigation step;
   changing selection inside the active tab does not.
 
 ## One region, one job

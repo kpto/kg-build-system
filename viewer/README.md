@@ -222,7 +222,8 @@ Explorer; an explicit collapse sticks until the active subject changes.
 Middle-clicking a subject or step tab closes it; the pinned Graph and Workflow
 tabs cannot be closed. **Back** and **Forward** (arrows in the tab strip,
 `Alt+←` / `Alt+→`, or the mouse back/forward buttons) walk the view history,
-not the tab order: a closed document is reopened when history reaches its view.
+not the tab order: a closed document is reopened in the preview tab when
+history reaches its view, not as a permanent tab.
 Every open tab keeps its own editor state and scroll position. There is no
 JSON/Data tab.
 

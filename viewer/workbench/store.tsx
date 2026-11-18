@@ -292,8 +292,8 @@ function appendTab(
 
 /**
  * Activate one history view. The view is a document, not a tab: when its tab
- * was closed, open it again as a permanent document and keep the view history
- * intact.
+ * was closed, reopen it in the reusable preview slot, not as a permanent tab.
+ * The history index moves to the view without recording a new navigation.
  */
 function restoreView(state: WorkbenchState, index: number): WorkbenchState {
   const document = state.history[index];
@@ -304,6 +304,30 @@ function restoreView(state: WorkbenchState, index: number): WorkbenchState {
   );
   if (existing) {
     return { ...state, activeTabId: existing.id, historyIndex: index };
+  }
+  if (document.kind === "subject") {
+    const previewTab = state.tabs.find((tab) => tab.preview && !tab.pinned);
+    if (previewTab) {
+      const nextId = previewId(document.selection);
+      const tabs = state.tabs.map((tab) =>
+        tab.id === previewTab.id
+          ? { ...tab, id: nextId, document }
+          : tab,
+      );
+      return {
+        ...state,
+        tabs,
+        activeTabId: nextId,
+        historyIndex: index,
+      };
+    }
+    const tab = tabForDocument(document, true);
+    return {
+      ...state,
+      tabs: [...state.tabs, tab],
+      activeTabId: tab.id,
+      historyIndex: index,
+    };
   }
   const tab = tabForDocument(document);
   return {
