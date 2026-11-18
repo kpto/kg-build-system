@@ -1167,25 +1167,24 @@ function bindingNode(
   };
 }
 
-/** A collection page shows a readable set of actual subjects, and states the total. */
-const COLLECTION_SUBJECT_LIMIT = 24;
+/** A collection boundary is bounded by a readable number of actual subjects. */
+const COLLECTION_SUBJECT_LIMIT = 80;
 
 /**
- * Read a collection through its actual subjects. The collection root is the
- * layer; the boxes below or above it are the real participants merged from the
- * constitutions or contributions of every item. Shared declarations are one
- * box. There are no layer boxes and no links to another collection.
+ * One item and its boundary: the actual item subject plus the participants
+ * merged from its constitution or contribution.
  */
-export function collectionDagModel(
+function itemBoundary(
   index: ViewerIndex,
-  model: CollectionModel,
+  item: ConstitutionSubjectLike,
   direction: "dependency" | "contribution",
-): ConstitutionModel {
-  const frame = layerFrame(model.concept);
-  const subjectNode = collectionPurpose(model);
+  frame: ConstitutionFrameId,
+): {
+  nodes: Map<string, ConstitutionNode>;
+  edges: Map<string, { source: string; target: string }>;
+} {
   const nodes = new Map<string, ConstitutionNode>();
   const edges = new Map<string, { source: string; target: string }>();
-
   const addNode = (node: ConstitutionNode): string => {
     const copy: ConstitutionNode = {
       ...node,
@@ -1209,81 +1208,119 @@ export function collectionDagModel(
     return id;
   };
 
-  for (const item of collectionItems(model)) {
-    const boundary =
-      item.level === "step"
-        ? stepBoundaryModel(index, item, direction)
-        : direction === "dependency"
-          ? constitutionModel(index, item)
-          : contributionModel(index, item, { collapse: false });
+  const boundary =
+    item.level === "step"
+      ? stepBoundaryModel(index, item, direction)
+      : direction === "dependency"
+        ? constitutionModel(index, item)
+        : contributionModel(index, item, { collapse: false });
+  const itemNode: ConstitutionNode = {
+    ...boundary.subject,
+    current: false,
+    collection: undefined,
+    frame,
+    ...(item.level === "binding" && item.bindingIndex !== undefined
+      ? { component: item.component, bindingIndex: item.bindingIndex }
+      : {}),
+    ...(item.stepId
+      ? { component: item.stepId[0], stepId: item.stepId }
+      : {}),
+  };
+  const itemId = addNode(itemNode);
 
-    boundary.graph.forEach(addNode);
-    const relationRoots = boundary.relation.map((relation) => ({
-      node: relation.node,
-      id: addRelation(relation),
-    }));
-    boundary.bindings.forEach((binding) => addNode(bindingNode(binding, frame)));
-    (boundary.workflow ?? []).forEach(addNode);
+  boundary.graph.forEach(addNode);
+  const relationRoots = boundary.relation.map((relation) => ({
+    node: relation.node,
+    id: addRelation(relation),
+  }));
+  boundary.bindings.forEach((binding) => addNode(bindingNode(binding, frame)));
+  (boundary.workflow ?? []).forEach(addNode);
 
-    if (direction === "dependency") {
-      boundary.graph.forEach((node, position) => {
-        const target =
-          position === 0 ? "subject" : nodeKey(boundary.graph[position - 1]);
-        addEdge(nodeKey(node), target);
-      });
-      for (const binding of boundary.bindings) {
-        const bindingId = `binding:${binding.index}`;
-        addEdge(bindingId, "subject");
-        for (const relationName of binding.relations) {
-          const root = relationRoots.find(
-            (entry) => entry.node.name === relationName,
-          );
-          if (root) addEdge(root.id, bindingId);
-        }
+  if (direction === "dependency") {
+    boundary.graph.forEach((node, position) => {
+      const target =
+        position === 0 ? itemId : nodeKey(boundary.graph[position - 1]);
+      addEdge(nodeKey(node), target);
+    });
+    for (const binding of boundary.bindings) {
+      const bindingId = `binding:${binding.index}`;
+      addEdge(bindingId, itemId);
+      for (const relationName of binding.relations) {
+        const root = relationRoots.find(
+          (entry) => entry.node.name === relationName,
+        );
+        if (root) addEdge(root.id, bindingId);
       }
-      if (!boundary.bindings.length) {
-        relationRoots.forEach((root) => addEdge(root.id, "subject"));
-      }
-      (boundary.workflow ?? []).forEach((node) =>
-        addEdge(nodeKey(node), "subject"),
-      );
-    } else {
-      boundary.graph.forEach((node) => addEdge("subject", nodeKey(node)));
-      relationRoots.forEach((root) => addEdge("subject", root.id));
-      boundary.bindings.forEach((binding) =>
-        addEdge("subject", `binding:${binding.index}`),
-      );
-      (boundary.workflow ?? []).forEach((node) =>
-        addEdge("subject", nodeKey(node)),
-      );
     }
+    if (!boundary.bindings.length) {
+      relationRoots.forEach((root) => addEdge(root.id, itemId));
+    }
+    (boundary.workflow ?? []).forEach((node) =>
+      addEdge(nodeKey(node), itemId),
+    );
+  } else {
+    boundary.graph.forEach((node) => addEdge(itemId, nodeKey(node)));
+    relationRoots.forEach((root) => addEdge(itemId, root.id));
+    boundary.bindings.forEach((binding) =>
+      addEdge(itemId, `binding:${binding.index}`),
+    );
+    (boundary.workflow ?? []).forEach((node) =>
+      addEdge(itemId, nodeKey(node)),
+    );
   }
 
-  const allLayers = [...nodes.values()];
-  const total = allLayers.length;
-  const layers =
-    total > COLLECTION_SUBJECT_LIMIT
-      ? allLayers.slice(0, COLLECTION_SUBJECT_LIMIT)
-      : allLayers;
+  return { nodes, edges };
+}
+
+/**
+ * Read a collection through its actual subjects. There is no collection root:
+ * the boxes are the collection's items plus the real participants merged from
+ * their constitutions or contributions. Shared declarations are one box. Items
+ * are accepted until the boundary reaches a readable size; the card states how
+ * many items are shown.
+ */
+export function collectionDagModel(
+  index: ViewerIndex,
+  model: CollectionModel,
+  direction: "dependency" | "contribution",
+): ConstitutionModel {
+  const frame = layerFrame(model.concept);
+  const items = collectionItems(model);
+  const nodes = new Map<string, ConstitutionNode>();
+  const edges = new Map<string, { source: string; target: string }>();
+  let accepted = 0;
+
+  for (const item of items) {
+    const part = itemBoundary(index, item, direction, frame);
+    const union = new Set([...nodes.keys(), ...part.nodes.keys()]);
+    if (accepted > 0 && union.size > COLLECTION_SUBJECT_LIMIT) break;
+    part.nodes.forEach((node, key) => nodes.set(key, node));
+    part.edges.forEach((edge, key) => edges.set(key, edge));
+    accepted += 1;
+  }
+
+  const layers = [...nodes.values()];
   const kept = new Set(layers.map(nodeKey));
   const layerEdges = [...edges.values()].filter(
-    (edge) =>
-      (edge.source === "subject" || kept.has(edge.source)) &&
-      (edge.target === "subject" || kept.has(edge.target)),
+    (edge) => kept.has(edge.source) && kept.has(edge.target),
   );
+  const note =
+    accepted < items.length
+      ? `Showing ${accepted} of ${items.length} items and their boundary.`
+      : direction === "dependency"
+        ? model.dependency.empty
+        : model.dependants.empty;
   return {
+    subjectSet: true,
     direction,
-    subject: subjectNode,
+    subject: collectionPurpose(model),
     graph: [],
     relation: [],
     bindings: [],
     layers,
     layerEdges,
-    note:
-      total > layers.length
-        ? `Showing ${layers.length} of ${total} actual subjects.`
-        : direction === "dependency"
-          ? model.dependency.empty
-          : model.dependants.empty,
+    note,
   };
 }
+
+/** Build the model for one virtual collection. */

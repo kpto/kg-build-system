@@ -110,11 +110,12 @@ Banner: Collection
 Constitution → Contribution → Items → Coverage
 ```
 
-Its Constitution merges the actual participants below its items; its
-Contribution merges the actual participants one level above. Items opens each
-participant; Coverage counts the layer. A large merged set shows a readable
-number of actual subjects and states the total; it never shows layer boxes or
-links to another collection. Assets have an explicit empty Constitution state:
+Its Constitution shows the collection's items and the actual participants below
+them; its Contribution shows the items and the actual participants one level
+above. There is no collection root. Items opens each participant; Coverage
+counts the layer. A large set accepts items until the boundary reaches a
+readable size and states how many items are shown; it never shows layer boxes
+or links to another collection. Assets have an explicit empty Constitution state:
 they are the origin.
 
 Every Explorer header is two targets: the **body** opens the collection and the

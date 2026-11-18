@@ -91,12 +91,13 @@ describe("virtual collection model", () => {
     const dag = collectionDagModel(index, collection, "dependency");
     expect(dag.direction).toBe("dependency");
     expect(dag.layers?.map((layer) => layer.name)).toEqual([
+      "defect",
       "surveys",
       "estate",
     ]);
     expect(dag.layerEdges).toEqual([
       { source: "asset:estate", target: "relation:surveys" },
-      { source: "relation:surveys", target: "subject" },
+      { source: "relation:surveys", target: "projection:defect" },
     ]);
     const scene = buildConstitutionScene(dag);
     expect(scene.frames.map((frame) => frame.id)).toEqual(["relation"]);
@@ -118,16 +119,19 @@ describe("virtual collection model", () => {
     const dag = collectionDagModel(index, collection, "contribution");
     expect(dag.direction).toBe("contribution");
     expect(dag.layers?.map((layer) => layer.name)).toEqual([
+      "surveys",
       "defect",
       "defect.title",
     ]);
     expect(dag.layers?.map((layer) => layer.kind)).toEqual([
+      "relation",
       "projection",
       "binding",
     ]);
-    expect(dag.layerEdges?.every((edge) => edge.source === "subject")).toBe(
-      true,
-    );
+    expect(dag.layerEdges).toEqual([
+      { source: "relation:surveys", target: "projection:defect" },
+      { source: "relation:surveys", target: "binding:0" },
+    ]);
     expect(dag.layers?.every((layer) => layer.collection === undefined)).toBe(
       true,
     );
@@ -139,7 +143,7 @@ describe("virtual collection model", () => {
       collectionModel(index, "assets"),
       "dependency",
     );
-    expect(dag.layers).toEqual([]);
+    expect(dag.layers?.map((layer) => layer.name)).toEqual(["estate"]);
     expect(dag.note).toContain("origin");
     const scene = buildConstitutionScene(dag);
     expect(scene.notes.map((note) => note.text)).toContain(

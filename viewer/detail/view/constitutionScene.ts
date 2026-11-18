@@ -1112,20 +1112,47 @@ function buildWorkflowScene(model: ConstitutionModel): ConstitutionScene {
   );
 }
 
-/**
- * A large collection boundary read as a wrapped grid: the actual subjects in
- * columns, the collection root on the free side. One frame, real boxes.
- */
-function buildGridScene(model: ConstitutionModel): ConstitutionScene {
-  const subject: ConstitutionSceneNode = {
-    id: "subject",
-    axis: "subject",
-    node: model.subject,
-    hoverable: false,
-    x: 0,
-    y: 0,
-    ...NODE.subject,
+function routeGridEdge(
+  source: ConstitutionSceneNode,
+  target: ConstitutionSceneNode,
+): { startX: number; startY: number; endX: number; endY: number } {
+  if (source.y < target.y) {
+    return {
+      startX: source.x + source.width / 2,
+      startY: source.y + source.height,
+      endX: target.x + target.width / 2,
+      endY: target.y,
+    };
+  }
+  if (source.y > target.y) {
+    return {
+      startX: source.x + source.width / 2,
+      startY: source.y,
+      endX: target.x + target.width / 2,
+      endY: target.y + target.height,
+    };
+  }
+  if (source.x < target.x) {
+    return {
+      startX: source.x + source.width,
+      startY: source.y + source.height / 2,
+      endX: target.x,
+      endY: target.y + target.height / 2,
+    };
+  }
+  return {
+    startX: source.x,
+    startY: source.y + source.height / 2,
+    endX: target.x + target.width,
+    endY: target.y + target.height / 2,
   };
+}
+
+/**
+ * A collection boundary with no root: the collection's actual items and their
+ * merged dependencies or contributions. One frame, real boxes.
+ */
+function buildSubjectSetScene(model: ConstitutionModel): ConstitutionScene {
   const layers: ConstitutionSceneNode[] = (model.layers ?? []).map((node) => ({
     id: sceneNodeId(node),
     axis: layerAxis(node.frame),
@@ -1139,67 +1166,24 @@ function buildGridScene(model: ConstitutionModel): ConstitutionScene {
     y: 0,
     ...NODE.graph,
   }));
-  const columns = Math.max(1, Math.min(3, Math.ceil(Math.sqrt(layers.length))));
+  const columns =
+    layers.length > 40
+      ? 5
+      : Math.max(1, Math.min(4, Math.ceil(Math.sqrt(layers.length))));
   const gap = 32;
-  const rows = Math.max(1, Math.ceil(layers.length / columns));
-  const gridWidth =
-    columns * NODE.graph.width + Math.max(0, columns - 1) * gap;
-  const gridHeight = rows * NODE.graph.height + Math.max(0, rows - 1) * gap;
-  const contribution = model.direction === "contribution";
-  const gridX = contribution ? NODE.subject.width + 72 : 0;
-  subject.x = contribution ? 0 : gridWidth + 72;
-  subject.y = Math.max(0, (gridHeight - NODE.subject.height) / 2);
   layers.forEach((node, index) => {
     const column = index % columns;
     const row = Math.floor(index / columns);
-    node.x = gridX + column * (NODE.graph.width + gap);
+    node.x = column * (NODE.graph.width + gap);
     node.y = row * (NODE.graph.height + gap);
   });
-
-  const byId = new Map<string, ConstitutionSceneNode>([
-    [subject.id, subject],
-    ...layers.map((node) => [node.id, node] as const),
-  ]);
+  const byId = new Map(layers.map((node) => [node.id, node] as const));
   const edges: ConstitutionSceneEdge[] = [];
   for (const link of model.layerEdges ?? []) {
     const source = byId.get(link.source);
     const target = byId.get(link.target);
     if (!source || !target) continue;
-    let startX: number;
-    let startY: number;
-    let endX: number;
-    let endY: number;
-    if (target.id === subject.id) {
-      startX = source.x + source.width;
-      startY = source.y + source.height / 2;
-      endX = subject.x;
-      endY = subject.y + subject.height / 2;
-    } else if (source.id === subject.id) {
-      startX = subject.x + subject.width;
-      startY = subject.y + subject.height / 2;
-      endX = target.x;
-      endY = target.y + target.height / 2;
-    } else if (source.y < target.y) {
-      startX = source.x + source.width / 2;
-      startY = source.y + source.height;
-      endX = target.x + target.width / 2;
-      endY = target.y;
-    } else if (source.y > target.y) {
-      startX = source.x + source.width / 2;
-      startY = source.y;
-      endX = target.x + target.width / 2;
-      endY = target.y + target.height;
-    } else if (source.x < target.x) {
-      startX = source.x + source.width;
-      startY = source.y + source.height / 2;
-      endX = target.x;
-      endY = target.y + target.height / 2;
-    } else {
-      startX = source.x;
-      startY = source.y + source.height / 2;
-      endX = target.x + target.width;
-      endY = target.y + target.height / 2;
-    }
+    const { startX, startY, endX, endY } = routeGridEdge(source, target);
     const path = `M ${startX} ${startY} L ${endX} ${endY}`;
     edges.push({
       id: `${link.source}->${link.target}`,
@@ -1209,10 +1193,10 @@ function buildGridScene(model: ConstitutionModel): ConstitutionScene {
       head: edgeHead(path),
     });
   }
-
-  const nodes = [subject, ...layers];
-  const frameId = frameIdForSceneNode(subject);
-  const frame = frameFor(frameId, nodes);
+  const frameId = layers[0]
+    ? frameIdForSceneNode(layers[0])
+    : frameIdForKind(model.subject.kind);
+  const frame = frameFor(frameId, layers);
   const frames = frame ? [frame] : [];
   const labels = frame
     ? [
@@ -1229,8 +1213,10 @@ function buildGridScene(model: ConstitutionModel): ConstitutionScene {
   };
   const notes: ConstitutionSceneNote[] = [];
   if (model.note) {
-    const lowest = nodes.reduce((lower, node) =>
-      node.y + node.height > lower.y + lower.height ? node : lower,
+    const lowest = layers.reduce(
+      (lower, node) =>
+        node.y + node.height > lower.y + lower.height ? node : lower,
+      layers[0] ?? { y: 0, height: 0, x: 0, width: 0 },
     );
     notes.push({
       text: model.note,
@@ -1238,18 +1224,26 @@ function buildGridScene(model: ConstitutionModel): ConstitutionScene {
       y: lowest.y + lowest.height + NOTE_GAP,
     });
   }
+  const nodeMaxX = Math.max(
+    0,
+    ...layers.map((node) => node.x + node.width),
+  );
+  const nodeMaxY = Math.max(
+    0,
+    ...layers.map((node) => node.y + node.height),
+  );
   const contentMaxX = Math.max(
-    ...nodes.map((node) => node.x + node.width),
+    nodeMaxX,
     ...notes.map((note) => note.x + 180),
     ...frames.map((entry) => entry.x + entry.width),
   );
   const contentMaxY = Math.max(
-    ...nodes.map((node) => node.y + node.height),
+    nodeMaxY,
     ...notes.map((note) => note.y + NOTE_HEIGHT),
     ...frames.map((entry) => entry.y + entry.height),
   );
   return {
-    nodes,
+    nodes: layers,
     edges,
     labels,
     notes,
@@ -1260,55 +1254,10 @@ function buildGridScene(model: ConstitutionModel): ConstitutionScene {
   };
 }
 
-/** A collection's layer DAG, read as boxes instead of a list. */
-function buildLayerScene(model: ConstitutionModel): ConstitutionScene {
-  const subject: ConstitutionSceneNode = {
-    id: "subject",
-    axis: "subject",
-    node: model.subject,
-    hoverable: false,
-    x: 0,
-    y: 0,
-    ...NODE.subject,
-  };
-  const layers: ConstitutionSceneNode[] = (model.layers ?? []).map((node) => ({
-    id: sceneNodeId(node),
-    axis: layerAxis(node.frame),
-    node,
-    ...(node.component ? { component: node.component } : {}),
-    ...(node.bindingIndex !== undefined
-      ? { bindingIndex: node.bindingIndex }
-      : {}),
-    ...(node.stepId ? { stepId: node.stepId } : {}),
-    x: 0,
-    y: 0,
-    ...NODE.graph,
-    hoverable: false,
-  }));
-  if (layers.length > 8) {
-    return buildGridScene(model);
-  }
-  const nodes = [subject, ...layers];
-  const links = model.layerEdges ?? [];
-  return buildBoundaryScene(
-    model,
-    nodes,
-    links,
-    model.direction === "contribution" ? "target" : "subject",
-    layers.length
-      ? undefined
-      : model.note ||
-        (model.direction === "contribution"
-          ? "No layer depends on this collection."
-          : "No layer is below this collection."),
-    model.direction === "contribution" ? "horizontal" : "vertical",
-  );
-}
-
 export function buildConstitutionScene(
   model: ConstitutionModel,
 ): ConstitutionScene {
-  if (model.layers) return buildLayerScene(model);
+  if (model.subjectSet) return buildSubjectSetScene(model);
   if (model.subject.kind === "step") return buildWorkflowScene(model);
   if (model.direction === "contribution") return buildContributionScene(model);
   return isComponentsSubject(model.subject.kind)

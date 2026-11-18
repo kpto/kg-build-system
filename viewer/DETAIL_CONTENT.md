@@ -78,16 +78,17 @@ opens the component's collection and its arrow unfolds its steps.
 
 A collection is a layer read as a group, not a declared subject. It carries no
 Meaning card: it has no purpose, claim or limitation of its own. Its
-Constitution and Contribution pages use the actual participant subjects merged
-from the collection's items: the assets, relations and bindings below, or the
-derived relations and bindings above. A large set shows a readable number of
-actual subjects and states the total; it never shows layer boxes or links to
+Constitution and Contribution pages use the collection's actual items and the
+actual participant subjects merged from their constitutions or contributions.
+There is no collection root: the boxes are the items themselves plus their
+boundary. A large set accepts items until the boundary reaches a readable size
+and states how many items are shown; it never shows layer boxes or links to
 another collection.
 
 | Collection page | Scope | Contents |
 | --- | --- | --- |
-| **Constitution** | the actual participants below the collection's items, merged | one box per real participant, shared subjects once, in the collection's frame. Assets have an explicit empty state: they are the origin |
-| **Contribution** | the actual participants exactly one level above the collection's items | one box per real dependant, shared subjects once, never deeper |
+| **Constitution** | the items and the actual participants below them, merged | one box per real item or dependency, shared subjects once, in the collection's frame. Assets have an explicit empty state: they are the origin |
+| **Contribution** | the items and the actual participants exactly one level above them | one box per real item or dependant, shared subjects once, never deeper |
 | **Items** | the collection itself | the layer's members with layer-specific facts; every row opens the participant document |
 | **Coverage** | the collection's completeness | items, items with meaning, items with a constitution, items with a contribution |
 

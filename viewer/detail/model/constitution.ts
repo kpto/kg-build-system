@@ -101,6 +101,8 @@ export interface ConstitutionBinding {
 export interface ConstitutionModel {
   /** The direction this DAG reads: below the subject or one level above it. */
   direction?: "dependency" | "contribution";
+  /** A collection boundary is a set of actual subjects, with no single root. */
+  subjectSet?: boolean;
   /** The subject box: the participant the constitution or contribution is read for. */
   subject: ConstitutionNode;
   /** Record-axis levels, ordered from the root toward the subject. */
