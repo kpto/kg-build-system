@@ -15,7 +15,7 @@ import { DetailBand, DetailDocument } from "@/detail/view/DetailChrome";
 import { Constitution } from "@/detail/view/Constitution";
 import { stepBoundaryModel } from "@/detail/model/constitution";
 import { ContextMenu } from "@/shared/ui/ContextMenu";
-import { Control, Empty, Field, Input, Label, Meta, Select } from "@/shared/ui/Primitives";
+import { Empty, Field, Input, Select } from "@/shared/ui/Primitives";
 import { useGraphViewport } from "@/shared/ui/GraphCanvas";
 import { cx, groupPalette, theme } from "@/shared/ui/theme";
 import {
@@ -47,9 +47,14 @@ function workflowModel(state: WorkspaceProps["state"]) {
 }
 
 // ---------------------------------------------------------------------------
-// Control: workflow filters
+// Controls: one compact bar over the workflow canvas
 // ---------------------------------------------------------------------------
 
+/**
+ * The Workflow view controls sit on the graph they narrow. Search is first
+ * because it is the most frequent action; the two selects and the count are
+ * the only other choices, so the bar stays a single row where space allows.
+ */
 export function WorkflowControls({ state }: WorkspaceProps) {
   const model = useMemo(() => workflowModel(state), [state.index]);
   const { state: ui, store } = useWorkflowUi(state.snapshot.name);
@@ -57,68 +62,83 @@ export function WorkflowControls({ state }: WorkspaceProps) {
     () => filterWorkflowRows(model.rows, ui.filters),
     [model.rows, ui.filters],
   );
+  const filtering =
+    Boolean(ui.filters.query.trim()) ||
+    ui.filters.component !== "all" ||
+    ui.filters.kind !== "all";
 
   return (
-    <div className="flex h-full flex-col" data-testid="workflow-controls">
-      <div className="flex flex-none items-center gap-1.5 border-b border-line-soft p-2">
-        <Search aria-hidden className="size-3 text-faint" />
+    <div
+      className="pointer-events-auto flex max-w-full flex-wrap items-center gap-1 rounded-[var(--radius-sm)] border border-line bg-panel/95 p-1 shadow-lg"
+      data-testid="workflow-controls"
+      onPointerDown={(event) => event.stopPropagation()}
+    >
+      <div className="relative flex items-center">
+        <Search
+          aria-hidden
+          className="pointer-events-none absolute left-1.5 size-3 text-faint"
+        />
         <Input
           value={ui.filters.query}
           onChange={(event) => store.setQuery(event.target.value)}
-          placeholder="Filter workflow steps"
+          placeholder="Filter steps"
           aria-label="Filter workflow steps"
+          title="Filter workflow steps by name or component"
           spellCheck={false}
-          className="min-w-0 flex-1"
+          className="h-6 w-[168px] py-0 pl-5 text-[length:var(--text-caption)]"
           data-testid="workflow-filter-query"
         />
       </div>
 
-      <div className="thin-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto p-2">
-        <label className="block">
-          <Label className="mb-1 block">Component</Label>
-          <Select
-            value={ui.filters.component}
-            onChange={(event) => store.setComponent(event.target.value)}
-            data-testid="workflow-filter-component"
-          >
-            <option value="all">All components · {model.components.length}</option>
-            {model.components.map((component) => (
-              <option key={component} value={component}>
-                {component}
-              </option>
-            ))}
-          </Select>
-        </label>
+      <Select
+        value={ui.filters.component}
+        onChange={(event) => store.setComponent(event.target.value)}
+        aria-label="Filter by component"
+        title="Filter by component"
+        className="h-6 w-[150px] py-0 text-[length:var(--text-caption)]"
+        data-testid="workflow-filter-component"
+      >
+        <option value="all">All components · {model.components.length}</option>
+        {model.components.map((component) => (
+          <option key={component} value={component}>
+            {component}
+          </option>
+        ))}
+      </Select>
 
-        <label className="block">
-          <Label className="mb-1 block">Instruction</Label>
-          <Select
-            value={ui.filters.kind}
-            onChange={(event) => store.setKind(event.target.value)}
-            data-testid="workflow-filter-kind"
-          >
-            <option value="all">All instruction kinds</option>
-            {model.kinds.map((kind) => (
-              <option key={kind.key} value={kind.key}>
-                {kind.label} · {kind.count}
-              </option>
-            ))}
-          </Select>
-        </label>
+      <Select
+        value={ui.filters.kind}
+        onChange={(event) => store.setKind(event.target.value)}
+        aria-label="Filter by instruction kind"
+        title="Filter by instruction kind"
+        className="h-6 w-[150px] py-0 text-[length:var(--text-caption)]"
+        data-testid="workflow-filter-kind"
+      >
+        <option value="all">All instructions</option>
+        {model.kinds.map((kind) => (
+          <option key={kind.key} value={kind.key}>
+            {kind.label} · {kind.count}
+          </option>
+        ))}
+      </Select>
 
-        <Meta className="flex items-center border-t border-line-soft pt-2">
-          {rows.length} / {model.steps} steps
-        </Meta>
+      <span className="px-0.5 font-mono text-[length:var(--text-caption)] text-faint">
+        {rows.length}/{model.steps}
+      </span>
 
-        <Control
+      {filtering ? (
+        <button
+          type="button"
           onClick={() => store.resetFilters()}
-          className="w-full"
+          title="Reset workflow filters"
+          aria-label="Reset workflow filters"
           data-testid="workflow-reset"
+          className="inline-flex h-6 items-center gap-1 px-1.5 text-[length:var(--text-caption)] text-muted hover:bg-panel-soft hover:text-text"
         >
           <RotateCcw aria-hidden className="size-3" />
-          Reset workflow filters
-        </Control>
-      </div>
+          Reset
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -770,6 +790,10 @@ export function WorkflowEditor(props: WorkspaceProps) {
             </p>
           </div>
         ) : null}
+
+        <div className="pointer-events-none absolute top-2 left-2 z-10 max-w-[calc(100%-16px)]">
+          <WorkflowControls state={props.state} actions={props.actions} />
+        </div>
 
         <ViewportHint className="pointer-events-none">
           {inStepGroup

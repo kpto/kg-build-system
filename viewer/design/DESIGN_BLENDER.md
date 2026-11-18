@@ -14,8 +14,8 @@ Reference: Blender 4.x dark theme, not a generic dashboard.
   cards: no glass, no floating panel stacks, no shadow between regions.
 - **No application header or status bar.** The tab strip is the top of the
   frame; the side bar prints the snapshot name in its first row.
-- **Side-bar sections** are collapsible 25px headers: **Control** for the active
-  view's controls, **Explorer** for the whole design.
+- **The side bar** is one collapsible 25px header for **Explorer**, the whole
+  design. A visualisation carries its own controls on its canvas.
 - **Area headers** are 25px bands on `panel-raised` with an icon, an uppercase
   micro title, optional counts and right-aligned controls.
 - **Detail sections are cards.** A detail document is a stack of inset `panel`
@@ -65,8 +65,8 @@ rank wrapping. Pan/zoom and focus are the answers, not folding.
   category is a dashed ring in the asset green. The selected node gets an orange
   ring, not an orange fill.
 - Each category draws a faint convex-hull frame behind its nodes with an
-  uppercase `CATEGORY · count` label. **Clusters** in Control toggles every
-  frame; the frame follows the settled simulation.
+  uppercase `CATEGORY · count` label. **Containers** in the Graph View popover
+  toggles every frame; the frame follows the settled simulation.
 - One relationship between two nodes is a **straight line**. Only parallel
   relationships between the same unordered pair curve, with small centred
   offsets and a perpendicular control point so reversed links do not retrace

@@ -1,12 +1,12 @@
 /**
  * Topology document view.
  *
- * The shell mounts these bodies from the Topology side-bar section and from the
- * Graph document. Consistency is defined by the record, not by a mode.
+ * The shell mounts the editor from the Graph document. Its controls are part of
+ * that document, so they live on the canvas and not in the side bar.
  */
 
 export {
   TopologyInspector,
   TopologyEditor,
-  TopologySidebar,
+  TopologyControls,
 } from "./view/TopologyFeature";

@@ -1,4 +1,4 @@
-/* The side bar: one snapshot row over collapsible Control and Explorer sections. */
+/* The side bar: the Explorer. A visualisation owns its own controls. */
 
 @layer components {
   .sidebar {
@@ -80,49 +80,4 @@
     border-radius: var(--radius-md);
     background-color: var(--color-panel);
   }
-}
-
-@layer components {
-  .sectionSplitter {
-    position: relative;
-    z-index: var(--z-sticky);
-    flex: none;
-    height: 3px;
-    border: 0;
-    background-color: var(--color-gutter);
-    cursor: row-resize;
-    touch-action: none;
-    outline: none;
-  }
-
-  .sectionSplitter:hover,
-  .sectionSplitter:focus-visible {
-    background-color: var(--color-selection);
-  }
-
-  .sectionSplitterGrip {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 22px;
-    height: 3px;
-    border-radius: var(--radius-sm);
-    background:
-      repeating-linear-gradient(
-        90deg,
-        var(--color-line-strong) 0 2px,
-        transparent 2px 4px
-      );
-    opacity: 0;
-    transform: translate(-50%, -50%);
-  }
-
-  .sectionSplitter:hover .sectionSplitterGrip,
-  .sectionSplitter:focus-visible .sectionSplitterGrip {
-    opacity: 1;
-  }
-}
-
-@layer components {
-
 }

@@ -55,8 +55,6 @@ export interface WorkbenchTab {
 
 export interface WorkbenchLayout {
   sidebarWidth: number;
-  /** Share of the side bar height used by the Control section when both are open. */
-  sidebarSplit: number;
 }
 
 export interface WorkbenchState {
@@ -228,10 +226,7 @@ export function documentSignature(document: WorkbenchDocument): string {
 
 export const DEFAULT_LAYOUT: WorkbenchLayout = {
   sidebarWidth: 300,
-  sidebarSplit: 0.5,
 };
 
 export const MIN_SIDEBAR = 220;
 export const MAX_SIDEBAR = 520;
-export const MIN_SIDEBAR_SPLIT = 0.2;
-export const MAX_SIDEBAR_SPLIT = 0.8;

@@ -1,7 +1,7 @@
 # Viewer design language
 
 The viewer is one application, not a collection of screens. It reads a graph
-design through one document strip, two side-bar sections and one shared ladder. Each level answers one
+design through one document strip, one side bar and one shared ladder. Each level answers one
 question and owns one kind of chrome. A level may be omitted; it may not be
 reordered, duplicated or wrapped in another level of the same kind.
 
@@ -36,17 +36,23 @@ Window        where am I, and what design am I reading?
 - **Field** is one value of that subject.
 - **Control** is one action or one reveal. It never carries content.
 
-## One frame, two side-bar sections
+## One frame, one side bar
 
 | Section | Question | What it contains |
 | --- | --- | --- |
-| Control | How is the current view configured? | graph filters, labels, Show controls, legend, layout; workflow component and instruction filters |
 | Explorer | What does the design contain? | assets, nodes, abstract nodes and edges, properties and the workflow components and steps; it always lists the whole design |
 
-There is no mode switch. Opening a side-bar section changes the side bar, not
-the active document or its editor. Control follows the active view; a subject
-document has no view controls. A graph selection is transient inspection; a
-subject document is an explicit tab.
+There is no mode switch. Opening the side bar changes the side bar, not the
+active document or its editor. A visualisation owns the controls that change
+it: the Graph toolbar and View popover configure the Graph, and the Workflow
+bar filters the Workflow. A subject document has no view controls. A graph
+selection is transient inspection; a subject document is an explicit tab.
+
+The controls follow **Hick's Law** and progressive disclosure: the few choices
+that change the picture immediately stay on the canvas, and every other option
+sits behind one named surface. The toolbar is a familiar compact control strip
+(**Jakob's Law**), and its targets sit within easy reach of the canvas
+(**Fitts's Law**).
 
 ## Detail is earned
 
@@ -433,19 +439,19 @@ the page margin instead.
   for an already-open subject activates that tab instead of opening a second
   one; display-only fields such as a repeated name are not part of identity. The
   context menu also offers **Go to Graph** for graph subjects and **Go to
-  Workflow** for workflow items. A workflow component selected in Control or in
-  the Workflow graph expands its step group in Explorer. That reveal is
+  Workflow** for workflow items. A workflow component selected in the Workflow
+  graph expands its step group in Explorer. That reveal is
   one-shot: once the reader collapses the Workflow section or a component group,
   it stays collapsed until the active subject changes again.
   Preview tabs are reused by the next single click; double-clicking a preview
   tab label pins it. Middle-clicking a pill opens a permanent tab in the
   background without switching to it. Middle-clicking a subject or step tab
   closes it; pinned Graph and Workflow tabs cannot be closed.
-- There is no mode and no automatic section switching. Control and Explorer are
-  side-bar sections; changing section never changes the active tab, and changing
-  tab never opens, closes or switches the open sections or panel geometry.
-  Control shows controls for the active view; Explorer always states the whole
-  design. Opening the same subject again activates its existing tab.
+- There is no mode and no automatic section switching. The side bar is the
+  Explorer; collapsing it never changes the active tab, and changing tab never
+  opens or closes it or changes panel geometry. A view's controls live on that
+  view, so Explorer always states the whole design. Opening the same subject
+  again activates its existing tab.
 - Back and forward walk the view history (`Alt+←` / `Alt+→`, the arrows in the
   tab strip, or the mouse back/forward buttons), not tab identity. Each entry
   is a document view; if that view's tab was closed, navigating to it reopens
@@ -455,8 +461,8 @@ the page margin instead.
 
 ## One region, one job
 
-- The side bar carries view controls (Control) and design navigation (Explorer).
-  It does not repeat the selected subject.
+- The side bar carries design navigation (Explorer); a visualisation carries
+  its own controls. Neither repeats the selected subject.
 - The Graph document carries the graph inspection as a floating **Inspect**
   window. A subject document carries its own meaning and properties. The two
   never share a panel, so opening a tab cannot change inspection.
@@ -499,7 +505,7 @@ the page margin instead.
 
 ## Reading flows
 
-**Orient.** Control → filter or zoom → select a node or relation → read the
+**Orient.** Graph toolbar → filter or zoom → select a node or relation → read the
 selection detail → open Detail for its properties, provenance and attached
 claims and limits.
 
@@ -510,7 +516,7 @@ Explorer tree; it becomes its own document tab.
 
 **Read the workflow.** Open **Workflow** → read the component map → click a
 component to select it; its aggregated links highlight → **Open step group** →
-filter with Control → click a step node; its connections highlight the same way
+filter with the Workflow bar → click a step node; its connections highlight the same way
 → **Open step** → read its openings, instruction payload, connections and
 blueprint bindings. A boundary node selects like any other node; **Open step
 group** enters that component. **Back** returns to the component map.

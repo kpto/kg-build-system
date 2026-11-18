@@ -6,12 +6,15 @@ it does not import the Python framework at runtime, execute a build or call a
 model.
 
 The app is a VS Code-style workbench with the Blender dark theme. It has one
-frame, one document tab strip, and two collapsible side-bar sections:
+frame, one document tab strip, and one collapsible side bar:
 
 | Side-bar section | What it is for |
 | --- | --- |
-| **Control** | Controls for the active view: graph filters, labels, containment, meaning, legend and layout; workflow component and instruction filters. |
 | **Explorer** | Everything in the design: assets, source relations, derived relations, nodes, abstract nodes and edges, properties, bindings, plus the workflow components and step catalogue. A header body opens its layer collection and its arrow — on the left of every row — unfolds the list; every participant row opens its own document. Right-clicking an item jumps to its Graph or Workflow view. |
+
+A visualisation owns its controls. The Graph carries a compact toolbar and one
+**View** popover; the Workflow carries a compact filter bar. The side bar never
+duplicates them.
 
 The viewer reads the snapshot from its configured `/snapshot` source, or from a
 URL passed as `?snapshot=<url>`; there is no bundled project dataset and no file
@@ -27,10 +30,10 @@ The tab strip is the document axis:
   **Open Detail**, a right-click **Go to Detail** or the command palette opens
   a permanent tab.
 
-There is no mode switch. Control and Explorer are side-bar sections, both open
-by default at a 50/50 split, and their separator is adjustable. The Control body
-shows the controls of the active view; a subject document has none. Opening or resizing a
-section changes the side bar, not the active document or its editor.
+There is no mode switch. The side bar is the Explorer. A view's controls sit on
+the view itself: the Graph has a toolbar and a View popover, and the Workflow
+has a filter bar. Opening or resizing the side bar changes the side bar, not
+the active document or its editor.
 
 The viewer is a design reader, not an audit or review tool: there are no
 findings, decisions, coverage, sign-off or review sidecars.
@@ -173,8 +176,8 @@ The first paint shows the design, not its annotations.
 
 | Surface | Default | Revealed by |
 | --- | --- | --- |
-| Graph document | Blender-node-editor canvas with a dot and major grid, degree-sized nodes tinted by category, nested abstract-category containers and hub labels; the shared visualisation header states visible nodes and links, carries the **Inspect** toggle and opens a floating inspector showing graph purpose and counts | selecting an entity fills Inspect with its meaning, properties and the fulfilment map; clicking empty space returns to graph purpose; **Containers**, **Labels** and **Show** in Control reveal the other layers |
-| Workflow document | compositor-style component graph in the shared visualisation frame; its header names the workflow or focused step group and states component or step counts, with step-group actions on the right; drag to pan, wheel to zoom, Fit in the bottom-left navigation cluster resets | filter by component or instruction kind in Control; click a component to select it, then use **Open step group** to enter its step-level flow graph with one block per dependency layer; a large layer wraps into aligned sub-columns and chains read left to right; clicking a step node selects it, **Open step** opens its detail document, and **Back** returns to components. Selecting a component, step or boundary node highlights its incident links and dims the other nodes and links; entering another step group requires **Open step group** |
+| Graph document | Blender-node-editor canvas with a dot and major grid, degree-sized nodes tinted by category, nested abstract-category containers and hub labels; the shared visualisation header states visible nodes and links, carries the **Inspect** toggle and opens a floating inspector showing graph purpose and counts | selecting an entity fills Inspect with its meaning, properties and the fulfilment map; clicking empty space returns to graph purpose; the **Labels** control and the **View** popover reveal the other layers |
+| Workflow document | compositor-style component graph in the shared visualisation frame; its header names the workflow or focused step group and states component or step counts, with step-group actions on the right; drag to pan, wheel to zoom, Fit in the bottom-left navigation cluster resets | filter by component or instruction kind in the Workflow bar; click a component to select it, then use **Open step group** to enter its step-level flow graph with one block per dependency layer; a large layer wraps into aligned sub-columns and chains read left to right; clicking a step node selects it, **Open step** opens its detail document, and **Back** returns to components. Selecting a component, step or boundary node highlights its incident links and dims the other nodes and links; entering another step group requires **Open step group** |
 | Subject document | one banner overview and one horizontal deck of flat cards: Constitution (one DAG: purpose and graph ancestry in a GRAPH frame, one box per binding in a FULFILMENT frame, relation provenance in a RELATION frame; shared declarations once; opens fitted, pan/zoom), Contribution (the one level above, in the same DAG), Meaning, Properties, Connections and Bindings; the effective licence sits in the header | the left index rail navigates the static cards; the deck fills the tab body height with the page margin inside each card, so the index starts at the tab edge; each card fills the deck and the next card peeks, and the last card snaps to the deck start; property rows, the branch selector and binding pills open their own documents; the Explorer tree opens another subject document |
 | Collection document | a layer read as a group, with the layer's concept mark: Constitution (the collection's items and the actual participants below them), Contribution (the items and the actual participants one level above), Items (each opens its participant) and Coverage. There is no collection root; boxes are ordered in vertical level bands (asset below source relation, source below derived, derived below binding, record above binding); a large set accepts items until the boundary is readable and states how many are shown | the Explorer header body; a participant box in another collection's boundary |
 | Relation document | the same banner and card deck; the banner states asset, grain, identity, row source and licence; Constitution, Meaning, Fields and Contribution follow. The Constitution is the relation's purpose over its asset (source) or its scanned sources and their assets (derived), with the purpose and components in one RELATION frame. Contribution is the derived relations that scan it and the bindings that read it directly, in the same DAG | a column definition, a contribution pill and the Constitution DAG |
@@ -189,11 +192,10 @@ document follows the content contract in
 [`DETAIL_CONTENT.md`](./DETAIL_CONTENT.md); its skin is in
 [`DESIGN_BLENDER.md`](./DESIGN_BLENDER.md).
 
-There is no bottom panel. The side bar carries the **Control** and **Explorer**
-sections; the Graph document owns its flat **Inspect** panel. A tab changes
-its editor and, in Control, the controls applicable to that view. It never
-opens, closes or switches a side-bar section. Side-bar width and the section
-split are one workbench geometry.
+There is no bottom panel. The side bar carries the **Explorer**; the Graph
+document owns its flat **Inspect** panel and its own view controls. A tab
+changes its editor and the controls on that editor. It never opens, closes or
+switches the side-bar section. Side-bar width is one workbench geometry.
 
 Single-clicking a node or a property in the Graph inspector only changes the
 transient inspection; it does not open a tab. Right-click any suitable node,
@@ -219,8 +221,7 @@ identity, key facts and stated meaning. A middle click on a pill opens a
 permanent tab in the background without switching to it.
 Right-clicking an Explorer item offers **Go to Graph** for graph subjects and
 **Go to Workflow** for workflow components and steps. A workflow component
-selected in Control or in the Workflow graph expands its step group in
-Explorer; an explicit collapse sticks until the active subject changes.
+selected in the Workflow graph expands its step group in Explorer; an explicit collapse sticks until the active subject changes.
 Middle-clicking a subject or step tab closes it; the pinned Graph and Workflow
 tabs cannot be closed. **Back** and **Forward** (arrows in the tab strip,
 `Alt+←` / `Alt+→`, or the mouse back/forward buttons) walk the view history,

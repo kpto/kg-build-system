@@ -28,14 +28,12 @@ import { ContextMenu } from "@/shared/ui/ContextMenu";
 import { ConceptGlyph } from "@/shared/ui/ConceptMark";
 import { conceptForSelection, concepts } from "@/shared/ui/concepts";
 import {
-  Control,
   Empty,
   Label,
   Meta,
   Panel,
   PanelHeader,
   Row,
-  RowButton,
 } from "@/shared/ui/Primitives";
 import { PropertyPill } from "@/detail/view/ConceptPill";
 import {
@@ -49,7 +47,7 @@ import {
   ViewportFrame,
   ViewportNav,
 } from "@/shared/ui/Viewport";
-import { PanelRight } from "lucide-react";
+import { ChevronDown, PanelRight, SlidersHorizontal } from "lucide-react";
 import type {
   TopologyDetailOptions,
   TopologyEntity,
@@ -331,48 +329,120 @@ function entityKindLabel(entity: TopologyEntity): string {
 }
 
 // ---------------------------------------------------------------------------
-// Sidebar
+// Controls: one compact toolbar over the canvas and one View popover
 // ---------------------------------------------------------------------------
 
-function FilterButton({
+function ToolbarButton({
   pressed,
   onClick,
-  children,
   title,
+  testId,
+  children,
 }: {
-  pressed: boolean;
-  onClick: () => void;
+  pressed?: boolean;
+  onClick(): void;
+  title: string;
+  testId?: string;
   children: ReactNode;
-  title?: string;
 }) {
   return (
-    <Control
+    <button
+      type="button"
       aria-pressed={pressed}
       onClick={onClick}
       title={title}
+      data-testid={testId}
       className={cx(
+        "inline-flex h-6 items-center gap-1 px-2 text-[length:var(--text-caption)] font-medium",
         pressed
-          ? "border-accent/70 bg-accent/15 text-accent-strong"
-          : "bg-panel-soft/40",
+          ? "bg-accent/15 text-accent-strong"
+          : "text-muted hover:bg-panel-soft hover:text-text",
       )}
     >
-      <span>{children}</span>
-    </Control>
+      {children}
+    </button>
   );
 }
 
-function FilterGroup({
+/** A filter with named states: the current one is always visible. */
+function Segmented({
   label,
-  children,
+  value,
+  options,
+  onChange,
 }: {
   label: string;
-  children: ReactNode;
+  value: string;
+  options: Array<{ value: string; label: string; title?: string }>;
+  onChange(value: string): void;
 }) {
   return (
-    <div className="space-y-1">
-      <Label className="block">{label}</Label>
-      <div className="flex flex-wrap gap-1">{children}</div>
+    <div>
+      <Label className="mb-1 block">{label}</Label>
+      <div
+        role="group"
+        aria-label={label}
+        className="flex overflow-hidden rounded-[var(--radius-sm)] border border-line-soft"
+      >
+        {options.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            aria-pressed={value === option.value}
+            onClick={() => onChange(option.value)}
+            title={option.title}
+            className={cx(
+              "h-6 flex-1 border-r border-line-soft px-1 text-[length:var(--text-caption)] last:border-r-0",
+              value === option.value
+                ? "bg-accent/15 text-accent-strong"
+                : "bg-panel-soft/40 text-muted hover:bg-panel-soft hover:text-text",
+            )}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
     </div>
+  );
+}
+
+/** A detail switch: the label and its state are one target. */
+function SwitchRow({
+  label,
+  title,
+  pressed,
+  onChange,
+}: {
+  label: string;
+  title: string;
+  pressed: boolean;
+  onChange(): void;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={pressed}
+      onClick={onChange}
+      title={title}
+      className="flex w-full items-center justify-between gap-2 rounded-[var(--radius-sm)] px-1 py-1 text-left hover:bg-panel-soft"
+    >
+      <span className="text-[length:var(--text-base)] text-muted">{label}</span>
+      <span
+        aria-hidden
+        className={cx(
+          "relative h-3.5 w-6 flex-none rounded-full border",
+          pressed ? "border-accent bg-accent/25" : "border-line bg-panel-soft",
+        )}
+      >
+        <span
+          className={cx(
+            "absolute top-1/2 size-2 -translate-y-1/2 rounded-full",
+            pressed ? "left-3 bg-accent-strong" : "left-0.5 bg-faint",
+          )}
+        />
+      </span>
+    </button>
   );
 }
 
@@ -402,16 +472,39 @@ function LegendRow({
   );
 }
 
-export function TopologySidebar(props: WorkspaceProps): JSX.Element {
-  const model = useTopologyModel(props);
+/**
+ * The Graph view controls sit on the canvas they affect. The toolbar exposes
+ * the three choices that change the picture immediately; the View popover
+ * holds the rest, so the surface opens with few decisions (Hick's Law).
+ */
+export function TopologyControls({
+  compact = false,
+  ...props
+}: WorkspaceProps & { compact?: boolean }): JSX.Element {
   const [ui, store] = useTopologyUi(props.state.snapshot.name);
-  const visible = useMemo(
-    () => applyTopologyFilters(model, ui.filters, ui.detail),
-    [model, ui.filters, ui.detail],
-  );
+  const [viewOpen, setViewOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const filters = ui.filters;
   const detail = ui.detail;
-  const counts = model.filters.counts;
+  const relationsOn = filters.kinds.edge && detail.edges === "relations";
+
+  useEffect(() => {
+    if (!viewOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!wrapperRef.current?.contains(event.target as Node)) {
+        setViewOpen(false);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setViewOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [viewOpen]);
 
   const patchFilters = (
     patch: Partial<Omit<typeof filters, "kinds">> & {
@@ -431,243 +524,276 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
     if ("containment" in patch || "edges" in patch) store.requestFit();
   };
 
+  const setRelations = (next: boolean) => {
+    store.setFilters({
+      ...filters,
+      kinds: { ...filters.kinds, edge: next },
+    });
+    store.setDetail({ ...detail, edges: next ? "relations" : "off" });
+    store.requestFit();
+  };
+
+  const advancedCount = [
+    filters.abstract !== "all",
+    filters.semantics !== "all",
+    detail.labels !== "hubs",
+    detail.edgeLabels,
+    detail.containment,
+    detail.semantics,
+    detail.properties,
+    !detail.clusters,
+  ].filter(Boolean).length;
+
   return (
-    <div className="flex h-full min-h-0 flex-col bg-panel">
-
-      <div className="thin-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-2">
-        <section className="space-y-2" aria-label="Topology filters">
-          <FilterGroup label="Kind">
-            <FilterButton
-              pressed={filters.kinds.node}
-              onClick={() => patchFilters({ kinds: { node: !filters.kinds.node } })}
-              title="Show or hide topology node components"
-            >
-              Nodes
-            </FilterButton>
-            <FilterButton
-              pressed={filters.kinds.edge}
-              onClick={() => patchFilters({ kinds: { edge: !filters.kinds.edge } })}
-              title="Show or hide topology edge components as relation links"
-            >
-              Relations
-            </FilterButton>
-          </FilterGroup>
-
-          <FilterGroup label="Abstract">
-            <FilterButton
-              pressed={filters.abstract === "all"}
-              onClick={() => patchFilters({ abstract: "all" })}
-            >
-              All
-            </FilterButton>
-            <FilterButton
-              pressed={filters.abstract === "concrete"}
-              onClick={() => patchFilters({ abstract: "concrete" })}
-            >
-              Concrete
-            </FilterButton>
-            <FilterButton
-              pressed={filters.abstract === "abstract"}
-              onClick={() => patchFilters({ abstract: "abstract" })}
-            >
-              Abstract
-            </FilterButton>
-          </FilterGroup>
-
-          <FilterGroup label="Meaning">
-            <FilterButton
-              pressed={filters.semantics === "all"}
-              onClick={() => patchFilters({ semantics: "all" })}
-            >
-              All
-            </FilterButton>
-            <FilterButton
-              pressed={filters.semantics === "present"}
-              onClick={() => patchFilters({ semantics: "present" })}
-            >
-              Present
-            </FilterButton>
-            <FilterButton
-              pressed={filters.semantics === "missing"}
-              onClick={() => patchFilters({ semantics: "missing" })}
-            >
-              Missing
-            </FilterButton>
-          </FilterGroup>
-        </section>
-
-        <section
-          className="space-y-2 border-t border-line-soft pt-2"
-          aria-label="Topology detail"
+    <div
+      ref={wrapperRef}
+      className={cx("relative", viewOpen && "z-30")}
+      data-testid="topology-controls"
+    >
+      <div className="flex max-w-full flex-wrap items-center overflow-hidden rounded-[var(--radius-sm)] border border-line bg-panel/95 shadow-lg">
+        <ToolbarButton
+          pressed={filters.kinds.node}
+          onClick={() =>
+            patchFilters({ kinds: { node: !filters.kinds.node } })
+          }
+          title="Show or hide topology node components"
+          testId="topology-toggle-nodes"
         >
-          <FilterGroup label="Labels">
-            <FilterButton
-              pressed={detail.labels === "off"}
-              onClick={() => patchDetail({ labels: "off" })}
-              title="Hide node labels"
-            >
-              Off
-            </FilterButton>
-            <FilterButton
-              pressed={detail.labels === "hubs"}
-              onClick={() => patchDetail({ labels: "hubs" })}
-              title="Label only the busiest nodes"
-            >
-              Hubs
-            </FilterButton>
-            <FilterButton
-              pressed={detail.labels === "all"}
-              onClick={() => patchDetail({ labels: "all" })}
-              title="Label every visible node"
-            >
-              All
-            </FilterButton>
-          </FilterGroup>
-
-          <FilterGroup label="Show">
-            <FilterButton
-              pressed={detail.edgeLabels}
-              onClick={() => patchDetail({ edgeLabels: !detail.edgeLabels })}
-              title="Show edge labels on relation links"
-            >
-              Edge labels
-            </FilterButton>
-            <FilterButton
-              pressed={detail.containment}
-              onClick={() => patchDetail({ containment: !detail.containment })}
-              title="Show child to parent category containment links"
-            >
-              Containment
-            </FilterButton>
-            <FilterButton
-              pressed={detail.semantics}
-              onClick={() => patchDetail({ semantics: !detail.semantics })}
-              title="Mark nodes and edges that carry meaning"
-            >
-              Meaning
-            </FilterButton>
-            <FilterButton
-              pressed={detail.properties}
-              onClick={() => patchDetail({ properties: !detail.properties })}
-              title="Show property counts on nodes"
-            >
-              Properties
-            </FilterButton>
-            <FilterButton
-              pressed={detail.clusters}
-              onClick={() => patchDetail({ clusters: !detail.clusters })}
-              title="Draw each abstract category as a nested container node"
-            >
-              Containers
-            </FilterButton>
-          </FilterGroup>
-
-          <FilterGroup label="Edges">
-            <FilterButton
-              pressed={detail.edges === "off"}
-              onClick={() => patchDetail({ edges: "off" })}
-              title="Hide relation links"
-            >
-              Off
-            </FilterButton>
-            <FilterButton
-              pressed={detail.edges === "relations"}
-              onClick={() => patchDetail({ edges: "relations" })}
-              title="Draw relation links"
-            >
-              Relations
-            </FilterButton>
-          </FilterGroup>
-        </section>
-
-        <section
-          className="space-y-1.5 border-t border-line-soft pt-2"
-          aria-label="Topology legend"
+          Nodes
+        </ToolbarButton>
+        <span aria-hidden className="h-3 w-px flex-none bg-line" />
+        <ToolbarButton
+          pressed={relationsOn}
+          onClick={() => setRelations(!relationsOn)}
+          title="Show or hide relation links between components"
+          testId="topology-toggle-relations"
         >
-          <Label className="block">Legend</Label>
-          <LegendRow
-            color={theme.source}
-            label="Concrete node"
-          />
-          <LegendRow
-            color={theme.asset}
-            label="Abstract category"
-            dashed
-          />
-          <LegendRow
-            color={theme.edge}
-            label="Relation edge"
-          />
-          <LegendRow
-            color={theme.lineStrong}
-            label="Category containment"
-            dashed
-          />
-          {detail.semantics ? (
-            <LegendRow
-              color={theme.accent}
-              label="Meaning present"
-            />
+          Relations
+        </ToolbarButton>
+        {compact ? null : (
+          <>
+            <span aria-hidden className="h-3 w-px flex-none bg-line" />
+            <span className="px-1.5 text-[length:var(--text-micro)] uppercase tracking-[0.06em] text-faint">
+              Labels
+            </span>
+            <div
+              role="group"
+              aria-label="Node labels"
+              className="flex items-center"
+              data-testid="topology-labels"
+            >
+              {(
+                [
+                  ["off", "Off", "Hide node labels"],
+                  ["hubs", "Hubs", "Label only the busiest nodes"],
+                  ["all", "All", "Label every visible node"],
+                ] as const
+              ).map(([value, label, title]) => (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={detail.labels === value}
+                  onClick={() => patchDetail({ labels: value })}
+                  title={title}
+                  className={cx(
+                    "h-6 px-1.5 text-[length:var(--text-caption)]",
+                    detail.labels === value
+                      ? "bg-accent/15 text-accent-strong"
+                      : "text-muted hover:bg-panel-soft hover:text-text",
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <span aria-hidden className="h-3 w-px flex-none bg-line" />
+          </>
+        )}
+        <button
+          type="button"
+          aria-expanded={viewOpen}
+          aria-controls="topology-view-popover"
+          onClick={() => setViewOpen((current) => !current)}
+          title="More graph filters, details and layout"
+          data-testid="topology-view-toggle"
+          className={cx(
+            "inline-flex h-6 items-center gap-1 px-2 text-[length:var(--text-caption)] font-medium",
+            viewOpen
+              ? "bg-accent/15 text-accent-strong"
+              : "text-muted hover:bg-panel-soft hover:text-text",
+          )}
+        >
+          <SlidersHorizontal aria-hidden className="size-3" />
+          View
+          {advancedCount > 0 ? (
+            <span className="rounded-full bg-accent/20 px-[3px] font-mono text-[length:var(--text-micro)] text-accent-strong">
+              {advancedCount}
+            </span>
           ) : null}
-        </section>
+          <ChevronDown
+            aria-hidden
+            className={cx(
+              "size-3 transition-transform",
+              viewOpen && "rotate-180",
+            )}
+          />
+        </button>
+      </div>
 
-        <section
-          className="space-y-1.5 border-t border-line-soft pt-2"
-          aria-label="Topology layout"
+      {viewOpen ? (
+        <div
+          id="topology-view-popover"
+          role="dialog"
+          aria-label="Graph view options"
+          data-testid="topology-view-popover"
+          className="absolute top-full left-0 z-30 mt-1 w-[268px] overflow-hidden rounded-[var(--radius-md)] border border-line bg-panel/98 shadow-lg"
         >
-          <Label className="block">Layout</Label>
-          <div className="flex flex-wrap gap-1">
-            <button
-              type="button"
-              onClick={() => store.requestFit()}
-              className="inline-flex min-h-6 items-center border border-line-soft bg-panel-soft/40 px-2 font-mono text-[length:var(--text-base)] text-muted hover:border-line-strong hover:text-text"
-              title="Fit every visible node and link in the editor"
+          <div className="thin-scrollbar max-h-[min(70vh,600px)] space-y-3 overflow-y-auto p-2.5">
+            <section className="space-y-2" aria-label="Graph filters">
+              <Label className="block">Filter</Label>
+              {compact ? (
+                <Segmented
+                  label="Labels"
+                  value={detail.labels}
+                  onChange={(value) =>
+                    patchDetail({
+                      labels: value as TopologyDetailOptions["labels"],
+                    })
+                  }
+                  options={[
+                    { value: "off", label: "Off" },
+                    { value: "hubs", label: "Hubs" },
+                    { value: "all", label: "All" },
+                  ]}
+                />
+              ) : null}
+              <Segmented
+                label="Abstract"
+                value={filters.abstract}
+                onChange={(value) =>
+                  patchFilters({
+                    abstract: value as typeof filters.abstract,
+                  })
+                }
+                options={[
+                  { value: "all", label: "All" },
+                  { value: "concrete", label: "Concrete" },
+                  { value: "abstract", label: "Abstract" },
+                ]}
+              />
+              <Segmented
+                label="Meaning"
+                value={filters.semantics}
+                onChange={(value) =>
+                  patchFilters({
+                    semantics: value as typeof filters.semantics,
+                  })
+                }
+                options={[
+                  { value: "all", label: "All" },
+                  { value: "present", label: "Present" },
+                  { value: "missing", label: "Missing" },
+                ]}
+              />
+            </section>
+
+            <section
+              className="space-y-0.5 border-t border-line-soft pt-2"
+              aria-label="Graph details"
             >
-              Fit
-            </button>
-            <button
-              type="button"
-              onClick={() => store.requestZoom(1 / 1.25)}
-              className="inline-flex min-h-6 items-center border border-line-soft bg-panel-soft/40 px-2 font-mono text-[length:var(--text-base)] text-muted hover:border-line-strong hover:text-text"
-              title="Zoom out"
-              aria-label="Zoom out"
+              <Label className="mb-1 block">Details</Label>
+              <SwitchRow
+                label="Edge labels"
+                title="Show edge labels on relation links"
+                pressed={detail.edgeLabels}
+                onChange={() =>
+                  patchDetail({ edgeLabels: !detail.edgeLabels })
+                }
+              />
+              <SwitchRow
+                label="Containment"
+                title="Show child to parent category containment links"
+                pressed={detail.containment}
+                onChange={() =>
+                  patchDetail({ containment: !detail.containment })
+                }
+              />
+              <SwitchRow
+                label="Meaning marks"
+                title="Mark nodes and edges that carry meaning"
+                pressed={detail.semantics}
+                onChange={() => patchDetail({ semantics: !detail.semantics })}
+              />
+              <SwitchRow
+                label="Properties"
+                title="Show property counts on nodes"
+                pressed={detail.properties}
+                onChange={() => patchDetail({ properties: !detail.properties })}
+              />
+              <SwitchRow
+                label="Containers"
+                title="Draw each abstract category as a nested container node"
+                pressed={detail.clusters}
+                onChange={() => patchDetail({ clusters: !detail.clusters })}
+              />
+            </section>
+
+            <section
+              className="border-t border-line-soft pt-2"
+              aria-label="Graph legend"
             >
-              −
-            </button>
-            <button
-              type="button"
-              onClick={() => store.requestZoom(1.25)}
-              className="inline-flex min-h-6 items-center border border-line-soft bg-panel-soft/40 px-2 font-mono text-[length:var(--text-base)] text-muted hover:border-line-strong hover:text-text"
-              title="Zoom in"
-              aria-label="Zoom in"
+              <Label className="mb-1 block">Legend</Label>
+              <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+                <LegendRow color={theme.source} label="Concrete node" />
+                <LegendRow
+                  color={theme.asset}
+                  label="Abstract"
+                  dashed
+                />
+                <LegendRow color={theme.edge} label="Relation" />
+                <LegendRow
+                  color={theme.lineStrong}
+                  label="Containment"
+                  dashed
+                />
+                {detail.semantics ? (
+                  <LegendRow color={theme.accent} label="Meaning" />
+                ) : null}
+              </div>
+            </section>
+
+            <section
+              className="border-t border-line-soft pt-2"
+              aria-label="Graph layout"
             >
-              +
-            </button>
-            <button
-              type="button"
-              aria-pressed={ui.pinned}
-              onClick={() => store.setPinned(!ui.pinned)}
-              className={cx(
-                "inline-flex min-h-6 items-center border px-2 font-mono text-[length:var(--text-base)]",
-                ui.pinned
-                  ? "border-selection/70 bg-selection/10 text-selection-strong"
-                  : "border-line-soft bg-panel-soft/40 text-muted hover:border-line-strong hover:text-text",
-              )}
-              title="Keep dragged node positions across reloads for this snapshot"
-            >
-              {ui.pinned ? "Pinned" : "Pin positions"}
-            </button>
+              <Label className="mb-1 block">Layout</Label>
+              <SwitchRow
+                label="Pin positions"
+                title="Keep dragged node positions across reloads for this snapshot"
+                pressed={ui.pinned}
+                onChange={() => store.setPinned(!ui.pinned)}
+              />
+            </section>
+          </div>
+
+          <div className="flex items-center justify-between gap-2 border-t border-line-soft px-2.5 py-1.5">
+            <span className="font-mono text-[length:var(--text-caption)] text-faint">
+              {advancedCount > 0
+                ? `${advancedCount} changed`
+                : "Defaults"}
+            </span>
             <button
               type="button"
               onClick={() => store.requestReset()}
-              className="inline-flex min-h-6 items-center border border-line-soft bg-panel-soft/40 px-2 font-mono text-[length:var(--text-base)] text-muted hover:border-line-strong hover:text-text"
               title="Clear filters, detail and pinned positions, then fit the graph"
+              data-testid="topology-reset"
+              className="inline-flex h-6 items-center px-1.5 font-mono text-[length:var(--text-caption)] text-muted hover:bg-panel-soft hover:text-text"
             >
-              Reset
+              Reset view
             </button>
           </div>
-        </section>
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -675,6 +801,9 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
 // ---------------------------------------------------------------------------
 // Editor: D3 force-directed canvas
 // ---------------------------------------------------------------------------
+
+/** The floating inspector's width, used to keep canvas controls clear of it. */
+const INSPECTOR_WIDTH = 336;
 
 interface SimNode extends d3.SimulationNodeDatum {
   id: string;
@@ -1997,17 +2126,36 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
         </g>
       </svg>
 
-      <div className="pointer-events-none absolute top-2 left-2 z-10 flex flex-wrap items-center gap-1">
-        {hasSelection ? (
-          <ViewportChip className="pointer-events-auto text-selection-strong">
-            selected · {selection?.name}
-          </ViewportChip>
-        ) : null}
-        {ui.pinned ? (
-          <ViewportChip className="pointer-events-auto border-selection/60 bg-selection/10 text-selection-strong">
-            positions pinned
-          </ViewportChip>
-        ) : null}
+      <div
+        className="pointer-events-none absolute top-2 left-2 z-30 flex flex-col items-start gap-1"
+        style={{
+          maxWidth: Math.max(
+            120,
+            size.width - (inspectorOpen ? INSPECTOR_WIDTH + 8 : 0),
+          ),
+        }}
+      >
+        <div className="pointer-events-auto max-w-full">
+          <TopologyControls
+            state={props.state}
+            actions={props.actions}
+            compact={
+              size.width - (inspectorOpen ? INSPECTOR_WIDTH + 8 : 0) < 360
+            }
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-1">
+          {hasSelection ? (
+            <ViewportChip className="pointer-events-auto text-selection-strong">
+              selected · {selection?.name}
+            </ViewportChip>
+          ) : null}
+          {ui.pinned ? (
+            <ViewportChip className="pointer-events-auto border-selection/60 bg-selection/10 text-selection-strong">
+              positions pinned
+            </ViewportChip>
+          ) : null}
+        </div>
       </div>
 
       {visibleCount === 0 ? (

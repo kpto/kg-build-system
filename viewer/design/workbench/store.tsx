@@ -36,13 +36,7 @@ import type {
   documentTitle,
   subjectTitle,
 } from "./types";
-import {
-  DEFAULT_LAYOUT,
-  MAX_SIDEBAR,
-  MAX_SIDEBAR_SPLIT,
-  MIN_SIDEBAR,
-  MIN_SIDEBAR_SPLIT,
-} from "./types";
+import { DEFAULT_LAYOUT, MAX_SIDEBAR, MIN_SIDEBAR } from "./types";
 
 export const WORKBENCH_STORAGE_PREFIX = "kg-workbench:v2";
 
@@ -87,11 +81,6 @@ function normalizeLayout(value: unknown): WorkbenchLayout {
       numberOr(candidate.sidebarWidth, DEFAULT_LAYOUT.sidebarWidth),
       MIN_SIDEBAR,
       MAX_SIDEBAR,
-    ),
-    sidebarSplit: clamp(
-      numberOr(candidate.sidebarSplit, DEFAULT_LAYOUT.sidebarSplit),
-      MIN_SIDEBAR_SPLIT,
-      MAX_SIDEBAR_SPLIT,
     ),
   };
 }
@@ -408,11 +397,6 @@ export function workbenchReducer(
             numberOr(action.patch.sidebarWidth, state.layout.sidebarWidth),
             MIN_SIDEBAR,
             MAX_SIDEBAR,
-          ),
-          sidebarSplit: clamp(
-            numberOr(action.patch.sidebarSplit, state.layout.sidebarSplit),
-            MIN_SIDEBAR_SPLIT,
-            MAX_SIDEBAR_SPLIT,
           ),
         },
       };

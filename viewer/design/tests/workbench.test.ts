@@ -49,24 +49,22 @@ describe("workbench documents and geometry", () => {
     expect(activeTitle(initial)).toBe("Graph");
     expect(initial.inspection).toBeUndefined();
     expect(initial.layout.sidebarWidth).toBe(300);
-    expect(initial.layout.sidebarSplit).toBe(0.5);
   });
 
   it("resizes one geometry for every document", () => {
     const current = workbenchReducer(state(), {
       type: "set-layout",
-      patch: { sidebarWidth: 348, sidebarSplit: 0.62 },
+      patch: { sidebarWidth: 348 },
     });
     expect(current.layout.sidebarWidth).toBe(348);
-    expect(current.layout.sidebarSplit).toBe(0.62);
   });
 
-  it("clamps the side-bar section split", () => {
+  it("clamps the side-bar width", () => {
     const current = workbenchReducer(state(), {
       type: "set-layout",
-      patch: { sidebarSplit: 0.95 },
+      patch: { sidebarWidth: 999 },
     });
-    expect(current.layout.sidebarSplit).toBe(0.8);
+    expect(current.layout.sidebarWidth).toBe(520);
   });
 
   it("reuses one preview tab for single-click navigation", () => {
