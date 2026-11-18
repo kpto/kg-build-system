@@ -28,11 +28,13 @@ language becomes the card's accessible label, not a visible line, and the
 header carries no count: the body owns the items it shows. Every card gets a
 logo; the title-to-concept mapping lives once beside `DetailBand`.
 
-A detail document has a left index rail. It lists every top-level card in
-reading order and scrolls to a card when its row is chosen; it does not follow
-the scroll position. It is hidden when the pane is narrower than the rail plus
-one readable card. The rail reads the rendered cards, so a card added by any
-kind appears in it without a second section list.
+A detail document has a left index rail and one page margin around the body.
+The rail lists every top-level card in reading order and scrolls to a card when
+its row is chosen; it does not follow the scroll position. It is hidden when
+the pane is narrower than the rail plus one readable card. The rail reads the
+rendered cards, so a card added by any kind appears in it without a second
+section list. The deck fills the height left by the page margin and reserves
+its trailing peek space so the last card snaps to the deck start.
 
 A binding is its own document. Its sections are **Constitution**, **Meaning**
 (when the binding carries one), **Expression** and **Build steps**. The binding

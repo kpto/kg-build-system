@@ -17,6 +17,7 @@
   min-height: 0;
   flex: 1;
   grid-template-columns: minmax(0, 132px) minmax(0, 1fr);
+  padding: var(--space-region);
 }
 
 /* One horizontal deck: each card fills the height, and the next card peeks
@@ -31,13 +32,20 @@
   overflow-x: auto;
   overflow-y: hidden;
   overscroll-behavior-x: contain;
-  padding: 0 var(--space-section);
+  padding: 0;
   scroll-snap-type: x mandatory;
   scrollbar-width: none;
 }
 
 .deck::-webkit-scrollbar {
   display: none;
+}
+
+/* The trailing space lets the last card snap to the deck's left edge instead
+   of leaving the previous card's edge behind it. */
+.deck::after {
+  flex: 0 0 calc(var(--space-page) + var(--space-section));
+  content: "";
 }
 
 /* The index is the only detail navigation: the cards themselves do not fold.
