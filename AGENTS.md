@@ -299,10 +299,10 @@ missing, not the code.
   one layer above. Both use the same constitution DAG, with the subject's
   purpose as the anchor.
 - Every Explorer row is a document. A header's body opens its collection and
-  its arrow unfolds the list; the body never toggles and the arrow never opens
-  the document. A virtual collection is a layer read as a group, not a declared
-  subject: it has no Meaning card, uses the layer's concept mark, and carries
-  Constitution (its items and the actual participants below them), Contribution
+  its arrow unfolds the list; the arrow sits at the left of every row, the body
+  never toggles and the arrow never opens the document. A virtual collection is
+  a layer read as a group, not a declared subject: it has no Meaning card, uses
+  the layer's concept mark, and carries Constitution (its items and the actual participants below them), Contribution
   (its items and the actual participants one level above), Items and Coverage,
   both directions in the same DAG. There is no collection root. A large set
   accepts items until the boundary reaches a readable size and states how many
