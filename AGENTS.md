@@ -194,7 +194,10 @@ missing, not the code.
   none, so the empty state is visible. A property list in an inspector uses the
   shared property pill, and the pill opens the property document.
 - A repeated item renders its units compactly. A heading is structural, not per
-  unit: a table cell or list row does not repeat the section chrome.
+  unit: a table cell or list row does not repeat the section chrome. A member
+  table fits the column it is in; a cell truncates or wraps rather than forcing
+  the table to its max-content width, and the table scrolls only when its
+  declared minimum columns cannot fit.
 - A card uses one vertical gap between stacked items. A connector sits in that
   gap with the same clearance from the boxes it joins; a longer reach extends
   the shaft, not the gap.
