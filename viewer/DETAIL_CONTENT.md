@@ -33,14 +33,16 @@ in `detail/view/detailMarks.tsx`; a card with a non-structural title states its
 section explicitly. A section logo is not a concept and never becomes a pill or a
 navigation target.
 
-A detail document has a left index rail and a page margin on the left, top and
-bottom; the deck takes the right edge so the next-card peek is not covered. The
-rail lists every top-level card in reading order and scrolls to a card when
-its row is chosen; it does not follow the scroll position. It is hidden when
-the pane is narrower than the rail plus one readable card. The rail reads the
-rendered cards, so a card added by any kind appears in it without a second
-section list. The deck fills the height left by the page margin and reserves
-its trailing peek space so the last card snaps to the deck start.
+A detail document has a left index rail and a horizontal deck of flat cards.
+The page margin on the left, top and bottom belongs to each card, not to the tab
+body, so the rail starts at the tab edge and no margin sits left of it; the
+deck takes the right edge so the next-card peek is not covered. The rail lists
+every top-level card in reading order and scrolls to a card when its row is
+chosen; it does not follow the scroll position. It is hidden when the pane is
+narrower than the rail plus one readable card; the body then carries the page
+margin instead. The rail reads the rendered cards, so a card added by any kind
+appears in it without a second section list. The deck fills the tab body height
+and reserves its trailing peek space so the last card snaps to the deck start.
 
 A binding is its own document. Its sections are **Constitution**,
 **Contribution**, **Meaning** (when the binding carries one), **Expression** and

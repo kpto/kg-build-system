@@ -10,16 +10,16 @@
   font-size: var(--text-label);
 }
 
-/* The index is its own static pane; only the card column scrolls. */
+/* The index is its own static pane; only the card column scrolls. The page
+   margin belongs to each card, not to this body, so the index starts at the
+   tab edge and the deck takes the right edge. */
 .body {
   display: grid;
   min-width: 0;
   min-height: 0;
   flex: 1;
   grid-template-columns: minmax(0, 132px) minmax(0, 1fr);
-  padding: var(--space-region);
-  /* The deck takes the right edge; the page margin must not cover the peek. */
-  padding-right: 0;
+  padding: 0;
 }
 
 /* One horizontal deck: each card fills the height, and the next card peeks
@@ -114,8 +114,12 @@
 }
 
 @media (max-width: 1180px) {
+  /* Without the index there is no tab-level margin left of a rail, so the
+     original body inset is restored and the card carries no extra padding. */
   .body {
     grid-template-columns: minmax(0, 1fr);
+    padding: var(--space-region);
+    padding-right: 0;
   }
 
   .index {
@@ -1753,6 +1757,8 @@ button.expressionToggle:hover {
   height: 100%;
   flex: 0 0 calc(100% - (var(--space-page) + var(--space-section) + var(--space-region)));
   flex-direction: column;
+  /* The page margin lives inside the card; the body adds no tab-level inset. */
+  padding: var(--space-region) 0 var(--space-region) var(--space-region);
   scroll-snap-align: start;
 }
 
@@ -2163,4 +2169,12 @@ button.memberRow:focus-visible {
 
 .coverageItem .coverageReading {
   grid-column: 1 / -1;
+}
+
+/* Without the index rail the page margin stays on the body, so the card carries
+   no extra inset. This follows the base card rule so it wins at narrow widths. */
+@media (max-width: 1180px) {
+  .band {
+    padding: 0;
+  }
 }
