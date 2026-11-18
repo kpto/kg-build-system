@@ -20,8 +20,8 @@
   padding: var(--space-region);
 }
 
-/* One horizontal deck: one card fills the width and height; the next card is
-   off-screen, so no card content is clipped under the page margin. */
+/* One horizontal deck: a readable next-card peek when the deck has room, and
+   one full-width card when the deck is too narrow for that peek. */
 .deck {
   display: flex;
   min-width: 0;
@@ -29,6 +29,7 @@
   height: 100%;
   flex-direction: row;
   gap: var(--space-group);
+  container-type: inline-size;
   overflow-x: auto;
   overflow-y: hidden;
   overscroll-behavior-x: contain;
@@ -41,11 +42,9 @@
   display: none;
 }
 
-/* The deck may end at the last card; its start is the maximum scroll, so the
-   last card snaps to the deck's left edge. */
-.deck::after {
+/* The trailing spacer gives the last card room to snap to the deck start. */
+.deckTail {
   flex: 0 0 0;
-  content: "";
 }
 
 /* The index is the only detail navigation: the cards themselves do not fold.
@@ -2149,4 +2148,17 @@ button.memberRow:focus-visible {
 
 .coverageItem .coverageReading {
   grid-column: 1 / -1;
+}
+
+/* A readable peek: the next card shows enough of itself that its title is the
+   cue, rather than a clipped sliver. When the deck is too narrow for that
+   peek, one card fills the deck and the next card stays off-screen. */
+@container (min-width: 520px) {
+  .band {
+    flex-basis: calc(100% - 180px);
+  }
+
+  .deckTail {
+    flex-basis: 180px;
+  }
 }

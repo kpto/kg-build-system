@@ -232,9 +232,10 @@ and a node label opens its document. The node itself is inspection only.
 
 ## Layout
 
-- A document is a horizontal deck of flat section cards. One card fills the
-  deck width and the available body height; the next card is off-screen, never
-  a clipped sliver under the page margin. Cards are separated by the group
+- A document is a horizontal deck of flat section cards. When the deck has
+  room, one card fills the body height and leaves a readable next-card peek
+  whose title is the cue; when it is too narrow for that peek, one card fills
+  the deck and the next card is off-screen. Cards are separated by the group
   spacing and have no border or background. Every card is rendered by the
   one shared `DetailBand` feature primitive; a detail view does not declare its
   own card markup or surface.

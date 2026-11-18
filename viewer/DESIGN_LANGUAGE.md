@@ -351,10 +351,11 @@ A detail body pairs one left index pane with a horizontal deck of flat cards
 inside one page margin. The index is a static view: it centres its tiles in the
 pane, lists the top-level cards in reading order and does not track the scroll
 position; the tile group carries one side line. The deck fills the height left
-by the margin; one card fills the deck width and height and carries its title
-at the top-left. The next card is off-screen rather than a clipped sliver under
-the page margin. The deck owns horizontal scroll and the last card snaps to the
-deck start. The card body owns vertical scroll, except a graph or tree
+by the margin. When the deck has room, one card fills the height and leaves a
+readable next-card peek whose title is the cue, not a clipped sliver; when the
+deck is too narrow for that peek, one card fills the deck and the next card is
+off-screen. The deck owns horizontal scroll and the last card snaps to the deck
+start. The card body owns vertical scroll, except a graph or tree
 viewport, which fills the body and owns its scroll; a compact list or lane may
 cap its height. The index disappears below the width where a card would lose
 its reading measure.
