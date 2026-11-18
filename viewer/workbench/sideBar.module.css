@@ -7,6 +7,7 @@
     flex: none;
     flex-direction: column;
     overflow: hidden;
+    padding-top: var(--space-group);
     background-color: var(--color-panel);
   }
 
@@ -124,23 +125,5 @@
 }
 
 @layer components {
-  .sideSearch {
-    display: flex;
-    height: 34px;
-    flex: none;
-    align-items: center;
-    padding: 0 var(--space-section);
-    border-bottom: var(--border-hairline) solid var(--color-line-soft);
-    background-color: var(--color-panel);
-  }
 
-  .sideSearchName {
-    min-width: 0;
-    overflow: hidden;
-    color: var(--color-text);
-    font-family: var(--font-mono);
-    font-size: var(--text-body);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
 }

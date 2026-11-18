@@ -87,7 +87,7 @@ function SideBarSplitter({
       aria-valuemin={Math.round(MIN_SIDEBAR_SPLIT * 100)}
       aria-valuemax={Math.round(MAX_SIDEBAR_SPLIT * 100)}
       aria-valuenow={Math.round(ratio * 100)}
-      aria-valuetext={`Control ${Math.round(ratio * 100)} percent`}
+      aria-valuetext={`Top section ${Math.round(ratio * 100)} percent`}
       tabIndex={0}
       className={styles.sectionSplitter}
       data-orientation="horizontal"
@@ -195,11 +195,19 @@ export function SideBar() {
       aria-label="Workbench side bar"
       data-testid="sidebar"
     >
-      <div className={styles.sideSearch}>
-        <span className={styles.sideSearchName} title={state.snapshot.title}>
-          {state.snapshot.name}
-        </span>
-      </div>
+      {section(
+        "explorer",
+        "Explorer",
+        explorerMeta,
+        <ExplorerSidebar state={state} actions={actions} />,
+      )}
+      {bothOpen ? (
+        <SideBarSplitter
+          ratio={1 - state.layout.sidebarSplit}
+          container={container}
+          onChange={(value) => setSplit(1 - value)}
+        />
+      ) : null}
       {showControl
         ? section(
             "control",
@@ -208,19 +216,6 @@ export function SideBar() {
             <ControlBody state={state} actions={actions} />,
           )
         : null}
-      {bothOpen ? (
-        <SideBarSplitter
-          ratio={state.layout.sidebarSplit}
-          container={container}
-          onChange={setSplit}
-        />
-      ) : null}
-      {section(
-        "explorer",
-        "Explorer",
-        explorerMeta,
-        <ExplorerSidebar state={state} actions={actions} />,
-      )}
     </aside>
   );
 }
