@@ -217,6 +217,66 @@ function clusterColors(categories: string[]): Map<string, string> {
   );
 }
 
+interface BoundingCircle {
+  x: number;
+  y: number;
+  r: number;
+}
+
+function circleContains(
+  circle: BoundingCircle,
+  point: [number, number],
+): boolean {
+  return (
+    Math.hypot(point[0] - circle.x, point[1] - circle.y) <= circle.r + 1e-6
+  );
+}
+
+function circumcircle(
+  a: [number, number],
+  b: [number, number],
+  c: [number, number],
+): BoundingCircle | null {
+  const ax = b[0] - a[0];
+  const ay = b[1] - a[1];
+  const bx = c[0] - a[0];
+  const by = c[1] - a[1];
+  const denominator = 2 * (ax * by - ay * bx);
+  if (Math.abs(denominator) < 1e-9) return null;
+  const ux =
+    (by * (ax * ax + ay * ay) - ay * (bx * bx + by * by)) / denominator;
+  const uy =
+    (ax * (bx * bx + by * by) - bx * (ax * ax + ay * ay)) / denominator;
+  return { x: a[0] + ux, y: a[1] + uy, r: Math.hypot(ux, uy) };
+}
+
+/** The smallest circle that bounds a set of node centres. */
+function minimumEnclosingCircle(
+  points: Array<[number, number]>,
+): BoundingCircle | null {
+  let circle: BoundingCircle | null = null;
+  for (let i = 0; i < points.length; i += 1) {
+    const point = points[i];
+    if (circle && circleContains(circle, point)) continue;
+    circle = { x: point[0], y: point[1], r: 0 };
+    for (let j = 0; j < i; j += 1) {
+      const inner = points[j];
+      if (circleContains(circle, inner)) continue;
+      circle = {
+        x: (point[0] + inner[0]) / 2,
+        y: (point[1] + inner[1]) / 2,
+        r: Math.hypot(point[0] - inner[0], point[1] - inner[1]) / 2,
+      };
+      for (let k = 0; k < j; k += 1) {
+        const third = points[k];
+        if (circleContains(circle, third)) continue;
+        circle = circumcircle(point, inner, third) ?? circle;
+      }
+    }
+  }
+  return circle;
+}
+
 function nodeFill(
   node: TopologyNodeModel,
   colors: Map<string, string>,
@@ -1305,11 +1365,9 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
   const clusterFrames: Array<{
     category: string;
     count: number;
-    path?: string;
-    x: number;
-    y: number;
-    width: number;
-    height: number;
+    cx: number;
+    cy: number;
+    r: number;
     labelX: number;
     labelY: number;
   }> = [];
@@ -1318,11 +1376,9 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
       string,
       {
         count: number;
+        points: Array<[number, number, number]>;
         minX: number;
         minY: number;
-        maxX: number;
-        maxY: number;
-        points: Array<[number, number]>;
       }
     >();
     for (const node of visible.nodes) {
@@ -1333,46 +1389,31 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
       const y = sim.y ?? 0;
       const frame = frames.get(node.category) ?? {
         count: 0,
+        points: [],
         minX: Number.POSITIVE_INFINITY,
         minY: Number.POSITIVE_INFINITY,
-        maxX: Number.NEGATIVE_INFINITY,
-        maxY: Number.NEGATIVE_INFINITY,
-        points: [],
       };
       frame.count += 1;
       frame.minX = Math.min(frame.minX, x - radius);
       frame.minY = Math.min(frame.minY, y - radius);
-      frame.maxX = Math.max(frame.maxX, x + radius);
-      frame.maxY = Math.max(frame.maxY, y + radius);
-      frame.points.push([x, y]);
+      frame.points.push([x, y, radius]);
       frames.set(node.category, frame);
     }
     for (const [category, frame] of frames) {
       if (frame.count < 2) continue;
-      const hull = d3.polygonHull(frame.points);
-      let path: string | undefined;
-      if (hull && hull.length >= 3) {
-        const centreX =
-          hull.reduce((total, point) => total + point[0], 0) / hull.length;
-        const centreY =
-          hull.reduce((total, point) => total + point[1], 0) / hull.length;
-        const expanded = hull.map(([x, y]) => {
-          const dx = x - centreX;
-          const dy = y - centreY;
-          const distance = Math.max(1, Math.hypot(dx, dy));
-          const scale = 1 + 26 / distance;
-          return [centreX + dx * scale, centreY + dy * scale] as const;
-        });
-        path = `M ${expanded.map(([x, y]) => `${x} ${y}`).join(" L ")} Z`;
-      }
+      const centre = minimumEnclosingCircle(
+        frame.points.map(([x, y]) => [x, y]),
+      ) ?? { x: 0, y: 0, r: 0 };
+      const nodeRadiusMax = Math.max(
+        ...frame.points.map(([, , radius]) => radius),
+      );
+      const r = centre.r + nodeRadiusMax + 8;
       clusterFrames.push({
         category,
         count: frame.count,
-        path,
-        x: frame.minX - 14,
-        y: frame.minY - 20,
-        width: frame.maxX - frame.minX + 28,
-        height: frame.maxY - frame.minY + 34,
+        cx: centre.x,
+        cy: centre.y,
+        r,
         labelX: frame.minX - 6,
         labelY: frame.minY - 28,
       });
@@ -1491,31 +1532,17 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
             <g data-topology-clusters pointerEvents="none">
               {clusterFrames.map((frame) => (
                 <g key={frame.category}>
-                  {frame.path ? (
-                    <path
-                      d={frame.path}
-                      fill={colors.get(frame.category) ?? theme.lineStrong}
-                      fillOpacity={0.04}
-                      stroke={colors.get(frame.category) ?? theme.lineStrong}
-                      strokeOpacity={0.35}
-                      strokeWidth={0.9}
-                      strokeDasharray="2 5"
-                    />
-                  ) : (
-                    <rect
-                      x={frame.x}
-                      y={frame.y}
-                      width={frame.width}
-                      height={frame.height}
-                      rx={4}
-                      fill={colors.get(frame.category) ?? theme.lineStrong}
-                      fillOpacity={0.04}
-                      stroke={colors.get(frame.category) ?? theme.lineStrong}
-                      strokeOpacity={0.35}
-                      strokeWidth={0.9}
-                      strokeDasharray="2 5"
-                    />
-                  )}
+                  <circle
+                    cx={frame.cx}
+                    cy={frame.cy}
+                    r={frame.r}
+                    fill={colors.get(frame.category) ?? theme.lineStrong}
+                    fillOpacity={0.04}
+                    stroke={colors.get(frame.category) ?? theme.lineStrong}
+                    strokeOpacity={0.35}
+                    strokeWidth={0.9}
+                    strokeDasharray="2 5"
+                  />
                   <text
                     x={frame.labelX}
                     y={frame.labelY}
