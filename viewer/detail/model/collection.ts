@@ -24,9 +24,15 @@ import {
 } from "@/workflow/model/WorkflowViewModel";
 import {
   EMPTY_MEANING,
+  constitutionModel,
+  contributionModel,
+  stepBoundaryModel,
+  type ConstitutionBinding,
   type ConstitutionFrameId,
   type ConstitutionModel,
   type ConstitutionNode,
+  type ConstitutionRelation,
+  type ConstitutionSubjectLike,
 } from "./constitution";
 
 export type CollectionAxisKind = "data" | "graph" | "workflow";
@@ -1075,22 +1081,6 @@ function layerFrame(concept: ConceptKind): ConstitutionFrameId {
   return "graph";
 }
 
-function layerNode(
-  layer: CollectionLayer,
-  frame: ConstitutionFrameId,
-): ConstitutionNode {
-  return {
-    kind: layerKind(layer.concept),
-    name: layer.title,
-    label: "Collection",
-    meaning: EMPTY_MEANING,
-    detail: `${layer.count} items`,
-    text: layer.note ?? `${layer.count} items in this layer`,
-    collection: layer.collection,
-    frame,
-  };
-}
-
 function collectionPurpose(model: CollectionModel): ConstitutionNode {
   return {
     kind: layerKind(model.concept),
@@ -1106,63 +1096,181 @@ function collectionPurpose(model: CollectionModel): ConstitutionNode {
   };
 }
 
+function nodeKey(node: ConstitutionNode): string {
+  if (node.kind === "binding" && node.bindingIndex !== undefined) {
+    return `binding:${node.bindingIndex}`;
+  }
+  return `${node.kind}:${node.name}`;
+}
+
+function collectionItems(model: CollectionModel): ConstitutionSubjectLike[] {
+  const items: ConstitutionSubjectLike[] = [];
+  for (const row of model.items.rows) {
+    switch (row.concept) {
+      case "asset":
+        items.push({ level: "asset", component: row.name });
+        break;
+      case "table":
+        items.push({ level: "relation", component: row.name });
+        break;
+      case "projection":
+        items.push({ level: "projection", component: row.name });
+        break;
+      case "binding":
+        if (row.bindingIndex !== undefined) {
+          items.push({
+            level: "binding",
+            component: row.component ?? row.name,
+            name: row.name,
+            bindingIndex: row.bindingIndex,
+          });
+        }
+        break;
+      case "node":
+        items.push({ level: "node", component: row.name });
+        break;
+      case "abstract":
+        items.push({ level: "abstract", component: row.name });
+        break;
+      case "edge":
+        items.push({ level: "edge", component: row.name });
+        break;
+      case "step":
+        if (row.stepId) {
+          items.push({
+            level: "step",
+            component: row.stepId[0],
+            name: row.name,
+            stepId: row.stepId,
+          });
+        }
+        break;
+      default:
+        break;
+    }
+  }
+  return items;
+}
+
+function bindingNode(
+  binding: ConstitutionBinding,
+  frame: ConstitutionFrameId,
+): ConstitutionNode {
+  return {
+    kind: "binding",
+    name: binding.name,
+    label: "Binding",
+    meaning: binding.meaning,
+    component: binding.component,
+    bindingIndex: binding.index,
+    frame,
+  };
+}
+
+/** A collection page shows a readable set of actual subjects, and states the total. */
+const COLLECTION_SUBJECT_LIMIT = 24;
+
 /**
- * Read a collection as the same DAG the participant pages use. The Constitution
- * page chains the layers below the current layer; the Contribution page shows
- * the one layer above. Both pages are layer boxes with counts and collection
- * links, not item edges.
+ * Read a collection through its actual subjects. The collection root is the
+ * layer; the boxes below or above it are the real participants merged from the
+ * constitutions or contributions of every item. Shared declarations are one
+ * box. There are no layer boxes and no links to another collection.
  */
 export function collectionDagModel(
+  index: ViewerIndex,
   model: CollectionModel,
   direction: "dependency" | "contribution",
 ): ConstitutionModel {
-  const subjectNode = collectionPurpose(model);
   const frame = layerFrame(model.concept);
-  const layers: ConstitutionNode[] = [];
-  const layerEdges: Array<{ source: string; target: string }> = [];
-  const seen = new Set<string>();
+  const subjectNode = collectionPurpose(model);
+  const nodes = new Map<string, ConstitutionNode>();
+  const edges = new Map<string, { source: string; target: string }>();
 
-  if (direction === "dependency") {
-    for (const axis of model.dependency.axes) {
-      let previous: ConstitutionNode | undefined;
-      for (const layer of axis.layers) {
-        if (layer.current) continue;
-        const node = layerNode(layer, frame);
-        const id = `${node.kind}:${node.name}`;
-        if (!seen.has(id)) {
-          seen.add(id);
-          layers.push(node);
-        }
-        if (previous) {
-          layerEdges.push({
-            source: `${previous.kind}:${previous.name}`,
-            target: id,
-          });
-        }
-        previous = node;
-      }
-      if (previous) {
-        layerEdges.push({
-          source: `${previous.kind}:${previous.name}`,
-          target: "subject",
-        });
-      }
+  const addNode = (node: ConstitutionNode): string => {
+    const copy: ConstitutionNode = {
+      ...node,
+      current: false,
+      collection: undefined,
+      frame,
+    };
+    const id = nodeKey(copy);
+    nodes.set(id, copy);
+    return id;
+  };
+  const addEdge = (source: string, target: string) => {
+    edges.set(`${source}->${target}`, { source, target });
+  };
+  const addRelation = (relation: ConstitutionRelation): string => {
+    const id = addNode(relation.node);
+    for (const child of relation.children) {
+      const childId = addRelation(child);
+      addEdge(childId, id);
     }
-  } else {
-    for (const axis of model.dependants.axes) {
-      for (const layer of axis.layers) {
-        if (layer.count === 0) continue;
-        const node = layerNode(layer, frame);
-        const id = `${node.kind}:${node.name}`;
-        if (!seen.has(id)) {
-          seen.add(id);
-          layers.push(node);
+    return id;
+  };
+
+  for (const item of collectionItems(model)) {
+    const boundary =
+      item.level === "step"
+        ? stepBoundaryModel(index, item, direction)
+        : direction === "dependency"
+          ? constitutionModel(index, item)
+          : contributionModel(index, item, { collapse: false });
+
+    boundary.graph.forEach(addNode);
+    const relationRoots = boundary.relation.map((relation) => ({
+      node: relation.node,
+      id: addRelation(relation),
+    }));
+    boundary.bindings.forEach((binding) => addNode(bindingNode(binding, frame)));
+    (boundary.workflow ?? []).forEach(addNode);
+
+    if (direction === "dependency") {
+      boundary.graph.forEach((node, position) => {
+        const target =
+          position === 0 ? "subject" : nodeKey(boundary.graph[position - 1]);
+        addEdge(nodeKey(node), target);
+      });
+      for (const binding of boundary.bindings) {
+        const bindingId = `binding:${binding.index}`;
+        addEdge(bindingId, "subject");
+        for (const relationName of binding.relations) {
+          const root = relationRoots.find(
+            (entry) => entry.node.name === relationName,
+          );
+          if (root) addEdge(root.id, bindingId);
         }
-        layerEdges.push({ source: "subject", target: id });
       }
+      if (!boundary.bindings.length) {
+        relationRoots.forEach((root) => addEdge(root.id, "subject"));
+      }
+      (boundary.workflow ?? []).forEach((node) =>
+        addEdge(nodeKey(node), "subject"),
+      );
+    } else {
+      boundary.graph.forEach((node) => addEdge("subject", nodeKey(node)));
+      relationRoots.forEach((root) => addEdge("subject", root.id));
+      boundary.bindings.forEach((binding) =>
+        addEdge("subject", `binding:${binding.index}`),
+      );
+      (boundary.workflow ?? []).forEach((node) =>
+        addEdge("subject", nodeKey(node)),
+      );
     }
   }
 
+  const allLayers = [...nodes.values()];
+  const total = allLayers.length;
+  const layers =
+    total > COLLECTION_SUBJECT_LIMIT
+      ? allLayers.slice(0, COLLECTION_SUBJECT_LIMIT)
+      : allLayers;
+  const kept = new Set(layers.map(nodeKey));
+  const layerEdges = [...edges.values()].filter(
+    (edge) =>
+      (edge.source === "subject" || kept.has(edge.source)) &&
+      (edge.target === "subject" || kept.has(edge.target)),
+  );
   return {
     direction,
     subject: subjectNode,
@@ -1172,8 +1280,10 @@ export function collectionDagModel(
     layers,
     layerEdges,
     note:
-      direction === "dependency"
-        ? model.dependency.empty
-        : model.dependants.empty,
+      total > layers.length
+        ? `Showing ${layers.length} of ${total} actual subjects.`
+        : direction === "dependency"
+          ? model.dependency.empty
+          : model.dependants.empty,
   };
 }

@@ -31,6 +31,7 @@ export interface ConstitutionSceneNode {
   /** The pill's owner and binding identity for navigation. */
   component?: string;
   bindingIndex?: number;
+  stepId?: [string, string];
   x: number;
   y: number;
   width: number;
@@ -100,6 +101,9 @@ const NODE_SEP = 24;
 const RANK_SEP = 48;
 
 export function sceneNodeId(node: ConstitutionNode): string {
+  if (node.kind === "binding" && node.bindingIndex !== undefined) {
+    return `binding:${node.bindingIndex}`;
+  }
   return `${node.kind}:${node.name}`;
 }
 
@@ -1108,6 +1112,154 @@ function buildWorkflowScene(model: ConstitutionModel): ConstitutionScene {
   );
 }
 
+/**
+ * A large collection boundary read as a wrapped grid: the actual subjects in
+ * columns, the collection root on the free side. One frame, real boxes.
+ */
+function buildGridScene(model: ConstitutionModel): ConstitutionScene {
+  const subject: ConstitutionSceneNode = {
+    id: "subject",
+    axis: "subject",
+    node: model.subject,
+    hoverable: false,
+    x: 0,
+    y: 0,
+    ...NODE.subject,
+  };
+  const layers: ConstitutionSceneNode[] = (model.layers ?? []).map((node) => ({
+    id: sceneNodeId(node),
+    axis: layerAxis(node.frame),
+    node,
+    ...(node.component ? { component: node.component } : {}),
+    ...(node.bindingIndex !== undefined
+      ? { bindingIndex: node.bindingIndex }
+      : {}),
+    ...(node.stepId ? { stepId: node.stepId } : {}),
+    x: 0,
+    y: 0,
+    ...NODE.graph,
+  }));
+  const columns = Math.max(1, Math.min(3, Math.ceil(Math.sqrt(layers.length))));
+  const gap = 32;
+  const rows = Math.max(1, Math.ceil(layers.length / columns));
+  const gridWidth =
+    columns * NODE.graph.width + Math.max(0, columns - 1) * gap;
+  const gridHeight = rows * NODE.graph.height + Math.max(0, rows - 1) * gap;
+  const contribution = model.direction === "contribution";
+  const gridX = contribution ? NODE.subject.width + 72 : 0;
+  subject.x = contribution ? 0 : gridWidth + 72;
+  subject.y = Math.max(0, (gridHeight - NODE.subject.height) / 2);
+  layers.forEach((node, index) => {
+    const column = index % columns;
+    const row = Math.floor(index / columns);
+    node.x = gridX + column * (NODE.graph.width + gap);
+    node.y = row * (NODE.graph.height + gap);
+  });
+
+  const byId = new Map<string, ConstitutionSceneNode>([
+    [subject.id, subject],
+    ...layers.map((node) => [node.id, node] as const),
+  ]);
+  const edges: ConstitutionSceneEdge[] = [];
+  for (const link of model.layerEdges ?? []) {
+    const source = byId.get(link.source);
+    const target = byId.get(link.target);
+    if (!source || !target) continue;
+    let startX: number;
+    let startY: number;
+    let endX: number;
+    let endY: number;
+    if (target.id === subject.id) {
+      startX = source.x + source.width;
+      startY = source.y + source.height / 2;
+      endX = subject.x;
+      endY = subject.y + subject.height / 2;
+    } else if (source.id === subject.id) {
+      startX = subject.x + subject.width;
+      startY = subject.y + subject.height / 2;
+      endX = target.x;
+      endY = target.y + target.height / 2;
+    } else if (source.y < target.y) {
+      startX = source.x + source.width / 2;
+      startY = source.y + source.height;
+      endX = target.x + target.width / 2;
+      endY = target.y;
+    } else if (source.y > target.y) {
+      startX = source.x + source.width / 2;
+      startY = source.y;
+      endX = target.x + target.width / 2;
+      endY = target.y + target.height;
+    } else if (source.x < target.x) {
+      startX = source.x + source.width;
+      startY = source.y + source.height / 2;
+      endX = target.x;
+      endY = target.y + target.height / 2;
+    } else {
+      startX = source.x;
+      startY = source.y + source.height / 2;
+      endX = target.x + target.width;
+      endY = target.y + target.height / 2;
+    }
+    const path = `M ${startX} ${startY} L ${endX} ${endY}`;
+    edges.push({
+      id: `${link.source}->${link.target}`,
+      source: link.source,
+      target: link.target,
+      path,
+      head: edgeHead(path),
+    });
+  }
+
+  const nodes = [subject, ...layers];
+  const frameId = frameIdForSceneNode(subject);
+  const frame = frameFor(frameId, nodes);
+  const frames = frame ? [frame] : [];
+  const labels = frame
+    ? [
+        {
+          text: FRAME_LABEL[frameId],
+          x: frame.x + FRAME_LABEL_INSET,
+          y: frame.y + FRAME_LABEL_BASELINE,
+        },
+      ]
+    : [];
+  const offset = {
+    x: Math.max(0, -Math.min(0, ...frames.map((entry) => entry.x))),
+    y: Math.max(0, -Math.min(0, ...frames.map((entry) => entry.y))),
+  };
+  const notes: ConstitutionSceneNote[] = [];
+  if (model.note) {
+    const lowest = nodes.reduce((lower, node) =>
+      node.y + node.height > lower.y + lower.height ? node : lower,
+    );
+    notes.push({
+      text: model.note,
+      x: lowest.x + lowest.width / 2,
+      y: lowest.y + lowest.height + NOTE_GAP,
+    });
+  }
+  const contentMaxX = Math.max(
+    ...nodes.map((node) => node.x + node.width),
+    ...notes.map((note) => note.x + 180),
+    ...frames.map((entry) => entry.x + entry.width),
+  );
+  const contentMaxY = Math.max(
+    ...nodes.map((node) => node.y + node.height),
+    ...notes.map((note) => note.y + NOTE_HEIGHT),
+    ...frames.map((entry) => entry.y + entry.height),
+  );
+  return {
+    nodes,
+    edges,
+    labels,
+    notes,
+    frames,
+    offset,
+    width: contentMaxX + offset.x,
+    height: contentMaxY + offset.y,
+  };
+}
+
 /** A collection's layer DAG, read as boxes instead of a list. */
 function buildLayerScene(model: ConstitutionModel): ConstitutionScene {
   const subject: ConstitutionSceneNode = {
@@ -1123,11 +1275,19 @@ function buildLayerScene(model: ConstitutionModel): ConstitutionScene {
     id: sceneNodeId(node),
     axis: layerAxis(node.frame),
     node,
+    ...(node.component ? { component: node.component } : {}),
+    ...(node.bindingIndex !== undefined
+      ? { bindingIndex: node.bindingIndex }
+      : {}),
+    ...(node.stepId ? { stepId: node.stepId } : {}),
     x: 0,
     y: 0,
     ...NODE.graph,
     hoverable: false,
   }));
+  if (layers.length > 8) {
+    return buildGridScene(model);
+  }
   const nodes = [subject, ...layers];
   const links = model.layerEdges ?? [];
   return buildBoundaryScene(

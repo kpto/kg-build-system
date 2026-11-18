@@ -83,11 +83,11 @@ export function CollectionEditor(props: WorkspaceProps) {
     [props.state.index, id, component],
   );
   const constitution = useMemo(
-    () => collectionDagModel(model, "dependency"),
+    () => collectionDagModel(props.state.index, model, "dependency"),
     [model],
   );
   const contribution = useMemo(
-    () => collectionDagModel(model, "contribution"),
+    () => collectionDagModel(props.state.index, model, "contribution"),
     [model],
   );
 

@@ -78,18 +78,22 @@ opens the component's collection and its arrow unfolds its steps.
 
 A collection is a layer read as a group, not a declared subject. It carries no
 Meaning card: it has no purpose, claim or limitation of its own. Its
-Constitution and Contribution pages are the same DAG at layer resolution.
+Constitution and Contribution pages use the actual participant subjects merged
+from the collection's items: the assets, relations and bindings below, or the
+derived relations and bindings above. A large set shows a readable number of
+actual subjects and states the total; it never shows layer boxes or links to
+another collection.
 
 | Collection page | Scope | Contents |
 | --- | --- | --- |
-| **Constitution** | the full layer DAG below, at layer resolution | layer boxes with counts and collection links, both axes where they apply, with the current layer marked. Assets have an explicit empty state: they are the origin |
-| **Contribution** | exactly one layer above | the immediate layer boxes with counts and links, never deeper |
+| **Constitution** | the actual participants below the collection's items, merged | one box per real participant, shared subjects once, in the collection's frame. Assets have an explicit empty state: they are the origin |
+| **Contribution** | the actual participants exactly one level above the collection's items | one box per real dependant, shared subjects once, never deeper |
 | **Items** | the collection itself | the layer's members with layer-specific facts; every row opens the participant document |
 | **Coverage** | the collection's completeness | items, items with meaning, items with a constitution, items with a contribution |
 
-A collection's constitution is a layer DAG, not every item edge, so it never
-draws the whole design. A same-layer contribution such as derived-on-derived is
-shown in the collection's Contribution page as a named layer.
+A collection's constitution merges the actual dependencies of its items, so a
+shared declaration is one box. When the merged set is larger than a readable
+page, the card shows a bounded set of actual subjects and states the total.
 
 | Collection | Constitution | Contribution | Items |
 | --- | --- | --- | --- |

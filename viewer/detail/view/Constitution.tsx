@@ -55,6 +55,7 @@ function Box({
   text,
   component,
   bindingIndex,
+  stepId,
   hovered,
   hoverCardId,
   onHover,
@@ -67,6 +68,7 @@ function Box({
   text?: string;
   component?: string;
   bindingIndex?: number;
+  stepId?: [string, string];
   hovered: boolean;
   hoverCardId: string;
   onHover(node: ConstitutionNode, element: HTMLElement): void;
@@ -120,8 +122,10 @@ function Box({
           {...((node.component ?? component)
             ? { component: node.component ?? component }
             : {})}
-          {...(node.stepId ? { stepId: node.stepId } : {})}
-          {...(bindingIndex !== undefined ? { bindingIndex } : {})}
+          {...(node.stepId ?? stepId ? { stepId: node.stepId ?? stepId } : {})}
+          {...((node.bindingIndex ?? bindingIndex) !== undefined
+            ? { bindingIndex: node.bindingIndex ?? bindingIndex }
+            : {})}
           size="lg"
           active={node.current}
         />
@@ -255,6 +259,7 @@ function ConstitutionSceneView({
                   text={node.text}
                   component={node.component}
                   bindingIndex={node.bindingIndex}
+                  stepId={node.stepId}
                   hovered={hoveredKey === boxKey(node.node)}
                   hoverCardId={hoverCardId}
                   onHover={onHover}

@@ -110,10 +110,12 @@ Banner: Collection
 Constitution → Contribution → Items → Coverage
 ```
 
-Its Constitution is the full layer DAG below at layer resolution, with counts
-and collection links; its Contribution is one layer above; Items opens each
-participant; Coverage counts the layer. Assets have an explicit empty
-Constitution state: they are the origin.
+Its Constitution merges the actual participants below its items; its
+Contribution merges the actual participants one level above. Items opens each
+participant; Coverage counts the layer. A large merged set shows a readable
+number of actual subjects and states the total; it never shows layer boxes or
+links to another collection. Assets have an explicit empty Constitution state:
+they are the origin.
 
 Every Explorer header is two targets: the **body** opens the collection and the
 **arrow** unfolds or folds the list. The body never toggles and the arrow never
@@ -142,7 +144,7 @@ opens a document. A workflow component header behaves the same way.
     record's own constitution.
   - GRAPH, RELATION and FULFILMENT are the frame kinds, and every box sits
     inside one of them. A record's subject and graph ancestry share the GRAPH
-    frame; a step boundary uses GRAPH; a collection layer DAG uses the frame of
+    frame; a step boundary uses GRAPH; a collection boundary DAG uses the frame of
     its layer. The subject shares the graph ancestry column; the layered layout
     places the three frames without overlap.
   - An asset is the given source, so it has no Constitution card. A step is

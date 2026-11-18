@@ -73,6 +73,8 @@ export interface ConstitutionNode {
   component?: string;
   /** The step identity when the box is a step. */
   stepId?: [string, string];
+  /** The binding identity when the box is a binding. */
+  bindingIndex?: number;
   /** An explicit frame, used by layer and workflow boxes. */
   frame?: ConstitutionFrameId;
 }
@@ -788,6 +790,7 @@ export function stepBoundaryModel(
 export function contributionModel(
   index: ViewerIndex,
   subject: ConstitutionSubjectLike,
+  options: { collapse?: boolean } = {},
 ): ConstitutionModel {
   const subjectNode = subjectFor(index, subject);
   const model: ConstitutionModel = {
@@ -900,6 +903,6 @@ export function contributionModel(
       return stepBoundaryModel(index, subject, "contribution");
   }
 
-  collapseContribution(model);
+  if (options.collapse !== false) collapseContribution(model);
   return model;
 }

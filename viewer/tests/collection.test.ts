@@ -86,17 +86,17 @@ describe("virtual collection model", () => {
     ).toEqual(["core"]);
   });
 
-  it("reads a collection's layers as a constitution DAG", () => {
+  it("reads a collection's actual subjects as a constitution DAG", () => {
     const collection = collectionModel(index, "derivedRelations");
-    const dag = collectionDagModel(collection, "dependency");
+    const dag = collectionDagModel(index, collection, "dependency");
     expect(dag.direction).toBe("dependency");
     expect(dag.layers?.map((layer) => layer.name)).toEqual([
-      "Assets",
-      "Source relations",
+      "surveys",
+      "estate",
     ]);
     expect(dag.layerEdges).toEqual([
-      { source: "asset:Assets", target: "relation:Source relations" },
-      { source: "relation:Source relations", target: "subject" },
+      { source: "asset:estate", target: "relation:surveys" },
+      { source: "relation:surveys", target: "subject" },
     ]);
     const scene = buildConstitutionScene(dag);
     expect(scene.frames.map((frame) => frame.id)).toEqual(["relation"]);
@@ -115,20 +115,27 @@ describe("virtual collection model", () => {
 
   it("reads one layer above a collection as its contribution DAG", () => {
     const collection = collectionModel(index, "sourceRelations");
-    const dag = collectionDagModel(collection, "contribution");
+    const dag = collectionDagModel(index, collection, "contribution");
     expect(dag.direction).toBe("contribution");
     expect(dag.layers?.map((layer) => layer.name)).toEqual([
-      "Derived relations",
-      "Bindings",
+      "defect",
+      "defect.title",
+    ]);
+    expect(dag.layers?.map((layer) => layer.kind)).toEqual([
+      "projection",
+      "binding",
     ]);
     expect(dag.layerEdges?.every((edge) => edge.source === "subject")).toBe(
       true,
     );
-    expect(dag.layers?.[0].collection).toEqual({ id: "derivedRelations" });
+    expect(dag.layers?.every((layer) => layer.collection === undefined)).toBe(
+      true,
+    );
   });
 
   it("states that assets are the origin in the collection constitution", () => {
     const dag = collectionDagModel(
+      index,
       collectionModel(index, "assets"),
       "dependency",
     );
