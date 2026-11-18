@@ -34,7 +34,7 @@ Imports the framework only. Read `relation/source/README.md` next.
 
 ## Gate
 
-`tests/test_philosophy.py` and `kbs check`. A layout is not a record; if you are
+`tests/test_philosophy.py`, `uv run pytest` and `uv run pyright`. A layout is not a record; if you are
 naming a record's properties here, the decision belongs in `graph/`.
 
 The key words MUST, MUST NOT, SHOULD, SHOULD NOT and MAY follow RFC 2119.

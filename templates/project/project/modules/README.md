@@ -37,18 +37,29 @@ declarations, record shapes or domain relations.
 - A module MUST import the framework only. It MUST NOT import the project's
   declarations.
 - An engine emitter MUST implement the framework's `ExpressionEmitter` protocol
-  and be composed into the engine in `manifest.py`. `hello_emitter.py` is the
-  minimal example; it does not import the operation's authoring module.
+  and type its operands as `Operand` and its context as `EmissionContext`. Do
+  not type them as `object`, use `Any`, or hide a mismatch with
+  `# type: ignore`. The conformance example (`kbs init --fixture`) has a minimal emitter.
+- An operation owns one emitter. When several relation operations share the
+  engine's `RowOperationDTO` node type, compose their emitters into a generic
+  router; the router may dispatch by `plan.operation`, but adding an operation
+  MUST add an emitter and a composition entry, not edit an `if` chain.
 - A relation operation MUST be a `RelationOperationSpec` plus a `RowSourceEmitter`
   in this directory. Its output is plan-local until a `DerivedRelation` or
-  `Stage` publishes it with a matching grain. `count_rows.py` is the minimal
-  global count; its emitter is composed with
+  `Stage` publishes it with a matching grain. The conformance example's
+  `count_rows.py` is the minimal global count; its emitter is composed with
   `DuckDbInstructionEmitter().with_row_sources(...)`.
+- A source adapter for a nested or semi-structured format should keep the
+  declared grain. It may decode repeated elements into a nested field and let a
+  private stage expand them; it must not infer a category from free text, join a
+  reference, filter a domain rule, aggregate or change the grain. Preserve
+  optional attributes and an absent value as absent. If an identity is a
+  document position, state that and state the reorder risk.
 - A module MUST NOT be a registry, a plugin entry point or a declaration. The
   composition is `manifest.py`: import the planner and executor there and add
   them to the workflow.
-- `hello_world.py` is the minimal adapter. Its test adds a one-step consumer and
-  reads the relation as the graph would read it.
+- The conformance example's adapter is the minimal pair; its test adds a
+  one-step consumer and reads the relation as the graph would read it.
 
 ## Composition
 
@@ -58,25 +69,26 @@ workflow's planners and its executor to the workflow's toolchain:
 ```python
 from kg_build_system import DEFAULT_TOOLCHAIN, default_toolchain
 from kg_build_system.distribution import FileConfiguration, FilePlanner
-from project.modules.hello_world import HelloWorldExecutor, HelloWorldPlanner
+from project.modules.my_format import MyFormatExecutor, MyFormatPlanner
 
 toolchain = default_toolchain(
     planners=(
         FilePlanner(FileConfiguration("graph.jsonl")),
-        HelloWorldPlanner(),
+        MyFormatPlanner(),
     ),
-    executors=(*DEFAULT_TOOLCHAIN.executors, HelloWorldExecutor()),
+    executors=(*DEFAULT_TOOLCHAIN.executors, MyFormatExecutor()),
 )
 ```
 
 `Workflow(..., toolchain=toolchain)` takes a toolchain or a planner tuple, never
-both. Replace `HelloWorldPlanner` with the adapter that reads your format. The
-hello example needs the consumer its test supplies; a real adapter's output type
-is the `core/data/table/<relation>` the core planners already read.
+both. Replace `MyFormatPlanner` with the adapter that reads your format. The
+conformance example's adapter needs the consumer its test supplies; a real
+adapter's output type is the `core/data/table/<relation>` the core planners
+already read.
 
 ## A real adapter
 
-The hello example has one fixed relation. A real adapter reads the relations the
+The conformance example's adapter has one fixed relation. A real adapter reads the relations the
 graph declares and emits one step for each asset it can decode:
 
 ```python
@@ -121,7 +133,7 @@ does not invent a schema or add a domain decision.
 ## Support
 
 Imports the framework only. Read `../relation/source/README.md` for the relation
-the adapter serves, then `hello_world.py`.
+the adapter serves, then the minimal adapter.
 
 ## Gate
 

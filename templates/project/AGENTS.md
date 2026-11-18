@@ -51,16 +51,20 @@ what the graph asserts                   what the domain contains
 
 ## First task
 
-1. Read `START-HERE.md` and answer it. Do not write a declaration first.
+1. Read `START-HERE.md` and answer it. Do not write a declaration first. The
+   first `uv run pytest` fails until this file and the graph purpose are
+   answered; that failure is the task, not a broken template.
 2. Read the `README.md` in the directory you are about to change.
-3. Replace the conformance fixture, or keep its shape and change the names and
-   meanings.
-4. Run `uv run pytest`. A failing philosophy check means the model, not the test.
+3. Replace the placeholder purpose in `project/graph/graph.py`, then add the
+   first record and its relation and binding.
+4. Run `uv run kbs check --project project` and read the report as a cold
+   reader. Then run `uv run pytest` and `uv run pyright`. A failing philosophy
+   check means the model, not the test; a green run is not a review.
 
 ## Reading order
 
 1. `START-HERE.md` — the intention interview.
-2. `README.md` — the project and the fixture.
+2. `README.md` — the project and the first slice.
 3. `graph/README.md`, `relation/README.md`, `binding/README.md`,
    `expression/README.md`, `modules/README.md` — the axes and the extension
    lanes.
@@ -94,6 +98,38 @@ what the graph asserts                   what the domain contains
 - A relation operation is one input row source, one declared output shape and one
   grain; its `RowSourceEmitter` is in `modules/`. Its output is plan-local until
   a `DerivedRelation` or `Stage` publishes it with a matching grain.
+- One public declaration owns one file: `Graph`, `Asset`, `SourceRelation`,
+  `DerivedRelation`, `Stage`, `Node`, `Edge`, `Binding`. A nested value `Struct`
+  may sit beside its source relation; a `Shape`, operation spec or emitter may
+  sit with the operation it serves. Anything else is a second declaration.
+- An operation owns one emitter. If several relation operations share a plan node
+  type, compose a generic router from their emitters; do not add a hardcoded
+  `if plan.operation` branch. Adding an operation adds an emitter and a
+  composition entry, not a branch.
+- An engine emitter types its operands as `Operand` and its context as
+  `EmissionContext`. `object`, `Any` and `# type: ignore` are not accurate types.
+- A threshold is a number plus a direction. State whether the adverse side is a
+  minimum or a maximum at the declaration that compares it; the number alone
+  does not say.
+- A row is not automatically a valid measurement. State what counts as a reading
+  or analysed sample, how a blank value is counted, and why a reader can trust
+  the count.
+- A reference table is a domain decision. If a consumer needs its name, category
+  or limit, model the reference as a record or attach the meaning; a bare code on
+  a finding is a shortfall, not a reference.
+- A published relation must not name a record kind or depend on a record's
+  purpose. Sharing a domain identifier with a record is allowed when the
+  relation's meaning is domain-level; importing `graph/` or using a record's
+  properties as the relation's semantics is not.
+- A source adapter decodes and preserves: nested structure, optional attributes,
+  nulls, grain and identity. Flattening a nested document, inferring a category
+  from free text, joining a reference, filtering a domain rule, aggregating or
+  translating an identifier belongs in a derived relation, a stage or a binding.
+- A semi-structured source needs an explicit decoder. Preserve what the source
+  actually states, including optional identities and free text; if an identity is
+  positional, say so and state the reorder risk.
+- A project with no derived relation, stage, adapter or operation is valid. Do
+  not add one only because the template has an example.
 
 The stranger test: could a reviewer who has not seen the code say what a
 declaration is for, what it asserts and what it excludes? If not, the meaning is

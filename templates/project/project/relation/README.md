@@ -25,7 +25,11 @@ Own source relations and derived relations. Do not own records or bindings.
   operator verbs.
 - If the sentence needs a join, filter or expansion, that operation MUST be a row
   source or a private stage; the relation name MUST NOT stand for the operation.
-- A published relation MUST NOT name a record's key, properties or endpoints.
+- A published relation MUST NOT name a record kind or depend on a record's
+  purpose. A domain identifier such as `site_id` may appear on both a relation
+  and a record when the relation's meaning is domain-level; importing `graph/`,
+  naming a node or edge kind, or using a record's properties as the relation's
+  semantics is the collapse the rule forbids.
 - The contract MUST be inline at the declaration; a one-use contract MUST NOT be
   a module-level constant. The declaration MUST NOT have a docstring; the contract
   is its documentation.
@@ -37,7 +41,7 @@ Read `source/README.md` or `derived/README.md` next.
 
 ## Gate
 
-`tests/test_philosophy.py` and `kbs check`. A relation read by a binding should
+`tests/test_philosophy.py`, `uv run pytest` and `uv run pyright`. A relation read by a binding should
 declare a contract; a derived relation must.
 
 The key words MUST, MUST NOT, SHOULD, SHOULD NOT and MAY follow RFC 2119.

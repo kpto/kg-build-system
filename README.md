@@ -8,16 +8,22 @@ publishes the graph with the meaning declared for it.
 
 ## Start a project
 
-`templates/project/` is the topic-neutral project template: the four declaration
-layers, one layer directive per directory, a conformance fixture, and the
-philosophy gate. `kbs init` will copy it into a new project.
+`kbs init <dir>` writes an empty project: the declaration tree, one graph
+declaration with a placeholder purpose, an unanswered `START-HERE.md` design
+record, the philosophy gate and the notebook. The first `uv run pytest` fails two
+tests until the design record and the graph purpose are answered; that failure is
+the first task. `kbs init --fixture <dir>` writes the conformance example: a
+complete small project that builds and passes its tests.
 
-A project states its composition in `manifest.py` as declarative `Blueprint` and
-`Workflow` values; importing it builds nothing. The CLI finds them by type:
+`templates/project/` is the empty template; `templates/fixture/` is the
+conformance example. A project states its composition in `manifest.py` as
+declarative `Blueprint` and `Workflow` values; importing it builds nothing. The
+CLI finds them by type:
 
 ```console
-cd templates/project
-uv run pytest
+kbs init my-project
+cd my-project
+uv run pytest                           # red until START-HERE.md is answered
 uv run kbs blueprint --project project
 uv run kbs workflow --project project
 uv run kbs run --project project
@@ -83,8 +89,30 @@ The six kernel protocols — `Language`, `Linker`, `Planner`, `StepExecutor`,
 `ResourceProvider` and `Runtime` — are for a different composition. The exact
 surfaces are in
 [docs/content/appendix/reference/extension.md](docs/content/appendix/reference/extension.md).
-The template carries a runnable value operation, input adapter and relation
-operation in `templates/project/`.
+The conformance example under `templates/fixture/` carries a runnable value
+operation, input adapter and relation operation.
+
+## Project notebook and console
+
+The project notebook is part of `kbs`. `kbs init` creates it with the project;
+`kbs notebook` records findings, proposals, change designs, revisions and
+captured views, and reads the catalog:
+
+```console
+uv run kbs notebook status
+uv run kbs notebook relations
+uv run kbs console
+```
+
+The console is its own page and server. It embeds the design viewer by URL
+(`viewer_url` in `notebook/config.json`, usually `kbs view --embed`) and exchanges
+snapshots over the embed bridge; it does not bundle or serve a second design
+viewer. `kbs view` remains the separate design viewer. The notebook
+(`notebook/records/`) holds revisions, events, findings, proposals, change designs,
+documents and captured views. Project-specific `ops/` and `eval/` commands run as
+JSON commands from the manifest config.
+
+See [Project notebook and console](docs/content/appendix/reference/notebook.md).
 
 ## Authoring model
 

@@ -11,7 +11,7 @@ sources:
   - kg_build_system/distribution/languages/expressions/service/public/operations.py
   - kg_build_system/distribution/languages/data/model/public/row_operations.py
   - kg_build_system/distribution/languages/expressions/model/internal/dto/operation_dto.py
-  - templates/project/README.md
+  - templates/fixture/README.md
 ---
 
 > [!lede]
@@ -39,7 +39,7 @@ Project-local extension comes first. A project adds an ordinary object and compo
 | Decode a physical input | source planner + executor (a module) | `modules/` | `default_toolchain(planners=..., executors=...)` |
 | A pass over records or a new artifact | planner + executor (a module) | `modules/` | `default_toolchain(planners=..., executors=...)` |
 
-The template has a minimal example of each of the first three: `project/expression/hello.py`, `project/modules/hello_world.py` and `project/modules/count_rows.py`.
+The conformance example (`kbs init --fixture`) has a minimal example of each of the first three: `project/expression/hello.py`, `project/modules/hello_world.py` and `project/modules/count_rows.py`.
 
 ### Value operation
 
@@ -128,7 +128,7 @@ A source adapter is a planner and executor that decodes one physical input into 
 - do not join, filter for a domain reason, translate identifiers, deduplicate, aggregate, expand an array or change the grain;
 - if the bytes do not match the declaration, fail rather than repair the schema.
 
-The template's `project/modules/hello_world.py` is the minimal adapter; `kbs` composition and the input-adapter rule are in the template's `modules/README.md`.
+The conformance example's `project/modules/hello_world.py` is the minimal adapter; `kbs` composition and the input-adapter rule are in its `modules/README.md`.
 
 ## Kernel extension
 

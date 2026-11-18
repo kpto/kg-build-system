@@ -108,6 +108,17 @@ class ManifestCommandTests(unittest.TestCase):
         self.assertTrue(document["graph"]["nodes"])
         self.assertTrue(document["bindings"])
 
+    def test_the_check_command_prints_the_authored_argument(self) -> None:
+        stream = io.StringIO()
+        with redirect_stdout(stream):
+            self.assertEqual(main(["check", "--project", str(REFERENCE)]), 0)
+
+        text = stream.getvalue()
+        self.assertIn("Graph purpose:", text)
+        self.assertIn("Estate condition review", text)
+        self.assertIn("Bindings (", text)
+        self.assertIn("This report states the authored argument", text)
+
     def test_the_workflow_command_writes_the_plan_document(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "plan.json"

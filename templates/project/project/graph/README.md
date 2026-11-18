@@ -26,6 +26,40 @@ access, derived relations, or the mapping from rows to records.
   a foreign key.
 - `__init__.py` MUST be a facade; it declares nothing.
 
+## Categories, templates and reference records
+
+Use a category when a consumer must ask about several record kinds through one
+meaning, and a template when several declarations share structure but not a
+family. A category is graph-visible and never a binding target; a template is an
+inert mixin.
+
+```python
+from kg_build_system import (
+    AbstractNode, Claim, Meaning, Node, NodeOptions, PropertySlot, Purpose,
+    property,
+)
+
+class MonitoringLocation(AbstractNode):
+    options = NodeOptions(meaning=Meaning(purpose=Purpose("Use this category as the common record for a monitored place.")))
+    name: PropertySlot[str | None] = property(meaning=Meaning(claims=(Claim("The register's name for the location."),)))
+
+class SiteNode(MonitoringLocation, Node):
+    options = NodeOptions(meaning=Meaning(purpose=Purpose("Use this node as the named site a consumer starts from.")))
+
+class StationNode(MonitoringLocation, Node):
+    options = NodeOptions(meaning=Meaning(purpose=Purpose("Use this node as the physical point where a reading is taken.")))
+```
+
+A category's meaning stays on the category; a concrete child states its own
+purpose and limitation, consistent with the parent. Do not copy the parent text
+and do not invent a family for a property that two files happen to share.
+
+A controlled vocabulary that a consumer must interpret is a record, not an
+unexplained string. If a finding or result carries `analyte_code` or
+`parameter_code`, decide whether the analyte/parameter is a record with a name,
+category and threshold, or a value with its meaning attached. A bare code on a
+finding is a shortfall a reviewer cannot resolve from the graph.
+
 ## Support
 
 Imports the framework and `graph/`. Never import `relation/` or `binding/`.
@@ -33,7 +67,7 @@ Read `relation/README.md` next.
 
 ## Gate
 
-`tests/test_philosophy.py` and `kbs check`. A record that names a source column
+`tests/test_philosophy.py`, `uv run pytest` and `uv run pyright`. A record that names a source column
 is a binding decision in the wrong layer.
 
 The key words MUST, MUST NOT, SHOULD, SHOULD NOT and MAY follow RFC 2119.

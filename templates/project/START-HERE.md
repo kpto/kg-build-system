@@ -1,7 +1,9 @@
-# Start here: the intention interview
+# Start here: the design record
 
-Answer these before writing a declaration. The template's fixture already
-answers them for a conformance example; replace those answers with yours.
+Answer these before writing a declaration, and **keep the answers**. This file
+is the model a cold reader reads before the code: the directory briefs and the
+declarations assume it. The project starts with placeholder answers, and
+`uv run pytest` fails until this file and the graph declaration are answered.
 
 ## 1. Why does this graph exist?
 
@@ -9,16 +11,19 @@ answers them for a conformance example; replace those answers with yours.
 - For whom?
 - What is it explicitly not for?
 
-> The fixture's answer: exercise the template's layers so a new project starts
-> with a passing build. Replace this.
+> Replace this with the project's answer.
 
 ## 2. What exists?
 
 - Which record kinds does the graph assert?
 - For each record, what does one record mean?
 - What identifies it, and what may a consumer not infer from it?
+- Which reference tables or controlled vocabularies are records, and which are
+  values? If a consumer needs a name, category or threshold, where does it live?
+- If a site and a station, or two similar kinds, share a use, is that a category,
+  a template, or two unrelated records? State why.
 
-> The fixture's answer: items with nested parts. Replace this.
+> Replace this with the project's answer.
 
 ## 3. What supplies them?
 
@@ -33,9 +38,14 @@ answers them for a conformance example; replace those answers with yours.
   are its argument and result types?
 - Which calculation changes the row count or grain, and therefore needs a
   relation operation and a matching `Definition` grain?
+- For each threshold or comparison, which direction is adverse: a minimum or a
+  maximum? The number alone does not say.
+- What makes a row a valid measurement? If a row carries a blank value, is it a
+  reading, an analysed sample, or neither? Which count would a reader expect?
+- Which source is semi-structured or irregular, and which nested or optional
+  fields must be preserved rather than flattened or inferred?
 
-> The fixture's answer: an `items` source relation and an `item_parts` derived
-> relation with a private `part_rows` stage. Replace this.
+> Replace this with the project's answer.
 
 ## 4. How does each relation fulfil each record?
 
@@ -45,12 +55,16 @@ For each binding:
 - At what grain and identity?
 - What coverage does the relation actually supply?
 - Where does it fall short?
+- What can a cold reader verify from the graph alone: which result or reading
+  supports each conclusion, and where is that path?
 
-> The fixture's answer: one item row is one item; one item-part row is one part
-> and one HAS_PART edge. Replace this.
+> Replace this with the project's answer.
 
 ## 5. What is the first slice?
 
-Write the graph declaration first, then one asset, one source relation, one
-record and one binding. Run `uv run pytest`. Do not add a second relation until
-the first slice passes.
+The first slice is the smallest set of record and relation kinds that makes one
+real question explainable end to end; it is not a fixed count. Write the graph
+declaration and its meanings first, then the one relation and binding that
+answer the question. Run `uv run pytest` and `uv run pyright`. A project with no
+derived relation, stage, adapter or operation is valid when the domain does not
+need one.

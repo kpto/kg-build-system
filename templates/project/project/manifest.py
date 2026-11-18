@@ -3,28 +3,13 @@
 The values are declarations. `kbs blueprint`, `kbs workflow` and `kbs run` read
 them and perform the requested step; importing this module builds nothing.
 
-Python remains available as an option:
-
-```python
-from kg_build_system import compile, create_blueprint, execute
-
-from project.manifest import blueprint, workflow
-
-plan = compile(
-    blueprint=create_blueprint(
-        namespace_path=blueprint.namespace_path,
-        languages=blueprint.languages,
-    ),
-    toolchain=workflow.toolchain,
-)
-execute(plan, output_directory=workflow.output_directory)
-```
+The empty manifest composes the default languages and the graph workflow. Add a
+project planner, executor, emitter or operation only when the project needs one.
 """
 
 from pathlib import Path
 
 from kg_build_system import (
-    DEFAULT_OPERATIONS,
     Blueprint,
     Workflow,
     default_languages,
@@ -32,29 +17,16 @@ from kg_build_system import (
 )
 from kg_build_system.distribution import (
     DeduplicationPlanner,
-    DuckDbInstructionEmitter,
-    DuckDbSqlEmitter,
-    ExpressionsLanguage,
     FileConfiguration,
     FilePlanner,
     MetaGraphPlanner,
 )
 
-from project.expression.hello import HELLO
-from project.modules.hello_emitter import HelloEmitter
-
 ROOT = Path(__file__).parent
 
-expressions = ExpressionsLanguage((*DEFAULT_OPERATIONS, HELLO))
-languages = default_languages(expressions=expressions)
+languages = default_languages()
 
 blueprint = Blueprint(namespace_path=ROOT, languages=languages)
-
-engine = DuckDbSqlEmitter(
-    instruction_emitter=DuckDbInstructionEmitter().with_operators(
-        HelloEmitter(),
-    ),
-)
 
 toolchain = default_toolchain(
     languages=languages,
@@ -63,7 +35,6 @@ toolchain = default_toolchain(
         FilePlanner(FileConfiguration("graph.jsonl")),
         MetaGraphPlanner(),
     ),
-    engine=engine,
 )
 
 workflow = Workflow(

@@ -658,6 +658,8 @@ missing, not the code.
   not accept purpose, claim or limitation text. Meaning is written at the
   declaration, and a helper that assembles it is an adaptation.
 - It makes the intended use easy and the wrong use impossible.
+- A scaffold carries structure and an unanswered argument; a worked example is a
+  separate tree, chosen explicitly, never the default.
 - A capability handle exposes only the operations its subject supports and is consumed by its first use; an unsupported operation is absent from the handle type, not present and refused at runtime.
 - It exposes only what an author may write; internal types stay internal.
 - A type in a public signature is a public type. If the value is an internal model, the
@@ -671,6 +673,8 @@ missing, not the code.
 
 ### Names state the role
 
+- A command surface names itself once: usage, help, banners and errors use the
+  product's vocabulary; a package or directory name is not a user-facing term.
 - `IR` is not a synonym for internal data. Do not use it as a module or class
   suffix.
 - A serialisable model is a DTO, and its module names the artifact it belongs
@@ -756,6 +760,8 @@ missing, not the code.
   explicit.
 - A model has no reference to an owner or a wider context and stores no identity
   that can be derived.
+- A relationship is stored once, in the direction that states it; the reverse
+  relationship is derived from it, never stored beside it.
 - Anaemic is about behaviour; amnesic is about ownership and identity. Both are
   deliberate.
 - A second type that differs only in which members are required is a validation

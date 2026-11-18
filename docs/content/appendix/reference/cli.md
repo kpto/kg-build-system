@@ -1,16 +1,16 @@
 ---
 title: CLI
-summary: The sole console command, its flags and exit codes, and the Python calls that replace a build command.
+summary: The console commands for checking, building, compiling, running, generating and viewing a project, and their flags and exit codes.
 section: reference
 order: 20
 status: normative
-verified: 2026-11-11
+verified: 2026-11-18
 sources:
   - pyproject.toml
   - kg_build_system/cli/service/_private/main.py
+  - kg_build_system/cli/service/_private/init.py
+  - kg_build_system/cli/service/_private/manifest_command.py
   - kg_build_system/cli/service/_private/view.py
-  - kg_build_system/generation/code_generation/service/_private/command.py
-  - kg_build_system/generation/code_generation/service/_private/watcher.py
 subject: generation
 perspective: reference
 ---
@@ -19,11 +19,25 @@ perspective: reference
 <div class="kb-views"><span class="kb-views-subject">Source generation and CLI</span><a href="/appendix/subjects/generation">Overview</a><a href="/book/part-2/09-generation">Guide</a><a href="/appendix/spec/generation">Spec</a><a href="/appendix/reference/api">API</a><a href="/appendix/philosophy/explainability-is-authored">Philosophy</a><a href="/appendix/review/limits">Review</a></div>
 <!-- END GENERATED:views -->
 
-`kbs` is a console script for edit-time declaration generation and local design
-inspection. It has two commands: `kbs generate` and `kbs view`. There is no build,
-run, validate or version command. `compile` and `execute` remain Python calls.
-
 ## Surface
+
+`kbs` is the console entry point for a project. It finds the manifest's
+`Blueprint` and `Workflow` values by type; importing the manifest builds nothing.
+`compile` and `execute` remain available as Python calls.
+
+| Command | Job |
+| --- | --- |
+| `kbs init [PATH] [--fixture]` | Write an empty project (or the conformance example with `--fixture`) into an empty directory, point its `pyproject.toml` at the framework, and create the notebook. Refuses a non-empty directory unless `--force` is passed. |
+| `kbs check --project PATH` | Read the blueprint and print the authored semantic argument: graph purpose, records, relations, bindings and review notes. It is a reading report, not a proof; the project's tests remain the gate. |
+| `kbs blueprint --project PATH [--output PATH]` | Build and print, or write, the blueprint document. |
+| `kbs workflow --project PATH [--output PATH]` | Compile and print, or write, the workflow-plan document. |
+| `kbs run --project PATH [--output-directory PATH]` | Compile and execute; exit `0` when the report succeeds and `1` otherwise. |
+| `kbs generate ...` | Generate or check edit-time declaration products. |
+| `kbs view ...` | Serve the bundled design viewer for a plan, blueprint or snapshot. |
+
+The project notebook and console are a separate surface: [Project notebook and console](/appendix/reference/notebook).
+
+## `kbs generate`
 
 ```console
 kbs generate --project .
@@ -31,9 +45,6 @@ kbs generate --project . --check
 kbs generate --project . --regenerate
 kbs generate --project . --check --regenerate
 kbs generate --project . --watch --debounce 500
-kbs view
-kbs view --snapshot build/workflow_plan.json
-kbs view --snapshot snapshot.json --port 8002 --no-open
 ```
 
 | Flag | Effect |
