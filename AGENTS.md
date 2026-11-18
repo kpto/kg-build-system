@@ -250,10 +250,9 @@ missing, not the code.
   document itself, so a parent supplies identity, never a click handler; it
   truncates its name rather than wrapping.
 - A pill previews its instance on hover or focus in one shared popup: concept
-  mark and name, a subtitle that states the instance's immediate context
-  (owner, container, source, target or endpoints), key facts and the stated
-  meaning. A concept may specialise its facts and subtitle, not the popup
-  chrome. The popup scrolls,
+  mark and name, the concept name as the subtitle, key facts and the stated
+  meaning. The facts carry the owner, container, source, target or endpoints; a
+  concept may specialise its facts, not the popup chrome. The popup scrolls,
   dismisses on outside interaction, and never navigates; the pill remains the
   action.
 - A component reads the shared design language for colour, type, space, shape,
