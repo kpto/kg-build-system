@@ -300,12 +300,15 @@ missing, not the code.
   purpose as the anchor.
 - Every Explorer row is a document. A header's body opens its collection and
   its arrow unfolds the list; the arrow sits at the left of every row, the body
-  never toggles and the arrow never opens the document. A virtual collection is
-  a layer read as a group, not a declared subject: it has no Meaning card, uses
-  the layer's concept mark, and carries Constitution (its items and the actual participants below them), Contribution
-  (its items and the actual participants one level above), Items and Coverage,
-  both directions in the same DAG. There is no collection root. A large set
-  accepts items until the boundary reaches a readable size and states how many
+  never toggles and the arrow never opens the document. A filter reveals the
+  matching sections and rows once; it does not override a fold, and changing
+  the query reveals the matches again. A virtual collection is a layer read as
+  a group, not a declared subject: it has no Meaning card, uses the layer's
+  concept mark, and carries Constitution (its items and the actual participants
+  below them), Contribution (its items and the actual participants one level
+  above), Items and Coverage, both directions in the same DAG. There is no
+  collection root. A large set accepts items until the boundary reaches a
+  readable size and states how many
   items are shown; it never shows layer boxes or links to another collection.
   The boundary assigns dependency levels and puts every box of one level in one
   horizontal row: an asset is below a source relation, a source relation below a
