@@ -26,6 +26,8 @@ import styles from "./constitution.module.css";
 
 export interface ConstitutionProps {
   model: ConstitutionModel;
+  /** The direction this DAG reads; used for the accessible name. */
+  label?: string;
 }
 
 const CARD_WIDTH = 440;
@@ -71,7 +73,8 @@ function Box({
   onLeave(): void;
 }) {
   const purpose = node.meaning.purpose;
-  const body = text ?? purpose ?? "No purpose is stated.";
+  const body =
+    node.text ?? text ?? purpose ?? "No purpose is stated.";
   const concept = pillConcept(node.kind);
   return (
     <div
@@ -113,7 +116,11 @@ function Box({
         <ConceptPill
           concept={binding ? "binding" : pillConcept(node.kind)}
           name={node.name}
-          {...(component ? { component } : {})}
+          {...(node.collection ? { collection: node.collection.id } : {})}
+          {...((node.component ?? component)
+            ? { component: node.component ?? component }
+            : {})}
+          {...(node.stepId ? { stepId: node.stepId } : {})}
           {...(bindingIndex !== undefined ? { bindingIndex } : {})}
           size="lg"
           active={node.current}
@@ -243,7 +250,7 @@ function ConstitutionSceneView({
                 <Box
                   node={node.node}
                   root={node.axis === "purpose"}
-                  binding={node.axis === "binding"}
+                  binding={node.axis === "binding" && !node.node.collection}
                   hoverable={node.hoverable}
                   text={node.text}
                   component={node.component}
@@ -295,7 +302,10 @@ function ConstitutionSceneView({
  * full meaning in a portal; selecting a node dims the rest and keeps its
  * incident edges.
  */
-export function Constitution({ model }: ConstitutionProps) {
+export function Constitution({
+  model,
+  label = "Constitution",
+}: ConstitutionProps) {
   const [hovered, setHovered] = useState<HoveredBox | null>(null);
   const [selectedId, setSelectedId] = useState<string>();
   const closeTimer = useRef<number | null>(null);
@@ -367,13 +377,13 @@ export function Constitution({ model }: ConstitutionProps) {
     : 0;
 
   return (
-    <div className={styles.constitution} aria-label="Constitution">
+    <div className={styles.constitution} aria-label={label}>
       <GraphCanvas
         width={scene.width}
         height={scene.height}
         className={styles.constitutionCanvas}
         testId="constitution-graph"
-        ariaLabel="Constitution graph"
+        ariaLabel={`${label} graph`}
         fitKey={fitKey}
         onBackgroundClick={() => setSelectedId(undefined)}
       >

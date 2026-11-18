@@ -29,8 +29,9 @@ import {
   type AxisSubject,
 } from "@/lib/axis";
 import { collectFieldRefs } from "@/lib/expressions";
-import { relationNamesFromRowSource } from "@/lib/indexes";
+import { relationNamesFromRowSource, resolveAssetName, stepKey } from "@/lib/indexes";
 import type { IndexedBinding, ViewerIndex } from "@/lib/types";
+import type { CollectionId } from "@/workbench/collections";
 
 import {
   attachedMeaning,
@@ -50,6 +51,14 @@ export type ConstitutionTarget =
   | { kind: "projection"; name: string }
   | { kind: "asset"; name: string };
 
+/** The frame a box sits in; a workflow subject adds the workflow frame. */
+export type ConstitutionFrameId =
+  | "graph"
+  | "fulfilment"
+  | "relation"
+  | "workflow"
+  | "layers";
+
 /** One box in the constitution tree. */
 export interface ConstitutionNode {
   kind: PurposeLevelKind;
@@ -61,6 +70,16 @@ export interface ConstitutionNode {
   detail?: string;
   /** A document this box can open; the current box has none. */
   open?: ConstitutionTarget;
+  /** Short body text for a box with no semantic meaning, such as a layer. */
+  text?: string;
+  /** The virtual collection this box opens, when it is a layer. */
+  collection?: { id: CollectionId; component?: string };
+  /** The owner when the box is a step or a binding. */
+  component?: string;
+  /** The step identity when the box is a step. */
+  stepId?: [string, string];
+  /** An explicit frame, used by layer and workflow boxes. */
+  frame?: ConstitutionFrameId;
 }
 
 /** One relation and its provenance: scanned relations, then the asset. */
@@ -83,6 +102,8 @@ export interface ConstitutionBinding {
 }
 
 export interface ConstitutionModel {
+  /** The direction this DAG reads: below the subject or one level above it. */
+  direction?: "dependency" | "contribution";
   /** The one purpose the subject is read under. */
   purpose: ConstitutionNode;
   /** Record-axis levels, ordered from the root toward the subject. */
@@ -91,6 +112,14 @@ export interface ConstitutionModel {
   relation: ConstitutionRelation[];
   /** One node per binding; together they are the record's fulfilment. */
   bindings: ConstitutionBinding[];
+  /** Workflow steps below or above a step subject. */
+  workflow?: ConstitutionNode[];
+  /** A collection's layer DAG: the layers below or above the purpose. */
+  layers?: ConstitutionNode[];
+  /** Explicit edges between layer boxes, by scene node id. */
+  layerEdges?: Array<{ source: string; target: string }>;
+  /** A note shown when the DAG has no layer or component. */
+  note?: string;
 }
 
 export interface ConstitutionSubjectLike {
@@ -98,6 +127,10 @@ export interface ConstitutionSubjectLike {
   kind?: string;
   component: string;
   property?: string;
+  /** The display name when it differs from the owner component, as for a step. */
+  name?: string;
+  /** The step identity when the subject is a workflow step. */
+  stepId?: [string, string];
   /** The binding's index when the subject is a binding document. */
   bindingIndex?: number;
 }
@@ -194,10 +227,20 @@ function subjectMeaning(
       );
       return attachedMeaning(binding?.binding.meaning ?? binding?.binding.semantics);
     }
+    case "step":
+      return EMPTY_MEANING;
     default:
       return graphMeaning(index);
   }
 }
+
+/** A step and a collection layer carry no semantic purpose of their own. */
+export const EMPTY_MEANING: DesignMeaningValue = {
+  purpose: undefined,
+  claims: [],
+  limitations: [],
+  frames: [],
+};
 
 function relationMeaning(index: ViewerIndex, name: string): DesignMeaningValue {
   const source = index.relationByName.get(name);
@@ -387,9 +430,8 @@ function bindingDisplayName(binding: IndexedBinding): string {
 }
 
 /**
- * A binding comes to be at the meeting of a record and a relation: the target
- * record (its purpose and identity only) and the relations it reads. The
- * record's graph ancestry belongs to the record's own constitution.
+ * A binding comes to be from the relations it reads. Its target record is one
+ * level above and belongs to the binding's Contribution, not its Constitution.
  */
 function bindingConstitution(
   index: ViewerIndex,
@@ -398,36 +440,13 @@ function bindingConstitution(
   const binding = index.bindings.find(
     (candidate) => candidate.index === subject.bindingIndex,
   );
-  const purpose: ConstitutionNode = {
-    kind: "binding",
-    name: binding ? bindingDisplayName(binding) : `binding #${subject.bindingIndex ?? "?"}`,
-    label: "Purpose",
-    meaning: subjectMeaning(index, subject),
-    current: true,
-  };
-  if (!binding) return { purpose, graph: [], relation: [], bindings: [] };
-
-  const identity = [
-    ...new Set(
-      collectFieldRefs(binding.binding.identity)
-        .map((ref) => ref[ref.length - 1])
-        .filter((name): name is string => Boolean(name)),
-    ),
-  ];
-  const target: ConstitutionNode = {
-    kind: binding.kind,
-    name: binding.component,
-    label: LABELS[binding.kind],
-    meaning: componentMeaning(index, binding.kind, binding.component),
-    detail: identity.length
-      ? `identity ${identity.join(", ")}`
-      : "identity not declared",
-    open: { kind: binding.kind, name: binding.component },
-  };
-
+  const purpose = purposeFor(index, subject);
+  if (!binding) {
+    return { purpose, graph: [], relation: [], bindings: [] };
+  }
   return {
     purpose,
-    graph: [target],
+    graph: [],
     relation: bindingRelations(index, binding, subject),
     bindings: [],
   };
@@ -498,4 +517,394 @@ export function constitutionModel(
     relation: relationTrees(index, subject, map),
     bindings: bindingSummaries(index, map),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Contribution and workflow boundaries
+// ---------------------------------------------------------------------------
+
+function purposeFor(
+  index: ViewerIndex,
+  subject: ConstitutionSubjectLike,
+): ConstitutionNode {
+  const step = subject.level === "step";
+  const binding =
+    subject.level === "binding"
+      ? index.bindings.find(
+          (candidate) => candidate.index === subject.bindingIndex,
+        )
+      : undefined;
+  const name =
+    subject.level === "property"
+      ? `${subject.component}.${subject.property ?? ""}`
+      : subject.name ??
+        (binding
+          ? bindingDisplayName(binding)
+          : subject.level === "binding"
+            ? `binding #${subject.bindingIndex ?? "?"}`
+            : subject.component);
+  return {
+    kind: subjectConcept(subject),
+    name,
+    label: "Purpose",
+    meaning: subjectMeaning(index, subject),
+    current: true,
+    ...(step
+      ? {
+          text: "Build step",
+          component: subject.stepId?.[0] ?? subject.component,
+          stepId: subject.stepId,
+        }
+      : {}),
+  };
+}
+
+function contributionRecordNode(
+  index: ViewerIndex,
+  kind: "node" | "edge" | "abstract",
+  name: string,
+  detail?: string,
+): ConstitutionNode {
+  const declaration = index.topologyComponentsByName.get(name);
+  const labels = declaration?.labels ?? [];
+  const identity = detail ?? (labels.length ? labels.join(" · ") : undefined);
+  return {
+    kind,
+    name,
+    label: LABELS[kind],
+    meaning:
+      kind === "abstract"
+        ? componentMeaning(index, "node", name)
+        : componentMeaning(index, kind, name),
+    detail: identity,
+    open:
+      kind === "abstract"
+        ? { kind: "abstract", name }
+        : { kind, name },
+    text: undefined,
+  };
+}
+
+function endpointsDetail(edge: {
+  source?: readonly string[];
+  target?: readonly string[];
+}): string | undefined {
+  const source = edge.source?.[2];
+  const target = edge.target?.[2];
+  return source && target ? `${source} → ${target}` : undefined;
+}
+
+function contributionBinding(
+  index: ViewerIndex,
+  binding: IndexedBinding,
+): ConstitutionBinding {
+  const meaning = attachedMeaning(
+    binding.binding.meaning ?? binding.binding.semantics,
+  );
+  return {
+    index: binding.index,
+    name: bindingDisplayName(binding),
+    component: binding.component,
+    relations: [],
+    purpose:
+      binding.binding.semantics?.purpose?.text ??
+      binding.binding.meaning?.purpose?.text,
+    meaning,
+  };
+}
+
+function identityDetail(binding: IndexedBinding): string | undefined {
+  const identity = [
+    ...new Set(
+      collectFieldRefs(binding.binding.identity)
+        .map((ref) => ref[ref.length - 1])
+        .filter((name): name is string => Boolean(name)),
+    ),
+  ];
+  return identity.length ? `identity ${identity.join(", ")}` : undefined;
+}
+
+const CONTRIBUTION_LIMIT = 10;
+
+interface ContributionGroup {
+  kind: PurposeLevelKind;
+  title: string;
+  note: string;
+  frame: ConstitutionFrameId;
+  collection?: { id: CollectionId };
+  count: number;
+}
+
+function groupFor(kind: PurposeLevelKind): ContributionGroup | undefined {
+  switch (kind) {
+    case "asset":
+      return { kind, title: "Assets", note: "assets behind this subject", frame: "relation", collection: { id: "assets" }, count: 0 };
+    case "relation":
+      return { kind, title: "Source relations", note: "source relations that read this subject", frame: "relation", collection: { id: "sourceRelations" }, count: 0 };
+    case "projection":
+      return { kind, title: "Derived relations", note: "derived relations that scan this subject", frame: "relation", collection: { id: "derivedRelations" }, count: 0 };
+    case "binding":
+      return { kind, title: "Bindings", note: "bindings that read this subject directly", frame: "fulfilment", collection: { id: "bindings" }, count: 0 };
+    case "node":
+      return { kind, title: "Nodes", note: "records directly under this subject", frame: "graph", collection: { id: "nodes" }, count: 0 };
+    case "edge":
+      return { kind, title: "Edges", note: "edges incident on this subject", frame: "graph", collection: { id: "edges" }, count: 0 };
+    case "abstract":
+      return { kind, title: "Abstract", note: "child categories directly under this subject", frame: "graph", collection: { id: "abstract" }, count: 0 };
+    case "step":
+      return { kind, title: "Steps", note: "steps that read this step", frame: "workflow", count: 0 };
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * A large contribution set is read at layer resolution: one linked box per kind
+ * instead of an unreadable field of boxes. A small set keeps every participant.
+ */
+function collapseContribution(model: ConstitutionModel): void {
+  const total =
+    model.graph.length +
+    model.relation.length +
+    model.bindings.length +
+    (model.workflow?.length ?? 0);
+  if (total <= CONTRIBUTION_LIMIT) return;
+
+  const groups = new Map<PurposeLevelKind, ContributionGroup>();
+  const add = (kind: PurposeLevelKind) => {
+    const group = groups.get(kind) ?? groupFor(kind);
+    if (!group) return;
+    group.count += 1;
+    groups.set(kind, group);
+  };
+  model.graph.forEach((node) => add(node.kind));
+  model.relation.forEach((relation) => add(relation.node.kind));
+  model.bindings.forEach(() => add("binding"));
+  (model.workflow ?? []).forEach((node) => add(node.kind));
+
+  const boxes: ConstitutionNode[] = [...groups.values()].map((group) => ({
+    kind: group.kind,
+    name: group.title,
+    label: "Collection",
+    meaning: EMPTY_MEANING,
+    detail: `${group.count}`,
+    text: group.note,
+    collection: group.collection,
+    frame: group.frame,
+  }));
+  model.graph = boxes;
+  model.relation = [];
+  model.bindings = [];
+  model.workflow = [];
+  model.note = undefined;
+}
+
+function abstractContributionNodes(
+  index: ViewerIndex,
+  name: string,
+): ConstitutionNode[] {
+  const nodes: ConstitutionNode[] = [];
+  for (const child of index.topologyNodes) {
+    if (child.parent?.[2] !== name) continue;
+    nodes.push(
+      contributionRecordNode(
+        index,
+        child.abstract ? "abstract" : "node",
+        child.name,
+      ),
+    );
+  }
+  for (const child of index.topologyEdges) {
+    if (child.parent?.[2] !== name) continue;
+    nodes.push(
+      contributionRecordNode(index, "edge", child.name, endpointsDetail(child)),
+    );
+  }
+  return nodes;
+}
+
+function stepNode(index: ViewerIndex, id: [string, string]): ConstitutionNode {
+  const step = index.stepsById.get(stepKey(id));
+  return {
+    kind: "step",
+    name: id[1],
+    label: "Step",
+    meaning: EMPTY_MEANING,
+    component: id[0],
+    stepId: id,
+    detail: step?.instruction.kind?.join(":") ?? undefined,
+    text: "Build step",
+    frame: "workflow",
+  };
+}
+
+/**
+ * One step's boundary: the steps that produce it (dependency) or the steps that
+ * read it (contribution). A workflow box carries no design meaning.
+ */
+export function stepBoundaryModel(
+  index: ViewerIndex,
+  subject: ConstitutionSubjectLike,
+  direction: "dependency" | "contribution",
+): ConstitutionModel {
+  const purpose = purposeFor(index, subject);
+  const key = subject.stepId ? stepKey(subject.stepId) : undefined;
+  const seen = new Set<string>();
+  const workflow: ConstitutionNode[] = [];
+  if (key) {
+    const connections =
+      direction === "dependency"
+        ? index.incomingByStepId.get(key) ?? []
+        : index.outgoingByStepId.get(key) ?? [];
+    for (const connection of connections) {
+      const id =
+        direction === "dependency"
+          ? connection.outputStepId
+          : connection.inputStepId;
+      const idKey = stepKey(id);
+      if (seen.has(idKey)) continue;
+      seen.add(idKey);
+      workflow.push(stepNode(index, id));
+    }
+  }
+  return {
+    direction,
+    purpose,
+    graph: [],
+    relation: [],
+    bindings: [],
+    workflow,
+    note:
+      direction === "dependency"
+        ? "No step produces what this step reads."
+        : "No step reads what this step produces.",
+  };
+}
+
+/**
+ * The immediate contribution of one participant: exactly one level above.
+ *
+ * An asset contributes its source relations; a relation contributes the derived
+ * relations that scan it and the bindings that read it directly; a binding
+ * contributes the record it writes; a node contributes its incident edges; a
+ * property contributes its owning record; an abstract participant contributes
+ * its immediate children; a step contributes its downstream steps.
+ */
+export function contributionModel(
+  index: ViewerIndex,
+  subject: ConstitutionSubjectLike,
+): ConstitutionModel {
+  const purpose = purposeFor(index, subject);
+  const model: ConstitutionModel = {
+    direction: "contribution",
+    purpose,
+    graph: [],
+    relation: [],
+    bindings: [],
+    note: "No contribution is declared.",
+  };
+
+  switch (subject.level) {
+    case "asset": {
+      for (const relation of index.relations) {
+        if (resolveAssetName(index, relation.name) !== subject.component) continue;
+        const axis = axisRelationFor(index, relation.name);
+        if (axis) {
+          model.relation.push({
+            node: relationNode(index, axis, false),
+            children: [],
+          });
+        }
+      }
+      model.note = "No source relation reads this asset.";
+      break;
+    }
+    case "relation":
+    case "projection": {
+      for (const projection of index.projections) {
+        if (projection.name === subject.component) continue;
+        if (
+          !relationNamesFromRowSource(projection.row_source).includes(
+            subject.component,
+          )
+        ) {
+          continue;
+        }
+        const axis = axisRelationFor(index, projection.name);
+        if (axis) {
+          model.relation.push({
+            node: relationNode(index, axis, false),
+            children: [],
+          });
+        }
+      }
+      for (const binding of index.bindings) {
+        if (
+          !relationNamesFromRowSource(binding.binding.rows).includes(
+            subject.component,
+          )
+        ) {
+          continue;
+        }
+        model.bindings.push(contributionBinding(index, binding));
+      }
+      model.note = "No derived relation or binding reads this relation.";
+      break;
+    }
+    case "binding": {
+      const binding = index.bindings.find(
+        (candidate) => candidate.index === subject.bindingIndex,
+      );
+      if (binding) {
+        model.graph.push(
+          contributionRecordNode(
+            index,
+            binding.kind,
+            binding.component,
+            identityDetail(binding),
+          ),
+        );
+      }
+      model.note = "This binding writes no record.";
+      break;
+    }
+    case "node": {
+      for (const edge of index.topologyEdges) {
+        if (edge.abstract) continue;
+        if (
+          edge.source?.[2] !== subject.component &&
+          edge.target?.[2] !== subject.component
+        ) {
+          continue;
+        }
+        model.graph.push(
+          contributionRecordNode(index, "edge", edge.name, endpointsDetail(edge)),
+        );
+      }
+      model.note = "No edge touches this node.";
+      break;
+    }
+    case "edge":
+      model.note = "An edge has no dependant: its endpoints are dependencies.";
+      break;
+    case "property": {
+      const ownerKind = index.topologyNodesByName.has(subject.component)
+        ? ("node" as const)
+        : ("edge" as const);
+      model.graph.push(contributionRecordNode(index, ownerKind, subject.component));
+      model.note = "No record owns this property.";
+      break;
+    }
+    case "abstract": {
+      model.graph.push(...abstractContributionNodes(index, subject.component));
+      model.note =
+        "No child category, node or edge sits directly under this category.";
+      break;
+    }
+    case "step":
+      return stepBoundaryModel(index, subject, "contribution");
+  }
+
+  collapseContribution(model);
+  return model;
 }

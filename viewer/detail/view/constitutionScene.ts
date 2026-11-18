@@ -15,6 +15,7 @@ import { graphlib, layout } from "@dagrejs/dagre";
 
 import type {
   ConstitutionBinding,
+  ConstitutionFrameId,
   ConstitutionModel,
   ConstitutionNode,
   ConstitutionRelation,
@@ -22,7 +23,7 @@ import type {
 
 export interface ConstitutionSceneNode {
   id: string;
-  axis: "purpose" | "binding" | "graph" | "relation";
+  axis: "purpose" | "binding" | "graph" | "relation" | "workflow";
   node: ConstitutionNode;
   /** The binding's purpose, shown instead of the node's own purpose. */
   text?: string;
@@ -57,9 +58,9 @@ export interface ConstitutionSceneNote {
   y: number;
 }
 
-/** One frame: the graph, relation or fulfilment group. */
+/** One frame: the graph, relation, fulfilment or workflow group. */
 export interface ConstitutionSceneFrame {
-  id: "graph" | "fulfilment" | "relation";
+  id: ConstitutionFrameId;
   x: number;
   y: number;
   width: number;
@@ -145,9 +146,14 @@ function layeredLayout(
   nodes: LayeredNode[],
   edges: LayeredEdge[],
   offset: { x: number; y: number } = { x: 0, y: 0 },
+  rankdir: "BT" | "LR" = RANKDIR,
 ): LayeredLayout {
   const graph = new graphlib.Graph();
-  graph.setGraph({ rankdir: RANKDIR, nodesep: NODE_SEP, ranksep: RANK_SEP });
+  graph.setGraph({
+    rankdir,
+    nodesep: rankdir === "LR" ? 48 : NODE_SEP,
+    ranksep: RANK_SEP,
+  });
   graph.setDefaultEdgeLabel(() => ({}));
   nodes.forEach((node) =>
     graph.setNode(node.id, { width: node.width, height: node.height }),
@@ -434,6 +440,7 @@ function buildRecordScene(model: ConstitutionModel): ConstitutionScene {
     id: "purpose",
     axis: "purpose",
     node: model.purpose,
+    ...(model.purpose.kind === "step" ? { hoverable: false } : {}),
     x: 0,
     y: 0,
     ...NODE.purpose,
@@ -445,6 +452,7 @@ function buildRecordScene(model: ConstitutionModel): ConstitutionScene {
     x: 0,
     y: 0,
     ...NODE.graph,
+    ...(node.collection ? { hoverable: false } : {}),
   }));
   const bindings = model.bindings.map(bindingNode);
   const provenance = relationProvenance(model.relation);
@@ -661,6 +669,7 @@ function buildComponentsScene(model: ConstitutionModel): ConstitutionScene {
     id: "purpose",
     axis: "purpose",
     node: model.purpose,
+    ...(model.purpose.kind === "step" ? { hoverable: false } : {}),
     x: 0,
     y: 0,
     ...NODE.purpose,
@@ -672,6 +681,7 @@ function buildComponentsScene(model: ConstitutionModel): ConstitutionScene {
     x: 0,
     y: 0,
     ...NODE.graph,
+    ...(node.collection ? { hoverable: false } : {}),
   }));
   const provenance = relationProvenance(model.relation);
   const relationNodes = [...provenance.nodes.values()].map(relationNode);
@@ -869,9 +879,358 @@ function buildComponentsScene(model: ConstitutionModel): ConstitutionScene {
   };
 }
 
+const FRAME_LABEL: Record<ConstitutionFrameId, string> = {
+  graph: "GRAPH",
+  fulfilment: "FULFILMENT",
+  relation: "RELATION",
+  workflow: "WORKFLOW",
+  layers: "LAYERS",
+};
+
+function frameIdForKind(kind: ConstitutionNode["kind"]): ConstitutionFrameId {
+  if (kind === "binding") return "fulfilment";
+  if (kind === "relation" || kind === "projection" || kind === "asset") {
+    return "relation";
+  }
+  if (kind === "step") return "workflow";
+  return "graph";
+}
+
+function frameIdForSceneNode(node: ConstitutionSceneNode): ConstitutionFrameId {
+  if (node.node.frame) return node.node.frame;
+  if (node.axis === "purpose") return frameIdForKind(node.node.kind);
+  if (node.axis === "binding") return "fulfilment";
+  if (node.axis === "relation") return "relation";
+  if (node.axis === "workflow") return "workflow";
+  return "graph";
+}
+
+function layerAxis(frame: ConstitutionFrameId | undefined): ConstitutionSceneNode["axis"] {
+  if (frame === "fulfilment") return "binding";
+  if (frame === "relation") return "relation";
+  if (frame === "workflow") return "workflow";
+  return "graph";
+}
+
+/**
+ * One boundary scene: the subject's purpose and one level of boxes, with the
+ * same box grammar, frames and layered routing as the constitution. The caller
+ * decides whether the edge enters the purpose (dependency) or the contribution
+ * boxes (contribution).
+ */
+function buildBoundaryScene(
+  model: ConstitutionModel,
+  nodes: ConstitutionSceneNode[],
+  links: LayeredEdge[],
+  entry: "target" | "purpose",
+  note?: string,
+  orientation: "vertical" | "horizontal" = "vertical",
+): ConstitutionScene {
+  const purpose = nodes.find((node) => node.id === "purpose");
+  if (!purpose) {
+    return {
+      nodes,
+      edges: [],
+      labels: [],
+      notes: [],
+      frames: [],
+      offset: { x: 0, y: 0 },
+      width: NODE.purpose.width,
+      height: NODE.purpose.height,
+    };
+  }
+  const horizontal = orientation === "horizontal";
+  const layered = layeredLayout(nodes, links, { x: 0, y: 0 }, horizontal ? "LR" : "BT");
+  nodes.forEach((node) => {
+    const position = layered.positions.get(node.id);
+    if (position) {
+      node.x = position.x;
+      node.y = position.y;
+    }
+  });
+  const positionedById = new Map(nodes.map((node) => [node.id, node]));
+
+  const purposeSources =
+    entry === "purpose"
+      ? nodes
+          .filter(
+            (node) =>
+              node.id !== purpose.id &&
+              links.some(
+                (link) => link.source === node.id && link.target === purpose.id,
+              ),
+          )
+          .sort((left, right) =>
+            horizontal ? left.y - right.y : left.x - right.x,
+          )
+      : [];
+  const span = horizontal ? purpose.height : purpose.width;
+  const spacing =
+    purposeSources.length > 1
+      ? Math.min(24, (span - 32) / (purposeSources.length - 1))
+      : 0;
+  const entryCentre = horizontal
+    ? purpose.y + purpose.height / 2
+    : purpose.x + purpose.width / 2;
+  const entryOffset = new Map(
+    purposeSources.map((source, index) => [
+      source.id,
+      entryCentre + (index - (purposeSources.length - 1) / 2) * spacing,
+    ]),
+  );
+
+  const edges: ConstitutionSceneEdge[] = [];
+  links.forEach((link) => {
+    const source = positionedById.get(link.source);
+    const target = positionedById.get(link.target);
+    if (!source || !target) return;
+    const routed = layered.paths.get(`${link.source}->${link.target}`);
+    if (!routed) return;
+    const path =
+      target.id === purpose.id
+        ? horizontal
+          ? moveEdgeEnd(
+              routed,
+              purpose.x,
+              entryOffset.get(source.id) ?? entryCentre,
+            )
+          : moveEdgeEnd(
+              routed,
+              entryOffset.get(source.id) ?? entryCentre,
+              purpose.y + purpose.height,
+            )
+        : horizontal
+          ? moveEdgeEnd(
+              routed,
+              target.x,
+              target.y + target.height / 2,
+            )
+          : moveEdgeEnd(
+              routed,
+              target.x + target.width / 2,
+              target.y + target.height,
+            );
+    edges.push({
+      id: `${link.source}->${link.target}`,
+      source: link.source,
+      target: link.target,
+      path,
+      head: edgeHead(path),
+    });
+  });
+
+  const groups = new Map<ConstitutionFrameId, ConstitutionSceneNode[]>();
+  for (const node of nodes) {
+    const id = frameIdForSceneNode(node);
+    groups.set(id, [...(groups.get(id) ?? []), node]);
+  }
+  const frames: ConstitutionSceneFrame[] = [];
+  const labels: ConstitutionSceneLabel[] = [];
+  for (const id of [
+    "graph",
+    "fulfilment",
+    "relation",
+    "workflow",
+    "layers",
+  ] as const) {
+    const members = groups.get(id);
+    if (!members?.length) continue;
+    const frame = frameFor(id, members);
+    if (!frame) continue;
+    frames.push(frame);
+    labels.push({
+      text: FRAME_LABEL[id],
+      x: frame.x + FRAME_LABEL_INSET,
+      y: frame.y + FRAME_LABEL_BASELINE,
+    });
+  }
+
+  const offset = {
+    x: Math.max(0, -Math.min(0, ...frames.map((frame) => frame.x))),
+    y: Math.max(0, -Math.min(0, ...frames.map((frame) => frame.y))),
+  };
+  const notes: ConstitutionSceneNote[] = [];
+  if (note) {
+    const lowest = nodes.reduce((lower, node) =>
+      node.y + node.height > lower.y + lower.height ? node : lower,
+    );
+    notes.push({
+      text: note,
+      x: lowest.x + lowest.width / 2,
+      y: lowest.y + lowest.height + NOTE_GAP,
+    });
+  }
+  const nodeMaxX = Math.max(...nodes.map((node) => node.x + node.width));
+  const nodeMaxY = Math.max(...nodes.map((node) => node.y + node.height));
+  const noteMaxX = notes.reduce(
+    (max, item) => Math.max(max, item.x + 180),
+    0,
+  );
+  const noteMaxY = notes.reduce(
+    (max, item) => Math.max(max, item.y + NOTE_HEIGHT),
+    0,
+  );
+  const contentMaxX = Math.max(
+    nodeMaxX,
+    noteMaxX,
+    ...frames.map((frame) => frame.x + frame.width),
+  );
+  const contentMaxY = Math.max(
+    nodeMaxY,
+    noteMaxY,
+    ...frames.map((frame) => frame.y + frame.height),
+  );
+  return {
+    nodes,
+    edges,
+    labels,
+    notes,
+    frames,
+    offset,
+    width: contentMaxX + offset.x,
+    height: contentMaxY + offset.y,
+  };
+}
+
+/** One level above the subject, in the same box grammar as the constitution. */
+function buildContributionScene(model: ConstitutionModel): ConstitutionScene {
+  const purpose: ConstitutionSceneNode = {
+    id: "purpose",
+    axis: "purpose",
+    node: model.purpose,
+    ...(model.purpose.kind === "step" ? { hoverable: false } : {}),
+    x: 0,
+    y: 0,
+    ...NODE.purpose,
+  };
+  const graphNodes: ConstitutionSceneNode[] = model.graph.map((node) => ({
+    id: sceneNodeId(node),
+    axis: "graph",
+    node,
+    x: 0,
+    y: 0,
+    ...NODE.graph,
+    ...(node.collection ? { hoverable: false } : {}),
+  }));
+  const relationNodes = model.relation.map((relation) =>
+    relationNode(relation.node),
+  );
+  const bindingNodes = model.bindings.map(bindingNode);
+  const workflowNodes: ConstitutionSceneNode[] = (model.workflow ?? []).map(
+    (node) => ({
+      id: sceneNodeId(node),
+      axis: "workflow",
+      node,
+      x: 0,
+      y: 0,
+      ...NODE.relation,
+      hoverable: false,
+    }),
+  );
+  const nodes = [
+    purpose,
+    ...graphNodes,
+    ...relationNodes,
+    ...bindingNodes,
+    ...workflowNodes,
+  ];
+  const links = nodes
+    .filter((node) => node.id !== purpose.id)
+    .map((node) => ({ source: purpose.id, target: node.id }));
+  return buildBoundaryScene(
+    model,
+    nodes,
+    links,
+    "target",
+    nodes.length > 1
+      ? undefined
+      : model.note ?? "No contribution is declared.",
+    "horizontal",
+  );
+}
+
+/** A workflow subject: the producing or consuming steps, one level only. */
+function buildWorkflowScene(model: ConstitutionModel): ConstitutionScene {
+  const purpose: ConstitutionSceneNode = {
+    id: "purpose",
+    axis: "purpose",
+    node: model.purpose,
+    hoverable: false,
+    x: 0,
+    y: 0,
+    ...NODE.purpose,
+  };
+  const workflowNodes: ConstitutionSceneNode[] = (model.workflow ?? []).map(
+    (node) => ({
+      id: sceneNodeId(node),
+      axis: "workflow",
+      node,
+      x: 0,
+      y: 0,
+      ...NODE.relation,
+      hoverable: false,
+    }),
+  );
+  const nodes = [purpose, ...workflowNodes];
+  const dependency = model.direction !== "contribution";
+  const links = workflowNodes.map((node) =>
+    dependency
+      ? { source: node.id, target: purpose.id }
+      : { source: purpose.id, target: node.id },
+  );
+  return buildBoundaryScene(
+    model,
+    nodes,
+    links,
+    dependency ? "purpose" : "target",
+    workflowNodes.length ? undefined : model.note,
+    "horizontal",
+  );
+}
+
+/** A collection's layer DAG, read as boxes instead of a list. */
+function buildLayerScene(model: ConstitutionModel): ConstitutionScene {
+  const purpose: ConstitutionSceneNode = {
+    id: "purpose",
+    axis: "purpose",
+    node: model.purpose,
+    hoverable: false,
+    x: 0,
+    y: 0,
+    ...NODE.purpose,
+  };
+  const layers: ConstitutionSceneNode[] = (model.layers ?? []).map((node) => ({
+    id: sceneNodeId(node),
+    axis: layerAxis(node.frame),
+    node,
+    x: 0,
+    y: 0,
+    ...NODE.graph,
+    hoverable: false,
+  }));
+  const nodes = [purpose, ...layers];
+  const links = model.layerEdges ?? [];
+  return buildBoundaryScene(
+    model,
+    nodes,
+    links,
+    model.direction === "contribution" ? "target" : "purpose",
+    layers.length
+      ? undefined
+      : model.note ||
+        (model.direction === "contribution"
+          ? "No layer depends on this collection."
+          : "No layer is below this collection."),
+    model.direction === "contribution" ? "horizontal" : "vertical",
+  );
+}
+
 export function buildConstitutionScene(
   model: ConstitutionModel,
 ): ConstitutionScene {
+  if (model.layers) return buildLayerScene(model);
+  if (model.purpose.kind === "step") return buildWorkflowScene(model);
+  if (model.direction === "contribution") return buildContributionScene(model);
   return isComponentsSubject(model.purpose.kind)
     ? buildComponentsScene(model)
     : buildRecordScene(model);

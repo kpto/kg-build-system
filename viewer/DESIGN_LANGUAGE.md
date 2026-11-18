@@ -76,38 +76,44 @@ Every item detail view follows one content contract, stated in
 
 ```text
 Banner: Overview
-Constitution → Meaning → Members → Connections → Bindings
+Constitution → Meaning → Contribution → Members → Connections → Bindings
 ```
 
 A binding document is the one exception to the record order:
 
 ```text
 Banner: Overview
-Constitution → Meaning → Expression → Build steps
+Constitution → Contribution → Meaning → Expression → Build steps
 ```
 
 A kind includes or omits a section; it never renames one for itself.
 
-A participant detail answers **dependency** and **dependant** only:
+A participant detail answers **constitution** and **contribution** only:
 
-- **Dependency** is the full chain below the subject, back to the asset.
-- **Dependant** is only the immediate level above the subject. An asset's
-  dependants are its source relations; a relation's are the derived relations
+- **Constitution** is the full chain below the subject, back to the asset.
+- **Contribution** is only the immediate level above the subject. An asset's
+  contribution is its source relations; a relation's is the derived relations
   that scan it and the bindings that read it directly; a binding's is the
-  record it writes; an abstract participant's are its immediate children.
+  record it writes; an abstract participant's is its immediate children; a
+  step's is the steps that read its outputs.
+
+Both directions use the same constitution DAG: the subject's purpose is the
+anchor, its constitution hangs below it and its contribution sits above it.
+When a contribution set is large, it is read at layer resolution: one linked
+layer box per kind.
 
 A **virtual collection** is a layer read as a group, not a declared subject. It
 has no Meaning card and uses the layer's concept mark. Its order is:
 
 ```text
 Banner: Collection
-Dependency → Dependant → Items → Coverage
+Constitution → Contribution → Items → Coverage
 ```
 
-Its Dependency is the full layer DAG below at layer resolution, with counts and
-collection links; its Dependant is one layer above; Items opens each
+Its Constitution is the full layer DAG below at layer resolution, with counts
+and collection links; its Contribution is one layer above; Items opens each
 participant; Coverage counts the layer. Assets have an explicit empty
-Dependency state: they are the origin.
+Constitution state: they are the origin.
 
 Every Explorer header is two targets: the **body** opens the collection and the
 **arrow** unfolds or folds the list. The body never toggles and the arrow never
@@ -127,13 +133,15 @@ opens a document. A workflow component header behaves the same way.
     its purpose over the source relations it scans and their assets. The purpose
     and the asset or scanned sources share one RELATION frame. Neither carries
     a binding or a graph axis.
-  - A binding shows its purpose over the target record (its purpose and
-    identity only) and the relations it reads with their provenance. Its purpose
-    is in the FULFILMENT frame, the target record in the GRAPH frame and the
-    relations in the RELATION frame. The record's graph ancestry belongs to the
+  - A binding shows its purpose over the relations it reads, with their
+    provenance. Its purpose is in the FULFILMENT frame and the relations in the
+    RELATION frame. Its target record (purpose and identity only) is its
+    Contribution, in the GRAPH frame. The record's graph ancestry belongs to the
     record's own constitution.
-  - Only GRAPH, RELATION and FULFILMENT frames exist, and every box sits inside
-    its corresponding frame.
+  - GRAPH, RELATION, FULFILMENT, WORKFLOW and LAYERS are the frame kinds, and
+    every box sits inside its corresponding frame. WORKFLOW frames
+    build-machinery subjects; LAYERS frames a collection's layer DAG; the three
+    design frames serve every participant.
   - An asset is the given source, so it has no Constitution card. A step is
     build machinery and has none either.
   When several arrows meet one box, their heads sit on a centred, evenly spaced

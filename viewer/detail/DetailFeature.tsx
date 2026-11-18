@@ -51,12 +51,10 @@ import {
 } from "@/proof/license";
 import { ConceptGlyph, ConceptMark } from "@/shared/ui/ConceptMark";
 import {
-  AbstractPill,
   BindingPill,
   EdgePill,
   NodePill,
   PropertyPill,
-  SourceRelationPill,
 } from "@/detail/view/ConceptPill";
 import { activeDocument, documentSelection } from "@/workbench/types";
 import type {
@@ -94,9 +92,11 @@ import {
   type ProofTypeChain,
 } from "@/proof/model";
 import { Constitution } from "@/detail/view/Constitution";
+import { ContributionSection } from "@/detail/view/Contribution";
 import { DesignMeaning } from "@/shared/design/DesignMeaning";
 import {
   constitutionModel,
+  contributionModel,
 } from "@/detail/model/constitution";
 import {
   attachedMeaning,
@@ -1669,78 +1669,6 @@ function ComponentProofView({
   );
 }
 
-function AbstractProofView({ model }: { model: ProofModel }) {
-  const abstract = model.abstract;
-  if (!abstract) {
-    return <DetailEmptyState>No abstract subject is available.</DetailEmptyState>;
-  }
-  const rows: MemberRow[] = abstract.children.map((child) => ({
-    key: `${child.kind}:${child.name}`,
-    cells: [
-      child.kind === "edge" ? (
-        <EdgePill key="child" name={child.name} />
-      ) : child.abstract ? (
-        <AbstractPill key="child" name={child.name} />
-      ) : (
-        <NodePill key="child" name={child.name} />
-      ),
-      child.abstract
-        ? child.kind === "edge"
-          ? "abstract edge"
-          : "abstract category"
-        : child.kind,
-      child.labels.join(", ") || "—",
-      `${child.properties.length}`,
-      child.description ?? "—",
-    ],
-  }));
-  return (
-    <div className={styles.levelBody}>
-      <DetailBand
-        title="Dependants"
-        question="Which participants depend on this category directly?"
-      >
-        <MemberTable
-          columns={["Dependant", "Kind", "Labels", "Properties", "Description"]}
-          template="minmax(150px, 0.9fr) 100px minmax(100px, 0.7fr) 66px minmax(170px, 1.5fr)"
-          rows={rows}
-          empty="No participant sits directly under this category."
-        />
-      </DetailBand>
-    </div>
-  );
-}
-
-function AssetProofView({ model }: { model: ProofModel }) {
-  const asset = model.asset;
-  if (!asset) {
-    return <DetailEmptyState>This asset is not present in the blueprint.</DetailEmptyState>;
-  }
-  const relationRows: MemberRow[] = asset.relations.map((row) => ({
-    key: `source:${row.name}`,
-    cells: [
-      <SourceRelationPill key="relation" name={row.name} />,
-      `${row.columns} columns`,
-      `${row.semantics.length} meanings`,
-    ],
-  }));
-  return (
-    <div className={styles.levelBody}>
-      <DetailBand
-        title="Dependants"
-        question="Which source relations depend on this asset?"
-      >
-        <MemberTable
-          columns={["Source relation", "Shape", "Meaning"]}
-          template="minmax(160px, 1.2fr) 90px minmax(90px, 0.8fr)"
-          rows={relationRows}
-          empty="No source relation reads this asset."
-        />
-      </DetailBand>
-    </div>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Editor export
 // ---------------------------------------------------------------------------
@@ -1956,6 +1884,10 @@ function SubjectDetailEditor(props: WorkspaceProps) {
     () => constitutionModel(index, model.subject),
     [index, model.subject],
   );
+  const contribution = useMemo(
+    () => contributionModel(index, model.subject),
+    [index, model.subject],
+  );
   const license = subjectLicense(index, model);
   const facts = useMemo(
     () => overviewFacts(index, model, license),
@@ -2018,63 +1950,14 @@ function SubjectDetailEditor(props: WorkspaceProps) {
   );
   const kindSection = (
     <>
-
       {model.level === "property" ? (
         <PropertyProofView model={model} />
-      ) : model.level === "asset" ? (
-        <AssetProofView model={model} />
-      ) : model.level === "abstract" ? (
-        <AbstractProofView model={model} />
-      ) : (
+      ) : model.level === "asset" || model.level === "abstract" ? null : (
         <ComponentProofView index={index} model={model} />
       )}
-
     </>
   );
-  const dependantSection =
-    model.level === "property" ? (
-      <DetailBand
-        concept="node"
-        title="Dependant"
-        question="Which record depends on this property?"
-        testId="detail-dependant"
-      >
-        <MemberTable
-          columns={["Record", "Kind", "Labels", "Properties"]}
-          template="minmax(160px, 1.2fr) 80px minmax(120px, 1fr) 80px"
-          rows={[
-            {
-              key: model.subject.component,
-              cells: [
-                index.topologyNodesByName.has(model.subject.component) ? (
-                  <NodePill
-                    key="owner"
-                    name={model.subject.component}
-                  />
-                ) : (
-                  <EdgePill
-                    key="owner"
-                    name={model.subject.component}
-                  />
-                ),
-                index.topologyNodesByName.has(model.subject.component)
-                  ? "node"
-                  : "edge",
-                (
-                  index.topologyComponentsByName.get(model.subject.component)
-                    ?.labels ?? []
-                ).join(", ") || "—",
-                `${
-                  index.topologyComponentsByName.get(model.subject.component)
-                    ?.properties?.length ?? 0
-                }`,
-              ],
-            },
-          ]}
-          empty="No record owns this property."
-        />
-      </DetailBand>
-    ) : null;
+  const contributionSection = <ContributionSection model={contribution} />;
   const bindingsSection = (
     <>
 
@@ -2100,7 +1983,7 @@ function SubjectDetailEditor(props: WorkspaceProps) {
     >
       {model.level === "asset" ? null : constitutionSection}
       {meaningSection}
-      {dependantSection}
+      {contributionSection}
       {kindSection}
       {bindingsSection}
     </DetailDocument>

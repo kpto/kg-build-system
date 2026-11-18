@@ -1,6 +1,9 @@
 import type { ConceptTarget } from "@/lib/concepts";
 import type { ViewerIndex } from "@/lib/types";
+import { COLLECTIONS, type CollectionId } from "./collections";
 import type { SubjectSelection } from "./types";
+
+const COLLECTION_IDS = new Set(Object.keys(COLLECTIONS));
 
 /** Where a concept pill navigates: a working surface or a subject document. */
 export type ConceptDestination =
@@ -83,6 +86,15 @@ export function selectionForConceptTarget(
   target: ConceptTarget,
   index?: ViewerIndex,
 ): SubjectSelection | undefined {
+  if (target.collection) {
+    if (!COLLECTION_IDS.has(target.collection)) return undefined;
+    return {
+      kind: "collection",
+      collection: target.collection as CollectionId,
+      component: target.component,
+      name: target.component,
+    };
+  }
   switch (target.concept) {
     case "asset":
       return {

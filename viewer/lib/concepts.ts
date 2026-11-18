@@ -26,6 +26,8 @@ export type ConceptKind =
 export interface ConceptTarget {
   concept: ConceptKind;
   name: string;
+  /** The virtual collection this target opens, when it is a layer box. */
+  collection?: string;
   /** The owner when a property, field or binding is not unique by name. */
   component?: string;
   /** The property name when the concept is a property. */

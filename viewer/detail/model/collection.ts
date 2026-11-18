@@ -9,6 +9,7 @@
  */
 
 import type { ConceptKind } from "@/lib/concepts";
+import type { PurposeLevelKind } from "@/shared/design/meaning";
 import { relationNamesFromRowSource, resolveAssetName } from "@/lib/indexes";
 import type { IndexedBinding, ViewerIndex } from "@/lib/types";
 import {
@@ -21,6 +22,12 @@ import {
   groupWorkflowRows,
   type WorkflowStepRow,
 } from "@/workflow/model/WorkflowViewModel";
+import {
+  EMPTY_MEANING,
+  type ConstitutionFrameId,
+  type ConstitutionModel,
+  type ConstitutionNode,
+} from "./constitution";
 
 export type CollectionAxisKind = "data" | "graph" | "workflow";
 
@@ -1039,4 +1046,126 @@ export function collectionModel(
     case "workflow":
       return workflowCollection(index, component);
   }
+}
+
+
+// ---------------------------------------------------------------------------
+// Layer DAGs
+// ---------------------------------------------------------------------------
+
+function layerKind(concept: ConceptKind): PurposeLevelKind {
+  switch (concept) {
+    case "table":
+      return "relation";
+    case "workflow":
+      return "step";
+    case "semantics":
+    case "field":
+      return "graph";
+    default:
+      return concept;
+  }
+}
+
+function layerFrame(concept: ConceptKind): ConstitutionFrameId {
+  return concept === "workflow" ? "workflow" : "layers";
+}
+
+function layerNode(layer: CollectionLayer): ConstitutionNode {
+  return {
+    kind: layerKind(layer.concept),
+    name: layer.title,
+    label: "Collection",
+    meaning: EMPTY_MEANING,
+    detail: `${layer.count} items`,
+    text: layer.note ?? `${layer.count} items in this layer`,
+    collection: layer.collection,
+    frame: layerFrame(layer.concept),
+  };
+}
+
+function collectionPurpose(model: CollectionModel): ConstitutionNode {
+  return {
+    kind: layerKind(model.concept),
+    name: model.title,
+    label: "Collection",
+    meaning: EMPTY_MEANING,
+    current: true,
+    detail: `${model.items.rows.length} items`,
+    text: `${model.items.rows.length} items · this collection`,
+    collection: { id: model.id, component: model.component },
+    component: model.component,
+    frame: layerFrame(model.concept),
+  };
+}
+
+/**
+ * Read a collection as the same DAG the participant pages use. The Constitution
+ * page chains the layers below the current layer; the Contribution page shows
+ * the one layer above. Both pages are layer boxes with counts and collection
+ * links, not item edges.
+ */
+export function collectionDagModel(
+  model: CollectionModel,
+  direction: "dependency" | "contribution",
+): ConstitutionModel {
+  const purpose = collectionPurpose(model);
+  const layers: ConstitutionNode[] = [];
+  const layerEdges: Array<{ source: string; target: string }> = [];
+  const seen = new Set<string>();
+
+  if (direction === "dependency") {
+    for (const axis of model.dependency.axes) {
+      let previous: ConstitutionNode | undefined;
+      for (const layer of axis.layers) {
+        if (layer.current) continue;
+        const node = layerNode(layer);
+        const id = `${node.kind}:${node.name}`;
+        if (!seen.has(id)) {
+          seen.add(id);
+          layers.push(node);
+        }
+        if (previous) {
+          layerEdges.push({
+            source: `${previous.kind}:${previous.name}`,
+            target: id,
+          });
+        }
+        previous = node;
+      }
+      if (previous) {
+        layerEdges.push({
+          source: `${previous.kind}:${previous.name}`,
+          target: "purpose",
+        });
+      }
+    }
+  } else {
+    for (const axis of model.dependants.axes) {
+      for (const layer of axis.layers) {
+        if (layer.count === 0) continue;
+        const node = layerNode(layer);
+        const id = `${node.kind}:${node.name}`;
+        if (!seen.has(id)) {
+          seen.add(id);
+          layers.push(node);
+        }
+        layerEdges.push({ source: "purpose", target: id });
+      }
+    }
+  }
+
+  return {
+    direction,
+    purpose,
+    graph: [],
+    relation: [],
+    bindings: [],
+    layers,
+    layerEdges,
+    note:
+      direction === "dependency"
+        ? model.dependency.empty
+        : model.dependants.empty,
+  };
 }

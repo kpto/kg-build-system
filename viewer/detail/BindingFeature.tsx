@@ -16,7 +16,11 @@ import {
   StepPill,
 } from "@/detail/view/ConceptPill";
 import { Constitution } from "@/detail/view/Constitution";
-import { constitutionModel } from "@/detail/model/constitution";
+import { ContributionSection } from "@/detail/view/Contribution";
+import {
+  constitutionModel,
+  contributionModel,
+} from "@/detail/model/constitution";
 import { DesignMeaning } from "@/shared/design/DesignMeaning";
 import { attachedMeaning } from "@/shared/design/meaning";
 import { activeDocument, documentSelection, type WorkspaceProps } from "@/workbench/types";
@@ -147,6 +151,19 @@ export function BindingEditor(props: WorkspaceProps) {
         ? constitutionModel(index, {
             level: "binding",
             component: binding.component,
+            name: binding.binding.name ?? `binding #${binding.index}`,
+            bindingIndex: binding.index,
+          })
+        : undefined,
+    [binding, index],
+  );
+  const contribution = useMemo(
+    () =>
+      binding
+        ? contributionModel(index, {
+            level: "binding",
+            component: binding.component,
+            name: binding.binding.name ?? `binding #${binding.index}`,
             bindingIndex: binding.index,
           })
         : undefined,
@@ -251,6 +268,10 @@ export function BindingEditor(props: WorkspaceProps) {
         >
           <Constitution model={constitution} />
         </DetailBand>
+      ) : null}
+
+      {contribution ? (
+        <ContributionSection model={contribution} />
       ) : null}
 
       {hasMeaning ? (

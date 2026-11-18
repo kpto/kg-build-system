@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import type {
-  ConstitutionModel,
-  ConstitutionNode,
-  ConstitutionRelation,
+import {
+  contributionModel,
+  type ConstitutionModel,
+  type ConstitutionNode,
+  type ConstitutionRelation,
 } from "../detail/model/constitution";
 import { buildConstitutionScene } from "../detail/view/constitutionScene";
 import type { ConstitutionScene } from "../detail/view/constitutionScene";
+import { contractIndex } from "./fixtures";
 
 const meaning = { claims: [], limitations: [], frames: [] };
 
@@ -405,5 +407,78 @@ describe("constitution scene for a produced subject", () => {
     expect(assetScene.notes.map((note) => note.text)).toEqual([
       "No component is declared.",
     ]);
+  });
+});
+
+describe("contribution scene", () => {
+  const inside = (
+    scene: ConstitutionScene,
+    frameId: ConstitutionScene["frames"][number]["id"],
+    nodeId: string,
+  ) => {
+    const frame = scene.frames.find((entry) => entry.id === frameId);
+    const entry = scene.nodes.find((candidate) => candidate.id === nodeId);
+    if (!frame || !entry) return false;
+    return (
+      entry.x >= frame.x &&
+      entry.y >= frame.y &&
+      entry.x + entry.width <= frame.x + frame.width &&
+      entry.y + entry.height <= frame.y + frame.height
+    );
+  };
+
+  it("puts a binding purpose in FULFILMENT and its record in GRAPH", () => {
+    const scene = buildConstitutionScene(
+      contributionModel(contractIndex, {
+        level: "binding",
+        component: "defect",
+        bindingIndex: 0,
+      }),
+    );
+    expect(scene.frames.map((frame) => frame.id).sort()).toEqual([
+      "fulfilment",
+      "graph",
+    ]);
+    expect(inside(scene, "fulfilment", "purpose")).toBe(true);
+    expect(inside(scene, "graph", "node:defect")).toBe(true);
+    expect(
+      scene.nodes.every((entry) =>
+        scene.frames.some(
+          (frame) =>
+            entry.x >= frame.x &&
+            entry.y >= frame.y &&
+            entry.x + entry.width <= frame.x + frame.width &&
+            entry.y + entry.height <= frame.y + frame.height,
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it("puts a relation purpose in RELATION and its bindings in FULFILMENT", () => {
+    const scene = buildConstitutionScene(
+      contributionModel(contractIndex, {
+        level: "relation",
+        component: "surveys",
+      }),
+    );
+    expect(scene.frames.map((frame) => frame.id).sort()).toEqual([
+      "fulfilment",
+      "relation",
+    ]);
+    expect(inside(scene, "relation", "purpose")).toBe(true);
+    expect(inside(scene, "fulfilment", "binding:0")).toBe(true);
+  });
+
+  it("puts a step boundary in a WORKFLOW frame", () => {
+    const scene = buildConstitutionScene(
+      contributionModel(contractIndex, {
+        level: "step",
+        component: "duckdb",
+        name: "source.surveys",
+        stepId: ["duckdb", "source.surveys"],
+      }),
+    );
+    expect(scene.frames.map((frame) => frame.id)).toEqual(["workflow"]);
+    expect(scene.labels.map((label) => label.text)).toEqual(["WORKFLOW"]);
   });
 });

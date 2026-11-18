@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { collectionModel } from "../detail/model/collection";
+import {
+  collectionDagModel,
+  collectionModel,
+} from "../detail/model/collection";
+import { buildConstitutionScene } from "../detail/view/constitutionScene";
 import { contractIndex } from "./fixtures";
 
 const index = contractIndex;
@@ -80,6 +84,60 @@ describe("virtual collection model", () => {
     expect(
       model.dependants.axes.flatMap((axis) => axis.layers).map((layer) => layer.title),
     ).toEqual(["core"]);
+  });
+
+  it("reads a collection's layers as a constitution DAG", () => {
+    const collection = collectionModel(index, "derivedRelations");
+    const dag = collectionDagModel(collection, "dependency");
+    expect(dag.direction).toBe("dependency");
+    expect(dag.layers?.map((layer) => layer.name)).toEqual([
+      "Assets",
+      "Source relations",
+    ]);
+    expect(dag.layerEdges).toEqual([
+      { source: "asset:Assets", target: "relation:Source relations" },
+      { source: "relation:Source relations", target: "purpose" },
+    ]);
+    const scene = buildConstitutionScene(dag);
+    expect(scene.frames.map((frame) => frame.id)).toEqual(["layers"]);
+    for (const node of scene.nodes) {
+      expect(
+        scene.frames.some(
+          (frame) =>
+            node.x >= frame.x &&
+            node.y >= frame.y &&
+            node.x + node.width <= frame.x + frame.width &&
+            node.y + node.height <= frame.y + frame.height,
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("reads one layer above a collection as its contribution DAG", () => {
+    const collection = collectionModel(index, "sourceRelations");
+    const dag = collectionDagModel(collection, "contribution");
+    expect(dag.direction).toBe("contribution");
+    expect(dag.layers?.map((layer) => layer.name)).toEqual([
+      "Derived relations",
+      "Bindings",
+    ]);
+    expect(dag.layerEdges?.every((edge) => edge.source === "purpose")).toBe(
+      true,
+    );
+    expect(dag.layers?.[0].collection).toEqual({ id: "derivedRelations" });
+  });
+
+  it("states that assets are the origin in the collection constitution", () => {
+    const dag = collectionDagModel(
+      collectionModel(index, "assets"),
+      "dependency",
+    );
+    expect(dag.layers).toEqual([]);
+    expect(dag.note).toContain("origin");
+    const scene = buildConstitutionScene(dag);
+    expect(scene.notes.map((note) => note.text)).toContain(
+      "Assets are the origin. No layer is below an asset.",
+    );
   });
 
   it("lists workflow components as a collection of component groups", () => {

@@ -7,21 +7,13 @@ import {
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from "react";
-import {
-  ArrowDownLeft,
-  ArrowUpRight,
-  RotateCcw,
-  Search,
-} from "lucide-react";
+import { RotateCcw, Search } from "lucide-react";
 
-import type {
-  NormalizedConnection,
-  StepId,
-  ViewerIndex,
-  WorkflowStep,
-} from "@/lib/types";
+import type { StepId, ViewerIndex, WorkflowStep } from "@/lib/types";
 import { stepKey } from "@/lib/indexes";
 import { DetailBand, DetailDocument } from "@/detail/view/DetailChrome";
+import { Constitution } from "@/detail/view/Constitution";
+import { stepBoundaryModel } from "@/detail/model/constitution";
 import { ContextMenu } from "@/shared/ui/ContextMenu";
 import { Control, Empty, Field, Input, Label, Meta, Select } from "@/shared/ui/Primitives";
 import { useGraphViewport } from "@/shared/ui/GraphCanvas";
@@ -237,72 +229,6 @@ function Openings({
   );
 }
 
-function ConnectionLine({
-  connection,
-  direction,
-}: {
-  connection: NormalizedConnection;
-  direction: "in" | "out";
-}) {
-  const other =
-    direction === "in" ? connection.outputStepId : connection.inputStepId;
-  const local = direction === "in" ? connection.input : connection.output;
-  const remote = direction === "in" ? connection.output : connection.input;
-  const Icon = direction === "in" ? ArrowDownLeft : ArrowUpRight;
-  return (
-    <div
-      className="flex min-w-0 items-baseline gap-2 border-b border-line-soft/50 py-1 last:border-b-0"
-      data-testid="workflow-connection"
-    >
-      <Icon
-        aria-hidden
-        className={cx(
-          "size-3 shrink-0",
-          direction === "in" ? "text-source" : "text-target",
-        )}
-      />
-      <span className="min-w-0 flex-1 truncate font-mono text-[length:var(--text-md)] text-text">
-        {formatStepId(other)}
-      </span>
-      <span className="min-w-0 max-w-[42%] shrink-0 truncate font-mono text-[length:var(--text-xs)] text-faint">
-        {formatOpening(remote.opening)} → {formatOpening(local.opening)}
-      </span>
-    </div>
-  );
-}
-
-function ConnectionLedger({
-  connections,
-  direction,
-  empty,
-}: {
-  connections: NormalizedConnection[];
-  direction: "in" | "out";
-  empty: string;
-}) {
-  if (!connections.length) {
-    return (
-      <p className="text-[length:var(--text-base)] text-faint">{empty}</p>
-    );
-  }
-  return (
-    <div className="border border-line-soft bg-panel px-2">
-      {connections.slice(0, 24).map((connection) => (
-        <ConnectionLine
-          key={connection.id}
-          connection={connection}
-          direction={direction}
-        />
-      ))}
-      {connections.length > 24 ? (
-        <p className="py-1 font-mono text-[length:var(--text-xs)] text-faint">
-          showing 24 of {connections.length}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
 function DetailSubhead({ children }: { children: ReactNode }) {
   return (
     <h3 className="mb-1.5 text-[length:var(--text-sm)] font-semibold tracking-[0.08em] text-faint uppercase">
@@ -324,6 +250,14 @@ function StepDetail({
   const bindings = index.bindings.filter(
     (binding) => binding.step && stepKey(binding.step.id) === key,
   );
+  const subject = {
+    level: "step",
+    component: step.id[0],
+    name: step.id[1],
+    stepId: step.id,
+  };
+  const constitution = stepBoundaryModel(index, subject, "dependency");
+  const contribution = stepBoundaryModel(index, subject, "contribution");
 
   return (
     <DetailDocument
@@ -350,27 +284,21 @@ function StepDetail({
 
 
       <DetailBand
-        concept="step"
-        title="Dependency"
+        concept="semantics"
+        title="Constitution"
         question="Which steps produce what this step reads?"
+        testId="step-constitution"
       >
-        <ConnectionLedger
-          connections={incoming}
-          direction="in"
-          empty="This step has no inputs."
-        />
+        <Constitution model={constitution} />
       </DetailBand>
 
       <DetailBand
-        concept="step"
-        title="Dependant"
+        concept="graph"
+        title="Contribution"
         question="Which steps read what this step produces?"
+        testId="step-contribution"
       >
-        <ConnectionLedger
-          connections={outgoing}
-          direction="out"
-          empty="This step has no outputs."
-        />
+        <Constitution model={contribution} label="Contribution" />
       </DetailBand>
 
       <DetailBand

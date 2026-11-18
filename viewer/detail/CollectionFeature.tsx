@@ -3,21 +3,22 @@
 /**
  * A virtual collection document: one layer read as a group.
  *
- * The pages are Dependency (the layer DAG below), Dependant (one layer above),
- * Items (the members of the layer) and Coverage. A collection has no Meaning
- * page: it declares no purpose of its own.
+ * The pages are Constitution (the layer DAG below, drawn with the same DAG as a
+ * participant), Contribution (one layer above), Items (the members of the
+ * layer) and Coverage. A collection has no Meaning page: it declares no purpose
+ * of its own.
  */
 
 import { useMemo } from "react";
 
-import type { ConceptKind } from "@/lib/concepts";
 import { ConceptGlyph } from "@/shared/ui/ConceptMark";
 import { ConceptPill } from "@/detail/view/ConceptPill";
+import { Constitution } from "@/detail/view/Constitution";
 import { activeDocument, documentSelection, type WorkspaceProps } from "@/workbench/types";
 import {
+  collectionDagModel,
   collectionModel,
   type CollectionItem,
-  type CollectionLayer,
   type CollectionRef,
 } from "./model/collection";
 import {
@@ -26,13 +27,9 @@ import {
   MemberTable,
   type MemberRow,
 } from "./view/DetailChrome";
-import { cx } from "@/shared/ui/theme";
 import styles from "./detail.module.css";
 
-function openCollection(
-  props: WorkspaceProps,
-  ref: CollectionRef,
-): void {
+function openCollection(props: WorkspaceProps, ref: CollectionRef): void {
   props.actions.openTab({
     selection: {
       kind: "collection",
@@ -42,77 +39,6 @@ function openCollection(
     },
     preview: true,
   });
-}
-
-function LayerRow({
-  layer,
-  onOpen,
-}: {
-  layer: CollectionLayer;
-  onOpen(ref: CollectionRef): void;
-}) {
-  const content = (
-    <>
-      <span className={styles.layerRail} aria-hidden>
-        <span className={styles.layerDot} data-current={layer.current ? "true" : undefined} />
-      </span>
-      <ConceptGlyph concept={layer.concept} className={styles.layerMark} />
-      <span className={styles.layerBody}>
-        <span className={styles.layerTitle}>{layer.title}</span>
-        {layer.note ? <span className={styles.layerNote}>{layer.note}</span> : null}
-      </span>
-      <span className={styles.layerCount}>{layer.count}</span>
-    </>
-  );
-
-  if (layer.collection && !layer.current) {
-    return (
-      <li className={styles.layerItem}>
-        <button
-          type="button"
-          className={cx(styles.layerRow, styles.layerButton)}
-          data-current={layer.current ? "true" : undefined}
-          onClick={() => onOpen(layer.collection as CollectionRef)}
-          title={`Open the ${layer.title} collection`}
-        >
-          {content}
-        </button>
-      </li>
-    );
-  }
-
-  return (
-    <li className={styles.layerItem}>
-      <div
-        className={styles.layerRow}
-        data-current={layer.current ? "true" : undefined}
-      >
-        {content}
-      </div>
-    </li>
-  );
-}
-
-function LayerAxis({
-  title,
-  layers,
-  onOpen,
-}: {
-  title: string;
-  layers: CollectionLayer[];
-  onOpen(ref: CollectionRef): void;
-}) {
-  if (!layers.length) return null;
-  return (
-    <div className={styles.layerAxis}>
-      <p className={styles.layerAxisTitle}>{title}</p>
-      <ol className={styles.layerList}>
-        {layers.map((layer) => (
-          <LayerRow key={layer.key} layer={layer} onOpen={onOpen} />
-        ))}
-      </ol>
-    </div>
-  );
 }
 
 function ItemLabel({
@@ -148,19 +74,6 @@ function ItemLabel({
   );
 }
 
-function conceptForBand(kind: string): ConceptKind {
-  switch (kind) {
-    case "dependency":
-      return "graph";
-    case "dependant":
-      return "edge";
-    case "items":
-      return "node";
-    default:
-      return "semantics";
-  }
-}
-
 export function CollectionEditor(props: WorkspaceProps) {
   const selection = documentSelection(activeDocument(props.state));
   const id = selection?.collection ?? "assets";
@@ -168,6 +81,14 @@ export function CollectionEditor(props: WorkspaceProps) {
   const model = useMemo(
     () => collectionModel(props.state.index, id, component),
     [props.state.index, id, component],
+  );
+  const constitution = useMemo(
+    () => collectionDagModel(model, "dependency"),
+    [model],
+  );
+  const contribution = useMemo(
+    () => collectionDagModel(model, "contribution"),
+    [model],
   );
 
   const open = (ref: CollectionRef) => openCollection(props, ref);
@@ -187,47 +108,21 @@ export function CollectionEditor(props: WorkspaceProps) {
       facts={model.facts}
     >
       <DetailBand
-        concept={conceptForBand("dependency")}
-        title="Dependency"
+        concept={model.concept}
+        title="Constitution"
         question="How does this collection come to be?"
-        testId="collection-dependency"
+        testId="collection-constitution"
       >
-        {model.dependency.axes.length ? (
-          <div className={styles.layerAxes}>
-            {model.dependency.axes.map((entry) => (
-              <LayerAxis
-                key={entry.axis}
-                title={entry.label}
-                layers={entry.layers}
-                onOpen={open}
-              />
-            ))}
-          </div>
-        ) : (
-          <p className={styles.coverageReading}>{model.dependency.empty}</p>
-        )}
+        <Constitution model={constitution} />
       </DetailBand>
 
       <DetailBand
-        concept={conceptForBand("dependant")}
-        title="Dependant"
+        concept="graph"
+        title="Contribution"
         question="Which layer depends on this collection?"
-        testId="collection-dependant"
+        testId="collection-contribution"
       >
-        {model.dependants.axes.length ? (
-          <div className={styles.layerAxes}>
-            {model.dependants.axes.map((entry) => (
-              <LayerAxis
-                key={entry.axis}
-                title={entry.label}
-                layers={entry.layers}
-                onOpen={open}
-              />
-            ))}
-          </div>
-        ) : (
-          <p className={styles.coverageReading}>{model.dependants.empty}</p>
-        )}
+        <Constitution model={contribution} label="Contribution" />
       </DetailBand>
 
       <DetailBand
@@ -245,7 +140,7 @@ export function CollectionEditor(props: WorkspaceProps) {
       </DetailBand>
 
       <DetailBand
-        concept={conceptForBand("coverage")}
+        concept="semantics"
         title="Coverage"
         question="How complete is this collection?"
         testId="collection-coverage"

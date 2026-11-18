@@ -11,18 +11,15 @@ import {
 import type { ProjectionDTO, RelationDTO, ViewerIndex } from "@/lib/types";
 import { effectiveLicense } from "@/proof/license";
 import { Constitution } from "@/detail/view/Constitution";
+import { ContributionSection } from "@/detail/view/Contribution";
 import { DesignMeaning } from "@/shared/design/DesignMeaning";
 import {
   constitutionModel,
+  contributionModel,
 } from "@/detail/model/constitution";
 import { attachedMeaning } from "@/shared/design/meaning";
 import { ConceptGlyph } from "@/shared/ui/ConceptMark";
-import {
-  AssetPill,
-  BindingPill,
-  DerivedRelationPill,
-  FieldPill,
-} from "@/detail/view/ConceptPill";
+import { AssetPill, FieldPill } from "@/detail/view/ConceptPill";
 import { activeDocument, documentSelection, type WorkspaceProps } from "@/workbench/types";
 import {
   DetailBand,
@@ -35,22 +32,6 @@ import styles from "./detail.module.css";
 import { fieldDefinitionDetail, fieldDescription, recordSummary } from "@/lib/summary";
 
 type DataItemKind = "relation" | "projection";
-
-/** Derived relations that scan this relation directly, one level above. */
-function derivedDependants(index: ViewerIndex, name: string) {
-  return index.projections.filter(
-    (projection) =>
-      projection.name !== name &&
-      relationNamesFromRowSource(projection.row_source).includes(name),
-  );
-}
-
-/** Bindings that read this relation directly, not through another relation. */
-function directBindings(index: ViewerIndex, name: string) {
-  return index.bindings.filter((binding) =>
-    relationNamesFromRowSource(binding.binding.rows).includes(name),
-  );
-}
 
 export function DataItemEditor(props: WorkspaceProps) {
   const index = props.state.index;
@@ -81,15 +62,6 @@ export function DataItemEditor(props: WorkspaceProps) {
 
   const concept = kind === "relation" ? "table" : "projection";
   const license = effectiveLicense(index, model.assetName ? [model.assetName] : []);
-  const derived = useMemo(
-    () => derivedDependants(index, model.name),
-    [index, model.name],
-  );
-  const bindings = useMemo(
-    () => directBindings(index, model.name),
-    [index, model.name],
-  );
-
   const facts: DetailFact[] = [
     {
       label: "Asset",
@@ -140,37 +112,6 @@ export function DataItemEditor(props: WorkspaceProps) {
         : "reads the source",
     ],
   }));
-  const dependantRows: MemberRow[] = [
-    ...derived.map((projection) => ({
-      key: `derived:${projection.name}`,
-      cells: [
-        <DerivedRelationPill
-          key="dependant"
-          name={projection.name}
-          component={projection.name}
-        />,
-        "derived relation",
-        `${projection.columns?.length ?? 0} columns`,
-        "scans this relation",
-      ],
-    })),
-    ...bindings.map((binding) => ({
-      key: `binding:${binding.index}`,
-      cells: [
-        <BindingPill
-          key="dependant"
-          name={binding.binding.name ?? `binding #${binding.index}`}
-          component={binding.component}
-          ownerConcept={binding.kind}
-          bindingIndex={binding.index}
-        />,
-        "binding",
-        binding.component,
-        "reads this relation directly",
-      ],
-    })),
-  ];
-
   const meaning = attachedMeaning(model.semantics);
   const constitution = useMemo(
     () => constitutionModel(index, { level: kind, component: model.name }),
@@ -221,20 +162,11 @@ export function DataItemEditor(props: WorkspaceProps) {
       </DetailBand>
 
   );
-  const dependantsSection = (
-      <DetailBand
-        concept={kind === "relation" ? "table" : "projection"}
-        title="Dependants"
-        question="Which layer depends on this relation?"
-      >
-        <MemberTable
-          columns={["Dependant", "Kind", "Detail", "Relation"]}
-          template="minmax(170px, 1.3fr) 100px minmax(120px, 1fr) minmax(120px, 1fr)"
-          rows={dependantRows}
-          empty="No derived relation or binding reads this relation directly."
-        />
-      </DetailBand>
+  const contribution = useMemo(
+    () => contributionModel(index, { level: kind, component: model.name }),
+    [index, kind, model.name],
   );
+  const contributionSection = <ContributionSection model={contribution} />;
 
   return (
     <DetailDocument
@@ -248,7 +180,7 @@ export function DataItemEditor(props: WorkspaceProps) {
       {constitutionSection}
       {meaningSection}
       {membersSection}
-      {dependantsSection}
+      {contributionSection}
     </DetailDocument>
   );
 }

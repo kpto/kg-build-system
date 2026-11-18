@@ -9,6 +9,8 @@ import styles from "./ConceptPill.module.css";
 export interface ConceptPillProps {
   concept: ConceptKind;
   name: string;
+  /** The virtual collection this pill opens, when it is a layer. */
+  collection?: string;
   /** The owner when a property, field or binding is not unique by name. */
   component?: string;
   /** The property name when the concept is a property. */
@@ -34,6 +36,7 @@ export interface ConceptPillProps {
 export function ConceptPill({
   concept,
   name,
+  collection,
   component,
   property,
   ownerConcept,
@@ -58,6 +61,7 @@ export function ConceptPill({
   const target: ConceptTarget = {
     concept,
     name,
+    ...(collection ? { collection } : {}),
     ...(component ? { component } : {}),
     ...(property ? { property } : {}),
     ...(ownerConcept ? { ownerConcept } : {}),
