@@ -151,4 +151,3 @@ class DevSession:
                 process.stdout.close()
         except OSError:
             pass
-
