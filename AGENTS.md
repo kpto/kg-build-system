@@ -210,10 +210,13 @@ missing, not the code.
   adjustable, persisted split. An automatic reveal is one-shot: an explicit
   collapse wins until the context changes again.
   Single-click navigation reuses one preview tab; only an explicit open pins a
-  permanent tab. Inspection is transient and never opens a document; a document
-  opens only on an explicit action and must show content that inspection does
-  not. A navigation row must open the document it names; a facet without its own
-  document level belongs inside its owner's document. Selection changes state,
+  permanent tab. One subject has one document: navigation from any surface
+  opens or activates the same tab, and identity ignores display-only fields such
+  as a redundant name. Inspection is transient and never opens a document; a
+  document opens only on an explicit action and must show content that
+  inspection does not. A navigation row must open the document it names; a
+  facet without its own document level belongs inside its owner's document.
+  Selection changes state,
   not geometry: selecting an item never pans, zooms or reflows the view; only an
   explicit fit, zoom or navigation control moves it. Selection and expansion are
   distinct: selecting an item never enters a group; entering requires an
