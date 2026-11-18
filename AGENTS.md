@@ -307,6 +307,8 @@ missing, not the code.
   connections and bindings. A binding document leads with its constitution,
   then meaning when present, expression and build steps; a record reaches the
   computation through its bindings.
+- A card exists only when it has content for the subject. A section that does
+  not apply to the kind is omitted, not shown as a card that says so.
 - A participant detail states its full constitution and only the immediate
   contribution. A page that lists two levels up is wrong even when its rows are
   true. Constitution is the chain below, back to the asset; contribution is the
