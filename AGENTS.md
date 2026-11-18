@@ -215,7 +215,8 @@ missing, not the code.
   navigation from any surface opens or activates the same tab, and identity
   ignores display-only fields such as a redundant name. Back and forward walk
   the view stack, not tab identity: each entry is a document view, and a view
-  whose tab was closed is reopened when navigation reaches it. Inspection is
+  whose tab was closed is reopened in the preview slot when navigation reaches
+  it, never resurrected as permanent. Inspection is
   transient and never opens a document; a document opens only on an explicit
   action and must show content that inspection does not. A navigation row must
   open the document it names; a facet without its own document level belongs
