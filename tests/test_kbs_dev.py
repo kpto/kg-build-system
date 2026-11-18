@@ -144,6 +144,27 @@ def test_session_rejects_a_non_port_first_line(tmp_path: Path) -> None:
     session.stop()
 
 
+def test_session_reports_an_existing_next_server(tmp_path: Path) -> None:
+    script = tmp_path / "collision.py"
+    script.write_text(
+        "print(12345, flush=True)\n"
+        "print('- Local: http://127.0.0.1:39673')\n"
+        "print('Another next dev server is already running.')\n"
+        "print('You can access the existing server at http://127.0.0.1:39673,')\n"
+        "raise SystemExit(1)\n",
+        encoding="utf-8",
+    )
+    session = DevSession()
+    with pytest.raises(RuntimeError, match="already running at http://127.0.0.1:39673; stop"):
+        session.start(
+            "viewer",
+            f"{sys.executable} {script}",
+            tmp_path,
+            health_path="/",
+        )
+    session.stop()
+
+
 def test_bind_tries_the_next_port(monkeypatch, tmp_path: Path) -> None:
     probe = socket.socket()
     probe.bind(("127.0.0.1", 0))

@@ -78,3 +78,8 @@ only sees the `kbs` origin.
 Child processes run in their own process group and are stopped on SIGINT or
 SIGTERM. If either command fails before printing a port or becoming healthy,
 `kbs` stops the other and exits non-zero.
+
+Run one kbs dev session per framework checkout. The viewer and console commands
+share the viewer app, and Next refuses a second dev server for the same app. A
+second `kbs ... --dev` reports the existing server URL instead of starting a
+duplicate.

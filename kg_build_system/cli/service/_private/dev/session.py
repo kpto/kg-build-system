@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
 import os
+import re
 import signal
 import subprocess
 import threading
@@ -56,11 +58,13 @@ class DevSession:
         process = _popen(command, cwd)
         ready = threading.Event()
         state: dict[str, object] = {"port": None, "error": None}
+        recent: deque[str] = deque(maxlen=20)
 
         def read() -> None:
             try:
                 for line in process.stdout or ():
                     text = line.strip()
+                    recent.append(text)
                     if state["port"] is None and state["error"] is None:
                         try:
                             port = int(text)
@@ -105,8 +109,17 @@ class DevSession:
         while time.monotonic() < deadline:
             if process.poll() is not None:
                 self._stop_one(process)
+                output = "\n".join(line for line in recent if line)
+                if "Another next dev server is already running" in output:
+                    existing = re.search(r"existing server at (http://[^\s,]+)", output)
+                    where = f" at {existing.group(1)}" if existing else ""
+                    raise RuntimeError(
+                        f"{role} dev server is already running{where}; stop the "
+                        "existing Next dev server or kbs dev session first"
+                    )
                 raise RuntimeError(
                     f"{role} exited with {process.returncode} before becoming ready"
+                    + (f"\n{output}" if output else "")
                 )
             try:
                 with urllib.request.urlopen(url, timeout=1) as response:
@@ -118,7 +131,11 @@ class DevSession:
             except (urllib.error.URLError, OSError):
                 time.sleep(0.2)
         self._stop_one(process)
-        raise RuntimeError(f"{role} did not answer {url} within {HEALTH_TIMEOUT:.0f}s")
+        output = "\n".join(line for line in recent if line)
+        raise RuntimeError(
+            f"{role} did not answer {url} within {HEALTH_TIMEOUT:.0f}s"
+            + (f"\n{output}" if output else "")
+        )
 
     def stop(self) -> None:
         for server in reversed(self.servers):
