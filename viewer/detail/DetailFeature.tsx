@@ -51,8 +51,8 @@ import {
 } from "@/proof/license";
 import { ConceptGlyph, ConceptMark } from "@/shared/ui/ConceptMark";
 import {
+  AbstractPill,
   BindingPill,
-  DerivedRelationPill,
   EdgePill,
   NodePill,
   PropertyPill,
@@ -75,6 +75,8 @@ import {
 } from "./view/DetailChrome";
 import { DataItemEditor } from "./DataItemFeature";
 import { BindingEditor } from "./BindingFeature";
+import { CollectionEditor } from "./CollectionFeature";
+import { COLLECTIONS, type CollectionId } from "@/workbench/collections";
 import { ContextMenu } from "@/shared/ui/ContextMenu";
 import { laneColor } from "@/shared/ui/theme";
 import {
@@ -240,33 +242,51 @@ function SideSection({
   title,
   count,
   open,
+  active,
   onToggle,
+  onOpen,
   children,
 }: {
   id: string;
   title: string;
   count: number;
   open: boolean;
+  active?: boolean;
   onToggle(id: string): void;
+  onOpen(id: string): void;
   children: ReactNode;
 }) {
   return (
     <section className={styles.sideSection}>
-      <button
-        type="button"
+      <div
         className={styles.sideSectionHead}
-        aria-expanded={open}
-        onClick={() => onToggle(id)}
-        data-testid={`explorer-group-${id}`}
+        data-active={active ? "true" : undefined}
       >
-        {open ? (
-          <ChevronDown aria-hidden className={styles.sideChevron} />
-        ) : (
-          <ChevronRight aria-hidden className={styles.sideChevron} />
-        )}
-        <span>{title}</span>
-        <span className={styles.sideCount}>{count}</span>
-      </button>
+        <button
+          type="button"
+          className={styles.sideSectionTitle}
+          onClick={() => onOpen(id)}
+          data-testid={`explorer-group-${id}`}
+          title={`Open the ${title} collection`}
+        >
+          <span>{title}</span>
+          <span className={styles.sideCount}>{count}</span>
+        </button>
+        <button
+          type="button"
+          className={styles.sideSectionToggle}
+          aria-expanded={open}
+          aria-label={`${open ? "Collapse" : "Expand"} ${title}`}
+          onClick={() => onToggle(id)}
+          data-testid={`explorer-group-${id}-toggle`}
+        >
+          {open ? (
+            <ChevronDown aria-hidden className={styles.sideChevron} />
+          ) : (
+            <ChevronRight aria-hidden className={styles.sideChevron} />
+          )}
+        </button>
+      </div>
       {open ? <div className={styles.sideSectionBody}>{children}</div> : null}
     </section>
   );
@@ -459,6 +479,32 @@ export function ExplorerSidebar(props: WorkspaceProps) {
       preview,
     });
   };
+  const sectionCollection = (id: string): CollectionId =>
+    id === "tables"
+      ? "sourceRelations"
+      : id === "projections"
+        ? "derivedRelations"
+        : (id as CollectionId);
+  const openCollection = (id: string, component?: string) => {
+    const collection = sectionCollection(id);
+    props.actions.openTab({
+      selection: {
+        kind: "collection",
+        collection,
+        component,
+        name: component ?? COLLECTIONS[collection].title,
+      },
+      preview: true,
+    });
+  };
+  const collectionActive = (id: string) => {
+    const collection = sectionCollection(id);
+    return (
+      active?.kind === "collection" &&
+      active.collection === collection &&
+      !active.component
+    );
+  };
   const toggle = (id: string) => {
     setOpen((current) => {
       const next = new Set(current);
@@ -503,6 +549,8 @@ export function ExplorerSidebar(props: WorkspaceProps) {
   );
   const concreteNodes = nodes.filter((node) => !node.abstract);
   const abstractNodes = nodes.filter((node) => node.abstract);
+  const concreteEdges = edges.filter((edge) => !edge.abstract);
+  const abstractEdges = edges.filter((edge) => edge.abstract);
 
   const isActive = (
     level: ProofLevel,
@@ -833,6 +881,8 @@ export function ExplorerSidebar(props: WorkspaceProps) {
           count={assets.length}
           open={sectionOpen("assets")}
           onToggle={toggle}
+          onOpen={openCollection}
+          active={collectionActive("assets")}
         >
           {assets.map((asset) => (
             <SidebarRow
@@ -870,6 +920,8 @@ export function ExplorerSidebar(props: WorkspaceProps) {
           count={tables.length}
           open={sectionOpen("tables")}
           onToggle={toggle}
+          onOpen={openCollection}
+          active={collectionActive("tables")}
         >
           {tables.map((table) => {
             return (
@@ -897,6 +949,8 @@ export function ExplorerSidebar(props: WorkspaceProps) {
           count={projections.length}
           open={sectionOpen("projections")}
           onToggle={toggle}
+          onOpen={openCollection}
+          active={collectionActive("projections")}
         >
           {projections.map((projection) => {
             return (
@@ -926,6 +980,8 @@ export function ExplorerSidebar(props: WorkspaceProps) {
           count={concreteNodes.length}
           open={sectionOpen("nodes")}
           onToggle={toggle}
+          onOpen={openCollection}
+          active={collectionActive("nodes")}
         >
           {concreteNodes.map(renderNode)}
         </SideSection>
@@ -933,21 +989,26 @@ export function ExplorerSidebar(props: WorkspaceProps) {
         <SideSection
           id="abstract"
           title="Abstract"
-          count={abstractNodes.length}
+          count={abstractNodes.length + abstractEdges.length}
           open={sectionOpen("abstract")}
           onToggle={toggle}
+          onOpen={openCollection}
+          active={collectionActive("abstract")}
         >
           {abstractNodes.map(renderNode)}
+          {abstractEdges.map(renderEdge)}
         </SideSection>
 
         <SideSection
           id="edges"
           title="Edges"
-          count={edges.length}
+          count={concreteEdges.length}
           open={sectionOpen("edges")}
           onToggle={toggle}
+          onOpen={openCollection}
+          active={collectionActive("edges")}
         >
-          {edges.map(renderEdge)}
+          {concreteEdges.map(renderEdge)}
         </SideSection>
 
         <SideSection
@@ -956,6 +1017,8 @@ export function ExplorerSidebar(props: WorkspaceProps) {
           count={bindings.length}
           open={sectionOpen("bindings")}
           onToggle={toggle}
+          onOpen={openCollection}
+          active={collectionActive("bindings")}
         >
           {bindings.map((binding) => (
             <SidebarRow
@@ -980,6 +1043,8 @@ export function ExplorerSidebar(props: WorkspaceProps) {
           count={filteredWorkflowRows.length}
           open={workflowSectionOpen}
           onToggle={toggle}
+          onOpen={openCollection}
+          active={collectionActive("workflow")}
         >
           {workflowGroups.length ? (
             workflowGroups.map((group) => {
@@ -1008,7 +1073,16 @@ export function ExplorerSidebar(props: WorkspaceProps) {
                       className={styles.treeLabel}
                       data-testid="explorer-workflow-component"
                       data-component={group.component}
-                      onClick={() => toggleNode(groupKey)}
+                      data-active={
+                        active?.kind === "collection" &&
+                        active.collection === "workflow" &&
+                        active.component === group.component
+                          ? "true"
+                          : undefined
+                      }
+                      onClick={() =>
+                        openCollection("workflow", group.component)
+                      }
                       onContextMenu={(event) =>
                         openActions(event, group.component, [
                           {
@@ -1600,26 +1674,37 @@ function AbstractProofView({ model }: { model: ProofModel }) {
   if (!abstract) {
     return <DetailEmptyState>No abstract subject is available.</DetailEmptyState>;
   }
-  const rows: MemberRow[] = abstract.descendants.map((descendant) => ({
-    key: descendant.name,
+  const rows: MemberRow[] = abstract.children.map((child) => ({
+    key: `${child.kind}:${child.name}`,
     cells: [
-      <NodePill name={descendant.name} />,
-      descendant.labels.join(", ") || "—",
-      `${descendant.properties.length}`,
-      descendant.description ?? "—",
+      child.kind === "edge" ? (
+        <EdgePill key="child" name={child.name} />
+      ) : child.abstract ? (
+        <AbstractPill key="child" name={child.name} />
+      ) : (
+        <NodePill key="child" name={child.name} />
+      ),
+      child.abstract
+        ? child.kind === "edge"
+          ? "abstract edge"
+          : "abstract category"
+        : child.kind,
+      child.labels.join(", ") || "—",
+      `${child.properties.length}`,
+      child.description ?? "—",
     ],
   }));
   return (
     <div className={styles.levelBody}>
       <DetailBand
-        title="Members"
-        question="Which records belong to this category?"
+        title="Dependants"
+        question="Which participants depend on this category directly?"
       >
         <MemberTable
-          columns={["Record", "Labels", "Properties", "Description"]}
-          template="minmax(140px, 0.9fr) minmax(110px, 0.8fr) 66px minmax(180px, 1.6fr)"
+          columns={["Dependant", "Kind", "Labels", "Properties", "Description"]}
+          template="minmax(150px, 0.9fr) 100px minmax(100px, 0.7fr) 66px minmax(170px, 1.5fr)"
           rows={rows}
-          empty="No concrete record descends from this category."
+          empty="No participant sits directly under this category."
         />
       </DetailBand>
     </div>
@@ -1631,17 +1716,10 @@ function AssetProofView({ model }: { model: ProofModel }) {
   if (!asset) {
     return <DetailEmptyState>This asset is not present in the blueprint.</DetailEmptyState>;
   }
-  const relationRows: MemberRow[] = [
-    ...asset.relations.map((row) => ({ ...row, kindLabel: "source" })),
-    ...asset.projections.map((row) => ({ ...row, kindLabel: "derived" })),
-  ].map((row) => ({
-    key: `${row.kindLabel}:${row.name}`,
+  const relationRows: MemberRow[] = asset.relations.map((row) => ({
+    key: `source:${row.name}`,
     cells: [
-      row.kindLabel === "source" ? (
-        <SourceRelationPill name={row.name} />
-      ) : (
-        <DerivedRelationPill name={row.name} />
-      ),
+      <SourceRelationPill key="relation" name={row.name} />,
       `${row.columns} columns`,
       `${row.semantics.length} meanings`,
     ],
@@ -1649,14 +1727,14 @@ function AssetProofView({ model }: { model: ProofModel }) {
   return (
     <div className={styles.levelBody}>
       <DetailBand
-        title="Members"
-        question="Which relations does this asset supply?"
+        title="Dependants"
+        question="Which source relations depend on this asset?"
       >
         <MemberTable
-          columns={["Relation", "Shape", "Meaning"]}
+          columns={["Source relation", "Shape", "Meaning"]}
           template="minmax(160px, 1.2fr) 90px minmax(90px, 0.8fr)"
           rows={relationRows}
-          empty="No relation is declared for this asset."
+          empty="No source relation reads this asset."
         />
       </DetailBand>
     </div>
@@ -1699,6 +1777,9 @@ function subjectMeaning(
 
 export function DetailEditor(props: WorkspaceProps) {
   const selection = documentSelection(activeDocument(props.state));
+  if (selection?.kind === "collection") {
+    return <CollectionEditor {...props} />;
+  }
   if (selection?.kind === "binding") {
     return <BindingEditor {...props} />;
   }
@@ -1950,6 +2031,50 @@ function SubjectDetailEditor(props: WorkspaceProps) {
 
     </>
   );
+  const dependantSection =
+    model.level === "property" ? (
+      <DetailBand
+        concept="node"
+        title="Dependant"
+        question="Which record depends on this property?"
+        testId="detail-dependant"
+      >
+        <MemberTable
+          columns={["Record", "Kind", "Labels", "Properties"]}
+          template="minmax(160px, 1.2fr) 80px minmax(120px, 1fr) 80px"
+          rows={[
+            {
+              key: model.subject.component,
+              cells: [
+                index.topologyNodesByName.has(model.subject.component) ? (
+                  <NodePill
+                    key="owner"
+                    name={model.subject.component}
+                  />
+                ) : (
+                  <EdgePill
+                    key="owner"
+                    name={model.subject.component}
+                  />
+                ),
+                index.topologyNodesByName.has(model.subject.component)
+                  ? "node"
+                  : "edge",
+                (
+                  index.topologyComponentsByName.get(model.subject.component)
+                    ?.labels ?? []
+                ).join(", ") || "—",
+                `${
+                  index.topologyComponentsByName.get(model.subject.component)
+                    ?.properties?.length ?? 0
+                }`,
+              ],
+            },
+          ]}
+          empty="No record owns this property."
+        />
+      </DetailBand>
+    ) : null;
   const bindingsSection = (
     <>
 
@@ -1975,6 +2100,7 @@ function SubjectDetailEditor(props: WorkspaceProps) {
     >
       {model.level === "asset" ? null : constitutionSection}
       {meaningSection}
+      {dependantSection}
       {kindSection}
       {bindingsSection}
     </DetailDocument>

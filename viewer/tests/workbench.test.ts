@@ -275,6 +275,46 @@ describe("workbench documents and geometry", () => {
     })).toBe("binding #1");
   });
 
+  it("opens a virtual collection as its own document", () => {
+    const current = workbenchReducer(state(), {
+      type: "open-tab",
+      input: {
+        selection: {
+          kind: "collection" as const,
+          collection: "derivedRelations" as const,
+          name: "Derived relations",
+        },
+        preview: true,
+      },
+    });
+    expect(activeTitle(current)).toBe("Derived relations");
+    expect(current.tabs.at(-1)?.document).toMatchObject({
+      kind: "subject",
+      selection: { kind: "collection", collection: "derivedRelations" },
+    });
+  });
+
+  it("keys a collection document by its collection and component", () => {
+    const derived = workbenchReducer(state(), {
+      type: "open-tab",
+      input: {
+        selection: { kind: "collection", collection: "derivedRelations" },
+      },
+    });
+    const component = workbenchReducer(derived, {
+      type: "open-tab",
+      input: {
+        selection: {
+          kind: "collection",
+          collection: "workflow",
+          component: "duckdb",
+        },
+      },
+    });
+    expect(component.tabs).toHaveLength(4);
+    expect(activeTitle(component)).toBe("duckdb");
+  });
+
   it("does not close the pinned Graph or Workflow document", () => {
     const initial = state();
     const afterGraph = workbenchReducer(initial, {

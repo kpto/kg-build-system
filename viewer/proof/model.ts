@@ -637,12 +637,23 @@ export interface ProofAbstractDescendant {
   properties: ProofPropertySummary[];
 }
 
+export interface ProofAbstractChild {
+  name: string;
+  kind: "node" | "edge";
+  abstract: boolean;
+  description?: string;
+  labels: string[];
+  properties: ProofPropertySummary[];
+}
+
 export interface ProofAbstract {
   name: string;
   description?: string;
   labels: string[];
   semantics: ProofSemantics[];
   descendants: ProofAbstractDescendant[];
+  /** The immediate children only: one graph level above, not the whole tree. */
+  children: ProofAbstractChild[];
 }
 
 export interface ProofAssetRelation {
@@ -952,6 +963,34 @@ function buildAbstractProof(
       (value): value is ProofSemantics => Boolean(value),
     ),
   );
+  const directChildren: ProofAbstractChild[] = [
+    ...index.topologyNodes
+      .filter((child) => child.parent?.[2] === node.name)
+      .map((child) => ({
+        name: child.name,
+        kind: "node" as const,
+        abstract: Boolean(child.abstract),
+        description:
+          meaningText(child.meaning ?? child.semantics) ?? child.description,
+        labels: child.labels ?? [],
+        properties: (child.properties ?? []).map((property) =>
+          summariseProperty(index, "node", child.name, property),
+        ),
+      })),
+    ...index.topologyEdges
+      .filter((child) => child.parent?.[2] === node.name)
+      .map((child) => ({
+        name: child.name,
+        kind: "edge" as const,
+        abstract: Boolean(child.abstract),
+        description:
+          meaningText(child.meaning ?? child.semantics) ?? child.description,
+        labels: child.labels ?? [],
+        properties: (child.properties ?? []).map((property) =>
+          summariseProperty(index, "edge", child.name, property),
+        ),
+      })),
+  ];
   const abstract: ProofAbstract = {
     name: node.name,
     description:
@@ -959,6 +998,7 @@ function buildAbstractProof(
     labels: node.labels ?? [],
     semantics,
     descendants,
+    children: directChildren,
   };
   return {
     ...baseModel(abstractSubject, index),

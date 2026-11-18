@@ -53,6 +53,7 @@ const SUBJECT_KINDS = new Set<SubjectKind>([
   "property",
   "binding",
   "step",
+  "collection",
 ]);
 
 const DETAIL_LEVELS = new Set(["property", "node", "edge", "abstract", "asset"]);
@@ -130,6 +131,9 @@ function normalizeSelection(value: unknown): SubjectSelection | undefined {
   for (const field of ["name", "component", "property"] as const) {
     if (typeof candidate[field] === "string") selection[field] = candidate[field];
   }
+  if (typeof candidate.collection === "string") {
+    selection.collection = candidate.collection as SubjectSelection["collection"];
+  }
   if (
     typeof candidate.level === "string" &&
     DETAIL_LEVELS.has(candidate.level)
@@ -163,6 +167,7 @@ function selectionSignature(selection: SubjectSelection): string {
     selection.level ?? "",
     selection.stepId?.join("/") ?? "",
     selection.bindingIndex?.toString() ?? "",
+    selection.collection ?? "",
   ].join("\u0000");
 }
 

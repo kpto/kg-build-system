@@ -271,6 +271,38 @@ function ConnectionLine({
   );
 }
 
+function ConnectionLedger({
+  connections,
+  direction,
+  empty,
+}: {
+  connections: NormalizedConnection[];
+  direction: "in" | "out";
+  empty: string;
+}) {
+  if (!connections.length) {
+    return (
+      <p className="text-[length:var(--text-base)] text-faint">{empty}</p>
+    );
+  }
+  return (
+    <div className="border border-line-soft bg-panel px-2">
+      {connections.slice(0, 24).map((connection) => (
+        <ConnectionLine
+          key={connection.id}
+          connection={connection}
+          direction={direction}
+        />
+      ))}
+      {connections.length > 24 ? (
+        <p className="py-1 font-mono text-[length:var(--text-xs)] text-faint">
+          showing 24 of {connections.length}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 function DetailSubhead({ children }: { children: ReactNode }) {
   return (
     <h3 className="mb-1.5 text-[length:var(--text-sm)] font-semibold tracking-[0.08em] text-faint uppercase">
@@ -319,6 +351,30 @@ function StepDetail({
 
       <DetailBand
         concept="step"
+        title="Dependency"
+        question="Which steps produce what this step reads?"
+      >
+        <ConnectionLedger
+          connections={incoming}
+          direction="in"
+          empty="This step has no inputs."
+        />
+      </DetailBand>
+
+      <DetailBand
+        concept="step"
+        title="Dependant"
+        question="Which steps read what this step produces?"
+      >
+        <ConnectionLedger
+          connections={outgoing}
+          direction="out"
+          empty="This step has no outputs."
+        />
+      </DetailBand>
+
+      <DetailBand
+        concept="step"
         title="Ports"
         question="Which artifacts does this step open?"
       >
@@ -340,61 +396,6 @@ function StepDetail({
         question="Which instruction does this step execute?"
       >
         <PayloadFacts step={step} />
-      </DetailBand>
-
-      <DetailBand
-        concept="edge"
-        title="Connections"
-        question="Which steps feed this step and which does it feed?"
-      >
-        <div className="grid gap-3 xl:grid-cols-2">
-          <div>
-            <DetailSubhead>Incoming</DetailSubhead>
-            {incoming.length ? (
-              <div className="border border-line-soft bg-panel px-2">
-                {incoming.slice(0, 24).map((connection) => (
-                  <ConnectionLine
-                    key={connection.id}
-                    connection={connection}
-                    direction="in"
-                  />
-                ))}
-                {incoming.length > 24 ? (
-                  <p className="py-1 font-mono text-[length:var(--text-xs)] text-faint">
-                    showing 24 of {incoming.length}
-                  </p>
-                ) : null}
-              </div>
-            ) : (
-              <p className="text-[length:var(--text-base)] text-faint">
-                This step has no inputs.
-              </p>
-            )}
-          </div>
-          <div>
-            <DetailSubhead>Outgoing</DetailSubhead>
-            {outgoing.length ? (
-              <div className="border border-line-soft bg-panel px-2">
-                {outgoing.slice(0, 24).map((connection) => (
-                  <ConnectionLine
-                    key={connection.id}
-                    connection={connection}
-                    direction="out"
-                  />
-                ))}
-                {outgoing.length > 24 ? (
-                  <p className="py-1 font-mono text-[length:var(--text-xs)] text-faint">
-                    showing 24 of {outgoing.length}
-                  </p>
-                ) : null}
-              </div>
-            ) : (
-              <p className="text-[length:var(--text-base)] text-faint">
-                This step has no outputs.
-              </p>
-            )}
-          </div>
-        </div>
       </DetailBand>
 
       {bindings.length ? (

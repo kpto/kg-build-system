@@ -88,6 +88,31 @@ Constitution → Meaning → Expression → Build steps
 
 A kind includes or omits a section; it never renames one for itself.
 
+A participant detail answers **dependency** and **dependant** only:
+
+- **Dependency** is the full chain below the subject, back to the asset.
+- **Dependant** is only the immediate level above the subject. An asset's
+  dependants are its source relations; a relation's are the derived relations
+  that scan it and the bindings that read it directly; a binding's is the
+  record it writes; an abstract participant's are its immediate children.
+
+A **virtual collection** is a layer read as a group, not a declared subject. It
+has no Meaning card and uses the layer's concept mark. Its order is:
+
+```text
+Banner: Collection
+Dependency → Dependant → Items → Coverage
+```
+
+Its Dependency is the full layer DAG below at layer resolution, with counts and
+collection links; its Dependant is one layer above; Items opens each
+participant; Coverage counts the layer. Assets have an explicit empty
+Dependency state: they are the origin.
+
+Every Explorer header is two targets: the **body** opens the collection and the
+**arrow** unfolds or folds the list. The body never toggles and the arrow never
+opens a document. A workflow component header behaves the same way.
+
 - **Overview** is the tab banner: identity and one fact row. It is not a band.
 - **Constitution** shows how the subject comes to be: its purpose at the top
   and only the declarations that produce it below, laid out as one layered DAG

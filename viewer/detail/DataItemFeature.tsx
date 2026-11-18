@@ -8,11 +8,7 @@ import {
   resolveAssetName,
   semanticSubjectKey,
 } from "@/lib/indexes";
-import type {
-  ProjectionDTO,
-  RelationDTO,
-  ViewerIndex,
-} from "@/lib/types";
+import type { ProjectionDTO, RelationDTO, ViewerIndex } from "@/lib/types";
 import { effectiveLicense } from "@/proof/license";
 import { Constitution } from "@/detail/view/Constitution";
 import { DesignMeaning } from "@/shared/design/DesignMeaning";
@@ -24,6 +20,7 @@ import { ConceptGlyph } from "@/shared/ui/ConceptMark";
 import {
   AssetPill,
   BindingPill,
+  DerivedRelationPill,
   FieldPill,
 } from "@/detail/view/ConceptPill";
 import { activeDocument, documentSelection, type WorkspaceProps } from "@/workbench/types";
@@ -39,22 +36,20 @@ import { fieldDefinitionDetail, fieldDescription, recordSummary } from "@/lib/su
 
 type DataItemKind = "relation" | "projection";
 
-function bindingsForRelation(
-  index: ViewerIndex,
-  name: string,
-  projections: ProjectionDTO[],
-) {
-  const derivedThrough = new Set(
-    projections
-      .filter((projection) =>
-        relationNamesFromRowSource(projection.row_source).includes(name),
-      )
-      .map((projection) => projection.name),
+/** Derived relations that scan this relation directly, one level above. */
+function derivedDependants(index: ViewerIndex, name: string) {
+  return index.projections.filter(
+    (projection) =>
+      projection.name !== name &&
+      relationNamesFromRowSource(projection.row_source).includes(name),
   );
-  return index.bindings.filter((binding) => {
-    const scanned = relationNamesFromRowSource(binding.binding.rows);
-    return scanned.includes(name) || scanned.some((other) => derivedThrough.has(other));
-  });
+}
+
+/** Bindings that read this relation directly, not through another relation. */
+function directBindings(index: ViewerIndex, name: string) {
+  return index.bindings.filter((binding) =>
+    relationNamesFromRowSource(binding.binding.rows).includes(name),
+  );
 }
 
 export function DataItemEditor(props: WorkspaceProps) {
@@ -86,8 +81,12 @@ export function DataItemEditor(props: WorkspaceProps) {
 
   const concept = kind === "relation" ? "table" : "projection";
   const license = effectiveLicense(index, model.assetName ? [model.assetName] : []);
+  const derived = useMemo(
+    () => derivedDependants(index, model.name),
+    [index, model.name],
+  );
   const bindings = useMemo(
-    () => bindingsForRelation(index, model.name, index.projections),
+    () => directBindings(index, model.name),
     [index, model.name],
   );
 
@@ -141,20 +140,36 @@ export function DataItemEditor(props: WorkspaceProps) {
         : "reads the source",
     ],
   }));
-  const bindingRows: MemberRow[] = bindings.map((binding) => ({
-    key: String(binding.index),
-    cells: [
-      <BindingPill
-        name={binding.binding.name ?? `binding #${binding.index}`}
-        component={binding.component}
-        ownerConcept={binding.kind}
-        bindingIndex={binding.index}
-      />,
-      binding.kind,
-      `${Object.keys(binding.binding.properties ?? {}).length}`,
-      relationNamesFromRowSource(binding.binding.rows).join(", ") || "—",
-    ],
-  }));
+  const dependantRows: MemberRow[] = [
+    ...derived.map((projection) => ({
+      key: `derived:${projection.name}`,
+      cells: [
+        <DerivedRelationPill
+          key="dependant"
+          name={projection.name}
+          component={projection.name}
+        />,
+        "derived relation",
+        `${projection.columns?.length ?? 0} columns`,
+        "scans this relation",
+      ],
+    })),
+    ...bindings.map((binding) => ({
+      key: `binding:${binding.index}`,
+      cells: [
+        <BindingPill
+          key="dependant"
+          name={binding.binding.name ?? `binding #${binding.index}`}
+          component={binding.component}
+          ownerConcept={binding.kind}
+          bindingIndex={binding.index}
+        />,
+        "binding",
+        binding.component,
+        "reads this relation directly",
+      ],
+    })),
+  ];
 
   const meaning = attachedMeaning(model.semantics);
   const constitution = useMemo(
@@ -206,17 +221,17 @@ export function DataItemEditor(props: WorkspaceProps) {
       </DetailBand>
 
   );
-  const bindingsSection = (
+  const dependantsSection = (
       <DetailBand
-        concept={kind === "relation" ? "node" : "projection"}
-        title="Bindings"
-        question="Which record does this relation fulfil?"
+        concept={kind === "relation" ? "table" : "projection"}
+        title="Dependants"
+        question="Which layer depends on this relation?"
       >
         <MemberTable
-          columns={["Binding", "Record kind", "Writes", "Rows read"]}
-          template="minmax(170px, 1.3fr) 100px 64px minmax(130px, 1.1fr)"
-          rows={bindingRows}
-          empty="No binding reads this relation."
+          columns={["Dependant", "Kind", "Detail", "Relation"]}
+          template="minmax(170px, 1.3fr) 100px minmax(120px, 1fr) minmax(120px, 1fr)"
+          rows={dependantRows}
+          empty="No derived relation or binding reads this relation directly."
         />
       </DetailBand>
   );
@@ -233,7 +248,7 @@ export function DataItemEditor(props: WorkspaceProps) {
       {constitutionSection}
       {meaningSection}
       {membersSection}
-      {bindingsSection}
+      {dependantsSection}
     </DetailDocument>
   );
 }

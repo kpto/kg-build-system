@@ -42,19 +42,70 @@ banner states the record, writes, identity, rows read, step and output. A record
 the traversal; its Bindings table and the Constitution's binding node open the
 binding document.
 
+## Dependency and dependant
+
+A participant detail answers two directions, and only two:
+
+- **Dependency** is the full chain below the subject, back to the asset. A
+  record's dependency is its bindings and their relation and asset provenance;
+  a relation's is its asset or the relations it scans; a binding's is the
+  relations it reads. Graph ancestry is a graph dependency, not a data one.
+- **Dependant** is only the immediate level above the subject. An asset's
+  dependants are its source relations. A source or derived relation's are the
+  derived relations that scan it and the bindings that read it directly. A
+  binding's is the record it writes. A node's graph dependants are its incident
+  edges; an edge's endpoints are dependencies. A property's is its owning
+  record. An abstract participant's are its immediate children.
+
+Pages are named for the direction, never for a level number. A page that lists
+two levels up is wrong even when its rows are true.
+
+## Virtual collection documents
+
+Every Explorer row is a document. A layer header's body opens a **collection**;
+its arrow unfolds or folds the list. The body never toggles and the arrow never
+opens the document. A workflow component header behaves the same way: its body
+opens the component's collection and its arrow unfolds its steps.
+
+A collection is a layer read as a group, not a declared subject. It carries no
+Meaning card: it has no purpose, claim or limitation of its own.
+
+| Collection page | Scope | Contents |
+| --- | --- | --- |
+| **Dependency** | the full layer DAG below, at layer resolution | ordered layers with counts and links to their collections, both axes where they apply, with the current layer marked. Assets have an explicit empty state: they are the origin |
+| **Dependant** | exactly one layer above | the immediate layer groups with counts and links, never deeper |
+| **Items** | the collection itself | the layer's members with layer-specific facts; every row opens the participant document |
+| **Coverage** | the collection's completeness | items, items with meaning, items with a dependency, items with a dependant |
+
+A collection's dependency is a layer DAG, not every item edge, so it never
+draws the whole design. A same-layer dependant such as derived-on-derived is
+shown in the collection's Dependant page as a named layer.
+
+| Collection | Dependency | Dependant | Items |
+| --- | --- | --- | --- |
+| Assets | empty: the origin | Source relations | assets |
+| Source relations | Assets | Derived relations, Bindings | source relations |
+| Derived relations | Assets → Source relations | Derived relations, Bindings | derived relations |
+| Bindings | Assets → Source relations → Derived relations | Nodes, Edges | bindings |
+| Nodes | Data: Assets → Source relations → Derived relations → Bindings. Graph: Graph → Abstract | Graph: Edges | nodes |
+| Edges | Data: the record chain. Graph: Abstract → Nodes | none: endpoints are dependencies | edges |
+| Abstract | Data: own Bindings. Graph: Graph | Graph: child categories, Nodes, Edges | abstract nodes and abstract edges |
+| Workflow | upstream components | downstream components | component groups |
+| Workflow component | upstream components | downstream components | steps |
+
 ## Per-kind registry
 
 | View kind | Sections | Notes |
 | --- | --- | --- |
 | Node | **Constitution**, **Meaning**, **Members**, **Connections**, **Bindings** | Members are properties; Connections are incident relations. |
 | Edge | **Constitution**, **Meaning**, **Members**, **Connections**, **Bindings** | The banner states the endpoints; Connections repeats them with the edge. |
-| Property | **Constitution**, **Meaning**, **Branches**, **Connections**, **Bindings** | Branches is the type/presence chain and lane canvas; Connections is its ledger. |
-| Abstract category | **Constitution**, **Meaning**, **Members** | Members are concrete descendants. |
-| Asset | **Meaning**, **Members** | The banner states the layout and location; Members are the relations the asset supplies. The asset is the origin: it has no Constitution, Fields or Bindings page. |
-| Source relation | **Constitution**, **Meaning**, **Members**, **Bindings** | Columns are the relation; the banner states the asset and row source. The Constitution is the relation's purpose over its asset alone: a source relation is not fulfilled by a binding and has no graph axis. |
-| Derived relation | **Constitution**, **Meaning**, **Members**, **Bindings** | Members are its columns; the banner states the row source. The Constitution is its purpose over the source relations it scans and their assets. |
+| Property | **Constitution**, **Meaning**, **Dependant**, **Branches**, **Connections**, **Bindings** | Dependant is the owning record; Branches is the type/presence chain and lane canvas; Connections is its ledger. |
+| Abstract category | **Constitution**, **Meaning**, **Dependants** | Dependants are the immediate child categories, nodes and edges, not the whole tree. The Constitution uses the category's own bindings, never its descendants' data. |
+| Asset | **Meaning**, **Dependants** | The banner states the layout and location; Dependants are the source relations that read the asset. Derived relations are two levels up and are not repeated. The asset is the origin: it has no Constitution, Fields or Bindings page. |
+| Source relation | **Constitution**, **Meaning**, **Members**, **Dependants** | Columns are the relation; the banner states the asset and row source. The Constitution is the relation's purpose over its asset alone. Dependants are the derived relations that scan it and the bindings that read it directly; an indirect binding is not one level up. |
+| Derived relation | **Constitution**, **Meaning**, **Members**, **Dependants** | Members are its columns; the banner states the row source. The Constitution is its purpose over the source relations it scans and their assets. Dependants are the derived relations that scan it and the bindings that read it directly. |
 | Binding | **Constitution**, **Meaning**, **Expression**, **Build steps** | The Constitution is the binding's purpose over the target record (purpose and identity only) and the relations it reads; Expression and Build steps carry the computation and the plan. |
-| Step | **Ports**, **Payload**, **Connections**, **Bindings**, Meaning, Sources | A step is build machinery; Meaning and Sources state their absence last. |
+| Step | **Dependency**, **Dependant**, **Ports**, **Payload**, **Bindings**, **Meaning**, **Sources** | Dependency is the steps that produce its inputs; Dependant is the steps that read its outputs. A step is build machinery; Meaning and Sources state their absence last. |
 
 Text in bold is the first card the reader meets; every card in the row is
 present and open, in that order.
@@ -95,7 +146,7 @@ nothing is grouped or hidden.
 
 | Subject | How it comes to be | The card |
 | --- | --- | --- |
-| Node, edge, property, abstract category | its bindings, each meeting a relation at a grain and identity; the graph states what it is and where it sits | One DAG: the purpose and graph ancestry in the GRAPH frame, one box per binding in the FULFILMENT frame, and each binding's relation provenance in the RELATION frame |
+| Node, edge, property, abstract category | its own bindings, each meeting a relation at a grain and identity; the graph states what it is and where it sits | One DAG: the purpose and graph ancestry in the GRAPH frame, one box per binding in the FULFILMENT frame, and each binding's relation provenance in the RELATION frame. An abstract category uses only the bindings that write it, never its descendants' |
 | Source relation | its asset | Purpose and asset together in the RELATION frame. No bindings, no graph axis |
 | Derived relation | the source relations it scans, each from its asset | Purpose, source relations and their assets together in the RELATION frame. No bindings, no graph axis |
 | Binding | the meeting of a record and a relation | Purpose in the FULFILMENT frame, the target record (purpose and identity only) in the GRAPH frame, and the relations it reads with their provenance in the RELATION frame |

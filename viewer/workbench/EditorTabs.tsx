@@ -10,6 +10,7 @@ import {
 
 import { ConceptGlyph } from "@/shared/ui/ConceptMark";
 import { conceptForSelection } from "@/shared/ui/concepts";
+import { collectionConcept } from "./collections";
 import styles from "./editorTabs.module.css";
 import { useWorkbench } from "./store";
 import { documentTitle, type WorkbenchTab } from "./types";
@@ -17,6 +18,9 @@ import { documentTitle, type WorkbenchTab } from "./types";
 function tabConcept(tab: WorkbenchTab) {
   const selection =
     tab.document.kind === "subject" ? tab.document.selection : undefined;
+  if (selection?.kind === "collection") {
+    return collectionConcept(selection.collection ?? "assets");
+  }
   return conceptForSelection(
     selection?.kind ?? tab.document.kind,
     selection?.level,

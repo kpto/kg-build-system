@@ -7,6 +7,7 @@
  */
 
 import type { ViewerIndex, ViewerSnapshot } from "@/lib/types";
+import { collectionTitle, type CollectionId } from "./collections";
 
 export type SubjectKind =
   | "asset"
@@ -17,7 +18,8 @@ export type SubjectKind =
   | "edge"
   | "property"
   | "binding"
-  | "step";
+  | "step"
+  | "collection";
 
 export type DetailLevel = "property" | "node" | "edge" | "abstract" | "asset";
 
@@ -31,6 +33,8 @@ export interface SubjectSelection {
   stepId?: [string, string];
   /** The binding identity when the subject is a binding document. */
   bindingIndex?: number;
+  /** The virtual collection when the subject is a collection document. */
+  collection?: CollectionId;
 }
 
 export type WorkbenchDocument =
@@ -113,6 +117,12 @@ export function lensSelection(state: WorkbenchState): SubjectSelection | undefin
 }
 
 export function subjectTitle(selection: SubjectSelection): string {
+  if (selection.kind === "collection") {
+    return collectionTitle(
+      selection.collection ?? "assets",
+      selection.component,
+    );
+  }
   if (selection.kind === "step") {
     return selection.name ?? selection.component ?? "Step";
   }
@@ -151,6 +161,7 @@ export function documentSignature(document: WorkbenchDocument): string {
     selection.level ?? "",
     selection.stepId?.join("/") ?? "",
     selection.bindingIndex?.toString() ?? "",
+    selection.collection ?? "",
   ].join("\u0000");
 }
 

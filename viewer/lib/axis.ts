@@ -222,24 +222,10 @@ export function buildAxisMap(
       break;
     }
     case "abstract": {
-      const parents = new Map(
-        index.topologyNodes.map((node) => [node.name, node.parent?.[2]]),
-      );
-      const descends = (name: string): boolean => {
-        let current = parents.get(name);
-        for (let depth = 0; current && depth < 64; depth += 1) {
-          if (current === subject.component) return true;
-          current = parents.get(current);
-        }
-        return false;
-      };
-      const descendants = index.topologyNodes
-        .filter((node) => !node.abstract && descends(node.name))
-        .slice(0, 96);
-      for (const node of descendants) {
-        recordNames.push({ kind: "node", name: node.name });
-        bindings.push(...bindingsFor("node", node.name));
-      }
+      // An abstract participant is a legitimate subject. Its own dependency is
+      // the binding layer that writes it, never the data of its descendants.
+      recordNames.push({ kind: "node", name: subject.component });
+      bindings = bindingsFor("node", subject.component);
       break;
     }
     case "property": {
