@@ -191,7 +191,8 @@ missing, not the code.
   overview; a selection always wins. The tab bar sits above the pinned identity,
   only applicable tabs are shown, and the active tab survives a change of
   inspected entity. An entity keeps the Properties tab even when it declares
-  none, so the empty state is visible.
+  none, so the empty state is visible. A property list in an inspector uses the
+  shared property pill, and the pill opens the property document.
 - A repeated item renders its units compactly. A heading is structural, not per
   unit: a table cell or list row does not repeat the section chrome.
 - A card uses one vertical gap between stacked items. A connector sits in that
