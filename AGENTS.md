@@ -293,8 +293,9 @@ missing, not the code.
   body starts at its first section, not an Overview band.
 - A connection row states the edge and the other endpoint: `[edge pill] →
   [target pill]` for an outgoing relation or `[source pill] → [edge pill]` for
-  an incoming one. The current subject is not repeated; an edge document states
-  `source → edge` and `edge → target`.
+  an incoming one. Every row carries an **In/Out** column. The current subject is
+  not repeated; an edge document states `source → edge` as `in` and
+  `edge → target` as `out`.
 - A record detail leads with its constitution, then meaning, members,
   connections and bindings. A binding document leads with its constitution,
   then meaning when present, expression and build steps; a record reaches the
