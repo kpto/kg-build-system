@@ -181,6 +181,9 @@ missing, not the code.
 - A graph surface opens fitted: it fits its scene on first display and whenever
   its document changes; a previous document's pan and zoom do not carry over.
   Within one document the view is the tab's state.
+- A graph category boundary is the smallest circle that encloses its nodes,
+  drawn behind the links, with its label at the category's top-left; it is not
+  an irregular polygon hull.
 - A repeated item renders its units compactly. A heading is structural, not per
   unit: a table cell or list row does not repeat the section chrome.
 - A card uses one vertical gap between stacked items. A connector sits in that
