@@ -208,6 +208,10 @@ missing, not the code.
 - Several connectors into one box share one centred, evenly spaced set of head
   positions along the edge they meet; the spacing is uniform and the set is
   symmetric about the edge midpoint.
+- A control lives on the surface it changes. Expose the few choices that change
+  the picture immediately and group the rest behind one named reveal, following
+  Hick's Law and progressive disclosure; a control strip uses a familiar
+  toolbar and popover shape near the canvas. The side bar is navigation only.
 - Present the design before an author workflow: a canonical view carries the
   facts a reader must know immediately, and a detail view shows the same object
   with more evidence rather than starting a separate task.
@@ -215,17 +219,16 @@ missing, not the code.
   content; a subject's detail belongs to one region.
 - One workbench frame is shared by every view: panel geometry never changes
   with the document; documents live in one tab strip with back and forward.
-  Control and Explorer are collapsible side-bar sections, not modes; a tab is a
-  standalone document. A tab changes its editor and the Control body applicable
-  to that view; the Explorer always lists the whole design. A tab never opens,
-  closes or switches a side-bar section or another tab, and it preserves its own
-  editor state and scroll position. A pinned document is unremovable: it has no
+  The side bar is the Explorer, not a control surface; a tab is a standalone
+  document. A visualisation carries the controls that change it, and a tab
+  changes its editor and those controls; the Explorer always lists the whole
+  design. A tab never opens, closes or switches the side bar or another tab,
+  and it preserves its own editor state and scroll position. A pinned document is unremovable: it has no
   close action and ignores close gestures. A control inside a tab may not
   replace the document that tab represents; navigating to another subject opens
-  or activates that subject's document. Collapsible sections are independent:
-  an expanded body sits below its own header, and two open sections share one
-  adjustable, persisted split. An automatic reveal is one-shot: an explicit
-  collapse wins until the context changes again.
+  or activates that subject's document. The side bar is one collapsible section:
+  its body sits below its own header. An automatic reveal is one-shot: an
+  explicit collapse wins until the context changes again.
   Single-click navigation reuses one preview tab; only an explicit open pins a
   permanent tab. A middle click on a reference opens a permanent tab in the
   background without changing the active view. One subject has one document:
