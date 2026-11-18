@@ -50,7 +50,7 @@ binding document.
 | Edge | **Constitution**, **Meaning**, **Members**, **Connections**, **Bindings** | The banner states the endpoints; Connections repeats them with the edge. |
 | Property | **Constitution**, **Meaning**, **Branches**, **Connections**, **Bindings** | Branches is the type/presence chain and lane canvas; Connections is its ledger. |
 | Abstract category | **Constitution**, **Meaning**, **Members** | Members are concrete descendants. |
-| Asset | **Meaning**, **Members**, **Fields**, **Bindings** | The banner states the layout and location; Members are relations, then fields. An asset is the origin, so it has no Constitution card. |
+| Asset | **Meaning**, **Members** | The banner states the layout and location; Members are the relations the asset supplies. The asset is the origin: it has no Constitution, Fields or Bindings page. |
 | Source relation | **Constitution**, **Meaning**, **Members**, **Bindings** | Columns are the relation; the banner states the asset and row source. The Constitution is the relation's purpose over its asset alone: a source relation is not fulfilled by a binding and has no graph axis. |
 | Derived relation | **Constitution**, **Meaning**, **Members**, **Bindings** | Members are its columns; the banner states the row source. The Constitution is its purpose over the source relations it scans and their assets. |
 | Binding | **Constitution**, **Meaning**, **Expression**, **Build steps** | The Constitution is the binding's purpose over the target record (purpose and identity only) and the relations it reads; Expression and Build steps carry the computation and the plan. |

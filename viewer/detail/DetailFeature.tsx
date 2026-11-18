@@ -54,7 +54,6 @@ import {
   BindingPill,
   DerivedRelationPill,
   EdgePill,
-  FieldPill,
   NodePill,
   PropertyPill,
   SourceRelationPill,
@@ -1627,13 +1626,7 @@ function AbstractProofView({ model }: { model: ProofModel }) {
   );
 }
 
-function AssetProofView({
-  index,
-  model,
-}: {
-  index: ViewerIndex;
-  model: ProofModel;
-}) {
+function AssetProofView({ model }: { model: ProofModel }) {
   const asset = model.asset;
   if (!asset) {
     return <DetailEmptyState>This asset is not present in the blueprint.</DetailEmptyState>;
@@ -1653,43 +1646,11 @@ function AssetProofView({
       `${row.semantics.length} meanings`,
     ],
   }));
-  const fieldRows: MemberRow[] = asset.fields.map((field) => ({
-    key: field.key,
-    cells: [
-      <FieldPill
-        name={field.field.name}
-        component={field.ownerName}
-        ownerConcept={
-          field.ownerKind === "relation"
-            ? "table"
-            : field.ownerKind === "projection"
-              ? "projection"
-              : "asset"
-        }
-        title={field.key}
-      />,
-      logicalTypeName(field.field.logical_type),
-      field.ownerKind,
-    ],
-  }));
-  const assetRelations = new Set([
-    ...index.relations
-      .filter((relation) => relation.asset?.[2] === asset.name)
-      .map((relation) => relation.name),
-    ...index.projections
-      .filter((relation) => relation.asset?.[2] === asset.name)
-      .map((relation) => relation.name),
-  ]);
-  const bindings = index.bindings.filter((binding) =>
-    relationNamesFromRowSource(binding.binding.rows).some((name) =>
-      assetRelations.has(name),
-    ),
-  );
   return (
     <div className={styles.levelBody}>
       <DetailBand
         title="Members"
-        question="Which relations and fields does this asset supply?"
+        question="Which relations does this asset supply?"
       >
         <MemberTable
           columns={["Relation", "Shape", "Meaning"]}
@@ -1698,18 +1659,6 @@ function AssetProofView({
           empty="No relation is declared for this asset."
         />
       </DetailBand>
-      <DetailBand
-        title="Fields"
-        question="Which declared fields carry this asset's values?"
-      >
-        <MemberTable
-          columns={["Field", "Type", "Owner"]}
-          template="minmax(200px, 1.8fr) minmax(120px, 1fr) 90px"
-          rows={fieldRows}
-          empty="No field resolves to this asset."
-        />
-      </DetailBand>
-      <BindingsSection bindings={bindings} />
     </div>
   );
 }
@@ -1992,7 +1941,7 @@ function SubjectDetailEditor(props: WorkspaceProps) {
       {model.level === "property" ? (
         <PropertyProofView model={model} />
       ) : model.level === "asset" ? (
-        <AssetProofView index={index} model={model} />
+        <AssetProofView model={model} />
       ) : model.level === "abstract" ? (
         <AbstractProofView model={model} />
       ) : (
