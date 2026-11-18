@@ -291,6 +291,10 @@ missing, not the code.
   with auto spacing when that separates it from its content.
 - Every tab uses one banner for identity, overview and view actions. A detail
   body starts at its first section, not an Overview band.
+- A connection row states the edge and the other endpoint: `[edge pill] →
+  [target pill]` for an outgoing relation or `[source pill] → [edge pill]` for
+  an incoming one. The current subject is not repeated; an edge document states
+  `source → edge` and `edge → target`.
 - A record detail leads with its constitution, then meaning, members,
   connections and bindings. A binding document leads with its constitution,
   then meaning when present, expression and build steps; a record reaches the

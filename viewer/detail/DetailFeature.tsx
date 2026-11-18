@@ -1534,37 +1534,31 @@ function ConnectionsSection({
   kind: "node" | "edge";
   component: string;
 }) {
+  const endpoint = (name?: string) =>
+    name ? <NodePill name={name} /> : <span>not resolved</span>;
+
   if (kind === "edge") {
     const edge = index.topologyEdgesByName.get(component);
     if (!edge) return null;
-    const source = edge.source?.[2];
-    const target = edge.target?.[2];
     return (
       <DetailBand
         title="Connections"
         question="Which records does this relation join?"
       >
         <div className={styles.connectionRow}>
-          <span>source</span>
-          {source ? (
-            <NodePill name={source} />
-          ) : (
-            <span>not resolved</span>
-          )}
+          {endpoint(edge.source?.[2])}
           <ArrowRight aria-hidden className={styles.inlineArrow} />
-          <span>target</span>
-          {target ? (
-            <NodePill name={target} />
-          ) : (
-            <span>not resolved</span>
-          )}
-          <span className={styles.connectionLabel}>
-            {(edge.labels ?? []).join(" · ")}
-          </span>
+          <EdgePill name={edge.name} />
+        </div>
+        <div className={styles.connectionRow}>
+          <EdgePill name={edge.name} />
+          <ArrowRight aria-hidden className={styles.inlineArrow} />
+          {endpoint(edge.target?.[2])}
         </div>
       </DetailBand>
     );
   }
+
   const incident = index.topologyEdges.filter(
     (edge) => edge.source?.[2] === component || edge.target?.[2] === component,
   );
@@ -1575,27 +1569,15 @@ function ConnectionsSection({
     >
       {incident.length ? (
         incident.map((edge) => {
-          const source = edge.source?.[2] ?? "?";
-          const target = edge.target?.[2] ?? "?";
-          const other = source === component ? target : source;
+          const source = edge.source?.[2];
+          const target = edge.target?.[2];
           const outgoing = source === component;
+          const other = outgoing ? target : source;
           return (
             <div className={styles.connectionRow} key={edge.name}>
-              <span>{outgoing ? "out" : "in"}</span>
-              {outgoing ? (
-                <NodePill name={component} />
-              ) : (
-                <NodePill name={other} />
-              )}
+              {outgoing ? <EdgePill name={edge.name} /> : endpoint(other)}
               <ArrowRight aria-hidden className={styles.inlineArrow} />
-              {outgoing ? (
-                <NodePill name={other} />
-              ) : (
-                <NodePill name={component} />
-              )}
-              <span className={styles.connectionLabel}>
-                <EdgePill name={edge.name} />
-              </span>
+              {outgoing ? endpoint(other) : <EdgePill name={edge.name} />}
             </div>
           );
         })

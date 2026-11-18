@@ -178,7 +178,9 @@ opens a document. A workflow component header behaves the same way.
   binding banner states the rows read, so Sources is not a separate card.
 - **Members** is one table grammar for properties, columns, fields,
   descendants and openings. The instance pill opens its document when one exists.
-- **Connections** states endpoints, incident relations or ports.
+- **Connections** states the edge and the other endpoint: `[edge pill] →
+  [target pill]` or `[source pill] → [edge pill]`. The current subject is not
+  repeated; a step's connections are its ports.
 - **Bindings** states which binding fulfils the subject; its pill opens the
   binding document.
 - A binding document leads with its **Constitution**, then its **Meaning**

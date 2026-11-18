@@ -2036,24 +2036,6 @@ button.memberRow:focus-visible {
   border-bottom: 0;
 }
 
-.connectionLabel {
-  display: inline-flex;
-  max-width: 100%;
-  flex: 0 1 auto;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-stack);
-  margin-left: auto;
-  color: var(--color-faint);
-  font-size: var(--text-caption);
-  letter-spacing: var(--tracking-wide);
-  text-transform: uppercase;
-}
-
-.connectionLabel > [data-concept] {
-  letter-spacing: var(--tracking-normal);
-  text-transform: none;
-}
 
 
 /* A sub-block sits inside one band: a caption, then content. */
