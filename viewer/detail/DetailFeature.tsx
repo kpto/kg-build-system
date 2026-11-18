@@ -30,7 +30,6 @@ import {
 
 import type { ConceptKind, ConceptReference } from "@/lib/concepts";
 import type { WorkspaceProps, SubjectSelection } from "@/workbench/types";
-import { documentTitle } from "@/workbench/types";
 import {
   findComponentPropertyBindings,
   relationNamesFromRowSource,
@@ -1216,12 +1215,7 @@ export function ExplorerSidebar(props: WorkspaceProps) {
         />
       ) : null}
 
-      <footer className={styles.sideFooter}>
-        <span className={styles.sideFooterLabel}>Selection</span>
-        <span className={styles.sideFooterValue}>
-          {document.kind === "graph" ? "Graph" : documentTitle(document)}
-        </span>
-      </footer>
+
     </div>
   );
 }
