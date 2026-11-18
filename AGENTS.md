@@ -209,8 +209,10 @@ missing, not the code.
   positions along the edge they meet; the spacing is uniform and the set is
   symmetric about the edge midpoint.
 - One workflow DAG primitive (`shared/ui/WorkflowDag.tsx`) owns the scene
-  builder, node renderer and pan/zoom viewport. The Workflow document and an Involved steps card mount the same
-  primitive; a detail narrows the scene and never reimplements workflow chrome.
+  builder, node renderer and pan/zoom viewport. The Workflow document and an
+  Involved steps card mount the same primitive; a detail narrows the scene and
+  never reimplements workflow chrome. A narrowed DAG keeps the workflow's
+  left-to-right orientation.
 - A control lives on the surface it changes. Expose the few choices that change
   the picture immediately and group the rest behind one named reveal, following
   Hick's Law and progressive disclosure; a control strip uses a familiar
