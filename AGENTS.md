@@ -154,23 +154,21 @@ missing, not the code.
 - A visualisation opens at the lowest detail that still answers its first
   question; every further layer is revealed by a named control, and raw JSON is
   not a default surface.
-- A constitution is the subject's production account: its own purpose at the
+- A constitution is the subject's production account: the subject box at the
   top, the declarations that bring it into being below, and every edge from the
-  supply to the consumer. A record is one DAG: the purpose in its own PURPOSE
-  frame, the graph ancestry in the GRAPH frame, one box per binding in the
-  FULFILMENT frame, and the relation provenance in the RELATION frame; the
-  layered layout places the frames and none is fixed to a side. No separator
-  divides the graph.
+  supply to the consumer. A record is one DAG: the subject and its graph
+  ancestry in the GRAPH frame, one box per binding in the FULFILMENT frame, and
+  the relation provenance in the RELATION frame; the layered layout places them
+  and none is fixed to a side. No separator divides the graph.
   A source relation shows only its asset; a derived relation only its scanned
   source relations and their assets; a binding shows the relations it reads; an
   asset is the origin and has no card. A source or derived relation puts its
-  purpose and provenance in one RELATION frame; a binding puts its purpose in
+  subject and provenance in one RELATION frame; a binding puts its subject in
   the FULFILMENT frame and its relations in the RELATION frame. Its target
-  record is its contribution, in the GRAPH frame. PURPOSE, GRAPH, RELATION,
-  FULFILMENT, WORKFLOW and LAYERS are the frame kinds, and every box sits inside
-  its corresponding frame. A collection's layer DAG uses one LAYERS frame; a
-  step boundary uses WORKFLOW. No frame is pinned to a side; the layout places
-  them and the frames are disjoint.
+  record is its contribution, in the GRAPH frame. GRAPH, RELATION and
+  FULFILMENT are the frame kinds, and every box sits inside one of them. A
+  collection's layer DAG uses the frame of its layer; a step boundary uses
+  GRAPH. No frame is pinned to a side.
   A shared declaration is one node with one edge per consumer; a binding is
   never the parent of either side, and each box carries its own concept mark
   and concept-tinted background.
