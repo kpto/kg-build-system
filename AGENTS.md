@@ -158,8 +158,9 @@ missing, not the code.
   top, the declarations that bring it into being below, and every edge from the
   supply to the consumer. A record is one DAG: the subject and its graph
   ancestry in the GRAPH frame, one box per binding in the FULFILMENT frame, and
-  the relation provenance in the RELATION frame; the layered layout places them
-  and none is fixed to a side. No separator divides the graph.
+  the relation provenance in the RELATION frame; the subject shares the graph
+  ancestry column and the layered layout places the three frames without
+  overlap. No separator divides the graph.
   A source relation shows only its asset; a derived relation only its scanned
   source relations and their assets; a binding shows the relations it reads; an
   asset is the origin and has no card. A source or derived relation puts its
@@ -168,7 +169,8 @@ missing, not the code.
   record is its contribution, in the GRAPH frame. GRAPH, RELATION and
   FULFILMENT are the frame kinds, and every box sits inside one of them. A
   collection's layer DAG uses the frame of its layer; a step boundary uses
-  GRAPH. No frame is pinned to a side.
+  GRAPH. The subject shares the graph ancestry column; the layered layout places
+  the three frames without overlap.
   A shared declaration is one node with one edge per consumer; a binding is
   never the parent of either side, and each box carries its own concept mark
   and concept-tinted background.
