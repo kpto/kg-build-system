@@ -163,7 +163,6 @@ export function DetailDocument({
         <DetailIndex sections={sections} />
         <div className={styles.deck} ref={bodyRef}>
           {children}
-          <span className={styles.deckTail} aria-hidden />
         </div>
       </div>
     </div>

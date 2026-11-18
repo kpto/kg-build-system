@@ -18,10 +18,12 @@
   flex: 1;
   grid-template-columns: minmax(0, 132px) minmax(0, 1fr);
   padding: var(--space-region);
+  /* The deck takes the right edge; the page margin must not cover the peek. */
+  padding-right: 0;
 }
 
-/* One horizontal deck: a readable next-card peek when the deck has room, and
-   one full-width card when the deck is too narrow for that peek. */
+/* One horizontal deck: each card fills the height, and the next card peeks
+   past the right edge as the cue for more content. */
 .deck {
   display: flex;
   min-width: 0;
@@ -29,7 +31,6 @@
   height: 100%;
   flex-direction: row;
   gap: var(--space-group);
-  container-type: inline-size;
   overflow-x: auto;
   overflow-y: hidden;
   overscroll-behavior-x: contain;
@@ -42,9 +43,11 @@
   display: none;
 }
 
-/* The trailing spacer gives the last card room to snap to the deck start. */
-.deckTail {
-  flex: 0 0 0;
+/* The trailing space lets the last card snap to the deck's left edge instead
+   of leaving the previous card's edge behind it. */
+.deck::after {
+  flex: 0 0 calc(var(--space-page) + var(--space-section) + var(--space-region));
+  content: "";
 }
 
 /* The index is the only detail navigation: the cards themselves do not fold.
@@ -1748,7 +1751,7 @@ button.expressionToggle:hover {
   min-width: 0;
   min-height: 0;
   height: 100%;
-  flex: 0 0 100%;
+  flex: 0 0 calc(100% - (var(--space-page) + var(--space-section) + var(--space-region)));
   flex-direction: column;
   scroll-snap-align: start;
 }
@@ -2148,17 +2151,4 @@ button.memberRow:focus-visible {
 
 .coverageItem .coverageReading {
   grid-column: 1 / -1;
-}
-
-/* A readable peek: the next card shows enough of itself that its title is the
-   cue, rather than a clipped sliver. When the deck is too narrow for that
-   peek, one card fills the deck and the next card stays off-screen. */
-@container (min-width: 520px) {
-  .band {
-    flex-basis: calc(100% - 180px);
-  }
-
-  .deckTail {
-    flex-basis: 180px;
-  }
 }

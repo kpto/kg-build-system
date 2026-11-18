@@ -28,13 +28,14 @@ language becomes the card's accessible label, not a visible line, and the
 header carries no count: the body owns the items it shows. Every card gets a
 logo; the title-to-concept mapping lives once beside `DetailBand`.
 
-A detail document has a left index rail and one page margin around the body.
-The rail lists every top-level card in reading order and scrolls to a card when
+A detail document has a left index rail and a page margin on the left, top and
+bottom; the deck takes the right edge so the next-card peek is not covered. The
+rail lists every top-level card in reading order and scrolls to a card when
 its row is chosen; it does not follow the scroll position. It is hidden when
 the pane is narrower than the rail plus one readable card. The rail reads the
 rendered cards, so a card added by any kind appears in it without a second
 section list. The deck fills the height left by the page margin and reserves
-the last card snaps to the deck start.
+its trailing peek space so the last card snaps to the deck start.
 
 A binding is its own document. Its sections are **Constitution**,
 **Contribution**, **Meaning** (when the binding carries one), **Expression** and
@@ -232,11 +233,10 @@ and a node label opens its document. The node itself is inspection only.
 
 ## Layout
 
-- A document is a horizontal deck of flat section cards. When the deck has
-  room, one card fills the body height and leaves a readable next-card peek
-  whose title is the cue; when it is too narrow for that peek, one card fills
-  the deck and the next card is off-screen. Cards are separated by the group
-  spacing and have no border or background. Every card is rendered by the
+- A document is a horizontal deck of flat section cards. Each card fills
+  the available body height and is narrower than the deck so the next card's
+  edge stays visible as the cue for more content. Cards are separated by the
+  group spacing and have no border or background. Every card is rendered by the
   one shared `DetailBand` feature primitive; a detail view does not declare its
   own card markup or surface.
 - The banner and the left index are static. The deck scrolls horizontally; each
