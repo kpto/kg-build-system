@@ -162,10 +162,11 @@ missing, not the code.
   A source relation shows only its asset; a derived relation only its scanned
   source relations and their assets; a binding shows the target record's
   purpose and identity and the relations it reads; an asset is the origin and
-  has no card. A source or derived relation leaves its purpose unframed and
-  frames its provenance as RELATION; a binding leaves its purpose unframed,
-  frames its target record as GRAPH and its relations as RELATION. GRAPH,
-  RELATION and FULFILMENT are the only frame kinds.
+  has no card. A source or derived relation puts its purpose and provenance in
+  one RELATION frame; a binding puts its purpose in the FULFILMENT frame, its
+  target record in the GRAPH frame and its relations in the RELATION frame.
+  GRAPH, RELATION and FULFILMENT are the only frame kinds, and every box sits
+  inside its corresponding frame.
   A shared declaration is one node with one edge per consumer; a binding is
   never the parent of either side, and each box carries its own concept mark
   and concept-tinted background.
