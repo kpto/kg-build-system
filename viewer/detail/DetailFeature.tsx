@@ -13,6 +13,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type MouseEvent as ReactMouseEvent,
@@ -552,11 +553,27 @@ export function ExplorerSidebar(props: WorkspaceProps) {
   const concreteEdges = edges.filter((edge) => !edge.abstract);
   const abstractEdges = edges.filter((edge) => edge.abstract);
 
-  // A filter reveals matching sections and tree rows once. After that the
-  // reader may fold them; changing the query is the only thing that reveals
-  // them again.
+  // A filter reveals matching sections and rows once and records the folding
+  // state it replaced. Clearing the filter restores that state, so a filter is
+  // a temporary reading lens rather than a change to the tree.
+  const filterFoldState = useRef<{
+    open: Set<string>;
+    expanded: Set<string>;
+  } | null>(null);
   useEffect(() => {
-    if (!normalized) return;
+    if (!normalized) {
+      if (!filterFoldState.current) return;
+      setOpen(new Set(filterFoldState.current.open));
+      setExpanded(new Set(filterFoldState.current.expanded));
+      filterFoldState.current = null;
+      return;
+    }
+    if (!filterFoldState.current) {
+      filterFoldState.current = {
+        open: new Set(open),
+        expanded: new Set(expanded),
+      };
+    }
     setOpen((current) => {
       const next = new Set(current);
       if (assets.length) next.add("assets");
