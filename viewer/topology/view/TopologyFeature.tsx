@@ -18,8 +18,10 @@ import { DesignMeaning } from "@/shared/design/DesignMeaning";
 import {
   componentMeaning,
   graphMeaning,
+  meaningCount,
   propertyMeaning,
 } from "@/shared/design/meaning";
+import { buildAxisMap } from "@/lib/axis";
 import { effectiveLicenseForGraph, effectiveLicenseForModel } from "@/proof/license";
 import { buildProof } from "@/proof/model";
 import { ContextMenu } from "@/shared/ui/ContextMenu";
@@ -2211,6 +2213,40 @@ export function TopologyInspector({
         : conceptForSelection("edge", undefined, entity.abstract)
     : "graph";
   const propertyCount = entity ? entityProperties(props, entity).length : 0;
+  const graphName = props.state.index.graphDeclaration?.name ?? "Graph";
+  const entityMeaningCount = meaning ? meaningCount(meaning) : 0;
+  const hasProperties = propertyCount > 0;
+  const fulfilmentSubject: Parameters<typeof buildAxisMap>[1] | undefined =
+    entity
+      ? activeProperty
+        ? {
+            kind: "property",
+            component: entityComponent ?? entity.name,
+            property: activeProperty,
+          }
+        : {
+            kind: isTopologyNode(entity) ? "node" : "edge",
+            component: entityComponent ?? entity.name,
+          }
+      : undefined;
+  const axisMap = fulfilmentSubject
+    ? buildAxisMap(props.state.index, fulfilmentSubject)
+    : undefined;
+  const hasFulfilment = Boolean(axisMap && axisMap.bindings.length > 0);
+  const availableTabs: InspectorTab[] = entity
+    ? [
+        "overview",
+        ...(entityMeaningCount > 0 ? (["meaning"] as const) : []),
+        ...(hasProperties ? (["properties"] as const) : []),
+        ...(hasFulfilment ? (["fulfilment"] as const) : []),
+      ]
+    : [
+        "overview",
+        ...(meaningCount(graphSemantics) > 0
+          ? (["meaning"] as const)
+          : []),
+      ];
+  const effectiveTab = availableTabs.includes(tab) ? tab : "overview";
   const openDetail = () => {
     if (selected) {
       openInDetail(props);
@@ -2268,6 +2304,34 @@ export function TopologyInspector({
         </div>
       </PanelHeader>
 
+      {availableTabs.length > 1 ? (
+        <div
+          className="flex flex-none border-b border-line-soft"
+          role="tablist"
+          aria-label="Inspector sections"
+        >
+          {INSPECTOR_TABS.filter((entry) =>
+            availableTabs.includes(entry.id),
+          ).map((entry) => (
+            <button
+              key={entry.id}
+              type="button"
+              role="tab"
+              aria-selected={effectiveTab === entry.id}
+              className={cx(
+                "flex-1 border-b-2 px-1 py-1.5 text-[length:var(--text-sm)] font-medium uppercase tracking-[0.05em]",
+                effectiveTab === entry.id
+                  ? "border-accent text-text"
+                  : "border-transparent text-faint hover:text-text",
+              )}
+              onClick={() => setTab(entry.id)}
+            >
+              {entry.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
       {entity ? (
         <div className="flex flex-none items-center gap-2 border-b border-line-soft px-3 py-2">
           <ConceptGlyph
@@ -2299,185 +2363,183 @@ export function TopologyInspector({
             </p>
           </div>
         </div>
-      ) : null}
-
-      {entity ? (
-        <div
-          className="flex flex-none border-b border-line-soft"
-          role="tablist"
-          aria-label="Inspector sections"
-        >
-          {INSPECTOR_TABS.map((entry) => (
-            <button
-              key={entry.id}
-              type="button"
-              role="tab"
-              aria-selected={tab === entry.id}
-              className={cx(
-                "flex-1 border-b-2 px-1 py-1.5 text-[length:var(--text-sm)] font-medium uppercase tracking-[0.05em]",
-                tab === entry.id
-                  ? "border-accent text-text"
-                  : "border-transparent text-faint hover:text-text",
-              )}
-              onClick={() => setTab(entry.id)}
-            >
-              {entry.label}
-            </button>
-          ))}
-        </div>
-      ) : null}
-
-      {!entity ? (
-        <div className="thin-scrollbar min-h-0 flex-1 overflow-y-auto px-3 py-2.5">
-          <header className="mb-3">
-            <div className="flex items-center gap-1.5">
-              <ConceptGlyph concept="graph" className="size-4 flex-none" />
-              <span className="text-[length:var(--text-sm)] font-semibold uppercase tracking-[0.08em] text-faint">
-                Graph overview
-              </span>
-            </div>
-            <p className="mt-0.5 break-words font-mono text-[length:var(--text-xl)] leading-tight text-text">
-              {props.state.index.graphDeclaration?.name ?? "Graph"}
-            </p>
-          </header>
-          <div className="mb-3 grid grid-cols-2 gap-x-3 gap-y-1 rounded-[var(--radius-md)] border border-line-soft bg-panel-raised px-2.5 py-2">
-            <SummaryField label="Nodes" value={model.stats.nodes} />
-            <SummaryField label="Abstract" value={model.stats.abstractNodes} />
-            <SummaryField label="Relations" value={model.stats.edgeLinks} />
-            <SummaryField label="Meaning" value={model.stats.semantics} />
-            <div className="col-span-2">
-              <SummaryField label="License" value={graphLicense.value} />
-            </div>
-          </div>
-          <DesignMeaning
-            claims={graphSemantics.claims}
-            limitations={graphSemantics.limitations}
-            purpose={graphSemantics.purpose}
-            frames={graphSemantics.frames}
-            emptyText="No graph purpose is attached."
-          />
-        </div>
       ) : (
-        <div className="thin-scrollbar min-h-0 flex-1 overflow-y-auto px-3 py-2.5">
-          {tab === "overview" ? (
-            <div className="space-y-3">
-              {entity.description ? (
-                <p className="text-[length:var(--text-base)] leading-relaxed text-muted">
-                  {entity.description}
-                </p>
-              ) : null}
+        <div className="flex flex-none items-center gap-2 border-b border-line-soft px-3 py-2">
+          <ConceptGlyph concept="graph" className="size-4 flex-none" />
+          <div className="min-w-0">
+            <span className="text-[length:var(--text-sm)] font-semibold uppercase tracking-[0.08em] text-faint">
+              Graph overview
+            </span>
+            <p
+              className="truncate font-mono text-[length:var(--text-lg)] leading-tight text-text"
+              title={graphName}
+            >
+              {graphName}
+            </p>
+          </div>
+        </div>
+      )}
 
+      <div className="thin-scrollbar min-h-0 flex-1 overflow-y-auto px-3 py-2.5">
+        {!entity ? (
+          effectiveTab === "meaning" ? (
+            <DesignMeaning
+              claims={graphSemantics.claims}
+              limitations={graphSemantics.limitations}
+              purpose={graphSemantics.purpose}
+              frames={graphSemantics.frames}
+              emptyText="No graph purpose is attached."
+            />
+          ) : (
+            <div className="space-y-3">
               <div className="grid grid-cols-2 gap-x-3 gap-y-1 rounded-[var(--radius-md)] border border-line-soft bg-panel-raised px-2.5 py-2">
-                <SummaryField label="Category" value={entity.category} />
-                <SummaryField
-                  label={isTopologyNode(entity) ? "Links" : "Kind"}
-                  value={isTopologyNode(entity) ? entity.degree : entity.kind}
-                />
-                <SummaryField label="Properties" value={propertyCount} />
-                <SummaryField
-                  label="License"
-                  value={entityLicense?.value ?? "Not declared"}
-                />
-                {isTopologyNode(entity) ? null : (
-                  <>
-                    <div className="col-span-2">
-                      <SummaryField label="Source" value={entity.sourceName} />
-                    </div>
-                    <div className="col-span-2">
-                      <SummaryField label="Target" value={entity.targetName} />
-                    </div>
-                  </>
-                )}
-                {activeProperty ? (
-                  <div className="col-span-2">
-                    <SummaryField label="Property" value={activeProperty} />
-                  </div>
-                ) : null}
+                <SummaryField label="Nodes" value={model.stats.nodes} />
+                <SummaryField label="Abstract" value={model.stats.abstractNodes} />
+                <SummaryField label="Relations" value={model.stats.edgeLinks} />
+                <SummaryField label="Meaning" value={model.stats.semantics} />
                 <div className="col-span-2">
-                  <SummaryField
-                    label="Labels"
-                    value={entity.labels.length ? entity.labels.join(", ") : "—"}
-                  />
+                  <SummaryField label="License" value={graphLicense.value} />
                 </div>
               </div>
-
               <section className="rounded-[var(--radius-md)] border border-line-soft bg-panel-raised px-2.5 py-2">
                 <Label className="block">Purpose</Label>
                 <p
                   className={cx(
                     "mt-1 text-[length:var(--text-base)] leading-relaxed",
-                    meaning?.purpose ? "text-text" : "text-faint",
+                    graphSemantics.purpose ? "text-text" : "text-faint",
                   )}
                 >
-                  {meaning?.purpose ?? "No purpose is stated."}
+                  {graphSemantics.purpose ?? "No graph purpose is attached."}
                 </p>
                 <p className="mt-1.5 font-mono text-[length:var(--text-sm)] text-faint">
-                  {meaning?.claims.length ?? 0} claims ·{" "}
-                  {meaning?.limitations.length ?? 0} limitations
+                  {graphSemantics.claims.length} claims ·{" "}
+                  {graphSemantics.limitations.length} limitations
                 </p>
               </section>
             </div>
-          ) : null}
+          )
+        ) : (
+          <>
+            {effectiveTab === "overview" ? (
+              <div className="space-y-3">
+                {entity.description ? (
+                  <p className="text-[length:var(--text-base)] leading-relaxed text-muted">
+                    {entity.description}
+                  </p>
+                ) : null}
 
-          {tab === "meaning" ? (
-            <DesignMeaning
-              claims={meaning?.claims ?? []}
-              limitations={meaning?.limitations ?? []}
-              purpose={meaning?.purpose}
-              frames={meaning?.frames}
-              emptyText={
-                activeProperty
-                  ? "Meaning omitted for this property."
-                  : "Meaning omitted for this entity."
-              }
-            />
-          ) : null}
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1 rounded-[var(--radius-md)] border border-line-soft bg-panel-raised px-2.5 py-2">
+                  <SummaryField label="Category" value={entity.category} />
+                  <SummaryField
+                    label={isTopologyNode(entity) ? "Links" : "Kind"}
+                    value={isTopologyNode(entity) ? entity.degree : entity.kind}
+                  />
+                  <SummaryField label="Properties" value={propertyCount} />
+                  <SummaryField
+                    label="License"
+                    value={entityLicense?.value ?? "Not declared"}
+                  />
+                  {isTopologyNode(entity) ? null : (
+                    <>
+                      <div className="col-span-2">
+                        <SummaryField label="Source" value={entity.sourceName} />
+                      </div>
+                      <div className="col-span-2">
+                        <SummaryField label="Target" value={entity.targetName} />
+                      </div>
+                    </>
+                  )}
+                  {activeProperty ? (
+                    <div className="col-span-2">
+                      <SummaryField label="Property" value={activeProperty} />
+                    </div>
+                  ) : null}
+                  <div className="col-span-2">
+                    <SummaryField
+                      label="Labels"
+                      value={entity.labels.length ? entity.labels.join(", ") : "—"}
+                    />
+                  </div>
+                </div>
 
-          {tab === "properties" ? (
-            <section>
-              <div className="mb-1 flex items-baseline justify-between gap-2">
-                <Label>Properties</Label>
-                <span className="font-mono text-[length:var(--text-sm)] text-faint">
-                  {propertyCount}
-                </span>
+                <section className="rounded-[var(--radius-md)] border border-line-soft bg-panel-raised px-2.5 py-2">
+                  <Label className="block">Purpose</Label>
+                  <p
+                    className={cx(
+                      "mt-1 text-[length:var(--text-base)] leading-relaxed",
+                      meaning?.purpose ? "text-text" : "text-faint",
+                    )}
+                  >
+                    {meaning?.purpose ?? "No purpose is stated."}
+                  </p>
+                  <p className="mt-1.5 font-mono text-[length:var(--text-sm)] text-faint">
+                    {meaning?.claims.length ?? 0} claims ·{" "}
+                    {meaning?.limitations.length ?? 0} limitations
+                  </p>
+                </section>
               </div>
-              <PropertyRows
-                props={props}
-                entity={entity}
-                activeProperty={activeProperty}
-                onContextMenu={(property, event) => {
-                  const selection = propertySelection(entity, property);
-                  setMenu({
-                    x: event.clientX,
-                    y: event.clientY,
-                    selection,
-                    label: selection.name ?? property.name,
-                  });
-                }}
-              />
-            </section>
-          ) : null}
+            ) : null}
 
-          {tab === "fulfilment" ? (
-            <FulfilmentMap
-              index={props.state.index}
-              narrow
-              subject={
-                activeProperty
-                  ? {
-                      kind: "property",
-                      component: entityComponent ?? entity.name,
-                      property: activeProperty,
-                    }
-                  : {
-                      kind: isTopologyNode(entity) ? "node" : "edge",
-                      component: entityComponent ?? entity.name,
-                    }
-              }
-            />
-          ) : null}
-        </div>
-      )}
+            {effectiveTab === "meaning" ? (
+              <DesignMeaning
+                claims={meaning?.claims ?? []}
+                limitations={meaning?.limitations ?? []}
+                purpose={meaning?.purpose}
+                frames={meaning?.frames}
+                emptyText={
+                  activeProperty
+                    ? "Meaning omitted for this property."
+                    : "Meaning omitted for this entity."
+                }
+              />
+            ) : null}
+
+            {effectiveTab === "properties" ? (
+              <section>
+                <div className="mb-1 flex items-baseline justify-between gap-2">
+                  <Label>Properties</Label>
+                  <span className="font-mono text-[length:var(--text-sm)] text-faint">
+                    {propertyCount}
+                  </span>
+                </div>
+                <PropertyRows
+                  props={props}
+                  entity={entity}
+                  activeProperty={activeProperty}
+                  onContextMenu={(property, event) => {
+                    const selection = propertySelection(entity, property);
+                    setMenu({
+                      x: event.clientX,
+                      y: event.clientY,
+                      selection,
+                      label: selection.name ?? property.name,
+                    });
+                  }}
+                />
+              </section>
+            ) : null}
+
+            {effectiveTab === "fulfilment" ? (
+              <FulfilmentMap
+                index={props.state.index}
+                narrow
+                subject={
+                  activeProperty
+                    ? {
+                        kind: "property",
+                        component: entityComponent ?? entity.name,
+                        property: activeProperty,
+                      }
+                    : {
+                        kind: isTopologyNode(entity) ? "node" : "edge",
+                        component: entityComponent ?? entity.name,
+                      }
+                }
+              />
+            ) : null}
+          </>
+        )}
+      </div>
 
       {menu ? (
         <ContextMenu

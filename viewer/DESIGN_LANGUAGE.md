@@ -463,10 +463,11 @@ the page margin instead.
   Properties and Fulfilment are explicit chunks behind tabs, so the panel does
   not open as one long scroll. With no selection it previews the hovered entity;
   hovering the graph void returns to the graph overview, and a selection always
-  wins over hover. The entity identity stays pinned above the tabs, and the
-  active tab survives a change of inspected entity. This follows **Cognitive
-  Load** (Laws of UX): answer what and why first, then reveal the evidence on
-  request.
+  wins over hover. The tab bar sits above the pinned identity, only applicable
+  tabs are shown, and the active tab survives a change of inspected entity. The
+  Graph overview carries Overview and Meaning; entity-only tabs are absent. This
+  follows **Cognitive Load** (Laws of UX): answer what and why first, then
+  reveal the evidence on request.
 - An abstract category with children is a container node: the smallest circle
   enclosing its direct members, with a child abstract category drawn as its own
   container inside it. Containers are selectable, sit behind the links, and
