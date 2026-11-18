@@ -115,7 +115,12 @@ them; its Contribution shows the items and the actual participants one level
 above. There is no collection root. Items opens each participant; Coverage
 counts the layer. A large set accepts items until the boundary reaches a
 readable size and states how many items are shown; it never shows layer boxes
-or links to another collection. Assets have an explicit empty Constitution state:
+or links to another collection.
+
+The boundary is ordered in vertical level bands: an asset below a source
+relation, a source relation below a derived relation, a derived relation below
+a binding, and a record above a binding. A Constitution puts the items in the
+top band; a Contribution puts them in the bottom band. Assets have an explicit empty Constitution state:
 they are the origin.
 
 Every Explorer header is two targets: the **body** opens the collection and the

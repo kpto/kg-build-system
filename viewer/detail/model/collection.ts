@@ -1217,6 +1217,7 @@ function itemBoundary(
   const itemNode: ConstitutionNode = {
     ...boundary.subject,
     current: false,
+    item: true,
     collection: undefined,
     frame,
     ...(item.level === "binding" && item.bindingIndex !== undefined

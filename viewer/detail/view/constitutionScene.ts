@@ -1148,9 +1148,46 @@ function routeGridEdge(
   };
 }
 
+function dataLevel(kind: ConstitutionNode["kind"]): number | undefined {
+  switch (kind) {
+    case "asset":
+      return 0;
+    case "relation":
+      return 1;
+    case "projection":
+      return 2;
+    case "binding":
+      return 3;
+    case "node":
+    case "edge":
+    case "abstract":
+    case "graph":
+    case "property":
+      return 4;
+    case "step":
+      return 5;
+  }
+}
+
+function bandOf(
+  node: ConstitutionNode,
+  itemLevel: number,
+  direction: "dependency" | "contribution",
+): number {
+  if (node.item) return 0;
+  if (node.kind === "abstract" || node.kind === "graph") return 0.5;
+  const level = dataLevel(node.kind);
+  if (level === undefined) return 0.5;
+  if (direction === "dependency") {
+    return itemLevel > level ? itemLevel - level : 0.5;
+  }
+  return level > itemLevel ? level - itemLevel : 0.5;
+}
+
 /**
  * A collection boundary with no root: the collection's actual items and their
- * merged dependencies or contributions. One frame, real boxes.
+ * merged dependencies or contributions, ordered in vertical level bands. The
+ * asset level sits below the source-relation level; bindings sit above them.
  */
 function buildSubjectSetScene(model: ConstitutionModel): ConstitutionScene {
   const layers: ConstitutionSceneNode[] = (model.layers ?? []).map((node) => ({
@@ -1166,17 +1203,49 @@ function buildSubjectSetScene(model: ConstitutionModel): ConstitutionScene {
     y: 0,
     ...NODE.graph,
   }));
-  const columns =
-    layers.length > 40
-      ? 5
-      : Math.max(1, Math.min(4, Math.ceil(Math.sqrt(layers.length))));
-  const gap = 32;
-  layers.forEach((node, index) => {
-    const column = index % columns;
-    const row = Math.floor(index / columns);
-    node.x = column * (NODE.graph.width + gap);
-    node.y = row * (NODE.graph.height + gap);
+  const itemLevel = dataLevel(model.subject.kind) ?? 4;
+  const direction = model.direction ?? "dependency";
+  const groups = new Map<number, ConstitutionSceneNode[]>();
+  layers.forEach((node) => {
+    const band = bandOf(node.node, itemLevel, direction);
+    const group = groups.get(band) ?? [];
+    group.push(node);
+    groups.set(band, group);
   });
+  const bands = [...groups.keys()].sort((left, right) =>
+    direction === "dependency" ? left - right : right - left,
+  );
+  const gap = 32;
+  const bandGap = 56;
+  const columnsFor = (count: number) =>
+    count > 40 ? 5 : Math.max(1, Math.min(4, Math.ceil(Math.sqrt(count))));
+  const bandWidths = new Map(
+    bands.map((band) => {
+      const count = groups.get(band)!.length;
+      const columns = columnsFor(count);
+      return [band, columns * NODE.graph.width + (columns - 1) * gap];
+    }),
+  );
+  const totalWidth = Math.max(0, ...bandWidths.values());
+  let y = 0;
+  for (const band of bands) {
+    const members = groups.get(band)!;
+    const columns = columnsFor(members.length);
+    const rows = Math.ceil(members.length / columns);
+    const bandWidth = bandWidths.get(band) ?? 0;
+    const startX = (totalWidth - bandWidth) / 2;
+    members.forEach((node, index) => {
+      const column = index % columns;
+      const row = Math.floor(index / columns);
+      node.x = startX + column * (NODE.graph.width + gap);
+      node.y = y + row * (NODE.graph.height + gap);
+    });
+    y +=
+      rows * NODE.graph.height +
+      Math.max(0, rows - 1) * gap +
+      bandGap;
+  }
+
   const byId = new Map(layers.map((node) => [node.id, node] as const));
   const edges: ConstitutionSceneEdge[] = [];
   for (const link of model.layerEdges ?? []) {
@@ -1193,6 +1262,7 @@ function buildSubjectSetScene(model: ConstitutionModel): ConstitutionScene {
       head: edgeHead(path),
     });
   }
+
   const frameId = layers[0]
     ? frameIdForSceneNode(layers[0])
     : frameIdForKind(model.subject.kind);
@@ -1224,14 +1294,8 @@ function buildSubjectSetScene(model: ConstitutionModel): ConstitutionScene {
       y: lowest.y + lowest.height + NOTE_GAP,
     });
   }
-  const nodeMaxX = Math.max(
-    0,
-    ...layers.map((node) => node.x + node.width),
-  );
-  const nodeMaxY = Math.max(
-    0,
-    ...layers.map((node) => node.y + node.height),
-  );
+  const nodeMaxX = Math.max(0, ...layers.map((node) => node.x + node.width));
+  const nodeMaxY = Math.max(0, ...layers.map((node) => node.y + node.height));
   const contentMaxX = Math.max(
     nodeMaxX,
     ...notes.map((note) => note.x + 180),

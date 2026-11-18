@@ -75,6 +75,8 @@ export interface ConstitutionNode {
   stepId?: [string, string];
   /** The binding identity when the box is a binding. */
   bindingIndex?: number;
+  /** True when the box is one of a collection's own items. */
+  item?: boolean;
   /** An explicit frame, used by layer and workflow boxes. */
   frame?: ConstitutionFrameId;
 }

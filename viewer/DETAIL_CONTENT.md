@@ -85,6 +85,11 @@ boundary. A large set accepts items until the boundary reaches a readable size
 and states how many items are shown; it never shows layer boxes or links to
 another collection.
 
+The boxes are ordered in vertical level bands. An asset is below a source
+relation, a source relation below a derived relation, a derived relation below
+a binding, and a record above a binding. A Constitution puts the collection's
+items in the top band; a Contribution puts them in the bottom band.
+
 | Collection page | Scope | Contents |
 | --- | --- | --- |
 | **Constitution** | the items and the actual participants below them, merged | one box per real item or dependency, shared subjects once, in the collection's frame. Assets have an explicit empty state: they are the origin |
