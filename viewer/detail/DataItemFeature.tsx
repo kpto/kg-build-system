@@ -230,8 +230,8 @@ export function DataItemEditor(props: WorkspaceProps) {
       subtitle={model.description}
       facts={facts}
     >
-      {meaningSection}
       {constitutionSection}
+      {meaningSection}
       {membersSection}
       {bindingsSection}
     </DetailDocument>

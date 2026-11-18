@@ -242,6 +242,17 @@ export function BindingEditor(props: WorkspaceProps) {
       subtitle={binding.binding.mode}
       facts={facts}
     >
+      {constitution ? (
+        <DetailBand
+          concept="semantics"
+          title="Constitution"
+          question="What is this binding for, and how does it come to be?"
+          testId="detail-constitution"
+        >
+          <Constitution model={constitution} />
+        </DetailBand>
+      ) : null}
+
       {hasMeaning ? (
         <DetailBand
           concept="semantics"
@@ -253,17 +264,6 @@ export function BindingEditor(props: WorkspaceProps) {
             {...meaning}
             emptyText="Meaning omitted for this binding."
           />
-        </DetailBand>
-      ) : null}
-
-      {constitution ? (
-        <DetailBand
-          concept="semantics"
-          title="Constitution"
-          question="What is this binding for, and how does it come to be?"
-          testId="detail-constitution"
-        >
-          <Constitution model={constitution} />
         </DetailBand>
       ) : null}
 

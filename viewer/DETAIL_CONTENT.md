@@ -16,8 +16,8 @@ the index rail is the only navigation between cards.
 
 | Order | Section | Question it answers | Content |
 | --- | --- | --- | --- |
-| 1 | **Meaning** | What is this for, and what does it exclude? | Purpose as the lead, then two labelled readings: contextless claims and the limitations that bound the purpose. Each group states its own count; the groups stack when the card is narrow. Legacy readings follow under **Earlier reading**. |
-| 2 | **Constitution** | What is this subject for, and how does it come to be? | One layered DAG on a pan/zoom canvas. A record shows its purpose and graph ancestry in the GRAPH frame on the left, one box per binding in the FULFILMENT frame, and each binding's relation provenance in the RELATION frame on the right; there is no separator. A source relation shows its Purpose over its asset in the RELATION frame; a derived relation its Purpose over the source relations it scans and their assets in the RELATION frame; a binding its Purpose in the FULFILMENT frame, its target record (purpose and identity) in the GRAPH frame and the relations it reads in the RELATION frame. An asset has no Constitution card: it is the origin. Every edge points from the supply to the consumer; a shared declaration is one node with one edge per consumer; ranks, ordering and edge routes are computed; the purpose box carries the subject's own concept mark. Each node clamps its purpose to two lines; hovering or focusing it reveals the full meaning, selecting it dims the rest, and its label opens its document. |
+| 1 | **Constitution** | What is this subject for, and how does it come to be? | One layered DAG on a pan/zoom canvas. A record shows its purpose and graph ancestry in the GRAPH frame on the left, one box per binding in the FULFILMENT frame, and each binding's relation provenance in the RELATION frame on the right; there is no separator. A source relation shows its Purpose over its asset in the RELATION frame; a derived relation its Purpose over the source relations it scans and their assets in the RELATION frame; a binding its Purpose in the FULFILMENT frame, its target record (purpose and identity) in the GRAPH frame and the relations it reads in the RELATION frame. An asset has no Constitution card: it is the origin. Every edge points from the supply to the consumer; a shared declaration is one node with one edge per consumer; ranks, ordering and edge routes are computed; the purpose box carries the subject's own concept mark. Each node clamps its purpose to two lines; hovering or focusing it reveals the full meaning, selecting it dims the rest, and its label opens its document. |
+| 2 | **Meaning** | What is this for, and what does it exclude? | Purpose as the lead, then two labelled readings: contextless claims and the limitations that bound the purpose. Each group states its own count; the groups stack when the card is narrow. Legacy readings follow under **Earlier reading**. |
 | 3 | **Members** | Which units belong to this subject? | One table grammar: name, type, meaning, source, count; the instance pill opens its document when one exists. |
 | 4 | **Connections** | Which records does this subject touch? | Endpoints of an edge, incident relations of a node, ports of a step. |
 | 5 | **Bindings** | Which binding fulfils this subject? | One row per binding: name, writes, identity, rows read. The binding pill opens the binding document. |
@@ -34,9 +34,9 @@ the scroll position. It is hidden when the pane is narrower than the rail plus
 one readable card. The rail reads the rendered cards, so a card added by any
 kind appears in it without a second section list.
 
-A binding is its own document. Its sections are **Meaning**, **Constitution**,
-**Expression** and **Build steps**. The binding banner states the record,
-writes, identity, rows read, step and output. A record detail does not repeat
+A binding is its own document. Its sections are **Constitution**, **Meaning**
+(when the binding carries one), **Expression** and **Build steps**. The binding
+banner states the record, writes, identity, rows read, step and output. A record detail does not repeat
 the traversal; its Bindings table and the Constitution's binding node open the
 binding document.
 
@@ -44,14 +44,14 @@ binding document.
 
 | View kind | Sections | Notes |
 | --- | --- | --- |
-| Node | **Meaning**, **Constitution**, **Members**, **Connections**, **Bindings** | Members are properties; Connections are incident relations. |
-| Edge | **Meaning**, **Constitution**, **Members**, **Connections**, **Bindings** | The banner states the endpoints; Connections repeats them with the edge. |
-| Property | **Meaning**, **Constitution**, **Branches**, **Connections**, **Bindings** | Branches is the type/presence chain and lane canvas; Connections is its ledger. |
-| Abstract category | **Meaning**, **Constitution**, **Members** | Members are concrete descendants. |
+| Node | **Constitution**, **Meaning**, **Members**, **Connections**, **Bindings** | Members are properties; Connections are incident relations. |
+| Edge | **Constitution**, **Meaning**, **Members**, **Connections**, **Bindings** | The banner states the endpoints; Connections repeats them with the edge. |
+| Property | **Constitution**, **Meaning**, **Branches**, **Connections**, **Bindings** | Branches is the type/presence chain and lane canvas; Connections is its ledger. |
+| Abstract category | **Constitution**, **Meaning**, **Members** | Members are concrete descendants. |
 | Asset | **Meaning**, **Members**, **Fields**, **Bindings** | The banner states the layout and location; Members are relations, then fields. An asset is the origin, so it has no Constitution card. |
-| Source relation | **Meaning**, **Constitution**, **Members**, **Bindings** | Columns are the relation; the banner states the asset and row source. The Constitution is the relation's purpose over its asset alone: a source relation is not fulfilled by a binding and has no graph axis. |
-| Derived relation | **Meaning**, **Constitution**, **Members**, **Bindings** | Members are its columns; the banner states the row source. The Constitution is its purpose over the source relations it scans and their assets. |
-| Binding | **Meaning**, **Constitution**, **Expression**, **Build steps** | The Constitution is the binding's purpose over the target record (purpose and identity only) and the relations it reads; Expression and Build steps carry the computation and the plan. |
+| Source relation | **Constitution**, **Meaning**, **Members**, **Bindings** | Columns are the relation; the banner states the asset and row source. The Constitution is the relation's purpose over its asset alone: a source relation is not fulfilled by a binding and has no graph axis. |
+| Derived relation | **Constitution**, **Meaning**, **Members**, **Bindings** | Members are its columns; the banner states the row source. The Constitution is its purpose over the source relations it scans and their assets. |
+| Binding | **Constitution**, **Meaning**, **Expression**, **Build steps** | The Constitution is the binding's purpose over the target record (purpose and identity only) and the relations it reads; Expression and Build steps carry the computation and the plan. |
 | Step | **Ports**, **Payload**, **Connections**, **Bindings**, Meaning, Sources | A step is build machinery; Meaning and Sources state their absence last. |
 
 Text in bold is the first card the reader meets; every card in the row is
@@ -63,13 +63,14 @@ the Constitution's binding node.
 
 ## The binding document carries the traversal
 
-The record detail is read for meaning, constitution and membership. The binding
+The record detail is read for its constitution, meaning and membership. The binding
 document is the one place for the computation and the plan:
 
 | Section | Strict meaning | Visualisation |
 | --- | --- | --- |
-| **Expression** | the field and operator chain the binding writes | the indented expression outline: identity, source and target identity, then each property expression; an operator node states its published signature when the blueprint carries an operation declaration, otherwise the instance's actual logical type |
 | **Constitution** | how the binding comes to be | its purpose over the target record's purpose and identity, and the relations it reads with their provenance |
+| **Meaning** | what the binding fulfils and excludes | the binding's own purpose, claims and limitations, when it carries them |
+| **Expression** | the field and operator chain the binding writes | the indented expression outline: identity, source and target identity, then each property expression; an operator node states its published signature when the blueprint carries an operation declaration, otherwise the instance's actual logical type |
 | **Build steps** | the plan that executes the binding | the binding step and the workflow neighbours it reads from and writes to |
 
 Sources is not a record card. The binding banner states the rows read; the

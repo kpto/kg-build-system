@@ -76,14 +76,14 @@ Every item detail view follows one content contract, stated in
 
 ```text
 Banner: Overview
-Meaning → Constitution → Members → Connections → Bindings
+Constitution → Meaning → Members → Connections → Bindings
 ```
 
 A binding document is the one exception to the record order:
 
 ```text
 Banner: Overview
-Meaning → Expression → Build steps
+Constitution → Meaning → Expression → Build steps
 ```
 
 A kind includes or omits a section; it never renames one for itself.
@@ -137,9 +137,9 @@ A kind includes or omits a section; it never renames one for itself.
 - **Connections** states endpoints, incident relations or ports.
 - **Bindings** states which binding fulfils the subject; its pill opens the
   binding document.
-- A binding document leads with its **Meaning** (when the binding carries one),
-  then its **Constitution**, its **Expression** and its **Build steps**. The
-  Constitution is the binding's purpose over the target record and the
+- A binding document leads with its **Constitution**, then its **Meaning**
+  (when the binding carries one), its **Expression** and its **Build steps**.
+  The Constitution is the binding's purpose over the target record and the
   relations it reads.
 
 A kind may state an absence instead of omitting a section. A step has no design

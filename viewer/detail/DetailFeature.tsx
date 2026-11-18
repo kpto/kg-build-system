@@ -2024,8 +2024,8 @@ function SubjectDetailEditor(props: WorkspaceProps) {
       }
       facts={facts}
     >
-      {meaningSection}
       {model.level === "asset" ? null : constitutionSection}
+      {meaningSection}
       {kindSection}
       {bindingsSection}
     </DetailDocument>
