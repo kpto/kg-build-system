@@ -277,9 +277,11 @@ missing, not the code.
 - A detail document is a horizontal deck of flat cards inside one page margin.
   The deck fills the height left by the margin, and each card fills the deck
   height, states its title above the body at the top-left in the heading role,
-  and leaves the next card peeking as the cue for more. The page margin is
-  larger than the gap between cards, so the document reads as one group. The
-  card has no border, background or radius; the deck owns horizontal scroll and
+  and leaves the next card peeking as the cue for more. When the index rail is
+  hidden, one card fills the deck and the next card is off-screen; a clipped
+  sliver is not a cue. The page margin is larger than the gap between cards, so
+  the document reads as one group. The card has no border, background or radius;
+  the deck owns horizontal scroll and
   reserves its trailing peek space so the last card can snap to the deck start.
   The card body owns vertical scroll, except a graph or tree viewport, which
   fills the body and owns that scroll; a compact list or lane may cap its
