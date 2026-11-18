@@ -20,12 +20,12 @@ own relation shapes, records or engine emitters.
 - One operation MUST own one file and state `name`, `arity`, `arguments` and
   `result_type` in an `OperationSpec`.
 - The typed handle MUST carry the argument and result types:
-  `hello: Operation[[Selection[str]], str] = Operation(HELLO)`.
+  `operation: Operation[[Selection[str]], str] = Operation(SPEC)`.
 - Both authoring forms MUST use the same handle:
-  `hello(value)` and `value.custom_op(hello)`.
+  `operation(value)` and `value.custom_op(operation)`.
 - The operation MUST be a value operation. A row effect, a grain change or a
   relation aggregate is not an expression operation; use a `DerivedRelation`, a
-  `Stage`, or the relation-operation guide in `../modules/count_rows.py`.
+  `Stage`, or the relation-operation guide in `../modules/README.md`.
 - A threshold is not just a number. If a reference supplies a bound but not the
   adverse direction, make the direction a named operation or a stated assumption
   and say which records carry it. Do not compare every analyte or parameter with
@@ -34,7 +34,7 @@ own relation shapes, records or engine emitters.
 - The engine emitter MUST live in `modules/` and be composed into the engine in
   `manifest.py`. It MUST NOT import the project's declarations.
 - The language MUST be composed with the operation set:
-  `ExpressionsLanguage((*DEFAULT_OPERATIONS, HELLO))`. There is no registry and
+  `ExpressionsLanguage((*DEFAULT_OPERATIONS, SPEC))`. There is no registry and
   no `register_operation`.
 - A declaration MUST NOT have a docstring; the spec's names and argument
   descriptions are its vocabulary. The computed field states the value meaning.
@@ -46,7 +46,7 @@ Imports the framework only. Read `../modules/README.md` for the emitter, then
 
 ## Gate
 
-`tests/test_hello_expression.py` and the framework typecheck fixture. An
+The framework typecheck fixture and the operation's own test. An
 operation whose result is not used at a field or declaration is an unused
 vocabulary item, not a relation.
 

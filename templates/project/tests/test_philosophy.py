@@ -224,15 +224,13 @@ def test_every_binding_states_the_fulfilment() -> None:
 
 
 def test_the_start_here_design_record_is_answered() -> None:
-    """A project that replaced the fixture must keep its design record."""
+    """The design record is the first artifact, not a comment."""
     start_here = (ROOT.parent / "START-HERE.md").read_text()
-    if (ROOT / "asset" / "fixture.py").exists():
-        return
     placeholders = ("Replace this", "The fixture's answer")
     found = [text for text in placeholders if text in start_here]
     assert not found, (
         "START-HERE.md is the design record a cold reader reads before the code. "
-        "Replace the fixture answers with this project's purpose, records, "
+        "Replace the placeholder answers with this project's purpose, records, "
         "relations, fulfilments and assumptions."
     )
 
@@ -246,3 +244,8 @@ def test_the_graph_declaration_has_a_purpose() -> None:
         declaration.meaning is not None
         and declaration.meaning.purpose is not None
     ), "The graph declaration must carry the project's root purpose."
+    purpose = declaration.meaning.purpose
+    assert not purpose.text.strip().startswith("Replace this"), (
+        "The graph declaration still carries the template placeholder. State the "
+        "decision the graph supports, for whom, and what it is not for."
+    )

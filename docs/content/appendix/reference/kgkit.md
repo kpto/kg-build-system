@@ -25,7 +25,7 @@ sources:
 
 | Command | Job |
 | --- | --- |
-| `kbs init` | Copy the project template and create the notebook. |
+| `kbs init` | Create an empty project and its notebook; `--fixture` copies the conformance example. |
 | `kbs notebook repair` | Create the notebook directory, config and records if missing. |
 | `kbs notebook status` | Show the project and notebook state. |
 | `kbs notebook relations` | Print the catalog and iteration timeline. |

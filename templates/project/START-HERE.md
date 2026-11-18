@@ -2,8 +2,8 @@
 
 Answer these before writing a declaration, and **keep the answers**. This file
 is the model a cold reader reads before the code: the directory briefs and the
-declarations assume it. The fixture's one-line answers are placeholders; replace
-them with the project's argument.
+declarations assume it. The project starts with placeholder answers, and
+`uv run pytest` fails until this file and the graph declaration are answered.
 
 ## 1. Why does this graph exist?
 
@@ -11,8 +11,7 @@ them with the project's argument.
 - For whom?
 - What is it explicitly not for?
 
-> The fixture's answer: exercise the template's layers so a new project starts
-> with a passing build. Replace this.
+> Replace this with the project's answer.
 
 ## 2. What exists?
 
@@ -24,7 +23,7 @@ them with the project's argument.
 - If a site and a station, or two similar kinds, share a use, is that a category,
   a template, or two unrelated records? State why.
 
-> The fixture's answer: items with nested parts. Replace this.
+> Replace this with the project's answer.
 
 ## 3. What supplies them?
 
@@ -46,8 +45,7 @@ them with the project's argument.
 - Which source is semi-structured or irregular, and which nested or optional
   fields must be preserved rather than flattened or inferred?
 
-> The fixture's answer: an `items` source relation and an `item_parts` derived
-> relation with a private `part_rows` stage. Replace this.
+> Replace this with the project's answer.
 
 ## 4. How does each relation fulfil each record?
 
@@ -60,8 +58,7 @@ For each binding:
 - What can a cold reader verify from the graph alone: which result or reading
   supports each conclusion, and where is that path?
 
-> The fixture's answer: one item row is one item; one item-part row is one part
-> and one HAS_PART edge. Replace this.
+> Replace this with the project's answer.
 
 ## 5. What is the first slice?
 

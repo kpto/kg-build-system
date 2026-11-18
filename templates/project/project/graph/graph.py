@@ -1,30 +1,21 @@
-"""The template's graph declaration.
+"""The project's one graph declaration.
 
-This is the one project-level declaration. Its purpose says what the fixture is
-for; replace it with the project's own graph and root meaning.
+Replace the placeholder purpose with the decision the graph supports, for whom,
+and what it is explicitly not for. Every record and relation in the project is
+read under this purpose.
 """
 
-from kg_build_system import Claim, Graph, GraphOptions, Limitation, Meaning, Purpose
+from kg_build_system import Graph, GraphOptions, Meaning, Purpose
 
 
-class FixtureGraph(Graph):
+class ProjectGraph(Graph):
 
     options = GraphOptions(
-        name="fixture",
+        name="project",
         meaning=Meaning(
             purpose=Purpose(
-                "Exercise every authoring layer of the template so a new project "
-                "starts with a passing build. Replace this graph with the project's "
-                "graph.",
-                limitations=(
-                    Limitation(
-                        "It models nothing in the user's domain; it is a conformance "
-                        "fixture."
-                    ),
-                ),
-            ),
-            claims=(
-                Claim("The fixture builds from the template's items source."),
+                "Replace this with the decision the graph supports, for whom, "
+                "and what it is not for."
             ),
         ),
     )

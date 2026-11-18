@@ -51,10 +51,12 @@ what the graph asserts                   what the domain contains
 
 ## First task
 
-1. Read `START-HERE.md` and answer it. Do not write a declaration first.
+1. Read `START-HERE.md` and answer it. Do not write a declaration first. The
+   first `uv run pytest` fails until this file and the graph purpose are
+   answered; that failure is the task, not a broken template.
 2. Read the `README.md` in the directory you are about to change.
-3. Replace the conformance fixture, or keep its shape and change the names and
-   meanings.
+3. Replace the placeholder purpose in `project/graph/graph.py`, then add the
+   first record and its relation and binding.
 4. Run `uv run kbs check --project project` and read the report as a cold
    reader. Then run `uv run pytest` and `uv run pyright`. A failing philosophy
    check means the model, not the test; a green run is not a review.
@@ -62,7 +64,7 @@ what the graph asserts                   what the domain contains
 ## Reading order
 
 1. `START-HERE.md` — the intention interview.
-2. `README.md` — the project and the fixture.
+2. `README.md` — the project and the first slice.
 3. `graph/README.md`, `relation/README.md`, `binding/README.md`,
    `expression/README.md`, `modules/README.md` — the axes and the extension
    lanes.

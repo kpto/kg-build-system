@@ -8,16 +8,22 @@ publishes the graph with the meaning declared for it.
 
 ## Start a project
 
-`templates/project/` is the topic-neutral project template: the four declaration
-layers, one layer directive per directory, a conformance fixture, and the
-philosophy gate. `kbs init` will copy it into a new project.
+`kbs init <dir>` writes an empty project: the declaration tree, one graph
+declaration with a placeholder purpose, an unanswered `START-HERE.md` design
+record, the philosophy gate and the notebook. The first `uv run pytest` fails two
+tests until the design record and the graph purpose are answered; that failure is
+the first task. `kbs init --fixture <dir>` writes the conformance example: a
+complete small project that builds and passes its tests.
 
-A project states its composition in `manifest.py` as declarative `Blueprint` and
-`Workflow` values; importing it builds nothing. The CLI finds them by type:
+`templates/project/` is the empty template; `templates/fixture/` is the
+conformance example. A project states its composition in `manifest.py` as
+declarative `Blueprint` and `Workflow` values; importing it builds nothing. The
+CLI finds them by type:
 
 ```console
-cd templates/project
-uv run pytest
+kbs init my-project
+cd my-project
+uv run pytest                           # red until START-HERE.md is answered
 uv run kbs blueprint --project project
 uv run kbs workflow --project project
 uv run kbs run --project project
@@ -83,8 +89,8 @@ The six kernel protocols — `Language`, `Linker`, `Planner`, `StepExecutor`,
 `ResourceProvider` and `Runtime` — are for a different composition. The exact
 surfaces are in
 [docs/content/appendix/reference/extension.md](docs/content/appendix/reference/extension.md).
-The template carries a runnable value operation, input adapter and relation
-operation in `templates/project/`.
+The conformance example under `templates/fixture/` carries a runnable value
+operation, input adapter and relation operation.
 
 ## Project notebook and console
 

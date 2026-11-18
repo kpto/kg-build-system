@@ -25,6 +25,8 @@ record's meaning, the relation's meaning, or the row plan.
 - The purpose MUST name the record's use in a clause, then state how the relation
   answers it. It MUST NOT be a row recipe ("Supply X from each row's y").
 
+  The shape is the point; the example is from the conformance project.
+
   ```python
   # recipe: says what the expression does, not what record use it serves
   Purpose("Supply HAS_PART edges from each row's part_id.")

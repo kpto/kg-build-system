@@ -10,27 +10,21 @@ blueprint to refuse those shapes.
 
 ## Mission
 
-Own `test_philosophy.py`, the smoke test and the input-adapter contract test. Do
-not own declarations.
+Own `test_philosophy.py` and the build smoke test. Do not own declarations.
 
 ## Execution
 
 - `test_philosophy.py` MUST check facades, import direction, stage privacy,
-  derived contracts, binding purposes and the graph purpose.
-- `test_project.py` MUST prove the blueprint and plan compile and the project
-  builds. It reads the release files as inputs; it does not edit them.
-- `test_input_adapter.py` proves the example adapter only while the example is
-  present. A project with no custom source format may delete it.
-- `test_hello_expression.py` proves both authoring forms of a value operation
-  only while the project has a value operation. A project with no missing value
-  calculation may delete it; do not invent an operation to keep a test.
-- `test_relation_operation.py` proves a relation operation only while the
-  project has one. A project with no grain-changing calculation may delete it;
-  do not invent an operation to keep a test.
+  derived contracts, binding purposes, the graph purpose and the design record.
+- `test_project.py` MUST prove the blueprint and plan compile and that the empty
+  graph builds. It reads the project's own inputs; it does not edit them.
 - A rule MUST have a test. A test MUST NOT only repeat a declaration's text.
-- `START-HERE.md` is the design record, not a fixture; a test MAY check that its
-  placeholder answers were replaced, but a new project starts with the fixture
-  and a passing gate.
+- `START-HERE.md` is the design record, not a comment. The gate is red until its
+  placeholders and the graph purpose are replaced; that is the first task.
+- `uv run pytest` on a fresh project fails two tests on purpose. Do not delete
+  them to get a green run.
+- Tests for a value operation, adapter or relation operation are added with the
+  feature. The conformance example (`kbs init --fixture`) shows those tests.
 
 ## Support
 
