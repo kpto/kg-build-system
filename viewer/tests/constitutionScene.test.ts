@@ -119,6 +119,28 @@ describe("constitution scene", () => {
     }
   });
 
+  it("centres the binding heads and spaces them evenly on the purpose edge", () => {
+    const purpose = byName("defect")[0];
+    const heads = scene.edges
+      .filter(
+        (entry) =>
+          entry.source.startsWith("binding:") &&
+          entry.target === "purpose",
+      )
+      .map((entry) => entry.head!)
+      .sort((left, right) => left.y - right.y);
+    expect(heads).toHaveLength(3);
+    const centre = purpose.y + purpose.height / 2;
+    expect(heads[1].y).toBeCloseTo(centre);
+    expect(heads[0].y + heads[2].y).toBeCloseTo(centre * 2);
+    expect(heads[1].y - heads[0].y).toBeCloseTo(
+      heads[2].y - heads[1].y,
+    );
+    for (const head of heads) {
+      expect(head.x).toBeCloseTo(purpose.x + purpose.width);
+    }
+  });
+
   it("supplies each binding from its own relation and answers the purpose", () => {
     expect(edge("projection:alpha", "binding:0")).toBeTruthy();
     expect(edge("projection:beta", "binding:1")).toBeTruthy();
@@ -215,6 +237,25 @@ describe("constitution scene for a produced subject", () => {
     scenes.nodes.find((entry) => entry.id === id);
   const findEdge = (scenes: ConstitutionScene, source: string, target: string) =>
     scenes.edges.find((entry) => entry.id === `${source}->${target}`);
+  const frameFor = (
+    scenes: ConstitutionScene,
+    id: (typeof scenes.frames)[number]["id"],
+  ) => scenes.frames.find((frame) => frame.id === id);
+  const contains = (
+    scenes: ConstitutionScene,
+    id: (typeof scenes.frames)[number]["id"],
+    nodeId: string,
+  ) => {
+    const frame = frameFor(scenes, id);
+    const node = findBySceneId(scenes, nodeId);
+    if (!frame || !node) return false;
+    return (
+      node.x >= frame.x &&
+      node.y >= frame.y &&
+      node.x + node.width <= frame.x + frame.width &&
+      node.y + node.height <= frame.y + frame.height
+    );
+  };
 
   it("shows a source relation as its purpose over its asset alone", () => {
     const model: ConstitutionModel = {
@@ -229,14 +270,24 @@ describe("constitution scene for a produced subject", () => {
       "asset:estate",
     ]);
     expect(findEdge(sourceScene, "asset:estate", "purpose")).toBeTruthy();
-    expect(sourceScene.labels).toEqual([]);
-    expect(sourceScene.frames).toEqual([]);
-    expect(sourceScene.offset).toEqual({ x: 0, y: 0 });
-    const purpose = findBySceneId(sourceScene, "purpose");
-    const asset = findBySceneId(sourceScene, "asset:estate");
-    expect(purpose).toBeTruthy();
-    expect(asset).toBeTruthy();
-    expect(asset!.y).toBeGreaterThan(purpose!.y);
+    expect(sourceScene.labels.map((label) => label.text)).toEqual([
+      "RELATION",
+    ]);
+    expect(sourceScene.frames.map((frame) => frame.id)).toEqual([
+      "relation",
+    ]);
+    expect(sourceScene.offset.x).toBeGreaterThanOrEqual(0);
+    expect(sourceScene.offset.y).toBeGreaterThanOrEqual(0);
+    expect(contains(sourceScene, "relation", "asset:estate")).toBe(true);
+    const purpose = findBySceneId(sourceScene, "purpose")!;
+    const asset = findBySceneId(sourceScene, "asset:estate")!;
+    const head = sourceScene.edges.find(
+      (entry) => entry.target === "purpose",
+    )?.head;
+    expect(head).toBeDefined();
+    expect(head!.x).toBeCloseTo(purpose.x + purpose.width / 2);
+    expect(head!.y).toBeCloseTo(purpose.y + purpose.height);
+    expect(asset.y).toBeGreaterThan(purpose.y);
   });
 
   it("shows a derived relation as its purpose over its scanned sources and their assets", () => {
@@ -249,7 +300,14 @@ describe("constitution scene for a produced subject", () => {
     const derivedScene = buildConstitutionScene(model);
     expect(findEdge(derivedScene, "relation:surveys", "purpose")).toBeTruthy();
     expect(findEdge(derivedScene, "asset:estate", "relation:surveys")).toBeTruthy();
-    expect(derivedScene.labels).toEqual([]);
+    expect(derivedScene.labels.map((label) => label.text)).toEqual([
+      "RELATION",
+    ]);
+    expect(derivedScene.frames.map((frame) => frame.id)).toEqual([
+      "relation",
+    ]);
+    expect(contains(derivedScene, "relation", "relation:surveys")).toBe(true);
+    expect(contains(derivedScene, "relation", "asset:estate")).toBe(true);
     const surveys = findBySceneId(derivedScene, "relation:surveys");
     const estate = findBySceneId(derivedScene, "asset:estate");
     const purpose = findBySceneId(derivedScene, "purpose");
@@ -257,7 +315,7 @@ describe("constitution scene for a produced subject", () => {
     expect(estate!.y).toBeGreaterThan(surveys!.y);
   });
 
-  it("shows a binding as its purpose over the target record and the relations it reads", () => {
+  it("shows a binding with the purpose, the target record and the relations it reads", () => {
     const model: ConstitutionModel = {
       purpose: node("binding", "defect.title", "Purpose"),
       graph: [
@@ -273,12 +331,34 @@ describe("constitution scene for a produced subject", () => {
     expect(findEdge(bindingScene, "node:defect", "purpose")).toBeTruthy();
     expect(findEdge(bindingScene, "relation:surveys", "purpose")).toBeTruthy();
     expect(findEdge(bindingScene, "asset:estate", "relation:surveys")).toBeTruthy();
-    const target = findBySceneId(bindingScene, "node:defect");
-    const surveys = findBySceneId(bindingScene, "relation:surveys");
-    const purpose = findBySceneId(bindingScene, "purpose");
-    expect(target!.y).toBe(surveys!.y);
-    expect(target!.y).toBeGreaterThan(purpose!.y);
-    expect(target!.node.detail).toBe("identity surveys.survey_id");
+    expect(bindingScene.labels.map((label) => label.text)).toEqual([
+      "GRAPH",
+      "RELATION",
+    ]);
+    expect(bindingScene.frames.map((frame) => frame.id)).toEqual([
+      "graph",
+      "relation",
+    ]);
+    expect(contains(bindingScene, "graph", "node:defect")).toBe(true);
+    expect(contains(bindingScene, "relation", "relation:surveys")).toBe(true);
+    expect(contains(bindingScene, "relation", "asset:estate")).toBe(true);
+    const target = findBySceneId(bindingScene, "node:defect")!;
+    const surveys = findBySceneId(bindingScene, "relation:surveys")!;
+    const purpose = findBySceneId(bindingScene, "purpose")!;
+    const heads = bindingScene.edges
+      .filter((entry) => entry.target === "purpose")
+      .map((entry) => entry.head!)
+      .sort((left, right) => left.x - right.x);
+    expect(heads).toHaveLength(2);
+    const centre = purpose.x + purpose.width / 2;
+    expect((heads[0].x + heads[1].x) / 2).toBeCloseTo(centre);
+    expect(heads[1].x - heads[0].x).toBeCloseTo(24);
+    for (const head of heads) {
+      expect(head.y).toBeCloseTo(purpose.y + purpose.height);
+    }
+    expect(target.y).toBe(surveys.y);
+    expect(target.y).toBeGreaterThan(purpose.y);
+    expect(target.node.detail).toBe("identity surveys.survey_id");
   });
 
   it("shows an asset as its purpose with no component", () => {
@@ -292,6 +372,7 @@ describe("constitution scene for a produced subject", () => {
     expect(assetScene.nodes.map((entry) => entry.id)).toEqual(["purpose"]);
     expect(assetScene.edges).toEqual([]);
     expect(assetScene.labels).toEqual([]);
+    expect(assetScene.frames).toEqual([]);
     expect(assetScene.notes.map((note) => note.text)).toEqual([
       "No component is declared.",
     ]);

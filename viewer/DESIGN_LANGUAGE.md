@@ -99,17 +99,22 @@ A kind includes or omits a section; it never renames one for itself.
     left, the bindings are together in the FULFILMENT frame, and the relation
     provenance is framed on the right. There is no separator.
   - A source relation shows its purpose over its asset alone; a derived relation
-    its purpose over the source relations it scans and their assets. Neither
-    carries a binding or a graph axis.
+    its purpose over the source relations it scans and their assets. The
+    purpose is unframed and the asset or scanned sources are in the RELATION
+    frame. Neither carries a binding or a graph axis.
   - A binding shows its purpose over the target record (its purpose and
-    identity only) and the relations it reads with their provenance. The
-    record's graph ancestry belongs to the record's own constitution.
+    identity only) and the relations it reads with their provenance. The target
+    record is in the GRAPH frame and the relations are in the RELATION frame.
+    The record's graph ancestry belongs to the record's own constitution.
+  - Only GRAPH, RELATION and FULFILMENT frames exist.
   - An asset is the given source, so it has no Constitution card. A step is
     build machinery and has none either.
-  Each box background is a tint of its own concept colour, and each box is led
-  by its concept pill in the title role. The pill sits one stack gap above its
-  purpose, closer than the box padding, so the header and its body read as one
-  group while the rank gap separates boxes. The scene supplies nodes and edges;
+  When several arrows meet one box, their heads sit on a centred, evenly spaced
+  set of points along that edge. Each box background is a tint of its own
+  concept colour, and each box is led by its concept pill in the title role.
+  The pill sits one stack gap above its purpose, closer than the box padding,
+  so the header and its body read as one group while the rank gap separates
+  boxes. The scene supplies nodes and edges;
   the layout computes ranks, ordering and edge routes. The canvas opens fitted
   and pans and zooms;
   selecting a node dims every other node and non-incident link, empty space

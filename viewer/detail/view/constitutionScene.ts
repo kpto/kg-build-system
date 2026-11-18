@@ -57,7 +57,7 @@ export interface ConstitutionSceneNote {
   y: number;
 }
 
-/** The fulfilment group: the binding nodes framed together. */
+/** One frame: the graph, relation or fulfilment group. */
 export interface ConstitutionSceneFrame {
   id: "graph" | "fulfilment" | "relation";
   x: number;
@@ -71,7 +71,7 @@ export interface ConstitutionScene {
   edges: ConstitutionSceneEdge[];
   labels: ConstitutionSceneLabel[];
   notes: ConstitutionSceneNote[];
-  /** The graph, fulfilment and relation frames; a produced subject has none. */
+  /** The graph, fulfilment and relation frames present on this subject. */
   frames: ConstitutionSceneFrame[];
   /** The renderer translates the scene so frame padding stays visible. */
   offset: { x: number; y: number };
@@ -299,6 +299,17 @@ function bindingToPurposePath(
   } ${entryY} L ${endX} ${entryY}`;
 }
 
+/** A produced subject enters the purpose's bottom edge at its assigned point. */
+function componentToPurposePath(
+  source: ConstitutionSceneNode,
+  purpose: ConstitutionSceneNode,
+  entryX: number,
+): string {
+  return `M ${source.x + source.width / 2} ${source.y} L ${entryX} ${
+    purpose.y + purpose.height
+  }`;
+}
+
 /** The ancestry supplies the purpose from below, in the same column. */
 function ancestryToPurposePath(
   ancestor: ConstitutionSceneNode,
@@ -324,6 +335,62 @@ function edgeHead(
     y: y2,
     angle: (Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI,
   };
+}
+
+/** Replace the final point of a routed polyline. */
+function moveEdgeEnd(path: string, x: number, y: number): string {
+  return path.replace(
+    /(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s*$/,
+    `${x} ${y}`,
+  );
+}
+
+/**
+ * Every consumer edge enters its target on one centred, evenly spaced set of
+ * points along the target's bottom edge. The purpose is routed explicitly by
+ * the scene and is skipped here.
+ */
+function distributeConnections(
+  edges: ConstitutionSceneEdge[],
+  nodes: ConstitutionSceneNode[],
+  skip: Set<string>,
+): void {
+  const byId = new Map(nodes.map((node) => [node.id, node]));
+  const groups = new Map<string, ConstitutionSceneEdge[]>();
+  for (const edge of edges) {
+    if (skip.has(edge.target)) continue;
+    const group = groups.get(edge.target) ?? [];
+    group.push(edge);
+    groups.set(edge.target, group);
+  }
+  for (const [targetId, group] of groups) {
+    const target = byId.get(targetId);
+    if (!target) continue;
+    group.sort((left, right) => {
+      const leftSource = byId.get(left.source);
+      const rightSource = byId.get(right.source);
+      return (
+        (leftSource ? leftSource.x + leftSource.width / 2 : 0) -
+        (rightSource ? rightSource.x + rightSource.width / 2 : 0)
+      );
+    });
+    const count = group.length;
+    const spacing =
+      count > 1
+        ? Math.min(24, (target.width - 32) / (count - 1))
+        : 0;
+    const centre = target.x + target.width / 2;
+    group.forEach((edge, index) => {
+      const entryX =
+        centre + (index - (count - 1) / 2) * spacing;
+      edge.path = moveEdgeEnd(
+        edge.path,
+        entryX,
+        target.y + target.height,
+      );
+      edge.head = edgeHead(edge.path);
+    });
+  }
 }
 
 /** The padded bounds of one group: a topology-style category frame. */
@@ -426,22 +493,40 @@ function buildRecordScene(model: ConstitutionModel): ConstitutionScene {
   const positionedById = new Map(
     positioned.map((node) => [node.id, node]),
   );
+  distributeConnections(edges, positioned, new Set([purpose.id]));
   const bindingNodes = positioned.filter((node) => node.axis === "binding");
   const sortedBindings = [...bindingNodes].sort(
     (left, right) => left.x - right.x,
   );
   const entryY = new Map<string, number>();
   const laneY = new Map<string, number>();
+  const bindingCount = sortedBindings.length;
+  // Keep the heads around the edge centre, evenly spaced, rather than pinned
+  // to the corners; the same rule spaces the lanes above the binding row.
+  const entrySpacing =
+    bindingCount > 1
+      ? Math.min(
+          20,
+          (purposePositioned.height - 32) / (bindingCount - 1),
+        )
+      : 0;
+  const entryCentre =
+    purposePositioned.y + purposePositioned.height / 2;
+  const laneSpacing = 8;
+  const laneCentre = sortedBindings[0]
+    ? sortedBindings[0].y - 44
+    : purposePositioned.y;
   sortedBindings.forEach((binding, index) => {
-    const top = purposePositioned.y + 16;
-    const bottom =
-      purposePositioned.y + purposePositioned.height - 16;
-    const step =
-      sortedBindings.length > 1
-        ? (bottom - top) / (sortedBindings.length - 1)
-        : 0;
-    entryY.set(binding.id, bottom - index * step);
-    laneY.set(binding.id, binding.y - 36 - index * 8);
+    entryY.set(
+      binding.id,
+      entryCentre +
+        (index - (bindingCount - 1) / 2) * entrySpacing,
+    );
+    laneY.set(
+      binding.id,
+      laneCentre +
+        ((bindingCount - 1) / 2 - index) * laneSpacing,
+    );
   });
   links.forEach((edge) => {
     const source = positionedById.get(edge.source);
@@ -567,8 +652,9 @@ function buildRecordScene(model: ConstitutionModel): ConstitutionScene {
 
 /**
  * A relation's, binding's or asset's constitution: the subject's purpose at
- * the top and only the declarations that produce it below. There is no binding
- * group and no graph axis. An asset has no producer at all.
+ * the top and only the declarations that produce it below. A relation subject
+ * frames its provenance as RELATION; a binding frames its target record as
+ * GRAPH and its relations as RELATION. An asset has no producer at all.
  */
 function buildComponentsScene(model: ConstitutionModel): ConstitutionScene {
   const purpose: ConstitutionSceneNode = {
@@ -608,7 +694,7 @@ function buildComponentsScene(model: ConstitutionModel): ConstitutionScene {
       edges,
       labels: [],
       notes,
-        frames: [],
+      frames: [],
       offset: { x: 0, y: 0 },
       width,
       height,
@@ -634,8 +720,40 @@ function buildComponentsScene(model: ConstitutionModel): ConstitutionScene {
       node.y = position.y;
     }
   });
+  const positionedById = new Map(nodes.map((node) => [node.id, node]));
+  const purposeSources = nodes
+    .filter((node) =>
+      links.some(
+        (link) => link.source === node.id && link.target === purpose.id,
+      ),
+    )
+    .sort((left, right) => left.x - right.x);
+  const entrySpacing =
+    purposeSources.length > 1
+      ? Math.min(
+          24,
+          (purpose.width - 32) / (purposeSources.length - 1),
+        )
+      : 0;
+  const entryCentre = purpose.x + purpose.width / 2;
+  const entryX = new Map(
+    purposeSources.map((source, index) => [
+      source.id,
+      entryCentre +
+        (index - (purposeSources.length - 1) / 2) * entrySpacing,
+    ]),
+  );
   links.forEach((edge) => {
-    const path = layered.paths.get(`${edge.source}->${edge.target}`);
+    const source = positionedById.get(edge.source);
+    if (!source) return;
+    const path =
+      edge.target === purpose.id
+        ? componentToPurposePath(
+            source,
+            purpose,
+            entryX.get(source.id) ?? entryCentre,
+          )
+        : layered.paths.get(`${edge.source}->${edge.target}`);
     if (!path) return;
     edges.push({
       id: `${edge.source}->${edge.target}`,
@@ -646,15 +764,61 @@ function buildComponentsScene(model: ConstitutionModel): ConstitutionScene {
     });
   });
 
+  distributeConnections(edges, nodes, new Set([purpose.id]));
+  const graphFrame = graphNodes.length
+    ? frameFor("graph", graphNodes)
+    : undefined;
+  const relationFrame = relationNodes.length
+    ? frameFor("relation", relationNodes)
+    : undefined;
+  const frames = [
+    ...(graphFrame ? [graphFrame] : []),
+    ...(relationFrame ? [relationFrame] : []),
+  ];
+  const offset = {
+    x: Math.max(0, -Math.min(0, ...frames.map((frame) => frame.x))),
+    y: Math.max(0, -Math.min(0, ...frames.map((frame) => frame.y))),
+  };
+  const labels: ConstitutionSceneLabel[] = [];
+  if (graphFrame) {
+    labels.push({
+      text: "GRAPH",
+      x: graphFrame.x + FRAME_LABEL_INSET,
+      y: graphFrame.y + FRAME_LABEL_BASELINE,
+    });
+  }
+  if (relationFrame) {
+    labels.push({
+      text: "RELATION",
+      x: relationFrame.x + FRAME_LABEL_INSET,
+      y: relationFrame.y + FRAME_LABEL_BASELINE,
+    });
+  }
+
+  const nodeMaxX = Math.max(
+    ...nodes.map((node) => node.x + node.width),
+  );
+  const nodeMaxY = Math.max(
+    ...nodes.map((node) => node.y + node.height),
+  );
+  const contentMaxX = Math.max(
+    nodeMaxX,
+    ...frames.map((frame) => frame.x + frame.width),
+  );
+  const contentMaxY = Math.max(
+    nodeMaxY,
+    ...frames.map((frame) => frame.y + frame.height),
+  );
+
   return {
     nodes,
     edges,
-    labels: [],
+    labels,
     notes,
-    frames: [],
-    offset: { x: 0, y: 0 },
-    width: layered.width,
-    height: layered.height,
+    frames,
+    offset,
+    width: contentMaxX + offset.x,
+    height: contentMaxY + offset.y,
   };
 }
 
