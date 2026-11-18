@@ -274,6 +274,12 @@ missing, not the code.
   stroke. An abstract node and an abstract edge reuse the node and edge marks in
   the abstract purple; there is no separate abstract category mark. A count
   appears once, in the region that owns the list.
+- A detail card's mark is a section mark, not a concept. Each card on one page
+  draws its own silhouette, no two cards repeat a mark, and every section mark
+  takes the page header's colour; a section mark never reuses the header's
+  concept mark and is never a pill or a navigation target. Section marks share
+  the concept grammar and a tight content box, so every card logo reads at one
+  size.
 - A detail document is a horizontal deck of flat cards inside a page margin on
   the left, top and bottom; the deck takes the right edge so the next-card peek
   is not covered by a page margin. The deck fills the height left by the margin,
