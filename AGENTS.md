@@ -212,6 +212,10 @@ missing, not the code.
   the picture immediately and group the rest behind one named reveal, following
   Hick's Law and progressive disclosure; a control strip uses a familiar
   toolbar and popover shape near the canvas. The side bar is navigation only.
+- A working surface and the declaration it renders are distinct documents: the
+  pinned Graph and Workflow tabs are visualisations, and the graph declaration
+  is its own Explorer item and detail document, with the shared deck rather than
+  a visualisation frame.
 - Present the design before an author workflow: a canonical view carries the
   facts a reader must know immediately, and a detail view shows the same object
   with more evidence rather than starting a separate task.
