@@ -459,6 +459,10 @@ the page margin instead.
 - The Graph document carries the graph inspection as a floating **Inspect**
   window. A subject document carries its own meaning and properties. The two
   never share a panel, so opening a tab cannot change inspection.
+- The Graph inspector leads with the entity's identity and purpose. Meaning,
+  Properties and Fulfilment are explicit chunks behind tabs, so the panel does
+  not open as one long scroll. This follows **Cognitive Load** (Laws of UX):
+  answer what and why first, then reveal the evidence on request.
 - An abstract category with children is a container node: the smallest circle
   enclosing its direct members, with a child abstract category drawn as its own
   container inside it. Containers are selectable, sit behind the links, and
