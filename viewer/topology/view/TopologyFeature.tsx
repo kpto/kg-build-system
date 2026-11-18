@@ -796,6 +796,9 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
   const [tick, setTick] = useState(0);
   const [zoomK, setZoomK] = useState(1);
   const [hover, setHover] = useState<HoverState | undefined>(undefined);
+  const [hoverSelection, setHoverSelection] = useState<
+    TopologySelection | undefined
+  >(undefined);
   const [focusedNodeId, setFocusedNodeId] = useState<string | undefined>(
     undefined,
   );
@@ -1520,6 +1523,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
         aria-label={`Topology force graph with ${visible.nodes.length} nodes and ${visible.links.length} links`}
         onClick={() => {
           if (suppressClickRef.current) return;
+          setHoverSelection(undefined);
           clearSelection(props);
         }}
       >
@@ -1613,6 +1617,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
                       aria-label={`${node.label}, abstract container, ${container.count} nodes`}
                       onClick={(event) => {
                         event.stopPropagation();
+                        setHoverSelection(undefined);
                         selectNode(node);
                       }}
                       onDoubleClick={(event) => {
@@ -1629,6 +1634,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
                         openMenu(event, componentSelection(node), node.name)
                       }
                       onMouseEnter={(event) => {
+                        setHoverSelection({ kind: "node", name: node.name });
                         setHoveredNodeId(node.id);
                         updateHover("node", node.id, event);
                       }}
@@ -1775,6 +1781,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
                     onBlur={() => setFocusedNodeId(undefined)}
                     onClick={(event) => {
                       event.stopPropagation();
+                      setHoverSelection(undefined);
                       selectLink(link);
                     }}
                     onKeyDown={(event) => {
@@ -1784,6 +1791,14 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
                       }
                     }}
                     onMouseEnter={(event) => {
+                      setHoverSelection(
+                        link.kind === "containment"
+                          ? { kind: "node", name: link.targetName }
+                          : {
+                              kind: "edge",
+                              name: link.edgeName ?? link.name,
+                            },
+                      );
                       setHoveredLinkId(link.id);
                       updateHover("edge", link.id, event);
                     }}
@@ -1836,6 +1851,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
                       aria-label={`${node.label}, ${node.abstract ? "abstract category" : "node"}, ${node.category}, ${node.degree} links, ${node.properties} properties`}
                       onClick={(event) => {
                         event.stopPropagation();
+                        setHoverSelection(undefined);
                         selectNode(node);
                       }}
                       onDoubleClick={(event) => {
@@ -1855,6 +1871,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
                       onFocus={() => setFocusedNodeId(node.id)}
                       onBlur={() => setFocusedNodeId(undefined)}
                       onMouseEnter={(event) => {
+                        setHoverSelection({ kind: "node", name: node.name });
                         setHoveredNodeId(node.id);
                         updateHover("node", node.id, event);
                       }}
@@ -1989,7 +2006,12 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
       ) : null}
 
       {inspectorOpen ? (
-        <TopologyInspector props={props} onClose={() => setInspectorOpen(false)} />
+        <TopologyInspector
+          props={props}
+          hoverSelection={hoverSelection}
+          onClearHover={() => setHoverSelection(undefined)}
+          onClose={() => setInspectorOpen(false)}
+        />
       ) : null}
 
       {menu ? (
@@ -2009,7 +2031,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
         />
       ) : null}
 
-      {hover && hoverEntity ? (
+      {hover && hoverEntity && (!inspectorOpen || hasSelection) ? (
         <div
           className="pointer-events-none absolute z-30 w-[270px] overflow-hidden rounded-[var(--radius-lg)] border border-line-soft bg-panel/98 shadow-lg"
           style={{ left: hover.x + 14, top: hover.y + 14 }}
@@ -2111,16 +2133,22 @@ type InspectorTab = (typeof INSPECTOR_TABS)[number]["id"];
 
 export function TopologyInspector({
   props,
+  hoverSelection,
+  onClearHover,
   onClose,
 }: {
   props: WorkspaceProps;
+  hoverSelection?: TopologySelection;
+  onClearHover?(): void;
   onClose(): void;
 }) {
   const model = useTopologyModel(props);
-  const selection = topologySelection(props);
-  const entity = findTopologyEntity(model, selection);
-  const raw = props.state.inspection;
-  const activeProperty = raw?.kind === "property" ? raw.property : undefined;
+  const selected = topologySelection(props);
+  const active = selected ?? hoverSelection;
+  const entity = findTopologyEntity(model, active);
+  const raw = selected ? props.state.inspection : undefined;
+  const activeProperty =
+    selected && raw?.kind === "property" ? raw.property : undefined;
   const meaning = entity
     ? inspectorMeaning(props, entity, activeProperty)
     : undefined;
@@ -2168,8 +2196,8 @@ export function TopologyInspector({
     | undefined
   >(undefined);
 
-  const selectionKey = selection
-    ? `${selection.kind}:${selection.name}`
+  const selectionKey = active
+    ? `${active.kind}:${active.name}`
     : "graph";
   useEffect(() => {
     setTab("overview");
@@ -2183,6 +2211,15 @@ export function TopologyInspector({
         : conceptForSelection("edge", undefined, entity.abstract)
     : "graph";
   const propertyCount = entity ? entityProperties(props, entity).length : 0;
+  const openDetail = () => {
+    if (selected) {
+      openInDetail(props);
+      return;
+    }
+    if (entity) {
+      props.actions.openTab({ selection: componentSelection(entity) });
+    }
+  };
 
   return (
     <Panel
@@ -2277,6 +2314,11 @@ export function TopologyInspector({
                     <span className="text-[length:var(--text-sm)] font-semibold uppercase tracking-[0.08em] text-faint">
                       {concepts[inspectorConcept].label}
                     </span>
+                    {!selected ? (
+                      <span className="text-[length:var(--text-micro)] uppercase tracking-[0.08em] text-faint">
+                        · preview
+                      </span>
+                    ) : null}
                   </div>
                   <p className="mt-0.5 break-words font-mono text-[length:var(--text-xl)] leading-tight text-text">
                     {activeProperty
@@ -2287,7 +2329,7 @@ export function TopologyInspector({
                 <div className="flex shrink-0 gap-1">
                   <button
                     type="button"
-                    onClick={() => openInDetail(props)}
+                    onClick={openDetail}
                     className="border border-accent/60 bg-accent/10 px-1.5 py-0.5 font-mono text-[length:var(--text-sm)] text-accent-strong hover:border-accent hover:text-text"
                     data-testid="topology-open-detail"
                   >
@@ -2295,7 +2337,10 @@ export function TopologyInspector({
                   </button>
                   <button
                     type="button"
-                    onClick={() => clearSelection(props)}
+                    onClick={() => {
+                      clearSelection(props);
+                      onClearHover?.();
+                    }}
                     className="border border-line-soft px-1.5 py-0.5 font-mono text-[length:var(--text-sm)] text-muted hover:border-line-strong hover:text-text"
                   >
                     Clear
