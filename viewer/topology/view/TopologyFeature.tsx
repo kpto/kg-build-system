@@ -1526,6 +1526,13 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
           setHoverSelection(undefined);
           clearSelection(props);
         }}
+        onMouseMove={(event) => {
+          // The graph void is not an entity: returning to it returns the
+          // inspector to the graph overview.
+          if (event.target === event.currentTarget) {
+            setHoverSelection(undefined);
+          }
+        }}
       >
         <defs>
           <pattern id="topology-grid" width="24" height="24" patternUnits="userSpaceOnUse">
@@ -2196,13 +2203,6 @@ export function TopologyInspector({
     | undefined
   >(undefined);
 
-  const selectionKey = active
-    ? `${active.kind}:${active.name}`
-    : "graph";
-  useEffect(() => {
-    setTab("overview");
-  }, [activeProperty, selectionKey]);
-
   const inspectorConcept = entity
     ? activeProperty
       ? "property"
@@ -2233,16 +2233,73 @@ export function TopologyInspector({
     >
       <PanelHeader as="header" className="flex-none justify-between">
         <Label className="text-text">Inspect</Label>
-        <button
-          type="button"
-          className="text-[length:var(--text-base)] text-faint hover:text-text"
-          onClick={onClose}
-          aria-label="Close inspector"
-          title="Close inspector"
-        >
-          ×
-        </button>
+        <div className="flex items-center gap-1">
+          {entity ? (
+            <>
+              <button
+                type="button"
+                onClick={openDetail}
+                className="border border-accent/60 bg-accent/10 px-1.5 py-0.5 font-mono text-[length:var(--text-sm)] text-accent-strong hover:border-accent hover:text-text"
+                data-testid="topology-open-detail"
+              >
+                Detail
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  clearSelection(props);
+                  onClearHover?.();
+                }}
+                className="border border-line-soft px-1.5 py-0.5 font-mono text-[length:var(--text-sm)] text-muted hover:border-line-strong hover:text-text"
+              >
+                Clear
+              </button>
+            </>
+          ) : null}
+          <button
+            type="button"
+            className="text-[length:var(--text-base)] text-faint hover:text-text"
+            onClick={onClose}
+            aria-label="Close inspector"
+            title="Close inspector"
+          >
+            ×
+          </button>
+        </div>
       </PanelHeader>
+
+      {entity ? (
+        <div className="flex flex-none items-center gap-2 border-b border-line-soft px-3 py-2">
+          <ConceptGlyph
+            concept={inspectorConcept}
+            className="size-4 flex-none"
+          />
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[length:var(--text-sm)] font-semibold uppercase tracking-[0.08em] text-faint">
+                {concepts[inspectorConcept].label}
+              </span>
+              {!selected ? (
+                <span className="text-[length:var(--text-micro)] uppercase tracking-[0.08em] text-faint">
+                  · preview
+                </span>
+              ) : null}
+            </div>
+            <p
+              className="truncate font-mono text-[length:var(--text-lg)] leading-tight text-text"
+              title={
+                activeProperty
+                  ? `${entity.name}.${activeProperty}`
+                  : entity.name
+              }
+            >
+              {activeProperty
+                ? `${entity.name}.${activeProperty}`
+                : entity.name}
+            </p>
+          </div>
+        </div>
+      ) : null}
 
       {entity ? (
         <div
@@ -2304,50 +2361,6 @@ export function TopologyInspector({
         <div className="thin-scrollbar min-h-0 flex-1 overflow-y-auto px-3 py-2.5">
           {tab === "overview" ? (
             <div className="space-y-3">
-              <header className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <ConceptGlyph
-                      concept={inspectorConcept}
-                      className="size-4 flex-none"
-                    />
-                    <span className="text-[length:var(--text-sm)] font-semibold uppercase tracking-[0.08em] text-faint">
-                      {concepts[inspectorConcept].label}
-                    </span>
-                    {!selected ? (
-                      <span className="text-[length:var(--text-micro)] uppercase tracking-[0.08em] text-faint">
-                        · preview
-                      </span>
-                    ) : null}
-                  </div>
-                  <p className="mt-0.5 break-words font-mono text-[length:var(--text-xl)] leading-tight text-text">
-                    {activeProperty
-                      ? `${entity.name}.${activeProperty}`
-                      : entity.name}
-                  </p>
-                </div>
-                <div className="flex shrink-0 gap-1">
-                  <button
-                    type="button"
-                    onClick={openDetail}
-                    className="border border-accent/60 bg-accent/10 px-1.5 py-0.5 font-mono text-[length:var(--text-sm)] text-accent-strong hover:border-accent hover:text-text"
-                    data-testid="topology-open-detail"
-                  >
-                    Detail
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      clearSelection(props);
-                      onClearHover?.();
-                    }}
-                    className="border border-line-soft px-1.5 py-0.5 font-mono text-[length:var(--text-sm)] text-muted hover:border-line-strong hover:text-text"
-                  >
-                    Clear
-                  </button>
-                </div>
-              </header>
-
               {entity.description ? (
                 <p className="text-[length:var(--text-base)] leading-relaxed text-muted">
                   {entity.description}
