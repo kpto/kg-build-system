@@ -289,8 +289,10 @@ missing, not the code.
   one pan/zoom viewport. A view named for a model renders that model's
   structure; an expression tree shows fields, operators and literals, not an
   ownership summary. Selecting a node dims every other node and non-incident
-  link and never moves a settled node; empty space clears the selection. A new
-  level or kind adds data, not a second renderer within a visualisation kind.
+  link and never moves a settled node; empty space clears the selection. Hover
+  previews the same highlight as selection, and a highlighted link keeps its
+  arrowhead. A new level or kind adds data, not a second renderer within a
+  visualisation kind.
 - An inline mention of a layer instance is one pill: the layer's mark, a
   divider and the instance name. The pill resolves and opens the instance's
   document itself, so a parent supplies identity, never a click handler; it
