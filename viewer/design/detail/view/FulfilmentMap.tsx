@@ -449,15 +449,9 @@ export function FulfilmentMap({
               <span>{map.bindings.length}</span>
             </header>
             <div className={styles.columnBody}>
-              {map.bindings.length ? (
-                map.bindings.map((binding) => (
-                  <BindingCard key={fulfilmentKey(binding)} binding={binding} />
-                ))
-              ) : (
-                <p className={styles.cardEmpty}>
-                  No binding meets these two axes.
-                </p>
-              )}
+              {map.bindings.map((binding) => (
+                <BindingCard key={fulfilmentKey(binding)} binding={binding} />
+              ))}
             </div>
           </section>
 
@@ -485,9 +479,8 @@ export function FulfilmentMap({
         </div>
       ) : (
         <div className={styles.rows}>
-          {map.bindings.length ? (
-            useGroups ? (
-              visibleGroups.map((group) => (
+          {useGroups
+            ? visibleGroups.map((group) => (
                 <GroupRow
                   key={group.key}
                   group={group}
@@ -495,8 +488,7 @@ export function FulfilmentMap({
                   active={group.relations.includes(activeRelation ?? "")}
                 />
               ))
-            ) : (
-              map.bindings.map((binding) => (
+            : map.bindings.map((binding) => (
                 <CompactRow
                   key={fulfilmentKey(binding)}
                   binding={binding}
@@ -506,13 +498,7 @@ export function FulfilmentMap({
                     binding.relations.includes(activeRelation ?? "")
                   }
                 />
-              ))
-            )
-          ) : (
-            <p className={styles.cardEmpty}>
-              No binding meets these two axes.
-            </p>
-          )}
+              ))}
           {useGroups ? (
             <p className={styles.groupNote}>
               {groups.length > visibleGroups.length

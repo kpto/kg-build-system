@@ -1,11 +1,16 @@
 "use client";
 
-import { useMemo, useState, type CSSProperties } from "react";
+import { useMemo, useRef, useState, type CSSProperties } from "react";
 
 import type { ConceptKind } from "@/lib/concepts";
 import { concepts } from "@/shared/ui/concepts";
 import { GraphCanvas } from "@/shared/ui/GraphCanvas";
-import { ConceptPill } from "./ConceptPill";
+import {
+  ConceptPill,
+  conceptTargetFor,
+  type ConceptPillProps,
+} from "./ConceptPill";
+import { useConceptPreview } from "@/shared/ui/ConceptPreview";
 import { cx } from "@kbs/design";
 import type { ConstitutionModel, ConstitutionNode } from "../model/constitution";
 import {
@@ -52,8 +57,28 @@ function Box({
       ? "abstractEdge"
       : "abstractNode"
     : pillConcept(node.kind);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const pillProps: ConceptPillProps = {
+    concept,
+    name: node.name,
+    ...(node.collection ? { collection: node.collection.id } : {}),
+    ...((node.component ?? component)
+      ? { component: node.component ?? component }
+      : {}),
+    ...(node.stepId ?? stepId ? { stepId: node.stepId ?? stepId } : {}),
+    ...((node.bindingIndex ?? bindingIndex) !== undefined
+      ? { bindingIndex: node.bindingIndex ?? bindingIndex }
+      : {}),
+    size: "lg",
+    active: node.current,
+  };
+  const preview = useConceptPreview(conceptTargetFor(pillProps));
+  const openPreview = () => {
+    if (boxRef.current) preview.open(boxRef.current);
+  };
   return (
     <div
+      ref={boxRef}
       className={cx(
         styles.constitutionBox,
         root && styles.constitutionBoxRoot,
@@ -68,21 +93,16 @@ function Box({
       data-root={root || undefined}
       data-binding={binding || undefined}
       data-current={node.current || undefined}
+      onMouseEnter={openPreview}
+      onMouseLeave={preview.scheduleClose}
+      onFocus={openPreview}
+      onBlur={preview.scheduleClose}
     >
       <div className={styles.constitutionMeta}>
         <ConceptPill
-          concept={concept}
-          name={node.name}
-          {...(node.collection ? { collection: node.collection.id } : {})}
-          {...((node.component ?? component)
-            ? { component: node.component ?? component }
-            : {})}
-          {...(node.stepId ?? stepId ? { stepId: node.stepId ?? stepId } : {})}
-          {...((node.bindingIndex ?? bindingIndex) !== undefined
-            ? { bindingIndex: node.bindingIndex ?? bindingIndex }
-            : {})}
-          size="lg"
-          active={node.current}
+          {...pillProps}
+          preview={false}
+          describedBy={preview.describedBy}
         />
         {node.current ? (
           <span className={styles.constitutionTag} data-current>
@@ -100,6 +120,7 @@ function Box({
       >
         {body}
       </span>
+      {preview.popup}
     </div>
   );
 }

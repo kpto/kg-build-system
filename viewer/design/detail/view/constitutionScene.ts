@@ -527,13 +527,7 @@ function buildRecordScene(model: ConstitutionModel): ConstitutionScene {
   }
 
   const subjectNode = positioned.find((node) => node.id === subject.id)!;
-  if (!bindingNodes.length) {
-    notes.push({
-      text: "No binding meets these two axes.",
-      x: subjectNode.x + subjectNode.width + 140,
-      y: subjectNode.y + subjectNode.height / 2,
-    });
-  } else if (!provenance.roots.length) {
+  if (bindingNodes.length && !provenance.roots.length) {
     const last = bindingNodes.reduce((lower, node) =>
       node.y + node.height > lower.y + lower.height ? node : lower,
     );

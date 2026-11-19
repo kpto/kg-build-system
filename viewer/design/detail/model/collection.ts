@@ -1142,10 +1142,11 @@ function collectionItems(model: CollectionModel): ConstitutionSubjectLike[] {
         items.push({ level: "abstract", component: row.name, abstract: true });
         break;
       case "edge":
+      case "abstractEdge":
         items.push({
           level: "edge",
           component: row.name,
-          abstract: row.abstract,
+          abstract: row.concept === "abstractEdge" || row.abstract,
         });
         break;
       case "step":

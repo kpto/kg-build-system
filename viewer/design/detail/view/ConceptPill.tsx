@@ -26,6 +26,29 @@ export interface ConceptPillProps {
   active?: boolean;
   className?: string;
   size?: "sm" | "md" | "lg";
+  /**
+   * Open the hover/focus preview from the pill itself. A parent that previews
+   * a larger surface disables this so the preview is not opened twice.
+   */
+  preview?: boolean;
+  /** The id of a preview owned by the parent, for the button description. */
+  describedBy?: string;
+}
+
+/** The concept target the pill previews and opens. */
+export function conceptTargetFor(props: ConceptPillProps): ConceptTarget {
+  return {
+    concept: props.concept,
+    name: props.name,
+    ...(props.collection ? { collection: props.collection } : {}),
+    ...(props.component ? { component: props.component } : {}),
+    ...(props.property ? { property: props.property } : {}),
+    ...(props.ownerConcept ? { ownerConcept: props.ownerConcept } : {}),
+    ...(props.stepId ? { stepId: props.stepId } : {}),
+    ...(props.bindingIndex !== undefined
+      ? { bindingIndex: props.bindingIndex }
+      : {}),
+  };
 }
 
 /**
@@ -47,6 +70,8 @@ export function ConceptPill({
   active = false,
   className,
   size = "sm",
+  preview: showPreview = true,
+  describedBy,
 }: ConceptPillProps) {
   const navigation = useConceptNavigation();
   const definition = concepts[concept];
@@ -59,16 +84,16 @@ export function ConceptPill({
   ]
     .filter(Boolean)
     .join(" ");
-  const target: ConceptTarget = {
+  const target = conceptTargetFor({
     concept,
     name,
-    ...(collection ? { collection } : {}),
-    ...(component ? { component } : {}),
-    ...(property ? { property } : {}),
-    ...(ownerConcept ? { ownerConcept } : {}),
-    ...(stepId ? { stepId } : {}),
-    ...(bindingIndex !== undefined ? { bindingIndex } : {}),
-  };
+    collection,
+    component,
+    property,
+    ownerConcept,
+    stepId,
+    bindingIndex,
+  });
   const preview = useConceptPreview(target);
   const body = (
     <>
@@ -102,11 +127,19 @@ export function ConceptPill({
         data-active={active || undefined}
         title={title ?? `Open ${definition.label.toLowerCase()} ${name}`}
         aria-label={`Open ${definition.label.toLowerCase()} ${name}`}
-        aria-describedby={preview.describedBy}
-        onMouseEnter={(event) => preview.open(event.currentTarget)}
-        onMouseLeave={preview.scheduleClose}
-        onFocus={(event) => preview.open(event.currentTarget)}
-        onBlur={preview.scheduleClose}
+        aria-describedby={describedBy ?? preview.describedBy}
+        onMouseEnter={
+          showPreview
+            ? (event) => preview.open(event.currentTarget)
+            : undefined
+        }
+        onMouseLeave={showPreview ? preview.scheduleClose : undefined}
+        onFocus={
+          showPreview
+            ? (event) => preview.open(event.currentTarget)
+            : undefined
+        }
+        onBlur={showPreview ? preview.scheduleClose : undefined}
         onClick={() => {
           preview.dismiss();
           navigation.open(target);
@@ -123,7 +156,7 @@ export function ConceptPill({
       >
         {body}
       </button>
-      {preview.popup}
+      {showPreview ? preview.popup : null}
     </>
   );
 }

@@ -4,8 +4,11 @@ import {
   collectionDagModel,
   collectionModel,
 } from "../detail/model/collection";
+import { constitutionModel } from "../detail/model/constitution";
 import { buildConstitutionScene } from "../detail/view/constitutionScene";
-import { contractIndex } from "./fixtures";
+import { buildViewerIndex } from "../lib/indexes";
+import { loadSnapshotFromObject } from "../lib/load";
+import { contractIndex, contractSnapshot } from "./fixtures";
 
 const index = contractIndex;
 
@@ -76,6 +79,58 @@ describe("virtual collection model", () => {
     // The abstract's dependency is its own binding layer, not its descendants.
     expect(layerTitles(model)).toContain("Bindings");
     expect(model.dependency.axes[0].layers.at(-2)?.count).toBe(0);
+  });
+
+  it("reads abstract edges alongside abstract nodes", () => {
+    const index = buildViewerIndex(
+      loadSnapshotFromObject({
+        ...contractSnapshot,
+        blueprint: {
+          ...contractSnapshot.blueprint,
+          graph: {
+            ...contractSnapshot.blueprint.graph,
+            edges: [
+              ...contractSnapshot.blueprint.graph.edges,
+              {
+                name: "related_to",
+                labels: ["RELATED_TO"],
+                abstract: true,
+                properties: [],
+                source: ["topology", "node", "documented"],
+                target: ["topology", "node", "documented"],
+                meaning: { claims: [{ text: "An abstract edge." }] },
+              },
+            ],
+          },
+        },
+      }),
+    );
+    const model = collectionModel(index, "abstract");
+    expect(model.items.rows.map((row) => row.name)).toEqual([
+      "documented",
+      "related_to",
+    ]);
+    expect(model.items.rows.map((row) => row.concept)).toEqual([
+      "abstractNode",
+      "abstractEdge",
+    ]);
+
+    const dag = collectionDagModel(index, model, "dependency");
+    expect(dag.layers?.map((layer) => layer.name)).toEqual(
+      expect.arrayContaining(["documented", "related_to"]),
+    );
+  });
+
+  it("does not add an empty-binding note to a constitution", () => {
+    const model = constitutionModel(contractIndex, {
+      level: "abstract",
+      component: "documented",
+      abstract: true,
+    });
+    const scene = buildConstitutionScene(model);
+    expect(scene.notes.map((note) => note.text)).not.toContain(
+      "No binding meets these two axes.",
+    );
   });
 
   it("gives a workflow component its downstream component as dependant", () => {
