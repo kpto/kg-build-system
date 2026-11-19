@@ -240,9 +240,10 @@ missing, not the code.
 - Production serving is the static viewer and console exports behind the Python
   host. Dev mode may run developer commands from the framework `.env` behind a
   kbs reverse proxy; each command prints its port first, and kbs remains the
-  public origin and owns the snapshot and project API. A discovery file, dev
-  role registry or message bridge is not a serving path; a revision is a
-  snapshot URL.
+  public origin and owns the snapshot and project API. One dev server per app is
+  shared by the checkout's kbs sessions and stops when the last session's lease
+  closes. A discovery file, dev role registry or message bridge is not a serving
+  path; a revision is a snapshot URL.
 - One workbench frame is shared by every view: panel geometry never changes
   with the document; documents live in one tab strip with back and forward.
   The side bar is the Explorer, not a control surface; a tab is a standalone
