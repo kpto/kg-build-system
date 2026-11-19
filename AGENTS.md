@@ -210,7 +210,10 @@ missing, not the code.
   symmetric about the edge midpoint.
 - A link between round nodes meets each node along its radius: a parallel
   offset bends the middle of the link, never the attachment, so the head stays
-  perpendicular to the node surface.
+  perpendicular to the node surface. Links on one node pair take their bow from
+  the canonical direction of the unordered pair, so a reverse edge lands on the
+  opposite side rather than on the same attachment points. A self-loop is one
+  circular arc orthogonal to its node.
 - One workflow DAG primitive (`shared/ui/WorkflowDag.tsx`) owns the scene
   builder, node renderer and pan/zoom viewport. The Workflow document and an
   Involved steps card mount the same primitive; a detail narrows the scene and
