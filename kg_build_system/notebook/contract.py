@@ -79,12 +79,18 @@ def validate_blueprint(blueprint: Any) -> dict[str, Any]:
     for node in nodes:
         if not _has_meaning(node):
             errors.append(f"node {node.name} has no meaning")
-        if "class" not in _annotation_ids(getattr(node, "annotations", ())):
+        # An abstract category produces no record of its own, so it names no
+        # Biolink class; only concrete components must.
+        if not getattr(node, "abstract", False) and "class" not in _annotation_ids(
+            getattr(node, "annotations", ())
+        ):
             errors.append(f"node {node.name} has no biolink class annotation")
     for edge in edges:
         if not _has_meaning(edge):
             errors.append(f"edge {edge.name} has no meaning")
-        if "predicate" not in _annotation_ids(getattr(edge, "annotations", ())):
+        if not getattr(edge, "abstract", False) and "predicate" not in _annotation_ids(
+            getattr(edge, "annotations", ())
+        ):
             errors.append(f"edge {edge.name} has no biolink predicate annotation")
     for asset in assets:
         if not _has_meaning(asset):
