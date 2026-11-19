@@ -851,23 +851,39 @@ function linkPath(
   const targetX = target.x ?? 0;
   const targetY = target.y ?? 0;
   if (source.id === target.id) {
-    // A self-loop is a teardrop beside the node, not a ring around it: a ring
-    // reads as a badge and hides the node's own state. A container self-loop
-    // sits on the boundary at a readable size rather than orbiting the whole
-    // container.
+    // A self-loop leaves and enters the same circle along its normals: two
+    // nearby points on the surface, a radial stub at each end, then an outside
+    // bow. A ring reads as a badge, so the loop stays beside the node.
     const compact = sourceRadius > 80;
-    const radius = compact ? 18 : sourceRadius + 3;
-    const lift = radius * 0.7;
-    const anchorX = compact ? sourceX + sourceRadius * 0.92 : sourceX;
-    const anchorY = compact ? sourceY - sourceRadius * 0.38 : sourceY;
+    const loop = compact
+      ? 20
+      : Math.max(16, Math.min(30, sourceRadius * 0.9));
+    const stub = compact
+      ? 10
+      : Math.max(6, Math.min(12, sourceRadius * 0.45));
+    const halfAngle = Math.min(0.45, loop / Math.max(1, sourceRadius * 2));
+    const a1 = -halfAngle;
+    const a2 = halfAngle;
+    const n1x = Math.cos(a1);
+    const n1y = Math.sin(a1);
+    const n2x = Math.cos(a2);
+    const n2y = Math.sin(a2);
+    const startX = sourceX + n1x * sourceRadius;
+    const startY = sourceY + n1y * sourceRadius;
+    const endX = sourceX + n2x * sourceRadius;
+    const endY = sourceY + n2y * sourceRadius;
+    const startOutX = startX + n1x * stub;
+    const startOutY = startY + n1y * stub;
+    const endInX = endX + n2x * stub;
+    const endInY = endY + n2y * stub;
+    const control1X = startOutX + n1x * loop;
+    const control1Y = startOutY + n1y * loop;
+    const control2X = endInX + n2x * loop;
+    const control2Y = endInY + n2y * loop;
     return {
-      path: `M ${anchorX + lift} ${anchorY - lift} C ${
-        anchorX + radius * 2.5
-      } ${anchorY - radius * 1.15}, ${anchorX + radius * 2.5} ${
-        anchorY + radius * 1.15
-      }, ${anchorX + lift} ${anchorY + lift}`,
-      x: anchorX + lift,
-      y: anchorY + lift,
+      path: `M ${startX} ${startY} L ${startOutX} ${startOutY} C ${control1X} ${control1Y}, ${control2X} ${control2Y}, ${endInX} ${endInY} L ${endX} ${endY}`,
+      x: endX,
+      y: endY,
     };
   }
 
