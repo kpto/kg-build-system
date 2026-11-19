@@ -397,11 +397,12 @@ missing, not the code.
   collection root. A large set accepts items until the boundary reaches a
   readable size and states how many
   items are shown; it never shows layer boxes or links to another collection.
-  The boundary assigns dependency levels and puts every box of one level in one
-  horizontal row: an asset is below a source relation, a source relation below a
-  derived relation, a derived relation below a binding, and a record above a
-  binding. A Constitution puts the items in the top row; a Contribution puts
-  them in the bottom row. Abstract nodes and edges are participants: an abstract
+  The boundary assigns dependency levels and lets the layered layout rank
+  connected boxes, so an asset sits below the source relation that reads it, a
+  source relation below its derived relation, and a derived relation below its
+  binding; independent boxes of one level share a row. A Constitution puts
+  independent items in the top row; a Contribution puts independent items in the
+  bottom row. Abstract nodes and edges are participants: an abstract
   constitution uses its own binding layer and its contribution is its immediate
   children only.
 - Motion is feedback, not decoration: short ease-out transitions on transform and
