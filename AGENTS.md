@@ -303,7 +303,8 @@ missing, not the code.
   meaning. The facts carry the owner, container, source, target or endpoints; a
   concept may specialise its facts, not the popup chrome. The popup scrolls,
   dismisses on outside interaction, and never navigates; the pill remains the
-  action.
+  action. A box that presents one concept previews it from the box itself, not
+  only from its pill.
 - A component reads the shared design language for colour, type, space, shape,
   depth, motion and layer order; it declares only geometry that belongs to its
   own composition. A token names a role, not a measured value: spacing has no
