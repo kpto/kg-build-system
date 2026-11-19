@@ -851,17 +851,14 @@ function linkPath(
   const targetX = target.x ?? 0;
   const targetY = target.y ?? 0;
   if (source.id === target.id) {
-    // A self-loop leaves and enters the same circle along its normals: two
-    // nearby points on the surface, a radial stub at each end, then an outside
-    // bow. A ring reads as a badge, so the loop stays beside the node.
+    // A self-loop is one smooth cubic. Its two versions start and end on the
+    // circle with radial tangents, so there is no straight stub or kink at the
+    // node; the loop bows outside between them.
     const compact = sourceRadius > 80;
     const loop = compact
-      ? 20
-      : Math.max(16, Math.min(30, sourceRadius * 0.9));
-    const stub = compact
-      ? 10
-      : Math.max(6, Math.min(12, sourceRadius * 0.45));
-    const halfAngle = Math.min(0.45, loop / Math.max(1, sourceRadius * 2));
+      ? 30
+      : Math.max(20, Math.min(48, sourceRadius * 1.8));
+    const halfAngle = Math.min(0.5, 18 / Math.max(1, sourceRadius));
     const a1 = -halfAngle;
     const a2 = halfAngle;
     const n1x = Math.cos(a1);
@@ -872,16 +869,12 @@ function linkPath(
     const startY = sourceY + n1y * sourceRadius;
     const endX = sourceX + n2x * sourceRadius;
     const endY = sourceY + n2y * sourceRadius;
-    const startOutX = startX + n1x * stub;
-    const startOutY = startY + n1y * stub;
-    const endInX = endX + n2x * stub;
-    const endInY = endY + n2y * stub;
-    const control1X = startOutX + n1x * loop;
-    const control1Y = startOutY + n1y * loop;
-    const control2X = endInX + n2x * loop;
-    const control2Y = endInY + n2y * loop;
+    const control1X = startX + n1x * loop;
+    const control1Y = startY + n1y * loop;
+    const control2X = endX + n2x * loop;
+    const control2Y = endY + n2y * loop;
     return {
-      path: `M ${startX} ${startY} L ${startOutX} ${startOutY} C ${control1X} ${control1Y}, ${control2X} ${control2Y}, ${endInX} ${endInY} L ${endX} ${endY}`,
+      path: `M ${startX} ${startY} C ${control1X} ${control1Y}, ${control2X} ${control2Y}, ${endX} ${endY}`,
       x: endX,
       y: endY,
     };
