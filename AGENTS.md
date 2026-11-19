@@ -207,7 +207,9 @@ missing, not the code.
   endpoint, not near it, so a gap or rotation cannot separate them.
 - Several connectors into one box share one centred, evenly spaced set of head
   positions along the edge they meet; the spacing is uniform and the set is
-  symmetric about the edge midpoint.
+  symmetric about the edge midpoint. The final segment is perpendicular to that
+  edge, so each head points into the box and parallel connectors do not point
+  at one another.
 - A link between round nodes meets each node along its radius: a parallel
   offset bends the middle of the link, never the attachment, so the head stays
   perpendicular to the node surface. Links on one node pair take their bow from
