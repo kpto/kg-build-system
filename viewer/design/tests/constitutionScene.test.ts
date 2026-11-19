@@ -109,6 +109,36 @@ describe("constitution scene", () => {
     expect(collectionScene.edges[0].target).toBe("abstract:target");
   });
 
+  it("enters box edges perpendicularly so arrowheads do not point at each other", () => {
+    const subjectEdges = scene.edges.filter(
+      (entry) => entry.target === "subject",
+    );
+    expect(subjectEdges.length).toBeGreaterThan(1);
+    for (const entry of subjectEdges) {
+      expect(entry.head?.angle).toBeCloseTo(-90, 6);
+      const values =
+        entry.path.match(/-?\d+(?:\.\d+)?/g)?.map(Number) ?? [];
+      expect(values[values.length - 4]).toBeCloseTo(
+        values[values.length - 2],
+        6,
+      );
+    }
+
+    const contribution = buildConstitutionScene(
+      contributionModel(contractIndex, {
+        level: "node",
+        component: "defect",
+      }),
+    );
+    const dependants = contribution.edges.filter(
+      (entry) => entry.target !== "subject",
+    );
+    expect(dependants.length).toBeGreaterThan(0);
+    for (const entry of dependants) {
+      expect(entry.head?.angle).toBeCloseTo(0, 6);
+    }
+  });
+
   it("draws one binding node per binding", () => {
     const bindings = scene.nodes.filter((entry) => entry.axis === "binding");
     expect(bindings).toHaveLength(3);

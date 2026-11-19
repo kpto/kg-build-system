@@ -93,6 +93,8 @@ const FRAME_LABEL_INSET = 12;
 const FRAME_LABEL_BASELINE = 16;
 const NOTE_GAP = 24;
 const NOTE_HEIGHT = 24;
+/** The perpendicular approach into a box edge; the arrowhead sits on it. */
+const ENTRY_STUB = 12;
 
 /** dagre's layered engine: top-to-bottom edges read bottom-to-top. */
 const RANKDIR = "BT";
@@ -282,15 +284,20 @@ function bindingRelationEdges(
   return edges;
 }
 
-/** A produced subject enters the subject's bottom edge at its assigned point. */
+/**
+ * A produced subject enters the subject's bottom edge at its assigned point
+ * along a short perpendicular stub, so the arrowhead points into the box
+ * instead of along a shallow diagonal.
+ */
 function componentToSubjectPath(
   source: ConstitutionSceneNode,
   subject: ConstitutionSceneNode,
   entryX: number,
 ): string {
+  const edgeY = subject.y + subject.height;
   return `M ${source.x + source.width / 2} ${source.y} L ${entryX} ${
-    subject.y + subject.height
-  }`;
+    edgeY + ENTRY_STUB
+  } L ${entryX} ${edgeY}`;
 }
 
 /** The last segment gives the arrowhead tip and direction. */
@@ -310,12 +317,62 @@ function edgeHead(
   };
 }
 
-/** Replace the final point of a routed polyline. */
-function moveEdgeEnd(path: string, x: number, y: number): string {
-  return path.replace(
-    /(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s*$/,
-    `${x} ${y}`,
-  );
+function pathPoints(path: string): Array<{ x: number; y: number }> {
+  const points: Array<{ x: number; y: number }> = [];
+  const pattern = /[ML]\s*(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/g;
+  for (const match of path.matchAll(pattern)) {
+    points.push({ x: Number(match[1]), y: Number(match[2]) });
+  }
+  return points;
+}
+
+/**
+ * End a routed edge on a target's bottom edge with a perpendicular stub. The
+ * final segment points up into the box, so several incoming edges keep parallel
+ * arrowheads instead of pointing at each other along shallow diagonals.
+ */
+function bottomEntryPath(
+  path: string,
+  x: number,
+  y: number,
+  stub = ENTRY_STUB,
+): string {
+  const points = pathPoints(path);
+  if (!points.length) return path;
+  const previous = points[points.length - 2];
+  if (previous && Math.abs(previous.x - x) < 0.01 && previous.y >= y) {
+    points[points.length - 1] = { x, y };
+  } else {
+    points[points.length - 1] = { x, y: y + stub };
+    points.push({ x, y });
+  }
+  return points
+    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
+    .join(" ");
+}
+
+/**
+ * End a routed edge on a target's left edge with a perpendicular stub, so a
+ * horizontal contribution keeps its arrowhead pointing into the box.
+ */
+function leftEntryPath(
+  path: string,
+  x: number,
+  y: number,
+  stub = ENTRY_STUB,
+): string {
+  const points = pathPoints(path);
+  if (!points.length) return path;
+  const previous = points[points.length - 2];
+  if (previous && Math.abs(previous.y - y) < 0.01 && previous.x <= x) {
+    points[points.length - 1] = { x, y };
+  } else {
+    points[points.length - 1] = { x: x - stub, y };
+    points.push({ x, y });
+  }
+  return points
+    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
+    .join(" ");
 }
 
 /**
@@ -356,7 +413,7 @@ function distributeConnections(
     group.forEach((edge, index) => {
       const entryX =
         centre + (index - (count - 1) / 2) * spacing;
-      edge.path = moveEdgeEnd(
+      edge.path = bottomEntryPath(
         edge.path,
         entryX,
         target.y + target.height,
@@ -902,23 +959,23 @@ function buildBoundaryScene(
     const path =
       target.id === subject.id
         ? horizontal
-          ? moveEdgeEnd(
+          ? leftEntryPath(
               routed,
               subject.x,
               entryOffset.get(source.id) ?? entryCentre,
             )
-          : moveEdgeEnd(
+          : bottomEntryPath(
               routed,
               entryOffset.get(source.id) ?? entryCentre,
               subject.y + subject.height,
             )
         : horizontal
-          ? moveEdgeEnd(
+          ? leftEntryPath(
               routed,
               target.x,
               target.y + target.height / 2,
             )
-          : moveEdgeEnd(
+          : bottomEntryPath(
               routed,
               target.x + target.width / 2,
               target.y + target.height,
