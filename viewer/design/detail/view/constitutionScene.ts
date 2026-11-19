@@ -1090,82 +1090,10 @@ function buildWorkflowScene(model: ConstitutionModel): ConstitutionScene {
   );
 }
 
-function routeGridEdge(
-  source: ConstitutionSceneNode,
-  target: ConstitutionSceneNode,
-): { startX: number; startY: number; endX: number; endY: number } {
-  if (source.y < target.y) {
-    return {
-      startX: source.x + source.width / 2,
-      startY: source.y + source.height,
-      endX: target.x + target.width / 2,
-      endY: target.y,
-    };
-  }
-  if (source.y > target.y) {
-    return {
-      startX: source.x + source.width / 2,
-      startY: source.y,
-      endX: target.x + target.width / 2,
-      endY: target.y + target.height,
-    };
-  }
-  if (source.x < target.x) {
-    return {
-      startX: source.x + source.width,
-      startY: source.y + source.height / 2,
-      endX: target.x,
-      endY: target.y + target.height / 2,
-    };
-  }
-  return {
-    startX: source.x,
-    startY: source.y + source.height / 2,
-    endX: target.x + target.width,
-    endY: target.y + target.height / 2,
-  };
-}
-
-function dataLevel(kind: ConstitutionNode["kind"]): number | undefined {
-  switch (kind) {
-    case "asset":
-      return 0;
-    case "relation":
-      return 1;
-    case "projection":
-      return 2;
-    case "binding":
-      return 3;
-    case "node":
-    case "edge":
-    case "abstract":
-    case "graph":
-    case "property":
-      return 4;
-    case "step":
-      return 5;
-  }
-}
-
-function bandOf(
-  node: ConstitutionNode,
-  itemLevel: number,
-  direction: "dependency" | "contribution",
-): number {
-  if (node.item) return 0;
-  if (node.kind === "abstract" || node.kind === "graph") return 0.5;
-  const level = dataLevel(node.kind);
-  if (level === undefined) return 0.5;
-  if (direction === "dependency") {
-    return itemLevel > level ? itemLevel - level : 0.5;
-  }
-  return level > itemLevel ? level - itemLevel : 0.5;
-}
-
 /**
  * A collection boundary with no root: the collection's actual items and their
- * merged dependencies or contributions, ordered in vertical level bands. The
- * asset level sits below the source-relation level; bindings sit above them.
+ * merged dependencies or contributions, laid out as one layered DAG. Connected
+ * items take different ranks; dagre orders each rank and routes every edge.
  */
 function buildSubjectSetScene(model: ConstitutionModel): ConstitutionScene {
   const layers: ConstitutionSceneNode[] = (model.layers ?? []).map((node) => ({
@@ -1181,47 +1109,30 @@ function buildSubjectSetScene(model: ConstitutionModel): ConstitutionScene {
     y: 0,
     ...NODE.graph,
   }));
-  const itemLevel = dataLevel(model.subject.kind) ?? 4;
-  const direction = model.direction ?? "dependency";
-  const groups = new Map<number, ConstitutionSceneNode[]>();
-  layers.forEach((node) => {
-    const band = bandOf(node.node, itemLevel, direction);
-    const group = groups.get(band) ?? [];
-    group.push(node);
-    groups.set(band, group);
-  });
-  const bands = [...groups.keys()].sort((left, right) =>
-    direction === "dependency" ? left - right : right - left,
+  // The collection is one layered DAG, not fixed bands: connected items take
+  // different ranks, and dagre orders and routes them. Items with no edges
+  // share a rank, which is the only case where a row is natural.
+  const links: LayeredEdge[] = (model.layerEdges ?? []).map((link) => ({
+    source: link.source,
+    target: link.target,
+  }));
+  const layered = layeredLayout(
+    layers.map((node) => ({
+      id: node.id,
+      width: node.width,
+      height: node.height,
+    })),
+    links,
   );
-  const gap = 32;
-  const bandGap = 56;
-  const bandWidths = new Map(
-    bands.map((band) => {
-      const count = groups.get(band)!.length;
-      return [band, count * NODE.graph.width + Math.max(0, count - 1) * gap];
-    }),
-  );
-  const totalWidth = Math.max(0, ...bandWidths.values());
-  let y = 0;
-  for (const band of bands) {
-    const members = groups.get(band)!;
-    const bandWidth = bandWidths.get(band) ?? 0;
-    const startX = (totalWidth - bandWidth) / 2;
-    members.forEach((node, index) => {
-      node.x = startX + index * (NODE.graph.width + gap);
-      node.y = y;
-    });
-    y += NODE.graph.height + bandGap;
-  }
+  const positioned = layers.map((node) => ({
+    ...node,
+    ...(layered.positions.get(node.id) ?? { x: 0, y: 0 }),
+  }));
 
-  const byId = new Map(layers.map((node) => [node.id, node] as const));
   const edges: ConstitutionSceneEdge[] = [];
-  for (const link of model.layerEdges ?? []) {
-    const source = byId.get(link.source);
-    const target = byId.get(link.target);
-    if (!source || !target) continue;
-    const { startX, startY, endX, endY } = routeGridEdge(source, target);
-    const path = `M ${startX} ${startY} L ${endX} ${endY}`;
+  for (const link of links) {
+    const path = layered.paths.get(`${link.source}->${link.target}`);
+    if (!path) continue;
     edges.push({
       id: `${link.source}->${link.target}`,
       source: link.source,
@@ -1230,11 +1141,12 @@ function buildSubjectSetScene(model: ConstitutionModel): ConstitutionScene {
       head: edgeHead(path),
     });
   }
+  distributeConnections(edges, positioned, new Set());
 
-  const frameId = layers[0]
-    ? frameIdForSceneNode(layers[0])
+  const frameId = positioned[0]
+    ? frameIdForSceneNode(positioned[0])
     : frameIdForKind(model.subject.kind);
-  const frame = frameFor(frameId, layers);
+  const frame = frameFor(frameId, positioned);
   const frames = frame ? [frame] : [];
   const labels = frame
     ? [
@@ -1251,10 +1163,10 @@ function buildSubjectSetScene(model: ConstitutionModel): ConstitutionScene {
   };
   const notes: ConstitutionSceneNote[] = [];
   if (model.note) {
-    const lowest = layers.reduce(
+    const lowest = positioned.reduce(
       (lower, node) =>
         node.y + node.height > lower.y + lower.height ? node : lower,
-      layers[0] ?? { y: 0, height: 0, x: 0, width: 0 },
+      positioned[0] ?? { y: 0, height: 0, x: 0, width: 0 },
     );
     notes.push({
       text: model.note,
@@ -1262,8 +1174,8 @@ function buildSubjectSetScene(model: ConstitutionModel): ConstitutionScene {
       y: lowest.y + lowest.height + NOTE_GAP,
     });
   }
-  const nodeMaxX = Math.max(0, ...layers.map((node) => node.x + node.width));
-  const nodeMaxY = Math.max(0, ...layers.map((node) => node.y + node.height));
+  const nodeMaxX = Math.max(0, ...positioned.map((node) => node.x + node.width));
+  const nodeMaxY = Math.max(0, ...positioned.map((node) => node.y + node.height));
   const contentMaxX = Math.max(
     nodeMaxX,
     ...notes.map((note) => note.x + 180),
@@ -1275,7 +1187,7 @@ function buildSubjectSetScene(model: ConstitutionModel): ConstitutionScene {
     ...frames.map((entry) => entry.y + entry.height),
   );
   return {
-    nodes: layers,
+    nodes: positioned,
     edges,
     labels,
     notes,

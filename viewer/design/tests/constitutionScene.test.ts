@@ -80,7 +80,35 @@ const byName = (name: string) =>
 const edge = (source: string, target: string) =>
   scene.edges.find((entry) => entry.id === `${source}->${target}`);
 
+const subjectSetModel: ConstitutionModel = {
+  subjectSet: true,
+  direction: "dependency",
+  subject: node("abstract", "collection", "Collection"),
+  graph: [],
+  relation: [],
+  bindings: [],
+  layers: [
+    { ...node("abstract", "source", "Abstract"), item: true, frame: "graph" },
+    { ...node("abstract", "target", "Abstract"), item: true, frame: "graph" },
+  ],
+  layerEdges: [{ source: "abstract:source", target: "abstract:target" }],
+};
+
 describe("constitution scene", () => {
+  it("ranks connected collection items instead of sharing one row", () => {
+    const collectionScene = buildConstitutionScene(subjectSetModel);
+    const source = collectionScene.nodes.find(
+      (entry) => entry.node.name === "source",
+    )!;
+    const target = collectionScene.nodes.find(
+      (entry) => entry.node.name === "target",
+    )!;
+    expect(source.y).not.toBe(target.y);
+    expect(collectionScene.edges).toHaveLength(1);
+    expect(collectionScene.edges[0].source).toBe("abstract:source");
+    expect(collectionScene.edges[0].target).toBe("abstract:target");
+  });
+
   it("draws one binding node per binding", () => {
     const bindings = scene.nodes.filter((entry) => entry.axis === "binding");
     expect(bindings).toHaveLength(3);
