@@ -63,6 +63,7 @@ import {
   isTopologyNode,
 } from "@/topology/model/TopologyGraphModel";
 import { topologyModelFor } from "@/topology/model/topologyViewModel";
+import { linkPath } from "@/topology/model/linkGeometry";
 import { getTopologyUiStore, type TopologyUiStore } from "./topologyUi";
 
 // ---------------------------------------------------------------------------
@@ -839,96 +840,6 @@ function categoryAnchors(nodes: SimNode[]): Map<string, { x: number; y: number }
   );
 }
 
-function linkPath(
-  source: SimNode,
-  target: SimNode,
-  offset: number,
-  sourceRadius = nodeRadius(source.model) + 0.75,
-  targetRadius = nodeRadius(target.model) + 0.75,
-): { path: string; x: number; y: number } {
-  const sourceX = source.x ?? 0;
-  const sourceY = source.y ?? 0;
-  const targetX = target.x ?? 0;
-  const targetY = target.y ?? 0;
-  if (source.id === target.id) {
-    // A self-loop is one smooth cubic. Its two versions start and end on the
-    // circle with radial tangents, so there is no straight stub or kink at the
-    // node; the loop bows outside between them.
-    const compact = sourceRadius > 80;
-    const loop = compact
-      ? 30
-      : Math.max(20, Math.min(48, sourceRadius * 1.8));
-    const halfAngle = Math.min(0.5, 18 / Math.max(1, sourceRadius));
-    const a1 = -halfAngle;
-    const a2 = halfAngle;
-    const n1x = Math.cos(a1);
-    const n1y = Math.sin(a1);
-    const n2x = Math.cos(a2);
-    const n2y = Math.sin(a2);
-    const startX = sourceX + n1x * sourceRadius;
-    const startY = sourceY + n1y * sourceRadius;
-    const endX = sourceX + n2x * sourceRadius;
-    const endY = sourceY + n2y * sourceRadius;
-    const control1X = startX + n1x * loop;
-    const control1Y = startY + n1y * loop;
-    const control2X = endX + n2x * loop;
-    const control2Y = endY + n2y * loop;
-    return {
-      path: `M ${startX} ${startY} C ${control1X} ${control1Y}, ${control2X} ${control2Y}, ${endX} ${endY}`,
-      x: endX,
-      y: endY,
-    };
-  }
-
-  const dx = targetX - sourceX;
-  const dy = targetY - sourceY;
-  const distance = Math.max(0.001, Math.hypot(dx, dy));
-  const ux = dx / distance;
-  const uy = dy / distance;
-  const startX = sourceX + ux * sourceRadius;
-  const startY = sourceY + uy * sourceRadius;
-  const endX = targetX - ux * targetRadius;
-  const endY = targetY - uy * targetRadius;
-
-  if (Math.abs(offset) < 0.01) {
-    return {
-      path: `M ${startX} ${startY} L ${endX} ${endY}`,
-      x: endX,
-      y: endY,
-    };
-  }
-
-  // A parallel link is one smooth cubic. Its attachment points fan around the
-  // facing sides of the two circles, so the controls can bow the link while
-  // both endpoint tangents remain radial. There is no straight stub and no
-  // kink where the curve meets either surface.
-  const fan = Math.max(
-    -0.5,
-    Math.min(0.5, offset / Math.max(24, sourceRadius + targetRadius)),
-  );
-  const baseAngle = Math.atan2(dy, dx);
-  const startAngle = baseAngle + fan;
-  const endAngle = baseAngle + Math.PI - fan;
-  const n1x = Math.cos(startAngle);
-  const n1y = Math.sin(startAngle);
-  const n2x = Math.cos(endAngle);
-  const n2y = Math.sin(endAngle);
-  const curveStartX = sourceX + n1x * sourceRadius;
-  const curveStartY = sourceY + n1y * sourceRadius;
-  const curveEndX = targetX + n2x * targetRadius;
-  const curveEndY = targetY + n2y * targetRadius;
-  const control = Math.max(28, Math.min(140, distance * 0.38));
-  const control1X = curveStartX + n1x * control;
-  const control1Y = curveStartY + n1y * control;
-  const control2X = curveEndX + n2x * control;
-  const control2Y = curveEndY + n2y * control;
-  return {
-    path: `M ${curveStartX} ${curveStartY} C ${control1X} ${control1Y}, ${control2X} ${control2Y}, ${curveEndX} ${curveEndY}`,
-    x: curveEndX,
-    y: curveEndY,
-  };
-}
-
 export function TopologyEditor(props: WorkspaceProps): JSX.Element {
   const model = useTopologyModel(props);
   const [ui, store] = useTopologyUi(props.state.snapshot.name);
@@ -1455,8 +1366,10 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
     return visibleLabels;
   })();
 
-  const linkOffsets = useMemo(() => {
-    const offsets = new Map<string, number>();
+  // Each link on a node pair gets its own fan angle. The step shrinks as the
+  // group grows so the outermost links stay on the facing side of the nodes.
+  const linkSpreads = useMemo(() => {
+    const spreads = new Map<string, number>();
     const groups = new Map<string, TopologyLinkModel[]>();
     for (const link of visible.links) {
       if (link.source === link.target) continue;
@@ -1470,12 +1383,36 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
     }
     for (const group of groups.values()) {
       if (group.length < 2) continue;
+      const step = Math.min(0.34, 1.1 / ((group.length - 1) / 2));
       group.sort((left, right) => left.id.localeCompare(right.id));
       group.forEach((link, index) => {
-        offsets.set(link.id, (index - (group.length - 1) / 2) * 18);
+        spreads.set(link.id, (index - (group.length - 1) / 2) * step);
       });
     }
-    return offsets;
+    return spreads;
+  }, [visible.links]);
+
+  // A node may loop more than once. Give each loop its own angle so the loops
+  // do not stack on top of one another.
+  const selfLoopAngles = useMemo(() => {
+    const angles = new Map<string, number>();
+    const groups = new Map<string, TopologyLinkModel[]>();
+    for (const link of visible.links) {
+      if (link.source !== link.target) continue;
+      const group = groups.get(link.source) ?? [];
+      group.push(link);
+      groups.set(link.source, group);
+    }
+    for (const group of groups.values()) {
+      group.sort((left, right) => left.id.localeCompare(right.id));
+      group.forEach((link, index) => {
+        angles.set(
+          link.id,
+          -Math.PI / 4 + (index * Math.PI * 2) / group.length,
+        );
+      });
+    }
+    return angles;
   }, [visible.links]);
 
   const hasSelection = Boolean(selection);
@@ -1840,11 +1777,12 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
               const geometry = linkPath(
                 source,
                 target,
-                linkOffsets.get(link.id) ?? 0,
+                linkSpreads.get(link.id) ?? 0,
                 effectiveRadiusById.get(link.source) ??
                   nodeRadius(source.model) + 0.75,
                 effectiveRadiusById.get(link.target) ??
                   nodeRadius(target.model) + 0.75,
+                selfLoopAngles.get(link.id) ?? 0,
               );
               const selected =
                 link.kind === "edge" && link.edgeName === selectedEdgeName;
