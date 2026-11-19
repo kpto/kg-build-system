@@ -48,3 +48,12 @@ Each command runs from the `.env` directory and must print its port as the first
 line. `kbs` reads that port, waits for the server, and serves the snapshot and
 API itself. The proxy binds `127.0.0.1:8000`, or the next free port in
 `8001–8010`. HTTP and the Next HMR WebSocket are proxied.
+
+One dev server runs per app and is shared by every `kbs` session in the
+checkout. The first session starts it; later sessions print the same port. When
+the last session exits, the shared server stops. Stop it manually with:
+
+```console
+node scripts/dev-server.mjs stop viewer/design
+node scripts/dev-server.mjs stop
+```

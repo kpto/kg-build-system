@@ -4,7 +4,7 @@ summary: The console commands for checking, building, compiling, running, genera
 section: reference
 order: 20
 status: normative
-verified: 2026-11-18
+verified: 2026-11-19
 sources:
   - pyproject.toml
   - kg_build_system/cli/service/_private/main.py
@@ -86,7 +86,8 @@ The command does not start Next and knows nothing about the viewer source.
 `--dev` is the framework-maintainer path: the untracked `.env` at the framework
 repo root supplies `KBS_DEV_VIEWER` and `KBS_DEV_CONSOLE`, each command prints
 its port on the first line, and `kbs` proxies the dev UI while serving the
-snapshot itself.
+snapshot itself. One dev server per app is shared by every `kbs` session in the
+checkout and stops when the last session exits.
 
 The wheel build compiles the viewer with `npm ci` and `npm run build:static`.
 `KBS_SKIP_VIEWER_BUILD=1` uses an existing `viewer/design/out`, `KBS_SKIP_VIEWER_INSTALL=1`
