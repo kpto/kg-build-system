@@ -1238,24 +1238,45 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
   const selectedEdgeName =
     selection?.kind === "edge" ? selection.name : undefined;
 
+  // Hover previews the same highlight as selection: the hovered node or edge
+  // becomes the active entity while the pointer is over it. Containment links
+  // highlight the container they point into.
+  const hoveredLink =
+    hoveredLinkId === undefined ? undefined : model.linkById.get(hoveredLinkId);
+  const hoveredNodeName =
+    hoveredNodeId === undefined
+      ? undefined
+      : model.nodeById.get(hoveredNodeId)?.name;
+  const hoverNodeName =
+    hoveredNodeName ??
+    (hoveredLink?.kind === "containment"
+      ? hoveredLink.targetName
+      : undefined);
+  const hoverEdgeName =
+    hoveredLink?.kind === "edge" ? hoveredLink.edgeName : undefined;
+  const hoverActive = Boolean(hoverNodeName || hoverEdgeName);
+  const highlightNodeName = hoverActive ? hoverNodeName : selectedNodeName;
+  const highlightEdgeName = hoverActive ? hoverEdgeName : selectedEdgeName;
+  const highlightActive = Boolean(highlightNodeName || highlightEdgeName);
+
   const adjacentNames = useMemo(() => {
     const names = new Set<string>();
-    if (selectedNodeName) {
+    if (highlightNodeName) {
       for (const link of visible.links) {
-        if (link.sourceName === selectedNodeName) names.add(link.targetName);
-        if (link.targetName === selectedNodeName) names.add(link.sourceName);
+        if (link.sourceName === highlightNodeName) names.add(link.targetName);
+        if (link.targetName === highlightNodeName) names.add(link.sourceName);
       }
     }
-    if (selectedEdgeName) {
+    if (highlightEdgeName) {
       for (const link of visible.links) {
-        if (link.kind === "edge" && link.edgeName === selectedEdgeName) {
+        if (link.kind === "edge" && link.edgeName === highlightEdgeName) {
           names.add(link.sourceName);
           names.add(link.targetName);
         }
       }
     }
     return names;
-  }, [selectedEdgeName, selectedNodeName, visible.links]);
+  }, [highlightEdgeName, highlightNodeName, visible.links]);
 
   const ambientLabels = useMemo(() => {
     const labels = new Set<string>();
@@ -1281,14 +1302,14 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
   // overlap a more important one.
   const labelIds = (() => {
     const forced = new Set<string>();
-    if (selectedNodeName) forced.add(`topology:node:${selectedNodeName}`);
+    if (highlightNodeName) forced.add(`topology:node:${highlightNodeName}`);
     if (hoveredNodeId) forced.add(hoveredNodeId);
     if (focusedNodeId && model.nodeById.has(focusedNodeId)) {
       forced.add(focusedNodeId);
     }
-    if (selectedEdgeName) {
+    if (highlightEdgeName) {
       for (const link of visible.links) {
-        if (link.kind === "edge" && link.edgeName === selectedEdgeName) {
+        if (link.kind === "edge" && link.edgeName === highlightEdgeName) {
           forced.add(link.source);
           forced.add(link.target);
         }
@@ -1696,8 +1717,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
             <g data-topology-containers>
               {containers.map((container) => {
                 const node = container.node;
-                const selected = selectedNodeName === node.name;
-                const hovered = hoveredNodeId === node.id;
+                const selected = highlightNodeName === node.name;
                 const color = colors.get(node.name) ?? theme.lineStrong;
                 return (
                   <g key={node.id}>
@@ -1708,20 +1728,14 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
                       r={container.r}
                       fill={color}
                       fillOpacity={0.04}
-                      stroke={
-                        selected
-                          ? theme.selection
-                          : hovered
-                            ? theme.accentStrong
-                            : color
-                      }
-                      strokeOpacity={selected || hovered ? 0.72 : 0.35}
+                      stroke={selected ? theme.selection : color}
+                      strokeOpacity={selected ? 0.72 : 0.35}
                       strokeWidth={selected ? 1.6 : 0.9}
                       strokeDasharray="2 5"
                       pointerEvents="all"
                       tabIndex={0}
                       role="button"
-                      aria-pressed={selected}
+                      aria-pressed={selectedNodeName === node.name}
                       aria-label={`${node.label}, abstract container, ${container.count} nodes`}
                       onClick={(event) => {
                         event.stopPropagation();
@@ -1785,25 +1799,25 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
                 selfLoopAngles.get(link.id) ?? 0,
               );
               const selected =
-                link.kind === "edge" && link.edgeName === selectedEdgeName;
-              const hovered = hoveredLinkId === link.id || focusedNodeId === link.id;
+                link.kind === "edge" && link.edgeName === highlightEdgeName;
+              const hovered =
+                hoveredLinkId === link.id || focusedNodeId === link.id;
+              const highlighted = selected || hovered;
               const incident =
-                Boolean(selectedNodeName) &&
-                (link.sourceName === selectedNodeName ||
-                  link.targetName === selectedNodeName);
-              const dim = hasSelection && !selected && !incident;
-              const tone = selected
+                Boolean(highlightNodeName) &&
+                (link.sourceName === highlightNodeName ||
+                  link.targetName === highlightNodeName);
+              const dim = highlightActive && !selected && !incident;
+              const tone = highlighted
                 ? theme.selection
-                : hovered
-                  ? theme.accentStrong
-                  : incident
-                    ? theme.accent
-                    : link.kind === "containment"
-                      ? theme.lineStrong
-                      : theme.edge;
-              const marker = selected
+                : incident
+                  ? theme.accent
+                  : link.kind === "containment"
+                    ? theme.lineStrong
+                    : theme.edge;
+              const marker = highlighted
                 ? "url(#topology-arrow-selection)"
-                : hovered
+                : incident
                   ? "url(#topology-arrow-accent)"
                   : link.kind === "containment"
                     ? "url(#topology-arrow-soft)"
@@ -1812,12 +1826,11 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
                 ? 0.08
                 : link.kind === "containment"
                   ? 0.34
-                  : selected || hovered
+                  : highlighted
                     ? 0.95
                     : incident
                       ? 0.75
                       : 0.32;
-              const markerEnd = selectedNodeName && incident ? undefined : marker;
               const midX = ((source.x ?? 0) + (target.x ?? 0)) / 2;
               const midY = ((source.y ?? 0) + (target.y ?? 0)) / 2;
               return (
@@ -1836,10 +1849,10 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
                     d={geometry.path}
                     fill="none"
                     stroke={tone}
-                    strokeWidth={selected ? 2.6 : hovered || incident ? 1.8 : 1}
-                    strokeOpacity={opacity}
+                    strokeWidth={highlighted ? 2.6 : incident ? 1.8 : 1}
+                    opacity={opacity}
                     strokeDasharray={link.kind === "containment" ? "4 3" : undefined}
-                    markerEnd={markerEnd}
+                    markerEnd={marker}
                     vectorEffect="non-scaling-stroke"
                     pointerEvents="none"
                   />
@@ -1934,15 +1947,14 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
                   const sim = simById.get(node.id);
                   if (!sim) return null;
                   const radius = nodeRadius(node);
-                  const selected = selectedNodeName === node.name;
+                  const selected = highlightNodeName === node.name;
                   const adjacent = adjacentNames.has(node.name);
-                  const hovered = hoveredNodeId === node.id;
                   const focused = focusedNodeId === node.id;
-                  const dim = hasSelection && !selected && !adjacent;
+                  const dim = highlightActive && !selected && !adjacent;
                   const base = nodeFill(node, colors);
                   const ring = selected
                     ? theme.selection
-                    : hovered || focused
+                    : focused
                       ? theme.accentStrong
                       : base;
                   const showLabel = labelIds.has(node.id);
@@ -1956,7 +1968,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
                       opacity={dim ? 0.2 : 1}
                       tabIndex={0}
                       role="button"
-                      aria-pressed={selected}
+                      aria-pressed={selectedNodeName === node.name}
                       aria-label={`${node.label}, ${node.abstract ? "abstract category" : "node"}, ${node.category}, ${node.degree} links, ${node.properties} properties`}
                       onClick={(event) => {
                         event.stopPropagation();
@@ -1997,7 +2009,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
                           node.properties
                         } properties`}
                       </title>
-                      {selected || hovered || focused ? (
+                      {selected || focused ? (
                         <circle
                           r={radius + 3.5}
                           fill="none"
@@ -2071,7 +2083,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
                                 fill={
                                   selected
                                     ? theme.selection
-                                    : hovered || focused
+                                    : focused
                                       ? theme.text
                                       : theme.muted
                                 }
