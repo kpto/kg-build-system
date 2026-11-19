@@ -13,7 +13,7 @@ from urllib.request import urlopen
 from kg_build_system.notebook import ledger, project_commands, relations, revisions
 from kg_build_system.notebook.config import load_project, write_config_file
 from kg_build_system.notebook.cli import main
-from kg_build_system.notebook.console import _asset, make_handler
+from kg_build_system.notebook.console import make_handler
 from kg_build_system.notebook.snapshot import import_snapshot
 
 
@@ -170,13 +170,6 @@ def test_state_is_file_based_under_notebook(tmp_path: Path) -> None:
     assert not (project.data_dir / "relations.db").exists()
 
 
-def test_console_assets_are_present_and_scoped() -> None:
-    for name in ("index.html", "style.css", "app.js", "iteration-graph.js"):
-        assert _asset(name) is not None
-    assert _asset("../config.py") is None
-    assert _asset("/etc/passwd") is None
-
-
 def test_console_serves_current_and_revision_views(tmp_path: Path) -> None:
     _project(tmp_path)
     project = load_project(tmp_path)
@@ -185,10 +178,7 @@ def test_console_serves_current_and_revision_views(tmp_path: Path) -> None:
         source="data/snapshots/current.snapshot.json",
         revision="abc123",
     )
-    server = ThreadingHTTPServer(
-        ("127.0.0.1", 0),
-        make_handler(project, "http://127.0.0.1:3000/?embed=1"),
-    )
+    server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(project))
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
@@ -198,7 +188,7 @@ def test_console_serves_current_and_revision_views(tmp_path: Path) -> None:
         assert current["format"] == "kg-viewer-snapshot"
         with urlopen(f"{base}/api/config") as response:
             config = json.load(response)
-        assert config["viewerUrl"].endswith("embed=1")
+        assert config["viewerUrl"] == "/?embed=1"
         with urlopen(
             f"{base}/api/revision-view?revision=KG-abc123"
         ) as response:

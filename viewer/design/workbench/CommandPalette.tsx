@@ -4,10 +4,10 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
 import { CircleDot, FileText, Search, X } from "lucide-react";
 
 import { searchIndex } from "@/lib/search";
-import { Kbd } from "@/shared/ui/Primitives";
+import { Kbd } from "@kbs/design";
 import { subjectKindLabel } from "@/lib/summary";
 import type { SearchKind, SearchRecord } from "@/lib/types";
-import { cx } from "@/shared/ui/theme";
+import { cx } from "@kbs/design";
 import { useWorkbench } from "./store";
 import type { SubjectSelection } from "./types";
 import styles from "./commandPalette.module.css";

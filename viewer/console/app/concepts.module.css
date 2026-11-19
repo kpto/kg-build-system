@@ -1,0 +1,89 @@
+@layer properties, theme, base, components, utilities;
+
+.pill {
+  display: inline-flex;
+  max-width: 100%;
+  min-width: 0;
+  height: 18px;
+  align-items: center;
+  gap: var(--space-inline);
+  padding: 0 var(--space-group) 0 var(--space-stack);
+  border: var(--border-hairline) solid
+    color-mix(in srgb, var(--concept-color) 34%, var(--color-line-soft));
+  border-radius: var(--radius-pill);
+  background-color: color-mix(in srgb, var(--concept-color) 9%, transparent);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-regular);
+  line-height: var(--leading-none);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.md {
+  height: 21px;
+  gap: var(--space-stack);
+  padding: 0 var(--space-section) 0 var(--space-stack);
+  font-size: var(--text-body);
+}
+
+.lg {
+  height: 28px;
+  gap: var(--space-stack);
+  padding: 0 var(--space-section) 0 var(--space-group);
+  font-size: var(--text-title);
+  font-weight: var(--weight-medium);
+}
+
+.active {
+  border-color: color-mix(in srgb, var(--concept-color) 55%, var(--color-line-soft));
+  background-color: color-mix(in srgb, var(--concept-color) 18%, transparent);
+}
+
+.mark {
+  width: 10px;
+  height: 10px;
+  flex: none;
+}
+
+.md .mark {
+  width: 12px;
+  height: 12px;
+}
+
+.lg .mark {
+  width: 14px;
+  height: 14px;
+}
+
+.divider {
+  width: 1px;
+  height: 9px;
+  flex: none;
+  background-color: color-mix(
+    in srgb,
+    var(--concept-color) 45%,
+    var(--color-line-strong)
+  );
+  opacity: 0.75;
+}
+
+.md .divider {
+  height: 10px;
+}
+
+.lg .divider {
+  height: 12px;
+}
+
+.name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.count {
+  color: var(--color-faint);
+  font-variant-numeric: tabular-nums;
+}

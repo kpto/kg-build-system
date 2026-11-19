@@ -9,7 +9,7 @@ import { loadSnapshot } from "@/lib/load";
 import type { ViewerIndex, ViewerSnapshot } from "@/lib/types";
 import { ConceptNavigationProvider } from "@/shared/ui/ConceptNavigation";
 import { ConceptPreviewProvider } from "@/shared/ui/ConceptPreview";
-import { cx } from "@/shared/ui/theme";
+import { cx } from "@kbs/design";
 import { CommandPalette } from "./CommandPalette";
 import { EditorArea } from "./EditorArea";
 import { SideBar } from "./SideBar";
@@ -293,14 +293,19 @@ export function Workbench() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | undefined>();
   const [loaded, setLoaded] = useState<LoadedWorkbench | null>(null);
+  const [mounted, setMounted] = useState(false);
   const announced = useRef(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const embed = useMemo(
     () =>
-      embedQuery(
-        typeof window === "undefined" ? "" : window.location.search,
-      ),
-    [],
+      mounted
+        ? embedQuery(window.location.search)
+        : { enabled: false, snapshot: undefined },
+    [mounted],
   );
   const requestedUrl = useMemo(
     () =>
@@ -309,7 +314,7 @@ export function Workbench() {
         : new URLSearchParams(window.location.search).get("snapshot") ?? "",
     [],
   );
-  const waitForHost = embed.enabled && !requestedUrl;
+  const waitForHost = mounted && embed.enabled && !requestedUrl;
 
   // Host -> viewer: open an arbitrary snapshot. The viewer owns no project
   // paths; it accepts the document or its JSON text and replaces the current
@@ -347,6 +352,7 @@ export function Workbench() {
   // Standalone, or an explicit ?snapshot=<url> fallback. A plain embedded
   // viewer waits for the host instead of fetching project data itself.
   useEffect(() => {
+    if (!mounted) return;
     if (waitForHost) {
       setLoading(true);
       setError(undefined);
@@ -377,7 +383,7 @@ export function Workbench() {
     return () => {
       active = false;
     };
-  }, [attempt, requestedUrl, waitForHost]);
+  }, [attempt, mounted, requestedUrl, waitForHost]);
 
   if (loading) {
     return (

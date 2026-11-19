@@ -1,7 +1,7 @@
 "use client";
 
 import { DetailEditor } from "@/detail/DetailFeature";
-import { cx } from "@/shared/ui/theme";
+import { cx } from "@kbs/design";
 import { TopologyEditor } from "@/topology/TopologyFeature";
 import {
   WorkflowEditor,

@@ -2,7 +2,7 @@ import type { CSSProperties, ReactNode } from "react";
 
 import type { ConceptKind } from "@/lib/concepts";
 import { ConceptMark } from "./ConceptMark";
-import { cx } from "./theme";
+import { cx } from "@kbs/design";
 import styles from "./tabBanner.module.css";
 
 export interface TabBannerFact {

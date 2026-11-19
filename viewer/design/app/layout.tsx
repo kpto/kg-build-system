@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 
-import { themeColor } from "@/shared/ui/theme";
+import { themeColor } from "@kbs/design";
 import "./globals.css";
 
 export const metadata: Metadata = {

@@ -17,7 +17,7 @@ import type { Expression, Ref, ViewerIndex } from "@/lib/types";
 import type { ProvenanceReferences } from "@/proof/references";
 import { ConceptPill } from "@/detail/view/ConceptPill";
 import { concepts } from "@/shared/ui/concepts";
-import { cx, theme } from "@/shared/ui/theme";
+import { cx, theme } from "@kbs/design";
 import { DetailBand, DetailEmptyState } from "@/detail/view/DetailChrome";
 import styles from "../detail.module.css";
 

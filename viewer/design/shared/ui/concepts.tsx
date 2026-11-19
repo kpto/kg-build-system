@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 
 import type { ConceptKind } from "@/lib/concepts";
-import { cx, theme } from "./theme";
+import { cx, theme } from "@kbs/design";
 import styles from "./conceptMark.module.css";
 
 export interface ConceptDefinition {

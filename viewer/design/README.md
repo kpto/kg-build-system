@@ -108,12 +108,18 @@ restrictive referrer policy or validate origin and source itself).
 ## Develop the viewer
 
 ```console
-cd viewer/design
+cd viewer
 npm install
-npm run dev -- --hostname 0.0.0.0
+cd design
+npm run dev
 ```
 
-Open <http://127.0.0.1:3000>. For a production build:
+`npm run dev` chooses an available port, starts Next on loopback, and writes the
+`viewer` role under the per-user dev directory (`KBS_DEV_DIR` overrides it). It
+prints the URL. `--port` remains optional, and `--force` replaces an existing
+healthy instance. To serve a remote browser, pass `--hostname 0.0.0.0` and name
+that host in `KBS_DEV_ORIGINS` (default `127.0.0.1,localhost`). For a production
+build:
 
 ```console
 npm run build
@@ -144,16 +150,21 @@ Next reads the discovery file once at startup and hard-codes the API origin. It
 proxies `/snapshot` and `/api/*` to that server. Restart Next if the Python
 server moves to another port.
 
-Run one Next dev instance per project. Each project discovers its own API from
-its own `.kbs/viewer.json`.
+This standalone workflow is one Next dev instance per project, each with its own
+`.kbs/viewer.json`.
+
+The console push workflow is different: the design viewer is stateless and one
+instance serves every project. Start it with `npm run dev`; a console in any
+project reads the `viewer` role and pushes its own snapshots into the iframe.
 
 ## Bundle in the Python wheel
 
 `hatch_build.py` compiles the viewer during a wheel build:
 
 ```text
+cd viewer
 npm ci
-npm run build:static
+npm run build:static --workspace design
 viewer/design/out -> kg_build_system/viewer_dist
 ```
 

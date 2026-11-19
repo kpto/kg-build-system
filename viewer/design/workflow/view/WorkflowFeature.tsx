@@ -15,9 +15,9 @@ import { DetailBand, DetailDocument } from "@/detail/view/DetailChrome";
 import { Constitution } from "@/detail/view/Constitution";
 import { stepBoundaryModel } from "@/detail/model/constitution";
 import { ContextMenu } from "@/shared/ui/ContextMenu";
-import { Empty, Field, Input, Select } from "@/shared/ui/Primitives";
+import { Empty, Field, Input, Select } from "@kbs/design";
 import { useGraphViewport } from "@/shared/ui/GraphCanvas";
-import { cx, groupPalette, theme } from "@/shared/ui/theme";
+import { cx, groupPalette, theme } from "@kbs/design";
 import {
   ViewportAction,
   ViewportFrame,

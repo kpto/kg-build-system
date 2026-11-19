@@ -5,7 +5,8 @@
   "type": "module",
   "description": "Independent viewer for kg-build-system workflow and blueprint snapshots.",
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/dev.mjs",
+    "dev:next": "next dev",
     "dev:discovery": "node scripts/dev.mjs",
     "build": "next build",
     "build:static": "KBS_VIEWER_STATIC=1 next build",
@@ -20,7 +21,8 @@
     "lucide-react": "^1.68.0",
     "next": "^16.4.5",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "@kbs/design": "*"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.4",

@@ -34,15 +34,21 @@ def _configure_logging() -> None:
 
 def _run_console(arguments: argparse.Namespace) -> int:
     from kg_build_system.notebook.config import load_project
-    from kg_build_system.notebook.console import DEFAULT_VIEWER_URL, serve
+    from kg_build_system.notebook.console import serve, serve_api
 
     project = load_project(arguments.project)
-    viewer_url = (
-        arguments.viewer_url
-        or str(project.config.get("viewer_url") or "")
-        or DEFAULT_VIEWER_URL
+    if arguments.api_only:
+        serve_api(
+            project,
+            host=arguments.host,
+            port=arguments.port if arguments.port is not None else 0,
+        )
+        return 0
+    serve(
+        project,
+        host=arguments.host,
+        port=arguments.port if arguments.port is not None else 0,
     )
-    serve(project, host=arguments.host, port=arguments.port, viewer_url=viewer_url)
     return 0
 
 
@@ -91,9 +97,13 @@ def _parser() -> argparse.ArgumentParser:
         "--root", dest="project", metavar="PROJECT", help=argparse.SUPPRESS,
     )
     console.add_argument("--host", default="127.0.0.1", help="bind address")
-    console.add_argument("--port", type=int, default=8787, help="console port")
     console.add_argument(
-        "--viewer-url", default="", help="design viewer URL to embed",
+        "--port", type=int, default=None,
+        help="console port; 0 chooses an available port (default)",
+    )
+    console.add_argument(
+        "--api-only", action="store_true",
+        help="serve only the notebook API for a separate console and viewer",
     )
     console.set_defaults(command_handler=_run_console)
     return parser

@@ -1,3 +1,5 @@
+@layer properties, theme, base, components, utilities;
+
 /* Editor tab strip: the workbench's one tab bar, its history controls and its
    per-document tabs. Colours, type and motion come from the theme roles. */
 

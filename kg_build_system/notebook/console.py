@@ -11,23 +11,68 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, unquote, urlparse
 
-from . import relations
+from . import dev, relations
 from .config import Project
 
-ASSETS = Path(__file__).with_name("console")
-DEFAULT_VIEWER_URL = "http://127.0.0.1:3000/?embed=1"
+PACKAGE_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
+VIEWER_DIST = PACKAGE_ROOT / "viewer_dist"
+CONSOLE_DIST = PACKAGE_ROOT / "console_dist"
+VIEWER_SOURCE = REPO_ROOT / "viewer" / "design" / "out"
+CONSOLE_SOURCE = REPO_ROOT / "viewer" / "console" / "out"
+VIEWER_URL = "/?embed=1"
+
+
+def _asset_root(packaged: Path, source: Path) -> Path | None:
+    for candidate in (packaged, source):
+        if (candidate / "index.html").is_file():
+            return candidate
+    return None
 
 
 def _json_bytes(value: object) -> bytes:
     return json.dumps(value, separators=(",", ":"), default=str).encode("utf-8")
 
 
-def _asset(name: str) -> Path | None:
-    candidate = (ASSETS / name).resolve()
-    assets = ASSETS.resolve()
-    if assets not in candidate.parents and candidate != assets:
-        return None
-    return candidate if candidate.is_file() else None
+def _display_host(host: str) -> str:
+    return "127.0.0.1" if host in {"0.0.0.0", "::", "[::]"} else host
+
+
+def _viewer_bytes(path: Path, project: Project) -> bytes:
+    """Wrap a bare workflow plan or blueprint as a viewer snapshot."""
+
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return path.read_bytes()
+    if isinstance(value, dict) and "format" not in value:
+        if {"components", "steps", "connections"} <= value.keys():
+            value = {
+                "format": "kg-viewer-snapshot",
+                "version": 1,
+                "name": project.name,
+                "title": project.name,
+                "workflow": value,
+            }
+        elif {"graph", "data", "assets", "bindings"} <= value.keys():
+            value = {
+                "format": "kg-viewer-snapshot",
+                "version": 1,
+                "name": project.name,
+                "title": project.name,
+                "blueprint": value,
+            }
+    return _json_bytes(value)
+
+
+def _dev_viewer_url(project: Project) -> str:
+    """The viewer URL a development console should embed."""
+
+    entry = dev.read_role("viewer")
+    url = str(entry.get("url") or "").strip()
+    if url:
+        return f"{url.rstrip('/')}/?embed=1"
+    return ""
 
 
 def _current(project: Project, name: str) -> Path | None:
@@ -156,67 +201,111 @@ def _subject_payload(project: Project, key: str) -> dict[str, Any]:
     return {"ok": False, "error": "no subject matched"}
 
 
-def make_handler(project: Project, viewer_url: str) -> type[BaseHTTPRequestHandler]:
+def _api_response(
+    project: Project,
+    parsed: Any,
+    viewer_url: str,
+) -> tuple[int, str, bytes] | None:
+    """Resolve one API request; return ``(status, content type, body)``."""
+
+    path = parsed.path
+    if path in {"/api/relations", "/console/api/relations"}:
+        return 200, "application/json; charset=utf-8", _json_bytes(relations.graph(project))
+    if path in {"/api/config", "/console/api/config"}:
+        return (
+            200,
+            "application/json; charset=utf-8",
+            _json_bytes(
+                {
+                    "viewerUrl": viewer_url,
+                    "project": project.name,
+                    "dataDir": str(project.data_dir),
+                }
+            ),
+        )
+    if path in {"/api/current-view", "/console/api/current-view"}:
+        current = _current(project, "current.snapshot.json")
+        if current is None:
+            return 404, "text/plain; charset=utf-8", b"no current snapshot"
+        return 200, "application/json; charset=utf-8", _viewer_bytes(current, project)
+    if path in {"/api/revision-view", "/console/api/revision-view"}:
+        query = parse_qs(parsed.query)
+        revision = unquote(query.get("revision", [""])[0])
+        view = _revision_view(project, revision)
+        if view is None:
+            return 404, "text/plain; charset=utf-8", b"no revision view"
+        return 200, "application/json; charset=utf-8", _viewer_bytes(view, project)
+    if path in {"/api/graph-subject", "/console/api/graph-subject"}:
+        query = parse_qs(parsed.query)
+        value = unquote(query.get("key", [""])[0])
+        return 200, "application/json; charset=utf-8", _json_bytes(_subject_payload(project, value))
+    if path in {"/api/health", "/console/api/health"}:
+        return 200, "application/json; charset=utf-8", _json_bytes(
+            {"app": "kbs-api", "project": project.name}
+        )
+    return None
+
+
+def make_handler(project: Project) -> type[BaseHTTPRequestHandler]:
+    """Serve the integrated console, viewer and API on one origin."""
+
+    viewer_root = _asset_root(VIEWER_DIST, VIEWER_SOURCE)
+    console_root = _asset_root(CONSOLE_DIST, CONSOLE_SOURCE)
+
     class Handler(BaseHTTPRequestHandler):
         server_version = "kbs-console/0.1"
 
         def do_GET(self) -> None:  # noqa: N802 - stdlib hook
             parsed = urlparse(self.path)
             path = parsed.path
-            if path == "/api/relations":
-                self._send_json(relations.graph(project))
+            response = _api_response(project, parsed, VIEWER_URL)
+            if response is not None:
+                self._send_response(response)
                 return
-            if path == "/api/config":
-                self._send_json(
-                    {
-                        "viewerUrl": viewer_url,
-                        "project": project.name,
-                        "dataDir": str(project.data_dir),
-                    }
-                )
+            if path == "/console":
+                self.send_response(HTTPStatus.MOVED_PERMANENTLY)
+                self.send_header("Location", "/console/")
+                self.end_headers()
                 return
-            if path == "/api/current-view":
+            if path == "/snapshot":
                 current = _current(project, "current.snapshot.json")
                 if current is None:
                     self.send_error(HTTPStatus.NOT_FOUND)
                     return
-                self._send_file(current, "application/json; charset=utf-8")
+                self._send_bytes(_viewer_bytes(current, project), "application/json; charset=utf-8")
                 return
-            if path == "/api/graph-subject":
-                query = parse_qs(parsed.query)
-                value = unquote(query.get("key", [""])[0])
-                self._send_json(_subject_payload(project, value))
-                return
-            if path == "/api/revision-view":
-                query = parse_qs(parsed.query)
-                revision = unquote(query.get("revision", [""])[0])
-                view = _revision_view(project, revision)
-                if view is None:
-                    self.send_error(HTTPStatus.NOT_FOUND)
-                    return
-                self._send_file(view, "application/json; charset=utf-8")
-                return
-            name = "index.html" if path in {"/", ""} else path.lstrip("/")
-            asset = _asset(name)
+            if path.startswith("/console/"):
+                relative = path[len("/console/"):] or "index.html"
+                root = console_root
+            else:
+                relative = "index.html" if path in {"/", ""} else path.lstrip("/")
+                root = viewer_root
+            asset = self._static(root, relative)
             if asset is None:
                 self.send_error(HTTPStatus.NOT_FOUND)
                 return
-            content_type = mimetypes.guess_type(asset.name)[0] or "application/octet-stream"
-            self._send_file(asset, content_type)
+            self._send_bytes(asset.read_bytes(), mimetypes.guess_type(asset.name)[0] or "application/octet-stream")
 
-        def _send_file(self, path: Path, content_type: str) -> None:
-            body = path.read_bytes()
+        def _send_response(self, response: tuple[int, str, bytes]) -> None:
+            status, content_type, body = response
+            if status != 200:
+                self.send_error(status, body.decode("utf-8", "replace"))
+                return
+            self._send_bytes(body, content_type)
+
+        @staticmethod
+        def _static(root: Path | None, relative: str) -> Path | None:
+            if root is None:
+                return None
+            base = root.resolve()
+            candidate = (base / relative).resolve()
+            if base not in candidate.parents and candidate != base:
+                return None
+            return candidate if candidate.is_file() else None
+
+        def _send_bytes(self, body: bytes, content_type: str) -> None:
             self.send_response(HTTPStatus.OK)
             self.send_header("Content-Type", content_type)
-            self.send_header("Content-Length", str(len(body)))
-            self.send_header("Cache-Control", "no-store")
-            self.end_headers()
-            self.wfile.write(body)
-
-        def _send_json(self, value: Any) -> None:
-            body = _json_bytes(value)
-            self.send_response(HTTPStatus.OK)
-            self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", "no-store")
             self.end_headers()
@@ -228,20 +317,106 @@ def make_handler(project: Project, viewer_url: str) -> type[BaseHTTPRequestHandl
     return Handler
 
 
+def make_api_handler(project: Project) -> type[BaseHTTPRequestHandler]:
+    """API-only handler used by ``kbs console --api-only``."""
+
+    class Handler(BaseHTTPRequestHandler):
+        server_version = "kbs-api/0.1"
+
+        def do_GET(self) -> None:  # noqa: N802 - stdlib hook
+            parsed = urlparse(self.path)
+            response = _api_response(project, parsed, _dev_viewer_url(project))
+            if response is None:
+                self.send_error(HTTPStatus.NOT_FOUND)
+                return
+            status, content_type, body = response
+            if status != 200:
+                self.send_error(status, body.decode("utf-8", "replace"))
+                return
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, format: str, *args: object) -> None:
+            print(f"{self.address_string()} {format % args}")
+
+    return Handler
+
+
+def serve_api(
+    project: Project,
+    *,
+    host: str = "127.0.0.1",
+    port: int = 0,
+) -> None:
+    """Serve only the notebook API and publish the ``api`` dev role."""
+
+    project.ensure()
+    server = ThreadingHTTPServer((host, port), make_api_handler(project))
+    url = f"http://{_display_host(host)}:{server.server_port}"
+    dev.write_role("api", url)
+    print(f"kbs console API: {url}", flush=True)
+    print(f"Project: {project.root}", flush=True)
+    print(f"Notebook: {project.data_dir}", flush=True)
+    previous = None
+    try:
+        import signal
+
+        def stop(signum: int, frame: object) -> None:
+            raise KeyboardInterrupt
+
+        previous = signal.getsignal(signal.SIGTERM)
+        signal.signal(signal.SIGTERM, stop)
+    except (ImportError, OSError, ValueError):
+        previous = None
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        if previous is not None:
+            try:
+                import signal
+
+                signal.signal(signal.SIGTERM, previous)
+            except (OSError, ValueError):
+                pass
+        server.server_close()
+        dev.remove_role("api")
+
+
 def serve(
     project: Project,
     *,
     host: str = "127.0.0.1",
-    port: int = 8787,
-    viewer_url: str = DEFAULT_VIEWER_URL,
+    port: int = 0,
 ) -> None:
+    """Serve the console, the design viewer and the API on one origin."""
+
     project.ensure()
-    relations.graph(project)
-    server = ThreadingHTTPServer((host, port), make_handler(project, viewer_url))
-    print(f"kbs console: http://{host}:{port}/", flush=True)
+    if _asset_root(VIEWER_DIST, VIEWER_SOURCE) is None:
+        raise ValueError(
+            "design viewer assets are missing; viewer/ is the npm workspace root. "
+            "From the repository run:\n"
+            "  cd viewer && npm ci\n"
+            "  npm run build:static --workspace design"
+        )
+    if _asset_root(CONSOLE_DIST, CONSOLE_SOURCE) is None:
+        raise ValueError(
+            "console assets are missing; viewer/ is the npm workspace root. "
+            "From the repository run:\n"
+            "  cd viewer && npm ci\n"
+            "  npm run build:static --workspace console"
+        )
+    server = ThreadingHTTPServer((host, port), make_handler(project))
+    display = _display_host(host)
+    print(f"kbs console: http://{display}:{server.server_port}/console/", flush=True)
     print(f"Project: {project.root}", flush=True)
     print(f"Notebook: {project.data_dir}", flush=True)
-    print(f"Design viewer: {viewer_url}", flush=True)
+    print(f"Design viewer: http://{display}:{server.server_port}/", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
@@ -250,4 +425,11 @@ def serve(
         server.server_close()
 
 
-__all__ = ["ASSETS", "DEFAULT_VIEWER_URL", "make_handler", "serve"]
+__all__ = [
+    "CONSOLE_DIST",
+    "VIEWER_DIST",
+    "make_api_handler",
+    "make_handler",
+    "serve",
+    "serve_api",
+]

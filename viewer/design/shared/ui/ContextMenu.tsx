@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 
-import { cx } from "@/shared/ui/theme";
+import { cx } from "@kbs/design";
 import styles from "./ContextMenu.module.css";
 
 export interface ContextMenuItem {

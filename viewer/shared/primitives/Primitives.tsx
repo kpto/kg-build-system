@@ -3,7 +3,7 @@ import type {
   ReactNode,
 } from "react";
 
-import { cx } from "./theme";
+import { cx } from "../theme";
 import styles from "./primitives.module.css";
 
 type DataAttributes = {

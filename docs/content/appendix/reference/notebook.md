@@ -1,6 +1,6 @@
 ---
 title: Project notebook and console
-summary: The kbs notebook, its catalog, findings, proposals and revisions, and the separate console that embeds the design viewer by URL.
+summary: The kbs notebook, its catalog, findings, proposals and revisions, and the console that serves the design viewer on the same origin.
 section: reference
 perspective: reference
 order: 181
@@ -11,15 +11,15 @@ sources:
   - kg_build_system/notebook/config.py
   - kg_build_system/notebook/relations.py
   - kg_build_system/notebook/console.py
-  - kg_build_system/notebook/console/index.html
+  - viewer/console/app/page.tsx
 ---
 
 > [!lede]
 > `kbs notebook` records the project's findings, proposals, change designs,
 > revisions and captured views, and reads the catalog. It is not the graph
-> language and it is not the design viewer. `kbs console` is a separate page; it
-> embeds the design viewer as an external page through the viewer URL and the
-> embed bridge.
+> language and it is not the design viewer. `kbs console` serves the console at
+> `/console/` and the design viewer at `/` on one origin; the Viewer tab embeds
+> the viewer with `?embed=1` and pushes snapshots over the embed bridge.
 
 ## Surface
 
@@ -35,11 +35,16 @@ sources:
 | `kbs notebook revisions record` / `list` | Record or list revision pins. |
 | `kbs notebook compare --before … --after …` | Compare two revisions. |
 | `kbs notebook validate` / `build` / `audit` / `eval` | Run the project-owned commands from `notebook/config.json`. |
-| `kbs console` | Serve the project console on its own port. |
+| `kbs console` | Serve the console at `/console/`, the design viewer at `/` and the API on one available port. |
 
 Every notebook command takes `--project <dir>` (default `.`) and `--json`.
 Human output is key/value text; `--json` prints the same result as JSON. A
 failed command writes `error: …` to stderr and exits non-zero.
+
+`kbs console --api-only` is the development split: it serves only the API, and
+`viewer/console` and `viewer/design` run as separate Next dev servers. The dev
+launchers choose their own ports and publish `api`, `console` and `viewer` roles
+under the per-user dev directory, so no port is passed by hand.
 
 The notebook is `notebook/records/`: revisions, events, findings, proposals, change
 designs, documents and captured views. The package owns `records/`; the project
@@ -65,17 +70,22 @@ sidecar.
 
 ## Details
 
-The console is deliberately separate from the design viewer:
+The console and the design viewer share one origin, not one application:
 
-- `kbs console` serves `kg_build_system/notebook/console/index.html` and its assets
-  on the console port; it is not another copy of the design viewer.
-- The Viewer tab embeds the URL in `notebook/config.json` (`viewer_url`) or the
-  `--viewer-url` flag. `kbs view --embed` is the usual source of that page.
-- The console sends the latest compilation, or a captured revision snapshot, to the
-  embedded viewer over the message bridge. The viewer keeps its own rendering,
+- `kbs console` serves the console Next export at `/console/`, the design viewer
+  export at `/`, and the API at `/console/api/` and `/api/`. It binds an
+  available port and prints the `/console/` URL.
+- The Viewer tab embeds `/?embed=1`; there is no viewer URL config and no viewer
+  port. The console sends the latest compilation, or a captured revision
+  snapshot, over the message bridge. The viewer keeps its own rendering,
   selection and document model.
+- `kbs view` remains the standalone design viewer for a workflow plan or
+  snapshot. It serves the same design viewer export.
 - The console owns the relational catalog, revision timeline and subject lookup.
   The design viewer remains the place where a graph is read.
+- The console UI is the `viewer/console` Next app; it consumes the shared
+  `@kbs/design` tokens and primitives from `viewer/shared/`. There are no copied
+  console assets in the Python package.
 
 A project command is a JSON contract: it runs from the project root with the
 workspace on `PYTHONPATH`, and it prints one JSON object. A missing command

@@ -78,7 +78,7 @@ import { GraphEditor } from "./GraphFeature";
 import { InvolvedSteps } from "./view/InvolvedSteps";
 import { COLLECTIONS, type CollectionId } from "@/workbench/collections";
 import { ContextMenu } from "@/shared/ui/ContextMenu";
-import { laneColor } from "@/shared/ui/theme";
+import { laneColor } from "@kbs/design";
 import {
   branchLaneNodes,
   buildProof,

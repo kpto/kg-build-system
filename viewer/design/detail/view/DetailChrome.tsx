@@ -19,8 +19,8 @@ import {
   type DetailSectionKind,
 } from "./detailMarks";
 import { TabBanner, type TabBannerFact } from "@/shared/ui/TabBanner";
-import { Panel } from "@/shared/ui/Primitives";
-import { cx } from "@/shared/ui/theme";
+import { Panel } from "@kbs/design";
+import { cx } from "@kbs/design";
 import styles from "../detail.module.css";
 
 /** The page header's concept, so every section mark takes its colour. */

@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 
 import type { ConceptKind } from "@/lib/concepts";
 import { concepts, LayerMark } from "./concepts";
-import { cx } from "./theme";
+import { cx } from "@kbs/design";
 import styles from "./conceptMark.module.css";
 
 /**

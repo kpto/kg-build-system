@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { cx } from "@/shared/ui/theme";
+import { cx } from "@kbs/design";
 import styles from "@/shared/ui/conceptMark.module.css";
 
 /**

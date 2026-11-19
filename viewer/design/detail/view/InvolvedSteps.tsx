@@ -11,7 +11,7 @@ import { useCallback, useMemo, useState } from "react";
 import type { ViewerIndex } from "@/lib/types";
 import type { ProofModel } from "@/proof/model";
 import { useConceptNavigation } from "@/shared/ui/ConceptNavigation";
-import { groupPalette } from "@/shared/ui/theme";
+import { groupPalette } from "@kbs/design";
 import { ViewportHint } from "@/shared/ui/Viewport";
 import {
   WorkflowDag,

@@ -3,6 +3,8 @@ import path from "node:path";
 
 import type { NextConfig } from "next";
 
+import { devOrigins } from "../dev-origins";
+
 const staticExport = process.env.KBS_VIEWER_STATIC === "1";
 
 function discoveryFile(): { file: string; explicit: boolean } {
@@ -41,23 +43,22 @@ function discoveryApi(): string | undefined {
   }
 }
 
+const shared = {
+  reactStrictMode: true,
+  turbopack: { root: path.resolve(process.cwd(), "..") },
+  transpilePackages: ["@kbs/design"],
+  agentRules: false,
+  allowedDevOrigins: devOrigins(),
+} satisfies NextConfig;
+
 const nextConfig: NextConfig = staticExport
   ? {
-      reactStrictMode: true,
-      agentRules: false,
+      ...shared,
       output: "export",
       images: { unoptimized: true },
     }
   : {
-      reactStrictMode: true,
-      agentRules: false,
-      allowedDevOrigins: [
-        "127.0.0.1",
-        "localhost",
-        "dev.netbird.cloud",
-        "*.netbird.cloud",
-        "100.73.207.12",
-      ],
+      ...shared,
       async rewrites() {
         const api = discoveryApi();
         if (api) {

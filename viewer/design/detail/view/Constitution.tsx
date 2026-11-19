@@ -6,7 +6,7 @@ import type { ConceptKind } from "@/lib/concepts";
 import { concepts } from "@/shared/ui/concepts";
 import { GraphCanvas } from "@/shared/ui/GraphCanvas";
 import { ConceptPill } from "./ConceptPill";
-import { cx } from "@/shared/ui/theme";
+import { cx } from "@kbs/design";
 import type { ConstitutionModel, ConstitutionNode } from "../model/constitution";
 import {
   buildConstitutionScene,

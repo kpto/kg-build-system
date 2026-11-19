@@ -5,7 +5,7 @@ import { useMemo, type MouseEvent as ReactMouseEvent } from "react";
 import type { StepId, ViewerIndex } from "@/lib/types";
 import { stepKey } from "@/lib/indexes";
 import { GraphCanvas } from "./GraphCanvas";
-import { groupPalette, theme } from "./theme";
+import { groupPalette, theme } from "@kbs/design";
 
 /** The row shape a workflow DAG needs; the workflow model's row is one. */
 export interface WorkflowDagStep {

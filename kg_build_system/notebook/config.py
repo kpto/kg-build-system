@@ -33,9 +33,6 @@ DEFAULT_CONFIG: dict[str, Any] = {
     ],
     "snapshot_command": "",
     "commands": {},
-    "viewer_url": "http://127.0.0.1:3000/?embed=1",
-    "console_port": 8787,
-    "viewer_port": 3000,
 }
 
 

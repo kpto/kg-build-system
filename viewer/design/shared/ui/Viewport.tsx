@@ -11,7 +11,7 @@ import type {
 
 import type { ConceptKind } from "@/lib/concepts";
 import { TabBanner, type TabBannerFact } from "./TabBanner";
-import { cx } from "./theme";
+import { cx } from "@kbs/design";
 import styles from "./viewport.module.css";
 
 /**

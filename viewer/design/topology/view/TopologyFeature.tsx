@@ -34,12 +34,12 @@ import {
   Panel,
   PanelHeader,
   Row,
-} from "@/shared/ui/Primitives";
+} from "@kbs/design";
 import { PropertyPill } from "@/detail/view/ConceptPill";
 import {
   FulfilmentMap,
 } from "@/detail/view/FulfilmentMap";
-import { cx, groupPalette, theme } from "@/shared/ui/theme";
+import { cx, groupPalette, theme } from "@kbs/design";
 import styles from "./topologyFeature.module.css";
 import {
   ViewportAction,

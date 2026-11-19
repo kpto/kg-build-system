@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ChevronRight } from "lucide-react";
 
 import { ExplorerSidebar } from "@/detail/DetailFeature";
-import { cx } from "@/shared/ui/theme";
+import { cx } from "@kbs/design";
 import styles from "./sideBar.module.css";
 import { useWorkbench } from "./store";
 

@@ -294,6 +294,8 @@ missing, not the code.
   own composition. A token names a role, not a measured value: spacing has no
   numbered steps. A theme check rejects a raw value or a numbered spacing token
   in a component stylesheet.
+- A second application consumes the shared design language as one package; it
+  does not restate a token, a primitive or a palette.
 - Type flows through the shared role scale. A section header is larger and
   bolder than its content; an uppercase caption is a label, not a section
   header. A component selects a role; it does not invent a font size. A missing
