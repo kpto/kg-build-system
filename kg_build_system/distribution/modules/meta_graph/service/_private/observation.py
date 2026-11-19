@@ -76,15 +76,6 @@ def _observe(
     resources: Any,
 ) -> Observed:
     """Exact row count plus example values for ``properties``, in one pass."""
-    # A view may narrow the declared schema; observe only the declared
-    # properties the relation actually carries.
-    available = {
-        column[0]
-        for column in query(
-            resources, f"SELECT * FROM {relation} LIMIT 0",
-        ).description
-    }
-    properties = tuple(name for name in properties if name in available)
     select = [f"COUNT(*) AS {_quote(_TOTAL_COLUMN)}"]
     select += [
         f"approx_top_k({_quote(name)}, {value_limit}) AS {_quote(name)}"

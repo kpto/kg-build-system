@@ -204,21 +204,8 @@ def component_imports(
     return tuple(imports)
 
 
-def _relation_columns(resources: Any, relation_sql: str) -> set[str]:
-    """The columns one relation actually carries.
-
-    A view may narrow the declared schema: the projection of an annotated graph
-    can omit annotation fields. The export selects the declared properties the
-    view has and leaves the rest absent.
-    """
-    result = query(resources, f"SELECT * FROM {relation_sql} LIMIT 0")
-    return {column[0] for column in result.description}
-
-
 def select_sql(
-    specification: Neo4jComponentImportDTO,
-    relation_sql: str,
-    available: set[str] | None = None,
+    specification: Neo4jComponentImportDTO, relation_sql: str,
 ) -> str:
     """Project a graph relation into Neo4j's inline import headers."""
     columns: list[str]
@@ -237,7 +224,6 @@ def select_sql(
         ]
     columns.extend(
         f'"{_quote_identifier(name)}"' for name in specification.properties
-        if available is None or name in available
     )
     special = ":LABEL" if isinstance(specification, Neo4jNodeImportDTO) else ":TYPE"
     columns.append(f'{_sql_string(specification.label)} AS "{special}"')
@@ -289,11 +275,7 @@ def export_component(
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     export_parquet(
-        resources,
-        select_sql(
-            specification, relation_sql, _relation_columns(resources, relation_sql),
-        ),
-        output_path,
+        resources, select_sql(specification, relation_sql), output_path,
     )
     count = query(
         resources,
