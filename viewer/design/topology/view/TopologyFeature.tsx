@@ -898,23 +898,34 @@ function linkPath(
     };
   }
 
-  // A parallel link bows between the nodes but meets each circle along the
-  // centre line: the short radial stubs keep both ends perpendicular to the
-  // node surface and let the arrow head land square on the target.
-  const gap = Math.max(0, distance - sourceRadius - targetRadius);
-  const stub = Math.min(18, gap * 0.35);
-  const startOutX = startX + ux * stub;
-  const startOutY = startY + uy * stub;
-  const endInX = endX - ux * stub;
-  const endInY = endY - uy * stub;
-  const normalX = -uy;
-  const normalY = ux;
-  const controlX = (startOutX + endInX) / 2 + normalX * offset * 2;
-  const controlY = (startOutY + endInY) / 2 + normalY * offset * 2;
+  // A parallel link is one smooth cubic. Its attachment points fan around the
+  // facing sides of the two circles, so the controls can bow the link while
+  // both endpoint tangents remain radial. There is no straight stub and no
+  // kink where the curve meets either surface.
+  const fan = Math.max(
+    -0.5,
+    Math.min(0.5, offset / Math.max(24, sourceRadius + targetRadius)),
+  );
+  const baseAngle = Math.atan2(dy, dx);
+  const startAngle = baseAngle + fan;
+  const endAngle = baseAngle + Math.PI - fan;
+  const n1x = Math.cos(startAngle);
+  const n1y = Math.sin(startAngle);
+  const n2x = Math.cos(endAngle);
+  const n2y = Math.sin(endAngle);
+  const curveStartX = sourceX + n1x * sourceRadius;
+  const curveStartY = sourceY + n1y * sourceRadius;
+  const curveEndX = targetX + n2x * targetRadius;
+  const curveEndY = targetY + n2y * targetRadius;
+  const control = Math.max(28, Math.min(140, distance * 0.38));
+  const control1X = curveStartX + n1x * control;
+  const control1Y = curveStartY + n1y * control;
+  const control2X = curveEndX + n2x * control;
+  const control2Y = curveEndY + n2y * control;
   return {
-    path: `M ${startX} ${startY} L ${startOutX} ${startOutY} Q ${controlX} ${controlY} ${endInX} ${endInY} L ${endX} ${endY}`,
-    x: endX,
-    y: endY,
+    path: `M ${curveStartX} ${curveStartY} C ${control1X} ${control1Y}, ${control2X} ${control2Y}, ${curveEndX} ${curveEndY}`,
+    x: curveEndX,
+    y: curveEndY,
   };
 }
 
